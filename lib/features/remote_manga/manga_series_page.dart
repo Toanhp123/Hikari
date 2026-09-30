@@ -1,28 +1,42 @@
-import 'package:flutter/material.dart';
-import 'package:hikari/domain/media/source.dart';
+import 'dart:typed_data';
 
-class MangaChapterPage extends StatefulWidget {
-  const MangaChapterPage({
+import 'package:flutter/material.dart';
+
+import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/features/reading/media_metadata_view.dart';
+
+class MangaSeriesPage extends StatefulWidget {
+  const MangaSeriesPage({
     super.key,
     required this.title,
     required this.sourceName,
-    required this.loadChapters,
+    required this.loadDetails,
+    this.readArtwork,
     required this.openChapter,
   });
   final String title, sourceName;
-  final Future<List<MangaChapter>> Function() loadChapters;
+  final Future<MangaSeriesDetails> Function() loadDetails;
+  final Future<Uint8List> Function(SourceMediaRef)? readArtwork;
   final Future<void> Function(BuildContext, MangaChapter) openChapter;
   @override
-  State<MangaChapterPage> createState() => _MangaChapterPageState();
+  State<MangaSeriesPage> createState() => _MangaSeriesPageState();
 }
 
-class _MangaChapterPageState extends State<MangaChapterPage> {
+class _MangaSeriesPageState extends State<MangaSeriesPage> {
   late Future<List<MangaChapter>> _chaptersFuture;
   bool _isOpeningChapter = false;
+  MangaSeriesDetails? _details;
+  Future<List<MangaChapter>> _load() async {
+    final details = await widget.loadDetails();
+    _details = details;
+    return details.chapters;
+  }
+
   @override
   void initState() {
     super.initState();
-    _chaptersFuture = Future.sync(widget.loadChapters);
+    _chaptersFuture = Future.sync(_load);
   }
 
   Future<void> _openChapter(MangaChapter chapter) async {
@@ -74,9 +88,7 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                           ),
                           TextButton(
                             onPressed: () => setState(() {
-                              _chaptersFuture = Future.sync(
-                                widget.loadChapters,
-                              );
+                              _chaptersFuture = Future.sync(_load);
                             }),
                             child: const Text('Try again'),
                           ),
@@ -86,17 +98,30 @@ class _MangaChapterPageState extends State<MangaChapterPage> {
                   );
                 }
                 final chapters = snapshot.data!;
-                if (chapters.isEmpty) {
-                  return const Center(
-                    child: Text('No readable chapters found.'),
-                  );
-                }
+                final details = _details!;
                 return ListView.builder(
-                  itemCount: chapters.length,
+                  itemCount: chapters.length + 1,
                   itemBuilder: (context, index) {
-                    final chapter = chapters[index];
+                    if (index == 0) {
+                      return Column(
+                        children: [
+                          MediaMetadataView(
+                            metadata: details.metadata,
+                            sourceName: widget.sourceName,
+                            readArtwork: widget.readArtwork,
+                          ),
+                          if (chapters.isEmpty)
+                            const Text('No readable chapters found.'),
+                        ],
+                      );
+                    }
+                    final chapter = chapters[index - 1];
                     final subtitle = <String>[
                       chapter.scanlator ?? widget.sourceName,
+                      if (chapter.chapterNumber != null)
+                        'Chapter ${chapter.chapterNumber}',
+                      if (chapter.uploadedAt != null)
+                        chapter.uploadedAt!.toIso8601String().split('T').first,
                       if (!chapter.canReadPages) 'Not readable in Hikari',
                     ].join(' · ');
                     return ListTile(

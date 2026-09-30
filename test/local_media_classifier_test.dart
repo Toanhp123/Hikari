@@ -16,6 +16,29 @@ void main() {
     isDirectory: true,
   );
 
+  test('archive rename keeps SAF identity stable', () {
+    for (final format in ['cbz', 'epub']) {
+      final before = classifyLocalEntries([
+        LocalEntry(
+          id: 'content://root/book',
+          parentId: 'root',
+          name: 'old.$format',
+          isDirectory: false,
+        ),
+      ]).single;
+      final after = classifyLocalEntries([
+        LocalEntry(
+          id: 'content://root/book',
+          parentId: 'root',
+          name: 'new.$format',
+          isDirectory: false,
+        ),
+      ]).single;
+      expect(before.source, after.source);
+      expect(before.title, isNot(after.title));
+    }
+  });
+
   test('video and text extensions classify case insensitively', () {
     final items = classifyLocalEntries([
       root,
@@ -45,14 +68,28 @@ void main() {
       for (final ext in ['jpg', 'JPEG', 'png', 'webp'])
         file('1.$ext', parent: 'child'),
       file('ignored.pdf'),
-      file('archive.cbz'),
-      file('book.epub'),
+      file('archive.cbz', parent: 'content://root'),
+      file('book.epub', parent: 'content://root'),
     ];
     final items = classifyLocalEntries(entries);
-    expect(items, hasLength(1));
-    expect(items.single.title, 'Pages');
-    expect(items.single.type, MediaType.manga);
-    expect(items.single.source.itemId, 'child');
+    expect(items, hasLength(3));
+    expect(items.where((item) => item.type == MediaType.manga), hasLength(2));
+    expect(
+      items.where((item) => item.type == MediaType.lightNovel),
+      hasLength(1),
+    );
+    expect(
+      items.map((item) => item.title),
+      containsAll(['Pages', 'archive', 'book']),
+    );
+    expect(
+      items.singleWhere((item) => item.title == 'book').source.itemId,
+      startsWith('hikari-epub:'),
+    );
+    expect(
+      items.singleWhere((item) => item.title == 'Pages').source.itemId,
+      'child',
+    );
   });
 
   test(

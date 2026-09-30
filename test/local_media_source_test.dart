@@ -1,8 +1,14 @@
-import 'package:flutter/services.dart';
+import 'dart:io';
 
+import 'package:archive/archive_io.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
+import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 
@@ -15,12 +21,164 @@ void main() {
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'opaque');
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
+  test('CBZ reader shares one copy then releases and reopens', () async {
+    final directory = Directory.systemTemp.createTempSync('hikari-cbz-');
+    final fixture = File('${directory.path}/book.cbz');
+    final encoder = ZipFileEncoder()..create(fixture.path);
+    encoder.addArchiveFile(
+      ArchiveFile.bytes('1.png', Uint8List.fromList([1, 2])),
+    );
+    encoder.addArchiveFile(
+      ArchiveFile.bytes('2.png', Uint8List.fromList([3, 4])),
+    );
+    encoder.closeSync();
+    var copies = 0;
+    var deletions = 0;
+    final local = LocalMediaSource();
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'materialize') {
+        final copy = fixture.copySync('${directory.path}/copy-${++copies}');
+        return {'path': copy.path};
+      }
+      if (call.method == 'deleteMaterialized') {
+        final args = call.arguments as Map<Object?, Object?>;
+        File(args['path']! as String).deleteSync();
+        deletions++;
+        return true;
+      }
+      fail('Unexpected ${call.method}');
+    });
+    final ref = SourceMediaRef(
+      sourceId: SourceId.local,
+      itemId: const LocalArchiveRef(locator: 'content://book').encode(),
+    );
+    final lease = local.acquireOpenLease(ref);
+    expect(lease, isNotNull);
+    final pages = await local.pages(ref);
+    expect(await Future.wait(pages.map(local.readPage)), [
+      [1, 2],
+      [3, 4],
+    ]);
+    expect(copies, 1);
+    expect(deletions, 0);
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'deleteMaterialized');
+      return false;
+    });
+    await expectLater(lease!.release(), throwsStateError);
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'materialize') {
+        return {
+          'path': fixture.copySync('${directory.path}/copy-${++copies}').path,
+        };
+      }
+      final args = call.arguments as Map<Object?, Object?>;
+      File(args['path']! as String).deleteSync();
+      deletions++;
+      return true;
+    });
+    expect(deletions, 0);
+    final reopenedLease = local.acquireOpenLease(ref);
+    expect(reopenedLease, isNotNull);
+    expect(await local.readPage(pages.last), [3, 4]);
+    expect(copies, 2);
+    await local.close();
+    expect(deletions, 2);
+    directory.deleteSync(recursive: true);
+  });
+
+  test('archive identities exclude names, distinguish format and reject malformed refs', () {
+    const cbz = LocalArchiveRef(locator: 'content://book');
+    const epub = LocalArchiveRef(locator: 'content://book', format: 'epub');
+    expect(cbz.encode(), isNot(epub.encode()));
+    expect(LocalArchiveRef.tryDecode(cbz.encode())?.locator, 'content://book');
+    expect(LocalArchiveRef.tryDecode('hikari-cbz:bad'), isNull);
+    expect(
+      () => const LocalArchiveRef(locator: 'file:///private').encode(),
+      throwsFormatException,
+    );
+    expect(
+      () => const LocalArchiveRef(
+        locator: 'content://book',
+        entry: '../private',
+      ).encode(),
+      throwsFormatException,
+    );
+  });
+
+  test(
+    'wrong source and malformed archive cannot reach platform reads',
+    () async {
+      messenger.setMockMethodCallHandler(
+        channel,
+        (_) async => fail('Unexpected platform call'),
+      );
+      await expectLater(
+        source.pages(
+          const SourceMediaRef(sourceId: SourceId('other'), itemId: 'folder'),
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        source.readPage(
+          const SourceMediaRef(
+            sourceId: SourceId.local,
+            itemId: 'hikari-cbz:bad',
+          ),
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
   test('local source exposes only implemented capabilities', () {
     expect(source, isA<MediaSource>());
     expect(source, isA<MangaPageSource>());
     expect(source, isA<NovelTextSource>());
+    expect(source, isA<PublicationSource>());
+    expect(source, isA<MediaOpenLeaseSource>());
     expect(source.id, SourceId.local);
     expect(source.name, isNotEmpty);
+  });
+
+  test('open lease is only created for archive-backed local media', () {
+    expect(source.acquireOpenLease(ref), isNull);
+  });
+
+  test('publication capability owns only EPUB archive refs', () {
+    final epub = LocalArchiveRef(
+      locator: 'content://book',
+      format: 'epub',
+    ).encode();
+    final epubResource = LocalArchiveRef(
+      locator: 'content://book',
+      format: 'epub',
+      entry: 'OPS/chapter.xhtml',
+    ).encode();
+    expect(
+      source.canOpenPublication(
+        SourceMediaRef(sourceId: SourceId.local, itemId: epub),
+      ),
+      isTrue,
+    );
+    expect(
+      source.canOpenPublication(
+        const SourceMediaRef(sourceId: SourceId.local, itemId: 'plain.txt'),
+      ),
+      isFalse,
+    );
+    expect(
+      source.canOpenPublication(
+        SourceMediaRef(sourceId: const SourceId('remote'), itemId: epub),
+      ),
+      isFalse,
+    );
+    expect(
+      source.canOpenPublication(
+        SourceMediaRef(sourceId: SourceId.local, itemId: epubResource),
+      ),
+      isFalse,
+    );
   });
 
   test('missing stored root is a normal null restore result', () async {

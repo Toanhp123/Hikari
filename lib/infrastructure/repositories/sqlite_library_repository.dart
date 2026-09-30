@@ -3,7 +3,7 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
-final class SqliteLibraryRepository implements LibraryRepository {
+final class SqliteLibraryRepository implements ObservableLibraryRepository {
   SqliteLibraryRepository(this._database);
 
   final UserDatabase _database;
@@ -45,11 +45,20 @@ final class SqliteLibraryRepository implements LibraryRepository {
 
   @override
   Future<List<LibraryEntry>> loadAll() async {
-    final rows = await (_database.select(
-      _database.libraryRecords,
-    )..orderBy([(table) => OrderingTerm.desc(table.addedAt)])).get();
+    final rows = await _orderedQuery().get();
+    return rows.map(_mapLibraryEntry).toList(growable: false);
+  }
 
-    return rows.map(_mapLibraryEntry).toList();
+  @override
+  Stream<List<LibraryEntry>> watchAll() {
+    return _orderedQuery().watch().map(
+      (rows) => List.unmodifiable(rows.map(_mapLibraryEntry)),
+    );
+  }
+
+  SimpleSelectStatement<$LibraryRecordsTable, LibraryRecord> _orderedQuery() {
+    return _database.select(_database.libraryRecords)
+      ..orderBy([(table) => OrderingTerm.desc(table.addedAt)]);
   }
 }
 

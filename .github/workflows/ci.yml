@@ -52,5 +52,11 @@ jobs:
       - name: Test and architecture guard
         run: flutter test
 
+      - name: Test bounded LNReader runtime
+        run: |
+          cmake -S android/app/src/main/cpp/lnreader -B build/lnreader-runtime -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/lnreader-runtime --config Release --target hikari_runtime_test
+          ctest --test-dir build/lnreader-runtime -C Release --output-on-failure
+
       - name: Build Android debug APK
         run: flutter build apk --debug

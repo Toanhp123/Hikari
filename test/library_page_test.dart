@@ -60,6 +60,11 @@ void main() {
       expect(await library.contains(media.source), isFalse);
       await tester.pumpAndSettle();
       expect(find.text('Your library is empty.'), findsOneWidget);
+
+      // LibraryPage owns a live Drift watch; dispose it before closing the
+      // in-memory database in tearDown.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
     },
   );
   testWidgets('scan refreshes membership after returning from Library', (
@@ -118,5 +123,29 @@ void main() {
     await tester.tap(find.byTooltip('Remove from library'));
     await tester.pumpAndSettle();
     expect(await library.contains(media.source), isFalse);
+  });
+
+  testWidgets('reactive repository updates an already mounted LibraryPage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LibraryPage(repository: library, openMedia: (_, _) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Your library is empty.'), findsOneWidget);
+
+    await library.upsert(
+      LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saved book'), findsOneWidget);
+
+    // Dispose the page before the database tearDown closes Drift so the
+    // reactive watch subscription is cancelled deterministically.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
   });
 }

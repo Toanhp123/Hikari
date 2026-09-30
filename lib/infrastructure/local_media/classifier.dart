@@ -1,8 +1,20 @@
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
+
+String _archiveItemId(LocalEntry entry, String format) =>
+    LocalArchiveRef(locator: entry.id, format: format).encode();
+
+String _mediaTitle(String name) {
+  final separator = name.lastIndexOf('.');
+  return separator <= 0 ? name : name.substring(0, separator);
+}
+
+String _archiveFormat(String extension) => extension == 'epub' ? 'epub' : 'cbz';
 
 const _pageExtensions = {'jpg', 'jpeg', 'png', 'webp'};
 const _videoExtensions = {'mp4', 'mkv', 'webm', 'm4v'};
 const _textExtensions = {'txt', 'md'};
+const _archiveExtensions = {'cbz', 'epub'};
 
 class LocalEntry {
   const LocalEntry({
@@ -32,6 +44,8 @@ MediaType? _classifyEntry(LocalEntry entry, Set<String?> imageParents) {
   final extension = _extension(entry.name);
   if (_videoExtensions.contains(extension)) return MediaType.anime;
   if (_textExtensions.contains(extension)) return MediaType.lightNovel;
+  if (extension == 'epub') return MediaType.lightNovel;
+  if (extension == 'cbz') return MediaType.manga;
   return null;
 }
 
@@ -43,11 +57,19 @@ List<Media> classifyLocalEntries(List<LocalEntry> entries) {
     if (type == null) continue;
     result.add(
       Media(
-        title: entry.isDirectory
-            ? entry.name
-            : entry.name.substring(0, entry.name.lastIndexOf('.')),
+        title: entry.isDirectory ? entry.name : _mediaTitle(entry.name),
         type: type,
-        source: SourceMediaRef(sourceId: SourceId.local, itemId: entry.id),
+        source: SourceMediaRef(
+          sourceId: SourceId.local,
+          itemId: entry.isDirectory
+              ? entry.id
+              : (_archiveExtensions.contains(_extension(entry.name))
+                    ? _archiveItemId(
+                        entry,
+                        _archiveFormat(_extension(entry.name)),
+                      )
+                    : entry.id),
+        ),
       ),
     );
   }

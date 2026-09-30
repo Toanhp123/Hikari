@@ -140,6 +140,36 @@ void main() {
         kind: 'part',
         uri: 'package:hikari/domain/state.g.dart',
       ),
+      (
+        sourcePath: 'app/theme/hikari_theme.dart',
+        sourceLayer: 'app',
+        kind: 'import',
+        uri: 'package:hikari/features/library/library_page.dart',
+      ),
+      (
+        sourcePath: 'core/ui/components/hikari_button.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:hikari/features/library/library_page.dart',
+      ),
+      (
+        sourcePath: 'core/ui/components/hikari_button.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:hikari/infrastructure/persistence/user_database.dart',
+      ),
+      (
+        sourcePath: 'features/library/library_page.dart',
+        sourceLayer: 'features',
+        kind: 'import',
+        uri: 'package:hikari/app/app.dart',
+      ),
+      (
+        sourcePath: 'core/result.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:flutter/material.dart',
+      ),
     ];
 
     for (final item in cases) {
@@ -217,6 +247,42 @@ void main() {
         sourceLayer: 'app',
         kind: 'import',
         uri: 'package:hikari/infrastructure/repositories/library_repository.dart',
+      ),
+      (
+        sourcePath: 'core/ui/components/hikari_button.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:flutter/material.dart',
+      ),
+      (
+        sourcePath: 'core/ui/components/hikari_button.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:hikari/app/theme/hikari_theme.dart',
+      ),
+      (
+        sourcePath: 'core/ui/patterns/media_poster.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:hikari/core/ui/components/hikari_chip.dart',
+      ),
+      (
+        sourcePath: 'core/ui/patterns/media_poster.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:hikari/domain/media/media.dart',
+      ),
+      (
+        sourcePath: 'features/library/library_page.dart',
+        sourceLayer: 'features',
+        kind: 'import',
+        uri: 'package:hikari/app/theme/hikari_theme.dart',
+      ),
+      (
+        sourcePath: 'features/library/library_page.dart',
+        sourceLayer: 'features',
+        kind: 'import',
+        uri: 'package:hikari/core/ui/components/hikari_button.dart',
       ),
     ];
 
@@ -299,7 +365,10 @@ String? _checkDependency({
   required String uri,
 }) {
   final parsed = Uri.tryParse(uri);
-  if (_pureLayers.contains(sourceLayer)) {
+  final isCoreUi = sourcePath.startsWith('core/ui/');
+  final isAppTheme = sourcePath.startsWith('app/theme/');
+
+  if (_pureLayers.contains(sourceLayer) && !isCoreUi) {
     if (parsed?.scheme == 'package' &&
         (parsed!.pathSegments.isEmpty ||
             parsed.pathSegments.first != 'hikari')) {
@@ -309,6 +378,21 @@ String? _checkDependency({
       return '$sourceLayer must stay platform-independent: $kind $uri';
     }
   }
+
+  if (isCoreUi || isAppTheme) {
+    if (parsed?.scheme == 'package') {
+      final package = parsed!.pathSegments.isEmpty
+          ? ''
+          : parsed.pathSegments.first;
+      if (package != 'hikari' && package != 'flutter') {
+        return '$sourcePath cannot depend on external package: $kind $uri';
+      }
+    }
+    if (_platformLibraries.contains(uri)) {
+      return '$sourcePath must stay platform-independent: $kind $uri';
+    }
+  }
+
   if (sourceLayer == 'infrastructure' &&
       parsed != null &&
       parsed.scheme == 'package' &&
@@ -344,6 +428,33 @@ String? _checkDependency({
     return sourceLayer == targetLayer
         ? null
         : '$kind must stay inside $sourceLayer: $uri';
+  }
+
+  if (isAppTheme) {
+    if (targetPath.startsWith('app/theme/')) {
+      return null;
+    }
+    return 'app/theme must remain isolated from $targetPath: $kind $uri';
+  }
+
+  if (sourceLayer == 'features' && targetLayer == 'app') {
+    if (targetPath.startsWith('app/theme/')) {
+      return null;
+    }
+    return 'features cannot depend on app root/wiring ($targetPath): $kind $uri';
+  }
+
+  if (isCoreUi) {
+    if (targetPath.startsWith('app/theme/')) {
+      return null;
+    }
+    if (targetPath.startsWith('core/ui/')) {
+      return null;
+    }
+    if (sourcePath.startsWith('core/ui/patterns/') && targetLayer == 'domain') {
+      return null;
+    }
+    return '$sourcePath cannot depend on $targetPath: $kind $uri';
   }
 
   return (_allowed[sourceLayer] ?? const <String>{}).contains(targetLayer)

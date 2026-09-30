@@ -1,23 +1,52 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/patterns/media_progress.dart' as ui;
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
+import 'package:hikari/features/novel_reader/novel_content_view.dart';
+
+enum NovelReaderTheme {
+  oled(label: 'OLED', bg: Color(0xFF000000), fg: Color(0xFFD1D5DB)),
+  charcoal(label: 'Charcoal', bg: Color(0xFF161B26), fg: Color(0xFFF8FAFC)),
+  sepia(label: 'Sepia', bg: Color(0xFFFBF0D9), fg: Color(0xFF452B14)),
+  white(label: 'White', bg: Color(0xFFFFFFFF), fg: Color(0xFF111827));
+
+  const NovelReaderTheme({
+    required this.label,
+    required this.bg,
+    required this.fg,
+  });
+
+  final String label;
+  final Color bg;
+  final Color fg;
+}
 
 class NovelReaderPage extends StatefulWidget {
   const NovelReaderPage({
     super.key,
     required this.title,
-    required this.loadText,
+    this.loadText,
+    this.loadContent,
+    this.readResource,
     this.initialProgress,
     this.saveProgress,
-  });
+  }) : assert((loadText != null) != (loadContent != null)),
+       assert(loadContent == null || readResource != null);
 
   final MediaProgress? initialProgress;
   final Future<void> Function(ProgressPosition, bool)? saveProgress;
 
   final String title;
-  final Future<String> Function() loadText;
+  final Future<String> Function()? loadText;
+  final Future<RichReadingContent> Function()? loadContent;
+  final Future<Uint8List> Function(SourceMediaRef)? readResource;
 
   @override
   State<NovelReaderPage> createState() => _NovelReaderPageState();
@@ -31,6 +60,12 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   double _position = 0;
   bool _completed = false;
   (double, bool)? _lastSaved;
+  final _progress = ValueNotifier<double>(0);
+
+  NovelReaderTheme _readerTheme = NovelReaderTheme.charcoal;
+  double _fontSize = 16.0;
+  final double _lineHeight = 1.6;
+  final double _horizontalPadding = 20.0;
 
   void _changed() {
     if (!_restored || !_scroll.hasClients) return;
@@ -39,6 +74,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
       _scroll.position.maxScrollExtent,
     );
     _completed = textAtEnd(_scroll.offset, _scroll.position.maxScrollExtent);
+    _progress.value = _position;
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), _flush);
   }
@@ -72,11 +108,13 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   void dispose() {
     unawaited(_flush());
     _scroll.dispose();
+    _progress.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   String? _text;
+  RichReadingContent? _content;
   Object? _error;
   bool _loading = true;
 
@@ -94,10 +132,12 @@ class _NovelReaderPageState extends State<NovelReaderPage>
       _error = null;
     });
     try {
-      final text = await widget.loadText();
+      final text = await widget.loadText?.call();
+      final content = await widget.loadContent?.call();
       if (!mounted) return;
       setState(() {
         _text = text;
+        _content = content;
         _loading = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -114,6 +154,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         );
         _lastSaved = (_position, _completed);
         _restored = true;
+        _progress.value = _position;
       });
     } catch (error) {
       if (!mounted) return;
@@ -124,41 +165,220 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     }
   }
 
+  void _showPreferencesSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.hikariColors.surfaceElevated,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final colors = context.hikariColors;
+            return Padding(
+              padding: const EdgeInsets.all(HikariSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reading Preferences',
+                    style: HikariTypography.titleMedium.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: HikariSpacing.md),
+
+                  // Reading Themes
+                  Text(
+                    'Color Theme',
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  ),
+                  const SizedBox(height: HikariSpacing.xs),
+                  Row(
+                    children: NovelReaderTheme.values.map((t) {
+                      final isSelected = _readerTheme == t;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: HikariSpacing.sm),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() => _readerTheme = t);
+                            setModalState(() {});
+                          },
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: t.bg,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected
+                                    ? colors.primaryGlow
+                                    : colors.border,
+                                width: isSelected ? 2.5 : 1.0,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Aa',
+                                style: TextStyle(
+                                  color: t.fg,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: HikariSpacing.md),
+
+                  // Font Size
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Font Size',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '${_fontSize.toInt()}sp',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _fontSize,
+                    min: 12,
+                    max: 26,
+                    divisions: 7,
+                    activeColor: colors.primary,
+                    inactiveColor: colors.surfaceHighlight,
+                    onChanged: (val) {
+                      setState(() => _fontSize = val);
+                      setModalState(() {});
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      backgroundColor: _readerTheme.bg,
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: _readerTheme.bg,
+        foregroundColor: _readerTheme.fg,
+        elevation: 0,
+        actions: [
+          HikariIconButton(
+            icon: const Icon(Icons.format_size_rounded),
+            tooltip: 'Reading Preferences',
+            color: _readerTheme.fg,
+            onPressed: _showPreferencesSheet,
+          ),
+          const SizedBox(width: HikariSpacing.xs),
+        ],
+      ),
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Could not load this novel.'),
-                    TextButton(
-                      onPressed: _load,
-                      child: const Text('Try again'),
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Could not load this novel.'),
+                          const SizedBox(height: HikariSpacing.sm),
+                          TextButton(
+                            onPressed: _load,
+                            child: const Text('Try again'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      controller: _scroll,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: _horizontalPadding,
+                        vertical: 20,
+                      ),
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: _content != null
+                              ? NovelContentView(
+                                  content: _content!,
+                                  readResource: widget.readResource!,
+                                  textStyle: TextStyle(
+                                    color: _readerTheme.fg,
+                                    fontSize: _fontSize,
+                                    height: _lineHeight,
+                                  ),
+                                )
+                              : SelectableText(
+                                  _text ?? '',
+                                  style: TextStyle(
+                                    color: _readerTheme.fg,
+                                    fontSize: _fontSize,
+                                    height: _lineHeight,
+                                  ),
+                                ),
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-              )
-            : SingleChildScrollView(
-                controller: _scroll,
-                padding: const EdgeInsets.all(20),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: SelectableText(
-                      _text ?? '',
-                      style: Theme.of(context).textTheme.bodyLarge
-                          ?.copyWith(height: 1.6),
-                    ),
+            ),
+            if (!_loading && _error == null)
+              ValueListenableBuilder<double>(
+                valueListenable: _progress,
+                builder: (context, progress, _) => Container(
+                  height: 24,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HikariSpacing.md,
+                  ),
+                  color: _readerTheme.bg,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ui.MediaProgress(
+                          progress: progress,
+                          height: 2.5,
+                          showGlow: false,
+                        ),
+                      ),
+                      const SizedBox(width: HikariSpacing.sm),
+                      Text(
+                        '${(progress * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _readerTheme.fg.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+          ],
+        ),
       ),
     );
   }

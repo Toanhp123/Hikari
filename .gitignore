@@ -1,6 +1,10 @@
 # Claude Code local-only instructions
 CLAUDE.local.md
 
+# Reproducible LNReader build-tool dependencies (lockfile is tracked)
+/tool/lnreader/node_modules/
+/android/app/.cxx/
+
 # Miscellaneous
 *.class
 *.log

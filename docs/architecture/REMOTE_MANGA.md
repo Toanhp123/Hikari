@@ -5,7 +5,7 @@
 Remote manga uses the same domain capabilities regardless of transport:
 
 - `MangaSearchSource` returns normalized manga `Media`;
-- `MangaChapterSource` resolves a series into chapters;
+- `MangaSeriesSource` resolves a series into chapters;
 - `MangaPageSource` resolves a chapter into pages and page bytes.
 
 `SearchManga`, `OpenMedia` and `OpenMangaChapter` operate on those capabilities through the immutable `SourceRegistry`. Provider networking and website behavior belong to installed extensions, not Hikari core.
@@ -29,11 +29,11 @@ SourceId = "mihon:<upstream source id>"
 itemId   = opaque extension-owned reference
 ```
 
-The opaque reference can include extension-lib `memo` state required to make later chapter/page calls. Domain and persisted user-state code do not parse it.
+Manga/chapter references use `mihon-v2:` with only resource kind and opaque provider URL. Mutable title, memo, chapter number, scanlator and upload date never participate in identity. The adapter awaits SQLite continuation writes before returning discovered references, and reads that state on later series/page calls, including after restart without searching again. Details refresh replaces manga continuation with the updated provider payload. Missing or malformed persisted state reports an error, never silently substitutes an empty memo.
 
-Manga/chapter references use the generic opaque `mihon-v1:` payload described in [EXTENSIONS](EXTENSIONS.md). No legacy MangaDex identity compatibility or UUID translation is retained: the project intentionally accepts a clean app-data reset at this stage instead of migrating pre-refactor Library/Progress rows, per [ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md).
+Schema version 3 migrates valid prior generic `mihon-v1:` user references and their continuation; unrelated records are preserved. This does not restore the removed legacy MangaDex UUID translation. See [USER_STATE](USER_STATE.md) and [ADR-009](../decisions/ADR-009-stable-source-identities.md).
 
-Without an extension, saved generic references encounter the existing missing-source error. Rows are not deleted or migrated. Reinstalling the compatible extension and restarting Hikari makes those generic references resolvable again. No database schema change is required.
+Without an extension, saved references encounter the existing missing-source error. Rows and continuation are not deleted. Reinstalling the compatible extension and restarting Hikari makes those references resolvable again.
 
 Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Series-level “resume last chapter” remains deferred.
 

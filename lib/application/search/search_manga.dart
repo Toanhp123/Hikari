@@ -1,5 +1,6 @@
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/source.dart';
 
 final class MangaSearchOption {
@@ -27,12 +28,16 @@ final class SearchManga {
         .map((source) => MangaSearchOption(id: source.id, name: source.name)),
   );
 
-  Future<List<Media>> execute({
+  Future<MangaSearchPage> execute({
     required SourceId sourceId,
     required String query,
+    int page = 1,
   }) async {
+    if (page < 1) throw ArgumentError.value(page, 'page');
     final normalizedQuery = query.trim();
-    if (normalizedQuery.isEmpty) return const [];
+    if (normalizedQuery.isEmpty) {
+      return MangaSearchPage(results: const [], hasNextPage: false, page: page);
+    }
 
     final source = _sources.requireCapability<MangaSearchSource>(sourceId);
     if (!_canOpenSearchResults(source)) {
@@ -44,15 +49,28 @@ final class SearchManga {
       throw StateError('Manga search source $sourceId is unavailable.');
     }
 
-    final results = await source.search(normalizedQuery);
-    for (final media in results) {
-      if (media.type != MediaType.manga || media.source.sourceId != source.id) {
+    final result = await source.search(normalizedQuery, page: page);
+    if (result.page != page) {
+      throw StateError(
+        'Manga search source $sourceId returned an invalid page.',
+      );
+    }
+    for (final preview in result.results) {
+      final media = preview.media;
+      if (media.type != MediaType.manga ||
+          media.source.sourceId != source.id ||
+          (preview.metadata?.cover != null &&
+              preview.metadata!.cover!.sourceId != source.id)) {
         throw StateError(
           'Manga search source $sourceId returned an invalid item.',
         );
       }
     }
-    return List.unmodifiable(results);
+    return MangaSearchPage(
+      results: List.unmodifiable(result.results),
+      hasNextPage: result.hasNextPage,
+      page: result.page,
+    );
   }
 
   bool _canOpenSearchResults(MangaSearchSource source) =>

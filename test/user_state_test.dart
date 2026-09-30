@@ -61,4 +61,27 @@ void main() {
     expect(entry.addedAt.isUtc, isTrue);
     expect(entry.media.title, 'Snapshot');
   });
+
+  test('document position validates optional finite resource progress', () {
+    final position = DocumentPosition(
+      resource: 'chapter.xhtml',
+      progression: 0.25,
+      totalProgression: 1,
+      locator: 'opaque-cfi',
+    );
+    expect(position.resource, 'chapter.xhtml');
+    expect(position.progression, 0.25);
+    expect(position.totalProgression, 1);
+    expect(position.locator, 'opaque-cfi');
+    for (final value in [double.nan, double.infinity, -double.infinity, -0.1]) {
+      expect(
+        () => DocumentPosition(resource: 'chapter', progression: value),
+        throwsArgumentError,
+      );
+    }
+    expect(
+      () => DocumentPosition(resource: 'chapter', totalProgression: -1),
+      throwsArgumentError,
+    );
+  });
 }

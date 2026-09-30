@@ -41,6 +41,36 @@ final class TextPosition extends ProgressPosition {
   final double progression;
 }
 
+final class DocumentPosition extends ProgressPosition {
+  DocumentPosition({
+    required this.resource,
+    this.progression,
+    this.totalProgression,
+    this.locator,
+  }) {
+    if (resource.isEmpty) {
+      throw ArgumentError.value(resource, 'resource', 'Must not be empty.');
+    }
+    _validateOptional(progression, 'progression');
+    _validateOptional(totalProgression, 'totalProgression');
+  }
+
+  final String resource;
+  final double? progression;
+  final double? totalProgression;
+  final String? locator;
+
+  static void _validateOptional(double? value, String name) {
+    if (value != null && (!value.isFinite || value < 0 || value > 1)) {
+      throw ArgumentError.value(
+        value,
+        name,
+        'Expected finite normalized [0, 1].',
+      );
+    }
+  }
+}
+
 final class MediaProgress {
   MediaProgress({
     required this.media,

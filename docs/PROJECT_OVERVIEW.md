@@ -297,7 +297,7 @@ Hỗ trợ:
 ```text
 Light Novel
 Web Novel
-local text/ebook formats ở các phase sau
+Local UTF-8 text và EPUB không DRM
 ```
 
 Capability dự kiến:
@@ -404,7 +404,7 @@ Nguyên tắc vẫn giữ nguyên:
 
 > Extension runtime chỉ là một cách tạo `MediaSource` implementation; domain/application không phụ thuộc APK, Kotlin ABI hay repository format.
 
-Các phần chưa chốt gồm repository/install/update UI, trust cho repository bên thứ ba, sandbox/process isolation, compatibility ngoài manga (Aniyomi/novel), Mangayomi và một Hikari-native plugin format nếu sau này thật sự cần. Chi tiết runtime hiện tại nằm tại [`architecture/EXTENSIONS.md`](architecture/EXTENSIONS.md).
+LNReader-compatible novel adapter dùng QuickJS runtime riêng có giới hạn tài nguyên; chỉ bundle được review và đóng gói cùng app được phép chạy. Đây không phải marketplace hoặc sandbox process cho code tùy ý. Các phần chưa chốt gồm repository/install/update UI, trust cho repository bên thứ ba, process isolation, Aniyomi, Mangayomi và Hikari-native plugin format nếu sau này thật sự cần. Chi tiết runtime và giới hạn trust nằm tại [`architecture/EXTENSIONS.md`](architecture/EXTENSIONS.md).
 
 ---
 
@@ -869,10 +869,10 @@ Android manga runtime v1 đã chốt theo [ADR-007](decisions/ADR-007-android-ma
 - host native Kotlin cho extension-lib 1.4 và 1.6;
 - chỉ load APK có signing key tin cậy;
 - adapter sang source capabilities hiện có trước khi compose registry;
-- giữ `memo` source-private trong opaque reference;
+- giữ `memo` và continuation state ở infrastructure của source, không đưa metadata thay đổi được vào persisted identity;
 - mọi source, kể cả MangaDex, dùng identity/reference Mihon chung; chấp nhận reset dữ liệu sạch, không giữ tương thích identity cũ, theo [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
 
-Repository/install/update UI, arbitrary trust, sandbox process và anime/novel extension vẫn chưa chốt.
+Novel runtime đã có LNReader-compatible adapter với bundle review trước, context QuickJS riêng và giới hạn memory/stack/execution. Repository/install/update UI, arbitrary trust, sandbox process và anime extension vẫn chưa chốt.
 
 ---
 
@@ -1012,11 +1012,11 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 - Android local folder scan qua SAF, phân loại Anime/Manga/Light Novel;
 - một local root được nhớ qua restart bằng persisted SAF grant + Android-native selection state;
 - model Media + source reference tối thiểu với `SourceId` opaque, chưa có canonical identity;
-- video playback bằng media_kit, image reader và UTF-8 text reader;
+- video playback bằng media_kit, manga folder/CBZ reader, UTF-8 text reader và EPUB publication reader với spine/TOC;
 - local-media skeleton cũ đã được người dùng xác minh end-to-end trên Android;
   chi tiết boundary và giới hạn tại [LOCAL_MEDIA](architecture/LOCAL_MEDIA.md);
 - Progress typed, Library snapshot độc lập, source capabilities tối thiểu và
-  Drift/SQLite schema v1; cả ba reader có resume. Slice persistence/resume mới có
+  Drift/SQLite với migration giữ dữ liệu cũ; readers có resume. Phiên bản schema và contract lưu trữ nằm tại [USER_STATE](architecture/USER_STATE.md). Slice persistence/resume mới có
   automated tests và Android debug build, chưa xác minh E2E trên thiết bị thật;
   xem [USER_STATE](architecture/USER_STATE.md).
 - remote manga: Android dùng runtime extension-lib 1.4/1.6 cho APK manga
@@ -1026,8 +1026,9 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   sạch và bỏ tương thích cũ tại [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
   Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
   [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
+- remote novel có search phân trang, details/chapter list, rich HTML/resources và Library/progress qua capability riêng; không ép remote chapter thành plain text;
 - application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
-  `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
+  `OpenNovelChapter`, `SearchNovels`, `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
   thể đăng ký mà không thêm provider-specific branch vào open workflow; Android
   extension runtime tạo source trước composition mà không thay domain/application.
   Xem [SOURCES](architecture/SOURCES.md) và [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md).
@@ -1044,7 +1045,7 @@ thực tế. Series-level last-chapter resume và extension repository/install/u
 
 ### Chưa bắt đầu
 
-- extension repository/install/update UI và non-manga extension runtime;
+- extension repository/install/update UI và anime extension runtime;
 - production player/readers;
 - production UI.
 
