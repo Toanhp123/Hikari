@@ -366,7 +366,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                       ),
                       const SizedBox(width: HikariSpacing.sm),
                       Text(
-                        (progress * 100).toInt().toString() + '%',
+                        '${(progress * 100).toInt()}%',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,

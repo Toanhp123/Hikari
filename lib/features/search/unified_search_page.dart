@@ -146,7 +146,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
       emptyTitle: state.query.isEmpty ? 'Explore & Search' : 'No results found',
       emptyMessage: state.query.isEmpty
           ? 'Type a title above to search your configured media sources.'
-          : 'No matches found for "' + state.query + '".',
+          : 'No matches found for "${state.query}".',
       emptyIcon: state.query.isEmpty
           ? Icons.search_rounded
           : Icons.search_off_rounded,

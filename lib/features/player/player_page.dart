@@ -152,9 +152,9 @@ class _PlayerPageState extends State<PlayerPage> {
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     if (hours > 0) {
-      return hours.toString() + ':' + minutes + ':' + seconds;
+      return '$hours:$minutes:$seconds';
     }
-    return minutes + ':' + seconds;
+    return '$minutes:$seconds';
   }
 
   @override
@@ -280,9 +280,7 @@ class _PlayerPageState extends State<PlayerPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _formatDuration(controls.position) +
-                            ' / ' +
-                            _formatDuration(duration),
+                        '${_formatDuration(controls.position)} / ${_formatDuration(duration)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: colors.textSecondary,

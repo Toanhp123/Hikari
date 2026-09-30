@@ -83,15 +83,26 @@ final class UnifiedSearchUiState {
 
 /// Owns unified-search state and fans one query out to configured sources.
 final class UnifiedSearchViewModel extends ChangeNotifier {
-  UnifiedSearchViewModel({
+  factory UnifiedSearchViewModel({
     SearchManga? searchManga,
     SearchNovels? searchNovels,
     Future<List<Media>?> Function()? scanLocalMedia,
     String initialQuery = '',
-  }) : _searchManga = searchManga,
-       _searchNovels = searchNovels,
-       _scanLocalMedia = scanLocalMedia,
-       _state = UnifiedSearchUiState(query: initialQuery.trim());
+  }) {
+    return UnifiedSearchViewModel._(
+      searchManga,
+      searchNovels,
+      scanLocalMedia,
+      initialQuery,
+    );
+  }
+
+  UnifiedSearchViewModel._(
+    this._searchManga,
+    this._searchNovels,
+    this._scanLocalMedia,
+    String initialQuery,
+  ) : _state = UnifiedSearchUiState(query: initialQuery.trim());
 
   final SearchManga? _searchManga;
   final SearchNovels? _searchNovels;
@@ -245,15 +256,22 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
   }
 
   Future<List<Media>> _localCatalog() {
-    return _localCatalogFuture ??= () async {
-      try {
-        final media = await _scanLocalMedia!.call();
-        return List.unmodifiable(media ?? const <Media>[]);
-      } catch (_) {
-        _localCatalogFuture = null;
-        rethrow;
-      }
-    }();
+    final cached = _localCatalogFuture;
+    if (cached != null) return cached;
+
+    final future = _loadLocalCatalog();
+    _localCatalogFuture = future;
+    return future;
+  }
+
+  Future<List<Media>> _loadLocalCatalog() async {
+    try {
+      final media = await _scanLocalMedia!.call();
+      return List<Media>.unmodifiable(media ?? const <Media>[]);
+    } catch (_) {
+      _localCatalogFuture = null;
+      rethrow;
+    }
   }
 
   Future<_SearchBatch> _guardSource(
