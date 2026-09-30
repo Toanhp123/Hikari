@@ -11,6 +11,10 @@ class HikariColors extends ThemeExtension<HikariColors> {
     required this.surfaceHighlight,
     required this.border,
     required this.borderSubtle,
+    required this.glassSurface,
+    required this.glassBorder,
+    required this.scrimMedium,
+    required this.scrimStrong,
     required this.primary,
     required this.primaryGlow,
     required this.secondary,
@@ -37,6 +41,10 @@ class HikariColors extends ThemeExtension<HikariColors> {
       surfaceHighlight = const Color(0xFF2A3752),
       border = const Color(0xFF26334D),
       borderSubtle = const Color(0x14FFFFFF),
+      glassSurface = const Color(0xD9121826),
+      glassBorder = const Color(0x1FFFFFFF),
+      scrimMedium = const Color(0x990B0F17),
+      scrimStrong = const Color(0xCC0B0F17),
       primary = const Color(0xFF8B5CF6),
       primaryGlow = const Color(0xFFA78BFA),
       secondary = const Color(0xFFEC4899),
@@ -62,6 +70,10 @@ class HikariColors extends ThemeExtension<HikariColors> {
       surfaceHighlight = const Color(0xFF1F2738),
       border = const Color(0xFF1E283D),
       borderSubtle = const Color(0x1AFFFFFF),
+      glassSurface = const Color(0xEB0B0F17),
+      glassBorder = const Color(0x1FFFFFFF),
+      scrimMedium = const Color(0x990B0F17),
+      scrimStrong = const Color(0xCC0B0F17),
       primary = const Color(0xFF8B5CF6),
       primaryGlow = const Color(0xFFA78BFA),
       secondary = const Color(0xFFEC4899),
@@ -85,6 +97,10 @@ class HikariColors extends ThemeExtension<HikariColors> {
   final Color surfaceHighlight;
   final Color border;
   final Color borderSubtle;
+  final Color glassSurface;
+  final Color glassBorder;
+  final Color scrimMedium;
+  final Color scrimStrong;
   final Color primary;
   final Color primaryGlow;
   final Color secondary;
@@ -110,6 +126,10 @@ class HikariColors extends ThemeExtension<HikariColors> {
     Color? surfaceHighlight,
     Color? border,
     Color? borderSubtle,
+    Color? glassSurface,
+    Color? glassBorder,
+    Color? scrimMedium,
+    Color? scrimStrong,
     Color? primary,
     Color? primaryGlow,
     Color? secondary,
@@ -134,6 +154,10 @@ class HikariColors extends ThemeExtension<HikariColors> {
       surfaceHighlight: surfaceHighlight ?? this.surfaceHighlight,
       border: border ?? this.border,
       borderSubtle: borderSubtle ?? this.borderSubtle,
+      glassSurface: glassSurface ?? this.glassSurface,
+      glassBorder: glassBorder ?? this.glassBorder,
+      scrimMedium: scrimMedium ?? this.scrimMedium,
+      scrimStrong: scrimStrong ?? this.scrimStrong,
       primary: primary ?? this.primary,
       primaryGlow: primaryGlow ?? this.primaryGlow,
       secondary: secondary ?? this.secondary,
@@ -170,6 +194,11 @@ class HikariColors extends ThemeExtension<HikariColors> {
       border: Color.lerp(border, other.border, t) ?? border,
       borderSubtle:
           Color.lerp(borderSubtle, other.borderSubtle, t) ?? borderSubtle,
+      glassSurface:
+          Color.lerp(glassSurface, other.glassSurface, t) ?? glassSurface,
+      glassBorder: Color.lerp(glassBorder, other.glassBorder, t) ?? glassBorder,
+      scrimMedium: Color.lerp(scrimMedium, other.scrimMedium, t) ?? scrimMedium,
+      scrimStrong: Color.lerp(scrimStrong, other.scrimStrong, t) ?? scrimStrong,
       primary: Color.lerp(primary, other.primary, t) ?? primary,
       primaryGlow: Color.lerp(primaryGlow, other.primaryGlow, t) ?? primaryGlow,
       secondary: Color.lerp(secondary, other.secondary, t) ?? secondary,

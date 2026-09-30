@@ -155,14 +155,9 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
               child: Container(
                 height: 64,
                 decoration: BoxDecoration(
-                  color: colors.isOled
-                      ? const Color(0xEB0B0F17)
-                      : const Color(0xD9121826),
+                  color: colors.glassSurface,
                   borderRadius: BorderRadius.circular(32),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    width: 1.0,
-                  ),
+                  border: Border.all(color: colors.glassBorder, width: 1.0),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.5),

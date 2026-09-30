@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/media_progress.dart';
+import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 
 /// Shared 2:3 media artwork pattern.
 ///
@@ -62,7 +62,7 @@ class MediaPoster extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             _buildArtwork(colors),
-            const Positioned(
+            Positioned(
               left: 0,
               right: 0,
               bottom: 0,
@@ -74,8 +74,8 @@ class MediaPoster extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Color(0xCC0B0F17),
-                      Color(0xF50B0F17),
+                      colors.scrimStrong,
+                      colors.background.withValues(alpha: 0.96),
                     ],
                   ),
                 ),
@@ -102,10 +102,10 @@ class MediaPoster extends StatelessWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFF8FAFC),
+                      color: colors.textPrimary,
                       height: 1.25,
                     ),
                   ),
@@ -129,7 +129,7 @@ class MediaPoster extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: MediaProgress(progress: progress!, height: 3),
+                child: MediaProgressBar(progress: progress!, height: 3),
               ),
           ],
         ),

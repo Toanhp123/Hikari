@@ -7,7 +7,7 @@ import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
-import 'package:hikari/core/ui/patterns/media_progress.dart';
+import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 
 void main() {
   Widget testWrapper(Widget child) {
@@ -173,14 +173,14 @@ void main() {
     });
   });
 
-  group('MediaProgress and HikariScaffold', () {
-    testWidgets('MediaProgress clamps and renders', (tester) async {
+  group('MediaProgressBar and HikariScaffold', () {
+    testWidgets('MediaProgressBar clamps and renders', (tester) async {
       await tester.pumpWidget(
         testWrapper(
-          const SizedBox(width: 200, child: MediaProgress(progress: 0.75)),
+          const SizedBox(width: 200, child: MediaProgressBar(progress: 0.75)),
         ),
       );
-      expect(find.byType(MediaProgress), findsOneWidget);
+      expect(find.byType(MediaProgressBar), findsOneWidget);
     });
 
     testWidgets('HikariScaffold renders body', (tester) async {

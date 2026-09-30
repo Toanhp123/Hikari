@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
-import 'package:hikari/core/ui/patterns/media_progress.dart' as ui;
+import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -358,7 +358,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                   child: Row(
                     children: [
                       Expanded(
-                        child: ui.MediaProgress(
+                        child: MediaProgressBar(
                           progress: progress,
                           height: 2.5,
                           showGlow: false,

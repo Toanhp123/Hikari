@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 
 /// An elegant glowing progress bar showing reading or playback completion.
-class MediaProgress extends StatelessWidget {
-  const MediaProgress({
+class MediaProgressBar extends StatelessWidget {
+  const MediaProgressBar({
     super.key,
     required this.progress,
     this.height = 3.5,

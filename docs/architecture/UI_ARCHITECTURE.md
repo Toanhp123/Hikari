@@ -226,6 +226,11 @@ iconSecondary
 
 border
 
+glassSurface
+glassBorder
+scrimMedium
+scrimStrong
+
 primary
 onPrimary
 
@@ -386,7 +391,7 @@ Examples:
 
 ```text
 MediaPoster
-MediaProgress
+MediaProgressBar
 AsyncStateView
 EmptyState
 ErrorState

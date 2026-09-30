@@ -88,15 +88,15 @@ class _HeroCarouselState extends State<HeroCarousel> {
 
                   // Bottom and Left Scrim Gradient fading into deep obsidian
                   Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Color(0x33000000),
-                          Color(0x660B0F17),
-                          Color(0xCC0B0F17),
-                          Color(0xFF0B0F17),
+                          const Color(0x33000000),
+                          colors.background.withValues(alpha: 0.4),
+                          colors.scrimStrong,
+                          colors.background,
                         ],
                         stops: [0.0, 0.35, 0.75, 1.0],
                       ),

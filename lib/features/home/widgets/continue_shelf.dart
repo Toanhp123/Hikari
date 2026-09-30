@@ -144,13 +144,13 @@ class ContinueShelf extends StatelessWidget {
                                 bottom: 0,
                                 height: 32,
                                 child: Container(
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
                                         Colors.transparent,
-                                        Color(0x990B0F17),
+                                        colors.scrimMedium,
                                       ],
                                     ),
                                   ),
