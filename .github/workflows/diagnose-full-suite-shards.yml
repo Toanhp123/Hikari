@@ -10,59 +10,40 @@ permissions:
 
 jobs:
   shard:
-    name: shard-${{ matrix.id }}
+    name: ${{ matrix.id }}
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 6
     strategy:
       fail-fast: false
       matrix:
         include:
-          - id: 1
+          - id: shard-1a
             files: >-
               test/app_smoke_test.dart
               test/application_workflow_test.dart
               test/architecture_guard_test.dart
               test/archive_copy_pool_test.dart
               test/components_test.dart
+          - id: shard-1b
+            files: >-
               test/epub_reader_test.dart
               test/home_page_test.dart
               test/library_page_test.dart
               test/lnreader_runtime_test.dart
               test/local_archive_restart_test.dart
-          - id: 2
-            files: >-
-              test/local_media_cbz_test.dart
-              test/local_media_classifier_test.dart
-              test/local_media_page_test.dart
-              test/local_media_source_test.dart
-              test/media_details_page_test.dart
-              test/media_kit_video_session_test.dart
-              test/media_poster_test.dart
-              test/media_test.dart
-              test/mihon_source_loader_test.dart
-              test/navigation_shell_test.dart
-          - id: 3
+          - id: shard-3a
             files: >-
               test/novel_content_view_test.dart
               test/novel_contract_test.dart
               test/novel_html_test.dart
               test/publication_reader_test.dart
               test/reader_progress_test.dart
+          - id: shard-3b
+            files: >-
               test/readers_test.dart
               test/reading_metadata_test.dart
               test/remote_manga_test.dart
               test/remote_novel_test.dart
-          - id: 4
-            files: >-
-              test/resume_test.dart
-              test/search_novels_test.dart
-              test/settings_page_test.dart
-              test/theme_test.dart
-              test/unified_search_page_test.dart
-              test/unified_search_view_model_test.dart
-              test/user_state_repository_test.dart
-              test/user_state_test.dart
-              test/video_exit_test.dart
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
