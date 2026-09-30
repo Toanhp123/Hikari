@@ -168,7 +168,7 @@ class LnReaderNovelSource
   }
 
   @override
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter) async {
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async {
     final path = _path(chapter, 'chapter');
     final document = html.parseFragment(
       await _invoke('parseChapter', [path]) as String,
@@ -184,7 +184,7 @@ class LnReaderNovelSource
         image.remove();
       }
     }
-    return NovelChapterContent(
+    return RichReadingContent(
       html: sanitizeNovelHtml(
         document.outerHtml,
         registeredResources: resources.keys.toSet(),

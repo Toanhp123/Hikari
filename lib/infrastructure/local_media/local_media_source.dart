@@ -24,10 +24,10 @@ String _opaqueEpubResourceId(LocalArchiveRef publication, String resource) =>
       format: 'epub',
     ).encode();
 
-NovelChapterContent _opaqueEpubContent(
+RichReadingContent _opaqueEpubContent(
   LocalArchiveRef publication,
-  NovelChapterContent content,
-) => NovelChapterContent(
+  RichReadingContent content,
+) => RichReadingContent(
   html: content.html,
   resources: {
     for (final entry in content.resources.entries)
@@ -44,7 +44,8 @@ class LocalMediaSource
         MangaPageSource,
         NovelTextSource,
         PublicationSource,
-        MediaSourceAvailability {
+        MediaSourceAvailability,
+        MediaOpenLeaseSource {
   @override
   SourceId get id => SourceId.local;
   @override
@@ -52,14 +53,12 @@ class LocalMediaSource
   static const _channel = MethodChannel('hikari/local_media');
   late final _copies = ArchiveCopyPool(_materialize, _deleteMaterialized);
 
-  Future<void> retainArchive(SourceMediaRef ref) async {
+  @override
+  MediaOpenLease? acquireOpenLease(SourceMediaRef ref) {
     final archive = _archiveRef(ref);
-    if (archive != null) _copies.retain(archive.locator);
-  }
-
-  Future<void> releaseArchive(SourceMediaRef ref) async {
-    final archive = _archiveRef(ref);
-    if (archive != null) await _copies.release(archive.locator);
+    if (archive == null) return null;
+    _copies.retain(archive.locator);
+    return _LocalArchiveLease(_copies, archive.locator);
   }
 
   Future<void> close() => _copies.close();
@@ -160,7 +159,7 @@ class LocalMediaSource
   }
 
   @override
-  Future<NovelChapterContent> readSection(
+  Future<RichReadingContent> readSection(
     SourceMediaRef ref,
     String resource,
   ) async {
@@ -345,6 +344,21 @@ class LocalMediaSource
     });
     if (bytes == null) throw StateError('Content could not be read.');
     return bytes;
+  }
+}
+
+final class _LocalArchiveLease implements MediaOpenLease {
+  _LocalArchiveLease(this._copies, this._locator);
+
+  ArchiveCopyPool? _copies;
+  final String _locator;
+
+  @override
+  Future<void> release() async {
+    final copies = _copies;
+    if (copies == null) return;
+    _copies = null;
+    await copies.release(_locator);
   }
 }
 

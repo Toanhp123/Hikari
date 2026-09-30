@@ -56,8 +56,8 @@ final class NovelDetails {
   final List<NovelChapter> chapters;
 }
 
-final class NovelChapterContent {
-  NovelChapterContent({
+final class RichReadingContent {
+  RichReadingContent({
     required this.html,
     Map<String, SourceMediaRef> resources = const {},
   }) : resources = Map.unmodifiable(resources);
@@ -76,7 +76,7 @@ abstract interface class NovelSeriesSource implements MediaSource {
 }
 
 abstract interface class NovelChapterSource implements MediaSource {
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter);
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter);
   Future<Uint8List> readResource(SourceMediaRef resource);
 }
 

@@ -11,6 +11,16 @@ abstract interface class MediaSourceAvailability implements MediaSource {
   bool get isAvailable;
 }
 
+/// A source-owned resource kept alive while opened media is in use.
+abstract interface class MediaOpenLease {
+  Future<void> release();
+}
+
+/// Optional capability for sources that need an explicit opened-media lifetime.
+abstract interface class MediaOpenLeaseSource implements MediaSource {
+  MediaOpenLease? acquireOpenLease(SourceMediaRef media);
+}
+
 abstract interface class DirectVideoSource implements MediaSource {
   String playbackLocator(SourceMediaRef media);
 }

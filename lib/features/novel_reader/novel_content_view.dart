@@ -16,7 +16,7 @@ class NovelContentView extends StatelessWidget {
   });
 
   final GlobalKey<HtmlWidgetState>? htmlKey;
-  final NovelChapterContent content;
+  final RichReadingContent content;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
   final Future<bool> Function(String)? onTapLink;
 

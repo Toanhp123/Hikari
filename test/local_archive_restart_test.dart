@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import 'package:archive/archive_io.dart';
 import 'package:drift/native.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -84,7 +86,8 @@ void main() {
         ..addFile(ArchiveFile.bytes('2.png', Uint8List.fromList([3, 4])));
       await fixture.writeAsBytes(ZipEncoder().encode(archive));
       final original = _media('Original.cbz');
-      await source.retainArchive(original.source);
+      final originalLease = source.acquireOpenLease(original.source);
+      expect(originalLease, isNotNull);
       final pages = await source.pages(original.source);
       expect(await source.readPage(pages[1]), [3, 4]);
       await SqliteLibraryRepository(database)
@@ -111,12 +114,13 @@ void main() {
       expect(position.pageIndex, 1);
       expect(position.pageCount, 2);
       expect(progress.completed, isFalse);
-      await source.retainArchive(saved.source);
+      final reopenedLease = source.acquireOpenLease(saved.source);
+      expect(reopenedLease, isNotNull);
       final reopenedPages = await source.pages(saved.source);
       expect(reopenedPages, pages);
       expect(await source.readPage(reopenedPages[position.pageIndex]), [3, 4]);
       expect(copies, 2);
-      await source.releaseArchive(saved.source);
+      await reopenedLease!.release();
       expect(deletions, 2);
     },
   );
@@ -158,7 +162,8 @@ void main() {
       ..addFile(ArchiveFile.bytes('OPS/images/p.png', image));
     await fixture.writeAsBytes(ZipEncoder().encode(archive));
     final media = _media('Book.epub');
-    await source.retainArchive(media.source);
+    final mediaLease = source.acquireOpenLease(media.source);
+    expect(mediaLease, isNotNull);
     final publication = await source.loadPublication(media.source);
     final resource = publication.spine[1].resource;
     final content = await source.readSection(media.source, resource);
@@ -192,7 +197,8 @@ void main() {
     expect(position.totalProgression, .7);
     expect(position.locator, 'opaque-reader-locator');
     expect(progress.completed, isFalse);
-    await source.retainArchive(saved.source);
+    final reopenedLease = source.acquireOpenLease(saved.source);
+    expect(reopenedLease, isNotNull);
     final reopened = await source.loadPublication(saved.source);
     expect(reopened.spine[1].resource, position.resource);
     final restored = await source.readSection(saved.source, position.resource);
@@ -200,7 +206,7 @@ void main() {
     expect(restored.resources.values.single, imageRef);
     expect(await source.readResource(restored.resources.values.single), image);
     expect(copies, 2);
-    await source.releaseArchive(saved.source);
+    await reopenedLease!.release();
     expect(deletions, 2);
   });
 }

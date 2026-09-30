@@ -36,7 +36,7 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
   int _request = 0;
   Timer? _debounce;
   Publication? _book;
-  NovelChapterContent? _content;
+  RichReadingContent? _content;
   Object? _error;
   String? _resource;
   int _index = 0;

@@ -113,7 +113,7 @@ class _Source
   Future<NovelDetails> loadDetails(SourceMediaRef novel) =>
       throw UnimplementedError();
   @override
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter) =>
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) =>
       throw UnimplementedError();
   @override
   Future<Uint8List> readResource(SourceMediaRef resource) =>

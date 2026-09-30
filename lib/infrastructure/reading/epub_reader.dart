@@ -150,7 +150,7 @@ final class EpubReader {
     return _publication;
   }
 
-  Future<NovelChapterContent> readSection(String resource) async {
+  Future<RichReadingContent> readSection(String resource) async {
     _checkOpen();
     final item = _manifest.values
         .where((item) => item.resource == resource)
@@ -205,7 +205,7 @@ final class EpubReader {
         itemId: target.resource,
       );
     }
-    return NovelChapterContent(
+    return RichReadingContent(
       html: sanitizeNovelHtml(
         document.body?.innerHtml ?? document.outerHtml,
         registeredResources: resources.keys.toSet(),

@@ -52,7 +52,8 @@ void main() {
       sourceId: SourceId.local,
       itemId: const LocalArchiveRef(locator: 'content://book').encode(),
     );
-    await local.retainArchive(ref);
+    final lease = local.acquireOpenLease(ref);
+    expect(lease, isNotNull);
     final pages = await local.pages(ref);
     expect(await Future.wait(pages.map(local.readPage)), [
       [1, 2],
@@ -64,7 +65,7 @@ void main() {
       expect(call.method, 'deleteMaterialized');
       return false;
     });
-    await expectLater(local.releaseArchive(ref), throwsStateError);
+    await expectLater(lease!.release(), throwsStateError);
     messenger.setMockMethodCallHandler(channel, (call) async {
       if (call.method == 'materialize') {
         return {
@@ -77,7 +78,8 @@ void main() {
       return true;
     });
     expect(deletions, 0);
-    await local.retainArchive(ref);
+    final reopenedLease = local.acquireOpenLease(ref);
+    expect(reopenedLease, isNotNull);
     expect(await local.readPage(pages.last), [3, 4]);
     expect(copies, 2);
     await local.close();
@@ -134,8 +136,13 @@ void main() {
     expect(source, isA<MangaPageSource>());
     expect(source, isA<NovelTextSource>());
     expect(source, isA<PublicationSource>());
+    expect(source, isA<MediaOpenLeaseSource>());
     expect(source.id, SourceId.local);
     expect(source.name, isNotEmpty);
+  });
+
+  test('open lease is only created for archive-backed local media', () {
+    expect(source.acquireOpenLease(ref), isNull);
   });
 
   test('publication capability owns only EPUB archive refs', () {

@@ -12,7 +12,7 @@ Library snapshots and reader progress are now persisted separately; see
   and `SourceMediaRef`. New source identifiers do not require changing an enum. `itemId`
   is opaque to domain; there is no canonical `MediaId`.
 - `infrastructure/local_media/`: platform-channel access, document-entry DTO,
-  deterministic classification and filename ordering. Kotlin `LocalMediaChannel`
+  deterministic classification and filename ordering. Kotlin `localmedia/LocalMediaChannel`
   owns Android document APIs. Queries and reads run on a worker, not Android's UI thread.
 - `infrastructure/playback/`: media-kit player/session ownership, errors and lifecycle.
 - `features/`: list, player/video surface, manga and text presentation. Constructor callbacks
@@ -132,10 +132,13 @@ without a chapter-selection screen.
 ## Archive readers
 
 CBZ pages and EPUB sections/resources use one bounded source-owned temporary copy
-per retained locator. Concurrent reads coalesce copying; separate reader owners retain
-independently. Reader release deletes idle copies, active reads retain their copy until
-finished, and app shutdown rejects new reads and drains active work. Unretained single
-operations clean up immediately. No decoded pages are held by this manager. Native
+per retained locator. `LocalMediaSource` exposes the generic `MediaOpenLeaseSource`
+capability for archive-backed references; `OpenMedia` attaches that lease to the
+provider-neutral open target and app navigation releases the target without knowing the
+local source or archive format. Concurrent reads coalesce copying; separate reader
+owners retain independently. Lease release deletes idle copies, active reads retain
+their copy until finished, and app shutdown rejects new reads and drains active work.
+Unretained single operations clean up immediately. No decoded pages are held by this manager. Native
 startup removes stale owned cache files, including interrupted `.part` copies; deletion
 validates the canonical parent directory. SAF copy size, ZIP entry/count/expanded-size,
 CRC, symlink and EPUB encryption checks remain enforced.
@@ -154,7 +157,7 @@ layout-independent pagination.
 
 Generic ZIP discovery, CBR/RAR, PDF; series/season/chapter parsing; canonical identity,
 hashing/deduplication, enrichment, covers/thumbnails; rename recovery, watchers,
-history sessions, downloads, extension repository/install/update UI and non-manga extension runtimes.
+history sessions, downloads, extension repository/install/update UI and additional extension ABI families.
 Progress/Library persistence and minimal page/text source capabilities are implemented
 in [USER_STATE](USER_STATE.md); canonical identity remains deferred.
 

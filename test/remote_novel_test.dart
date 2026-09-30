@@ -70,9 +70,9 @@ class FakeNovel
     ],
   );
   @override
-  Future<NovelChapterContent> chapterContent(
+  Future<RichReadingContent> chapterContent(
     SourceMediaRef chapter,
-  ) async => NovelChapterContent(
+  ) async => RichReadingContent(
     html:
         '<h2>Rich heading</h2>${List.generate(70, (i) => '<p>Paragraph $i with text for reading progress.</p>').join()}',
   );
@@ -90,8 +90,8 @@ class _ForeignNovel extends FakeNovel {
     chapters: [],
   );
   @override
-  Future<NovelChapterContent> chapterContent(SourceMediaRef chapter) async =>
-      NovelChapterContent(
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async =>
+      RichReadingContent(
         html: '<p>Content</p>',
         resources: {
           'image': const SourceMediaRef(

@@ -64,14 +64,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Future<void> _openMedia(BuildContext context, Media media) async {
     if (_isOpeningMedia) return;
     _isOpeningMedia = true;
-    final local = media.source.sourceId == _dependencies.localMediaSource.id;
-    var retained = false;
+    MediaOpenTarget? target;
     try {
-      if (local) {
-        await _dependencies.localMediaSource.retainArchive(media.source);
-        retained = true;
-      }
-      final target = await _dependencies.openMedia.execute(media);
+      target = await _dependencies.openMedia.execute(media);
       if (!context.mounted) return;
       await _pushMediaTarget(context, target);
     } catch (_) {
@@ -86,22 +81,20 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       }
     } finally {
       _isOpeningMedia = false;
-      if (retained) {
-        try {
-          await _dependencies.localMediaSource.releaseArchive(media.source);
-        } catch (error, stackTrace) {
-          FlutterError.reportError(
-            FlutterErrorDetails(exception: error, stack: stackTrace),
-          );
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Could not clean up temporary reading files. Restart to retry cleanup.',
-                ),
+      try {
+        await target?.release();
+      } catch (error, stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(exception: error, stack: stackTrace),
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Could not clean up temporary reading files. Restart to retry cleanup.',
               ),
-            );
-          }
+            ),
+          );
         }
       }
     }

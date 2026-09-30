@@ -37,7 +37,7 @@ void main() {
   test(
     'rich content retains source-owned resource refs separately from HTML',
     () {
-      final content = NovelChapterContent(
+      final content = RichReadingContent(
         html: '<p>Text</p>',
         resources: {'image': ref},
       );

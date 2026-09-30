@@ -9,7 +9,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | Document | Canonical responsibility | Read when |
 | --- | --- | --- |
 | `PROJECT_OVERVIEW.md` | What Hikari is, product scope, capabilities, high-level architecture principles, phase-level direction, decided vs undecided areas | Product, architecture, feature-scope, or high-level direction discussion |
-| `AGENT_WORKFLOW.md` | Claude Code skill orchestration for Superpowers, Ponytail, Graphify, and UI UX Pro Max | Non-trivial coding, refactor, debugging, architecture, or UI work |
+| `AGENT_WORKFLOW.md` | Claude Code skill orchestration for Superpowers, Graphify, Firecrawl, UI UX Pro Max, and Ponytail | Non-trivial coding, refactor, debugging, architecture, or UI work |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
 | `architecture/PRESENTATION.md` | View/ViewModel state ownership, UI dependency rules and player surface boundary | Working on feature UI/state or player presentation |
@@ -144,7 +144,7 @@ If two documents appear to own the same fact, choose one canonical location and 
 
 ## Agent and skill workflow
 
-Root `CLAUDE.md` contains the always-on routing rules. `AGENT_WORKFLOW.md` is the canonical project document for composing Superpowers, Ponytail, Graphify, and UI UX Pro Max. Installed skill procedures remain owned by those skills and should not be copied into Hikari docs.
+Root `CLAUDE.md` contains the always-on routing rules. `AGENT_WORKFLOW.md` is the canonical project document for composing Superpowers, Graphify, Firecrawl, UI UX Pro Max, and Ponytail. Installed skill procedures remain owned by those skills and should not be copied into Hikari docs.
 
 ## Current structure
 

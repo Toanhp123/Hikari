@@ -358,13 +358,13 @@ final class _FakePublicationSource implements PublicationSource {
   }
 
   @override
-  Future<NovelChapterContent> readSection(
+  Future<RichReadingContent> readSection(
     SourceMediaRef publication,
     String resource,
   ) async {
     readSections.add(resource);
     if (resource == failResource) throw StateError('section unavailable');
-    return NovelChapterContent(
+    return RichReadingContent(
       html: html ?? '<p>${resource.replaceAll('.xhtml', '')} content</p>',
     );
   }

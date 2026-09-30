@@ -50,7 +50,7 @@ final class Publication {
 abstract interface class PublicationSource implements MediaSource {
   bool canOpenPublication(SourceMediaRef publication);
   Future<Publication> loadPublication(SourceMediaRef publication);
-  Future<NovelChapterContent> readSection(
+  Future<RichReadingContent> readSection(
     SourceMediaRef publication,
     String resource,
   );

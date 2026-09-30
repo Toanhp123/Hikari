@@ -13,7 +13,7 @@ final class NovelChapterOpenTarget {
   });
   final NovelChapter chapter;
   final NovelChapterSource source;
-  final NovelChapterContent content;
+  final RichReadingContent content;
   final ProgressSession progress;
 }
 

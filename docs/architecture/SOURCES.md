@@ -43,6 +43,7 @@ The current source surface is deliberately small:
 | --- | --- |
 | `MediaSource` | Stable opaque `SourceId` and user-facing source name |
 | `MediaSourceAvailability` | Whether a registered source can operate on this device/platform |
+| `MediaOpenLeaseSource` | Optionally retain source-owned resources for the lifetime of one opened media target |
 | `MangaSearchSource` | Search and return normalized `Media` |
 | `DirectVideoSource` | Turn a source-scoped video reference into a locator accepted by the current direct player path |
 | `MangaSeriesSource` | Resolve normalized series metadata and provider-neutral chapters |
@@ -54,7 +55,7 @@ The current source surface is deliberately small:
 | `NovelChapterSource` | Read rich chapter HTML and registered source-owned resources |
 | `PublicationSource` | Load a publication spine/TOC, sections and registered resources |
 
-Capabilities compose. Android extension-backed manga sources implement search + series + pages + artwork. Local SAF implements direct video + pages + text + publications + platform availability. Remote novels use search + series + rich chapters. Domain does not know HTTP, SAF, SQLite, extension APKs, plugin JavaScript or Flutter widgets.
+Capabilities compose. Android extension-backed manga sources implement search + series + pages + artwork. Local SAF implements direct video + pages + text + publications + platform availability + an optional open lease for archive-backed media. Remote novels use search + series + rich chapters. Domain does not know HTTP, SAF, SQLite, extension APKs, plugin JavaScript or Flutter widgets.
 
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
 an operation that cannot be expressed by the current contracts.
@@ -83,7 +84,8 @@ Media
   -> reject unavailable source
   -> select behavior from MediaType + source capabilities
   -> load Progress when opening a concrete readable
-  -> return provider-neutral MediaOpenTarget
+  -> acquire an optional source-owned open lease
+  -> return provider-neutral MediaOpenTarget that releases the lease after navigation
 ```
 
 A manga source that exposes `MangaSeriesSource` produces a series target; progress
@@ -121,6 +123,12 @@ remain outside this scope.
 Application targets may carry domain capability interfaces to presentation. They must
 not carry `MihonMangaSource`, SAF adapters, Drift records, HTTP DTOs or other concrete
 infrastructure types.
+
+Opened-media resource ownership follows the same rule. `MediaOpenLeaseSource` is a
+small capability for the proven case where an opened item needs a source-owned resource
+to stay alive. `OpenMedia` acquires the lease only after the requested open capability
+has been validated; the returned target owns release. Presentation never checks a
+specific source ID to retain or release provider/local resources.
 
 ## Composition and ownership
 

@@ -2,15 +2,20 @@ import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 
 sealed class MediaOpenTarget {
-  const MediaOpenTarget(this.media);
+  const MediaOpenTarget(this.media, {this.lease});
 
   final Media media;
+  final MediaOpenLease? lease;
+
+  Future<void> release() async {
+    if (lease != null) await lease!.release();
+  }
 }
 
 final class VideoOpenTarget extends MediaOpenTarget {
@@ -18,6 +23,7 @@ final class VideoOpenTarget extends MediaOpenTarget {
     super.media, {
     required this.locator,
     required this.progress,
+    super.lease,
   });
 
   final String locator;
@@ -25,7 +31,11 @@ final class VideoOpenTarget extends MediaOpenTarget {
 }
 
 final class MangaSeriesOpenTarget extends MediaOpenTarget {
-  const MangaSeriesOpenTarget(super.media, {required this.seriesSource});
+  const MangaSeriesOpenTarget(
+    super.media, {
+    required this.seriesSource,
+    super.lease,
+  });
 
   final MangaSeriesSource seriesSource;
 
@@ -47,6 +57,7 @@ final class MangaReaderOpenTarget extends MediaOpenTarget {
     super.media, {
     required this.pageSource,
     required this.progress,
+    super.lease,
   });
 
   final MangaPageSource pageSource;
@@ -54,7 +65,7 @@ final class MangaReaderOpenTarget extends MediaOpenTarget {
 }
 
 final class NovelSeriesOpenTarget extends MediaOpenTarget {
-  const NovelSeriesOpenTarget(super.media, {required this.source});
+  const NovelSeriesOpenTarget(super.media, {required this.source, super.lease});
 
   final NovelSeriesSource source;
 
@@ -76,6 +87,7 @@ final class NovelReaderOpenTarget extends MediaOpenTarget {
     super.media, {
     required this.textSource,
     required this.progress,
+    super.lease,
   });
 
   final NovelTextSource textSource;
@@ -87,6 +99,7 @@ final class PublicationReaderOpenTarget extends MediaOpenTarget {
     super.media, {
     required this.publicationSource,
     required this.progress,
+    super.lease,
   });
 
   final PublicationSource publicationSource;
@@ -110,13 +123,21 @@ final class OpenMedia {
     }
 
     if (media.type == MediaType.manga && source is MangaSeriesSource) {
-      return MangaSeriesOpenTarget(media, seriesSource: source);
+      return MangaSeriesOpenTarget(
+        media,
+        seriesSource: source,
+        lease: _acquireLease(source, media.source),
+      );
     }
 
     if (media.type == MediaType.lightNovel &&
         source is NovelSeriesSource &&
         source is NovelChapterSource) {
-      return NovelSeriesOpenTarget(media, source: source);
+      return NovelSeriesOpenTarget(
+        media,
+        source: source,
+        lease: _acquireLease(source, media.source),
+      );
     }
 
     final progress = await ProgressSession.load(
@@ -131,27 +152,42 @@ final class OpenMedia {
         media,
         publicationSource: source,
         progress: progress,
+        lease: _acquireLease(source, media.source),
       );
     }
 
-    return switch (media.type) {
-      MediaType.anime => VideoOpenTarget(
-        media,
-        locator: _requireCapability<DirectVideoSource>(source)
-            .playbackLocator(media.source),
-        progress: progress,
-      ),
-      MediaType.manga => MangaReaderOpenTarget(
-        media,
-        pageSource: _requireCapability<MangaPageSource>(source),
-        progress: progress,
-      ),
-      MediaType.lightNovel => NovelReaderOpenTarget(
-        media,
-        textSource: _requireCapability<NovelTextSource>(source),
-        progress: progress,
-      ),
-    };
+    switch (media.type) {
+      case MediaType.anime:
+        final videoSource = _requireCapability<DirectVideoSource>(source);
+        final locator = videoSource.playbackLocator(media.source);
+        return VideoOpenTarget(
+          media,
+          locator: locator,
+          progress: progress,
+          lease: _acquireLease(source, media.source),
+        );
+      case MediaType.manga:
+        final pageSource = _requireCapability<MangaPageSource>(source);
+        return MangaReaderOpenTarget(
+          media,
+          pageSource: pageSource,
+          progress: progress,
+          lease: _acquireLease(source, media.source),
+        );
+      case MediaType.lightNovel:
+        final textSource = _requireCapability<NovelTextSource>(source);
+        return NovelReaderOpenTarget(
+          media,
+          textSource: textSource,
+          progress: progress,
+          lease: _acquireLease(source, media.source),
+        );
+    }
+  }
+
+  MediaOpenLease? _acquireLease(MediaSource source, SourceMediaRef media) {
+    if (source is! MediaOpenLeaseSource) return null;
+    return source.acquireOpenLease(media);
   }
 
   T _requireCapability<T extends MediaSource>(MediaSource source) {
