@@ -11,6 +11,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/library/library_page.dart';
+import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
@@ -38,6 +39,20 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   bool _isOpeningMedia = false;
   bool _isOled = false;
   Color? _accentColor;
+  int _localCatalogRevision = 0;
+  int _localPageRevision = 0;
+
+  Future<bool> _chooseLocalRoot({bool fromSettings = false}) async {
+    final selected = await _dependencies.localMediaSource.chooseRoot();
+    if (selected && mounted) {
+      setState(() {
+        _localCatalogRevision++;
+        // Local already scans its own selection; only external changes refresh it.
+        if (fromSettings) _localPageRevision++;
+      });
+    }
+    return selected;
+  }
 
   @override
   void initState() {
@@ -242,8 +257,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       home: Builder(
         builder: (context) => AppNavigationShell(
           controller: _navigationController,
-          tabs: [
-            HomePage(
+          tabs: {
+            AppTab.home: HomePage(
               openMedia: _openMedia,
               library: libraryRepository,
               onNavigateToSearch: () =>
@@ -251,7 +266,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               onNavigateToLibrary: () =>
                   _navigationController.selectTab(AppTab.library),
               showLocalMediaPrompt: localSource.isAvailable,
-              onChooseFolder: () async => await localSource.chooseRoot(),
+              onNavigateToLocal: () =>
+                  _navigationController.selectTab(AppTab.local),
               openRemoteManga: canSearchManga
                   ? () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -275,21 +291,35 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                     )
                   : null,
             ),
-            UnifiedSearchPage(
+            AppTab.search: UnifiedSearchPage(
               openMedia: _openMedia,
               library: libraryRepository,
               searchManga: _dependencies.searchManga,
               searchNovels: _dependencies.searchNovels,
               scanLocalMedia: localSource.scanSelectedRoot,
+              catalogRevision: _localCatalogRevision,
             ),
-            LibraryPage(repository: libraryRepository, openMedia: _openMedia),
-            SettingsPage(
+            AppTab.local: LocalMediaPage(
+              scanSelectedRoot: localSource.scanSelectedRoot,
+              chooseRoot: _chooseLocalRoot,
+              openMedia: _openMedia,
+              library: libraryRepository,
+              supported: localSource.isAvailable,
+              catalogRevision: _localPageRevision,
+            ),
+            AppTab.library: LibraryPage(
+              repository: libraryRepository,
+              openMedia: _openMedia,
+            ),
+            AppTab.settings: SettingsPage(
               isOled: _isOled,
               onToggleOled: (value) => setState(() => _isOled = value),
               onSelectAccent: (value) => setState(() => _accentColor = value),
-              onChooseLocalFolder: localSource.chooseRoot,
+              onChooseLocalFolder: localSource.isAvailable
+                  ? () => _chooseLocalRoot(fromSettings: true)
+                  : null,
             ),
-          ],
+          },
         ),
       ),
     );

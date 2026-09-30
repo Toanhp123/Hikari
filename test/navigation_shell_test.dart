@@ -4,93 +4,58 @@ import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 
 void main() {
-  testWidgets('AppNavigationShell switches tabs on compact screen', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(400, 800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-
-    int? selected;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: HikariTheme.darkTheme(),
-        home: AppNavigationShell(
-          onTabChanged: (i) => selected = i,
-          tabs: const [
-            Text('Home View'),
-            Text('Search View'),
-            Text('Library View'),
-            Text('Settings View'),
-          ],
-        ),
-      ),
-    );
-
-    expect(find.text('Home View'), findsOneWidget);
-    expect(find.text('Search View'), findsNothing);
-
-    await tester.tap(find.text('Search'));
-    await tester.pumpAndSettle();
-
-    expect(selected, 1);
-    expect(find.text('Search View'), findsOneWidget);
-  });
-
-  testWidgets(
-    'AppNavigationShell switches tabs on wide screen (Navigation Rail)',
-    (tester) async {
-      tester.view.physicalSize = const Size(1000, 800);
-      tester.view.devicePixelRatio = 1.0;
+  // Deliberately unordered: destination identity must not depend on insertion order.
+  const tabs = {
+    AppTab.settings: Text('Settings View'),
+    AppTab.local: Text('Local View'),
+    AppTab.home: Text('Home View'),
+    AppTab.library: Text('Library View'),
+    AppTab.search: Text('Search View'),
+  };
+  for (final width in [375.0, 1000.0]) {
+    testWidgets('all destinations map safely at width $width', (tester) async {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
-
+      addTearDown(tester.view.resetDevicePixelRatio);
+      int? selected;
       await tester.pumpWidget(
         MaterialApp(
           theme: HikariTheme.darkTheme(),
-          home: const AppNavigationShell(
-            tabs: [
-              Text('Home View'),
-              Text('Search View'),
-              Text('Library View'),
-              Text('Settings View'),
-            ],
+          home: AppNavigationShell(
+            tabs: tabs,
+            onTabChanged: (index) => selected = index,
           ),
         ),
       );
-
       expect(find.text('Home View'), findsOneWidget);
-      await tester.tap(find.byTooltip('Library'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Library View'), findsOneWidget);
-    },
-  );
-  testWidgets('AppNavigationController switches tabs from app composition', (
-    tester,
-  ) async {
-    final controller = AppNavigationController();
-    addTearDown(controller.dispose);
-
+      for (final tab in AppTab.values.skip(1)) {
+        await tester.tap(find.byTooltip(tab.label));
+        await tester.pumpAndSettle();
+        expect(find.text('${tab.label} View'), findsOneWidget);
+        expect(selected, tab.index);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('missing destination fails explicitly', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: HikariTheme.darkTheme(),
-        home: AppNavigationShell(
-          controller: controller,
-          tabs: const [
-            Text('Home View'),
-            Text('Search View'),
-            Text('Library View'),
-            Text('Settings View'),
-          ],
-        ),
+        home: AppNavigationShell(tabs: {AppTab.home: tabs[AppTab.home]!}),
       ),
     );
-
-    expect(find.text('Home View'), findsOneWidget);
-
-    controller.selectTab(AppTab.library);
+    expect(tester.takeException(), isArgumentError);
+  });
+  testWidgets('controller navigation selects keyed page', (tester) async {
+    final controller = AppNavigationController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppNavigationShell(tabs: tabs, controller: controller),
+      ),
+    );
+    controller.selectTab(AppTab.local);
     await tester.pumpAndSettle();
-
-    expect(find.text('Library View'), findsOneWidget);
+    expect(find.text('Local View'), findsOneWidget);
   });
 }

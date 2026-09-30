@@ -35,7 +35,7 @@ class HomePage extends StatefulWidget {
     this.onNavigateToSearch,
     this.onNavigateToLibrary,
     this.showLocalMediaPrompt = false,
-    this.onChooseFolder,
+    this.onNavigateToLocal,
     this.openRemoteManga,
     this.openRemoteNovels,
   });
@@ -48,7 +48,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback? onNavigateToSearch;
   final VoidCallback? onNavigateToLibrary;
   final bool showLocalMediaPrompt;
-  final VoidCallback? onChooseFolder;
+  final VoidCallback? onNavigateToLocal;
   final VoidCallback? openRemoteManga;
   final VoidCallback? openRemoteNovels;
 
@@ -276,7 +276,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Choose the persisted local-media root used by Hikari.',
+                      'Browse media from your chosen folder.',
                       style: TextStyle(
                         fontSize: 12,
                         color: colors.textSecondary,
@@ -289,10 +289,10 @@ class _HomePageState extends State<HomePage> {
               SizedBox(
                 width: 125,
                 child: HikariButton(
-                  label: 'Choose folder',
+                  label: 'Open Local',
                   size: HikariButtonSize.small,
                   variant: HikariButtonVariant.secondary,
-                  onPressed: widget.onChooseFolder,
+                  onPressed: widget.onNavigateToLocal,
                 ),
               ),
             ],

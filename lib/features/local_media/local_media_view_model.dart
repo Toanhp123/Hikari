@@ -36,41 +36,46 @@ final class LocalMediaViewModel extends ChangeNotifier {
   LocalMediaUiState get state => _state;
 
   bool _disposed = false;
+  int _generation = 0;
 
-  Future<void> scan() async {
-    if (_state is LocalMediaLoading) return;
+  Future<void> scan({bool refresh = false}) async {
+    if (!refresh && _state is LocalMediaLoading) return;
+    final generation = ++_generation;
     _publish(const LocalMediaLoading());
-    await _loadSelectedRoot();
+    await _loadSelectedRoot(generation);
   }
 
   Future<void> chooseRoot() async {
     if (_state is LocalMediaLoading) return;
 
+    final generation = ++_generation;
     final previousState = _state;
     _publish(const LocalMediaLoading());
     try {
       final selected = await _chooseRoot();
-      if (_disposed) return;
+      if (_disposed || generation != _generation) return;
       if (!selected) {
         _publish(previousState);
         return;
       }
-      await _loadSelectedRoot();
+      await _loadSelectedRoot(generation);
     } catch (error) {
+      if (generation != _generation) return;
       _publish(LocalMediaFailure(error));
     }
   }
 
-  Future<void> _loadSelectedRoot() async {
+  Future<void> _loadSelectedRoot(int generation) async {
     try {
       final result = await _scanSelectedRoot();
-      if (_disposed) return;
+      if (_disposed || generation != _generation) return;
       _publish(
         result == null
             ? const LocalMediaInitial()
             : LocalMediaReady(List.unmodifiable(result)),
       );
     } catch (error) {
+      if (generation != _generation) return;
       _publish(LocalMediaFailure(error));
     }
   }

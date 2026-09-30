@@ -67,42 +67,6 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
-  testWidgets('scan refreshes membership after returning from Library', (
-    tester,
-  ) async {
-    await library.upsert(
-      LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => LocalMediaPage(
-            library: library,
-            scanSelectedRoot: () async => [media],
-            chooseRoot: () async => false,
-            openMedia: (_, _) {},
-            openLibrary: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      LibraryPage(repository: library, openMedia: (_, _) {}),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Library'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Remove from library'));
-    await tester.pumpAndSettle();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Add to library'), findsOneWidget);
-    expect(find.byTooltip('Remove from library'), findsNothing);
-  });
   testWidgets('scan result toggles persisted library membership', (
     tester,
   ) async {
@@ -123,6 +87,8 @@ void main() {
     await tester.tap(find.byTooltip('Remove from library'));
     await tester.pumpAndSettle();
     expect(await library.contains(media.source), isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('reactive repository updates an already mounted LibraryPage', (

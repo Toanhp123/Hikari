@@ -32,6 +32,25 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late bool _isOled;
   bool _isClearingCache = false;
+  bool _isChoosingFolder = false;
+
+  Future<void> _chooseLocalFolder() async {
+    if (_isChoosingFolder || widget.onChooseLocalFolder == null) return;
+    setState(() => _isChoosingFolder = true);
+    try {
+      await widget.onChooseLocalFolder!();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not choose a local folder. Try again.'),
+          action: SnackBarAction(label: 'Retry', onPressed: _chooseLocalFolder),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isChoosingFolder = false);
+    }
+  }
 
   static const _accentColors = [
     Color(0xFF8B5CF6),
@@ -188,7 +207,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: TextStyle(fontSize: 12),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: widget.onChooseLocalFolder,
+                    onTap: _isChoosingFolder ? null : _chooseLocalFolder,
                   ),
                 if (widget.onChooseLocalFolder != null &&
                     widget.onClearCache != null)

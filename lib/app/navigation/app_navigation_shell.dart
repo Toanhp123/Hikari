@@ -6,12 +6,14 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 enum AppTab {
   home,
   search,
+  local,
   library,
   settings;
 
   String get label => switch (this) {
     AppTab.home => 'Home',
     AppTab.search => 'Search',
+    AppTab.local => 'Local',
     AppTab.library => 'Library',
     AppTab.settings => 'Settings',
   };
@@ -19,6 +21,7 @@ enum AppTab {
   IconData get icon => switch (this) {
     AppTab.home => Icons.home_outlined,
     AppTab.search => Icons.search_rounded,
+    AppTab.local => Icons.folder_open_rounded,
     AppTab.library => Icons.collections_bookmark_outlined,
     AppTab.settings => Icons.settings_outlined,
   };
@@ -26,6 +29,7 @@ enum AppTab {
   IconData get selectedIcon => switch (this) {
     AppTab.home => Icons.home_rounded,
     AppTab.search => Icons.search_rounded,
+    AppTab.local => Icons.folder_open_rounded,
     AppTab.library => Icons.collections_bookmark_rounded,
     AppTab.settings => Icons.settings_rounded,
   };
@@ -57,7 +61,7 @@ class AppNavigationShell extends StatefulWidget {
     this.onTabChanged,
   });
 
-  final List<Widget> tabs;
+  final Map<AppTab, Widget> tabs;
   final int initialIndex;
   final AppNavigationController? controller;
   final ValueChanged<int>? onTabChanged;
@@ -107,12 +111,15 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AppTab.values.every(widget.tabs.containsKey)) {
+      throw ArgumentError('A page is required for every AppTab.');
+    }
     final isCompact = context.isCompact;
 
     final children = [
-      for (var i = 0; i < widget.tabs.length; i++)
-        if (_loadedIndices.contains(i))
-          widget.tabs[i]
+      for (final tab in AppTab.values)
+        if (_loadedIndices.contains(tab.index))
+          widget.tabs[tab]!
         else
           const SizedBox.shrink(),
     ];
@@ -216,6 +223,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                               const SizedBox(height: 2),
                               Text(
                                 tab.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: isSelected

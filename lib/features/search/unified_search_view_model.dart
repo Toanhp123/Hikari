@@ -259,19 +259,19 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     final cached = _localCatalogFuture;
     if (cached != null) return cached;
 
-    final future = _loadLocalCatalog();
+    late final Future<List<Media>> future;
+    future = Future.sync(_scanLocalMedia!)
+        .then((media) {
+          return List<Media>.unmodifiable(media ?? const <Media>[]);
+        })
+        .catchError((Object error, StackTrace stack) {
+          if (identical(_localCatalogFuture, future)) {
+            _localCatalogFuture = null;
+          }
+          Error.throwWithStackTrace(error, stack);
+        });
     _localCatalogFuture = future;
     return future;
-  }
-
-  Future<List<Media>> _loadLocalCatalog() async {
-    try {
-      final media = await _scanLocalMedia!.call();
-      return List<Media>.unmodifiable(media ?? const <Media>[]);
-    } catch (_) {
-      _localCatalogFuture = null;
-      rethrow;
-    }
   }
 
   Future<_SearchBatch> _guardSource(

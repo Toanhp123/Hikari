@@ -494,17 +494,24 @@ are not.
 App-level navigation belongs at the app/presentation composition level, not
 inside a source implementation.
 
-The shell should eventually provide consistent access to major product areas
-such as:
+The shell provides these destinations in the same order on compact and wide layouts:
 
 ```text
-Home / Continue
+Home
+Search
+Local
 Library
-Search / Browse
 Settings
 ```
 
-The exact information architecture may evolve during UX work.
+Local restores and scans the saved folder without opening a picker. Folder
+selection is explicit in Local or Settings; Home offers an Open Local entry.
+Successful folder selection increments an app-owned Search catalog revision.
+Settings also increments Local's external-root revision; Local scans its own
+selection directly, avoiding a duplicate scan. Both pages reject stale in-flight
+results. Cancellation keeps the current catalog. Destination pages are keyed by
+`AppTab`, with runtime completeness validation rather than positional ordering. Local uses the shared media-opening and Library contracts;
+classification and archive handling remain in the existing source layer.
 
 Features should request navigation through normal presentation composition rather
 than reaching into infrastructure or source-specific objects.

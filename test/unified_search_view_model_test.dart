@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/search/unified_search_view_model.dart';
@@ -44,6 +46,42 @@ void main() {
     await model.refreshLocalCatalog();
 
     expect(scans, 2);
+  });
+
+  test('old successful scan cannot publish after root refresh', () async {
+    final old = Completer<List<Media>?>();
+    var scans = 0;
+    final model = UnifiedSearchViewModel(
+      scanLocalMedia: () {
+        return ++scans == 1 ? old.future : Future.value(<Media>[]);
+      },
+    );
+    addTearDown(model.dispose);
+    final pending = model.search('Solo');
+    await model.refreshLocalCatalog();
+    old.complete([media]);
+    await pending;
+    expect(model.state.status, UnifiedSearchStatus.empty);
+    expect(model.state.results, isEmpty);
+  });
+
+  test('old failing scan cannot evict replacement root cache', () async {
+    final old = Completer<List<Media>?>();
+    var scans = 0;
+    final model = UnifiedSearchViewModel(
+      scanLocalMedia: () {
+        scans++;
+        return scans == 1 ? old.future : Future.value([media]);
+      },
+    );
+    addTearDown(model.dispose);
+    final pending = model.search('Solo');
+    await model.refreshLocalCatalog();
+    old.completeError(StateError('old root lost permission'));
+    await pending;
+    await model.search('Leveling');
+    expect(scans, 2);
+    expect(model.state.results.single.media, media);
   });
 
   test(
