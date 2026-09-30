@@ -54,11 +54,12 @@ final class LibraryViewModel extends ChangeNotifier {
     final repository = _repository;
     if (repository is ObservableLibraryRepository) {
       _subscription = repository.watchAll().listen(
-        _acceptEntries,
-        onError: _acceptError,
+        _acceptStreamEntries,
+        onError: _acceptStreamError,
       );
+      unawaited(_loadInitialSnapshot());
     } else {
-      reload();
+      unawaited(reload());
     }
   }
 
@@ -68,6 +69,19 @@ final class LibraryViewModel extends ChangeNotifier {
   LibraryUiState _state = const LibraryUiState();
   LibraryUiState get state => _state;
   bool _disposed = false;
+  int _streamRevision = 0;
+
+  Future<void> _loadInitialSnapshot() async {
+    final revision = _streamRevision;
+    try {
+      final entries = await _repository.loadAll();
+      if (_disposed || _streamRevision != revision) return;
+      _acceptEntries(entries);
+    } catch (error) {
+      if (_disposed || _streamRevision != revision) return;
+      _acceptError(error);
+    }
+  }
 
   Future<void> reload() async {
     if (_disposed) return;
@@ -106,6 +120,16 @@ final class LibraryViewModel extends ChangeNotifier {
             : LibraryViewMode.grid,
       ),
     );
+  }
+
+  void _acceptStreamEntries(List<LibraryEntry> entries) {
+    _streamRevision++;
+    _acceptEntries(entries);
+  }
+
+  void _acceptStreamError(Object error) {
+    _streamRevision++;
+    _acceptError(error);
   }
 
   void _acceptEntries(List<LibraryEntry> entries) {
