@@ -13,12 +13,14 @@ class NovelContentView extends StatelessWidget {
     required this.readResource,
     this.onTapLink,
     this.htmlKey,
+    this.textStyle,
   });
 
   final GlobalKey<HtmlWidgetState>? htmlKey;
   final RichReadingContent content;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
   final Future<bool> Function(String)? onTapLink;
+  final TextStyle? textStyle;
 
   @override
   Widget build(BuildContext context) => HtmlWidget(
@@ -36,7 +38,9 @@ class NovelContentView extends StatelessWidget {
       );
     },
     onTapUrl: (url) async => await onTapLink?.call(url) ?? true,
-    textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
+    textStyle:
+        textStyle ??
+        Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
   );
 }
 

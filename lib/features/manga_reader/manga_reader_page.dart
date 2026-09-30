@@ -9,17 +9,7 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
 
-enum MangaReadingMode {
-  ltr('Left-to-Right'),
-  rtl('Right-to-Left (Manga)'),
-  webtoon('Vertical Scroll (Webtoon)');
-
-  const MangaReadingMode(this.label);
-  final String label;
-}
-
-/// Immersive Manga Reader with floating glassmorphic toolbar, page slider,
-/// and reading mode preferences.
+/// Immersive Manga Reader with floating chrome and real page navigation.
 class MangaReaderPage extends StatefulWidget {
   const MangaReaderPage({
     super.key,
@@ -53,7 +43,8 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   ImageProvider? _savedImage;
   bool _hasNavigated = false;
   bool _showControls = true;
-  MangaReadingMode _readingMode = MangaReadingMode.ltr;
+  double? _dragPage;
+  int _loadGeneration = 0;
 
   void _displayed(ImageProvider image, int index) {
     if (widget.initialProgress?.completed == true && !_hasNavigated) return;
@@ -83,14 +74,13 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   void _releaseImage() {
-    final image = _image;
     _image = null;
     _savedImage = null;
-    if (image != null) unawaited(image.evict());
   }
 
   @override
   void dispose() {
+    _loadGeneration++;
     _releaseImage();
     _transform.dispose();
     super.dispose();
@@ -118,6 +108,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   Future<void> _loadCurrent() async {
+    final generation = ++_loadGeneration;
     _releaseImage();
     _transform.value = Matrix4.identity();
     setState(() {
@@ -125,10 +116,11 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
       _failed = false;
     });
     try {
+      ImageProvider? image;
       if (_pages!.isNotEmpty) {
         final bytes = await widget.readPage(_pages![_index]);
-        if (!mounted) return;
-        _image = ResizeImage(
+        if (!mounted || generation != _loadGeneration) return;
+        image = ResizeImage(
           MemoryImage(bytes),
           width: 2048,
           height: 4096,
@@ -136,14 +128,17 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
           allowUpscaling: false,
         );
       }
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _image = image;
+        _loading = false;
+      });
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _failed = true;
-          _loading = false;
-        });
-      }
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _failed = true;
+        _loading = false;
+      });
     }
   }
 
@@ -166,60 +161,6 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
 
   void _toggleControls() {
     setState(() => _showControls = !_showControls);
-  }
-
-  void _showSettingsModal() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.hikariColors.surfaceElevated,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(HikariSpacing.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Reader Settings',
-                    style: HikariTypography.titleMedium.copyWith(
-                      color: context.hikariColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: HikariSpacing.md),
-                  Text(
-                    'Reading Direction',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.hikariColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: HikariSpacing.xs),
-                  Wrap(
-                    spacing: HikariSpacing.sm,
-                    children: MangaReadingMode.values.map((mode) {
-                      final selected = _readingMode == mode;
-                      return ChoiceChip(
-                        label: Text(mode.label),
-                        selected: selected,
-                        onSelected: (val) {
-                          if (val) {
-                            setState(() => _readingMode = mode);
-                            setModalState(() {});
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: HikariSpacing.lg),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   Widget _failure(String message) => Center(
@@ -344,11 +285,6 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                             ],
                           ),
                         ),
-                        HikariIconButton(
-                          icon: const Icon(Icons.tune_rounded),
-                          tooltip: 'Settings',
-                          onPressed: _showSettingsModal,
-                        ),
                       ],
                     ),
                   ),
@@ -417,15 +353,24 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                                       ),
                                     ),
                                     child: Slider(
-                                      value: (_index + 1).toDouble(),
+                                      value:
+                                          _dragPage ?? (_index + 1).toDouble(),
                                       min: 1,
                                       max: pages.length.toDouble(),
                                       divisions: pages.length > 1
                                           ? pages.length - 1
                                           : 1,
-                                      onChanged: (val) {
-                                        _jumpToPage(val.toInt() - 1);
-                                      },
+                                      onChanged: _loading
+                                          ? null
+                                          : (value) {
+                                              setState(() => _dragPage = value);
+                                            },
+                                      onChangeEnd: _loading
+                                          ? null
+                                          : (value) {
+                                              setState(() => _dragPage = null);
+                                              _jumpToPage(value.round() - 1);
+                                            },
                                     ),
                                   ),
                                 ],

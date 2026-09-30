@@ -60,6 +60,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   double _position = 0;
   bool _completed = false;
   (double, bool)? _lastSaved;
+  final _progress = ValueNotifier<double>(0);
 
   NovelReaderTheme _readerTheme = NovelReaderTheme.charcoal;
   double _fontSize = 16.0;
@@ -73,9 +74,9 @@ class _NovelReaderPageState extends State<NovelReaderPage>
       _scroll.position.maxScrollExtent,
     );
     _completed = textAtEnd(_scroll.offset, _scroll.position.maxScrollExtent);
+    _progress.value = _position;
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), _flush);
-    if (mounted) setState(() {});
   }
 
   Future<void> _flush() async {
@@ -107,6 +108,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   void dispose() {
     unawaited(_flush());
     _scroll.dispose();
+    _progress.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -152,7 +154,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         );
         _lastSaved = (_position, _completed);
         _restored = true;
-        if (mounted) setState(() {});
+        _progress.value = _position;
       });
     } catch (error) {
       if (!mounted) return;
@@ -326,6 +328,11 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                               ? NovelContentView(
                                   content: _content!,
                                   readResource: widget.readResource!,
+                                  textStyle: TextStyle(
+                                    color: _readerTheme.fg,
+                                    fontSize: _fontSize,
+                                    height: _lineHeight,
+                                  ),
                                 )
                               : SelectableText(
                                   _text ?? '',
@@ -339,33 +346,35 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                       ),
                     ),
             ),
-            // Bottom Elegant % Progress Indicator Bar
             if (!_loading && _error == null)
-              Container(
-                height: 24,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: HikariSpacing.md,
-                ),
-                color: _readerTheme.bg,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ui.MediaProgress(
-                        progress: _position,
-                        height: 2.5,
-                        showGlow: false,
+              ValueListenableBuilder<double>(
+                valueListenable: _progress,
+                builder: (context, progress, _) => Container(
+                  height: 24,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HikariSpacing.md,
+                  ),
+                  color: _readerTheme.bg,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ui.MediaProgress(
+                          progress: progress,
+                          height: 2.5,
+                          showGlow: false,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: HikariSpacing.sm),
-                    Text(
-                      '${(_position * 100).toInt()}%',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: _readerTheme.fg.withValues(alpha: 0.6),
+                      const SizedBox(width: HikariSpacing.sm),
+                      Text(
+                        '${(progress * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _readerTheme.fg.withValues(alpha: 0.6),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
           ],
