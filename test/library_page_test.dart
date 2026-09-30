@@ -60,6 +60,8 @@ void main() {
       expect(await library.contains(media.source), isFalse);
       await tester.pumpAndSettle();
       expect(find.text('Your library is empty.'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
     },
   );
   testWidgets('scan refreshes membership after returning from Library', (
@@ -137,5 +139,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Saved book'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
   });
 }
