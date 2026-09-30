@@ -57,9 +57,8 @@ void main() {
           utf8.encode(List.filled(150, 'Persisted text').join('\n')),
         );
       });
-      await tester.pumpWidget(
-        HikariApp(dependencies: AppDependencies.create(database: db)),
-      );
+      final dependencies = AppDependencies.create(database: db);
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
@@ -78,6 +77,8 @@ void main() {
       );
       expect(calls, ['selectedTree', 'read']);
       await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      await dependencies.dispose();
       await db.close();
     },
   );
@@ -102,9 +103,8 @@ void main() {
       expect(call.method, 'read');
       return Uint8List.fromList(const [1, 2, 3]);
     });
-    await tester.pumpWidget(
-      HikariApp(dependencies: AppDependencies.create(database: db)),
-    );
+    final dependencies = AppDependencies.create(database: db);
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
@@ -112,6 +112,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MangaReaderPage), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await dependencies.dispose();
     await db.close();
   });
 
@@ -121,10 +123,15 @@ void main() {
       return null;
     });
 
-    await tester.pumpWidget(HikariApp(dependencies: AppDependencies.create()));
+    final dependencies = AppDependencies.create();
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
     expect(find.text('Local media'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await dependencies.dispose();
   });
 }
