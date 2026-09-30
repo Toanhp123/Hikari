@@ -1,0 +1,4479 @@
+diff --git a/lib/app/app.dart b/lib/app/app.dart
+--- a/lib/app/app.dart
++++ b/lib/app/app.dart
+@@ -3,22 +3,21 @@ import 'dart:async';
+ import 'package:flutter/material.dart';
+ import 'package:hikari/app/app_dependencies.dart';
+ import 'package:hikari/application/media/open_media.dart';
++import 'package:hikari/app/theme/hikari_theme.dart';
+ import 'package:hikari/domain/media/manga.dart';
+ import 'package:hikari/domain/media/media.dart';
+ import 'package:hikari/domain/media/novel.dart';
+-import 'package:hikari/features/remote_novel/novel_series_page.dart';
+ import 'package:hikari/domain/media/source.dart';
+-import 'package:hikari/app/theme/hikari_theme.dart';
+ import 'package:hikari/features/home/home_page.dart';
+ import 'package:hikari/features/library/library_page.dart';
+ import 'package:hikari/features/manga_reader/manga_reader_page.dart';
+-import 'package:hikari/features/media_details/media_details_page.dart';
+ import 'package:hikari/features/novel_reader/novel_reader_page.dart';
+ import 'package:hikari/features/novel_reader/publication_reader_page.dart';
+ import 'package:hikari/features/player/player_page.dart';
+ import 'package:hikari/features/player/video_surface.dart';
+ import 'package:hikari/features/remote_manga/manga_series_page.dart';
+ import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
++import 'package:hikari/features/remote_novel/novel_series_page.dart';
+ import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
+ import 'package:hikari/features/search/unified_search_page.dart';
+ import 'package:hikari/features/settings/settings_page.dart';
+@@ -125,8 +124,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+         publication,
+       ),
+     };
+-    await Navigator.of(context)
+-        .push(MaterialPageRoute<void>(builder: (_) => page));
++    await Navigator.of(context).push(
++      MaterialPageRoute<void>(builder: (_) => page),
++    );
+   }
+ 
+   Widget _buildVideoPage(VideoOpenTarget target) {
+@@ -137,9 +137,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+     );
+     return PlayerPage(
+       title: target.media.title,
++      controls: playback,
+       beforeExit: playback.finish,
+       playback: VideoSurface(
+-        changes: playback.changes,
++        changes: playback.surfaceChanges,
+         controller: () => playback.controller,
+         loading: () => playback.loading,
+         error: () => playback.error,
+@@ -223,18 +224,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+     );
+   }
+ 
+-  Future<void> _openDetails(BuildContext context, Media media) async {
+-    await Navigator.of(context).push(
+-      MaterialPageRoute<void>(
+-        builder: (_) => MediaDetailsPage(
+-          media: media,
+-          openMedia: _openMedia,
+-          library: _dependencies.libraryRepository,
+-        ),
+-      ),
+-    );
+-  }
+-
+   @override
+   Widget build(BuildContext context) {
+     final localSource = _dependencies.localMediaSource;
+@@ -255,9 +244,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+             HomePage(
+               openMedia: _openMedia,
+               library: libraryRepository,
+-              onOpenDetails: _openDetails,
+               showLocalMediaPrompt: localSource.isAvailable,
+-              scanLocalMedia: localSource.scanSelectedRoot,
+               onChooseFolder: () async => await localSource.chooseRoot(),
+               openRemoteManga: canSearchManga
+                   ? () => Navigator.of(context).push(
+@@ -288,13 +275,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
+               searchManga: _dependencies.searchManga,
+               searchNovels: _dependencies.searchNovels,
+               scanLocalMedia: localSource.scanSelectedRoot,
+-              onOpenDetails: _openDetails,
+             ),
+             LibraryPage(repository: libraryRepository, openMedia: _openMedia),
+             SettingsPage(
+               isOled: _isOled,
+-              onToggleOled: (val) => setState(() => _isOled = val),
+-              onSelectAccent: (val) => setState(() => _accentColor = val),
++              onToggleOled: (value) => setState(() => _isOled = value),
++              onSelectAccent: (value) => setState(() => _accentColor = value),
+               onChooseLocalFolder: localSource.chooseRoot,
+             ),
+           ],
+diff --git a/lib/core/ui/patterns/media_poster.dart b/lib/core/ui/patterns/media_poster.dart
+--- a/lib/core/ui/patterns/media_poster.dart
++++ b/lib/core/ui/patterns/media_poster.dart
+@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
+ import 'package:hikari/app/theme/hikari_theme.dart';
+ import 'package:hikari/core/ui/patterns/media_progress.dart';
+ 
+-/// A 2:3 aspect ratio media poster with scrim gradient, badges, shimmer skeleton, and hero animation.
++/// Shared 2:3 media artwork pattern.
++///
++/// Feature-owned cards decide which product metadata belongs around this visual
++/// primitive; the poster itself only owns artwork, identity labels and progress.
+ class MediaPoster extends StatelessWidget {
+   const MediaPoster({
+     super.key,
+@@ -14,9 +17,6 @@ class MediaPoster extends StatelessWidget {
+     this.heroTag,
+     this.badgeText,
+     this.badgeColor,
+-    this.rating,
+-    this.statusText,
+-    this.statusColor,
+     this.progress,
+     this.subtitle,
+     this.onTap,
+@@ -31,9 +31,6 @@ class MediaPoster extends StatelessWidget {
+   final String? heroTag;
+   final String? badgeText;
+   final Color? badgeColor;
+-  final String? rating;
+-  final String? statusText;
+-  final Color? statusColor;
+   final double? progress;
+   final String? subtitle;
+   final VoidCallback? onTap;
+@@ -45,7 +42,7 @@ class MediaPoster extends StatelessWidget {
+   Widget build(BuildContext context) {
+     final colors = context.hikariColors;
+ 
+-    Widget posterContent = AspectRatio(
++    Widget content = AspectRatio(
+       aspectRatio: 2 / 3,
+       child: Container(
+         decoration: BoxDecoration(
+@@ -64,46 +61,14 @@ class MediaPoster extends StatelessWidget {
+         child: Stack(
+           fit: StackFit.expand,
+           children: [
+-            // Image or Skeleton or Fallback
+-            if (isLoading)
+-              _ShimmerBox(
+-                baseColor: colors.surfaceContainer,
+-                highlightColor: colors.surfaceHighlight,
+-              )
+-            else if (imageBytes != null && imageBytes!.isNotEmpty)
+-              Image.memory(
+-                imageBytes!,
+-                fit: BoxFit.cover,
+-                cacheWidth: 360,
+-                errorBuilder: (context, error, stackTrace) =>
+-                    _fallbackPlaceholder(colors),
+-              )
+-            else if (imageUrl != null && imageUrl!.isNotEmpty)
+-              Image.network(
+-                imageUrl!,
+-                fit: BoxFit.cover,
+-                cacheWidth: 360,
+-                errorBuilder: (context, error, stackTrace) =>
+-                    _fallbackPlaceholder(colors),
+-                loadingBuilder: (context, child, loadingProgress) {
+-                  if (loadingProgress == null) return child;
+-                  return _ShimmerBox(
+-                    baseColor: colors.surfaceContainer,
+-                    highlightColor: colors.surfaceHighlight,
+-                  );
+-                },
+-              )
+-            else
+-              _fallbackPlaceholder(colors),
+-
+-            // Bottom 35% scrim gradient to protect title text
+-            Positioned(
++            _buildArtwork(colors),
++            const Positioned(
+               left: 0,
+               right: 0,
+               bottom: 0,
+               height: 90,
+-              child: Container(
+-                decoration: const BoxDecoration(
++              child: DecoratedBox(
++                decoration: BoxDecoration(
+                   gradient: LinearGradient(
+                     begin: Alignment.topCenter,
+                     end: Alignment.bottomCenter,
+@@ -116,126 +81,15 @@ class MediaPoster extends StatelessWidget {
+                 ),
+               ),
+             ),
+-
+-            // Top-left Star Rating or Badge
+-            if (rating != null && rating!.isNotEmpty)
++            if (badgeText != null && badgeText!.isNotEmpty)
+               Positioned(
+                 top: 8,
+                 left: 8,
+-                child: Container(
+-                  padding: const EdgeInsets.symmetric(
+-                    horizontal: 6,
+-                    vertical: 3,
+-                  ),
+-                  decoration: BoxDecoration(
+-                    color: const Color(0xD90B0F17),
+-                    borderRadius: BorderRadius.circular(8),
+-                    border: Border.all(
+-                      color: Colors.white.withValues(alpha: 0.18),
+-                      width: 0.8,
+-                    ),
+-                    boxShadow: [
+-                      BoxShadow(
+-                        color: Colors.black.withValues(alpha: 0.5),
+-                        blurRadius: 6,
+-                      ),
+-                    ],
+-                  ),
+-                  child: Row(
+-                    mainAxisSize: MainAxisSize.min,
+-                    children: [
+-                      const Icon(
+-                        Icons.star_rounded,
+-                        size: 13,
+-                        color: Color(0xFFFBBF24),
+-                      ),
+-                      const SizedBox(width: 3),
+-                      Text(
+-                        rating!,
+-                        style: const TextStyle(
+-                          fontSize: 10,
+-                          fontWeight: FontWeight.w700,
+-                          color: Colors.white,
+-                        ),
+-                      ),
+-                    ],
+-                  ),
+-                ),
+-              )
+-            else if (badgeText != null && badgeText!.isNotEmpty)
+-              Positioned(
+-                top: 8,
+-                left: 8,
+-                child: Container(
+-                  padding: const EdgeInsets.symmetric(
+-                    horizontal: 8,
+-                    vertical: 3,
+-                  ),
+-                  decoration: BoxDecoration(
+-                    color: (badgeColor ?? colors.primary).withValues(
+-                      alpha: 0.9,
+-                    ),
+-                    borderRadius: HikariRadius.borderXs,
+-                    boxShadow: [
+-                      BoxShadow(
+-                        color: (badgeColor ?? colors.primary).withValues(
+-                          alpha: 0.4,
+-                        ),
+-                        blurRadius: 6,
+-                      ),
+-                    ],
+-                  ),
+-                  child: Text(
+-                    badgeText!,
+-                    style: const TextStyle(
+-                      fontSize: 10,
+-                      fontWeight: FontWeight.w700,
+-                      color: Colors.white,
+-                      letterSpacing: 0.5,
+-                    ),
+-                  ),
++                child: _MediaBadge(
++                  label: badgeText!,
++                  color: badgeColor ?? colors.primary,
+                 ),
+               ),
+-
+-            // Top-right Status Pill (Watching / Plan to Watch / Type)
+-            if (statusText != null && statusText!.isNotEmpty)
+-              Positioned(
+-                top: 8,
+-                right: 8,
+-                child: Container(
+-                  padding: const EdgeInsets.symmetric(
+-                    horizontal: 7,
+-                    vertical: 3,
+-                  ),
+-                  decoration: BoxDecoration(
+-                    color: (statusColor ?? colors.surfaceElevated).withValues(
+-                      alpha: 0.85,
+-                    ),
+-                    borderRadius: BorderRadius.circular(8),
+-                    border: Border.all(
+-                      color: Colors.white.withValues(alpha: 0.16),
+-                      width: 0.8,
+-                    ),
+-                    boxShadow: [
+-                      BoxShadow(
+-                        color: Colors.black.withValues(alpha: 0.4),
+-                        blurRadius: 4,
+-                      ),
+-                    ],
+-                  ),
+-                  child: Text(
+-                    statusText!,
+-                    style: const TextStyle(
+-                      fontSize: 9,
+-                      fontWeight: FontWeight.w600,
+-                      color: Color(0xFFF1F5F9),
+-                      letterSpacing: 0.2,
+-                    ),
+-                  ),
+-                ),
+-              ),
+-
+-            // Title & Subtitle in bottom scrim
+             Positioned(
+               left: 8,
+               right: 8,
+@@ -270,40 +124,71 @@ class MediaPoster extends StatelessWidget {
+                 ],
+               ),
+             ),
+-
+-            // Progress bar at very bottom
+             if (progress != null && progress! > 0)
+               Positioned(
+                 left: 0,
+                 right: 0,
+                 bottom: 0,
+-                child: MediaProgress(progress: progress!, height: 3.0),
++                child: MediaProgress(progress: progress!, height: 3),
+               ),
+           ],
+         ),
+       ),
+     );
+ 
+-    if (heroTag != null) {
+-      posterContent = Hero(tag: heroTag!, child: posterContent);
++    final tag = heroTag;
++    if (tag != null) {
++      content = Hero(tag: tag, child: content);
+     }
+-
+     if (onTap != null) {
+-      posterContent = GestureDetector(
+-        onTap: onTap,
+-        behavior: HitTestBehavior.opaque,
+-        child: posterContent,
+-      );
++      content = InkWell(onTap: onTap, child: content);
+     }
+ 
+-    // Isolate repaint with RepaintBoundary
+     return RepaintBoundary(
+-      child: SizedBox(width: width, height: height, child: posterContent),
++      child: SizedBox(width: width, height: height, child: content),
+     );
+   }
+ 
++  Widget _buildArtwork(HikariColors colors) {
++    if (isLoading) {
++      return _PosterSkeleton(
++        baseColor: colors.surfaceContainer,
++        highlightColor: colors.surfaceHighlight,
++      );
++    }
++
++    final bytes = imageBytes;
++    if (bytes != null && bytes.isNotEmpty) {
++      return Image.memory(
++        bytes,
++        fit: BoxFit.cover,
++        cacheWidth: 360,
++        errorBuilder: (_, _, _) => _fallbackPlaceholder(colors),
++      );
++    }
++
++    final url = imageUrl;
++    if (url != null && url.isNotEmpty) {
++      return Image.network(
++        url,
++        fit: BoxFit.cover,
++        cacheWidth: 360,
++        errorBuilder: (_, _, _) => _fallbackPlaceholder(colors),
++        loadingBuilder: (_, child, loadingProgress) {
++          if (loadingProgress == null) return child;
++          return _PosterSkeleton(
++            baseColor: colors.surfaceContainer,
++            highlightColor: colors.surfaceHighlight,
++          );
++        },
++      );
++    }
++
++    return _fallbackPlaceholder(colors);
++  }
++
+   Widget _fallbackPlaceholder(HikariColors colors) {
+-    return Container(
++    return DecoratedBox(
+       decoration: BoxDecoration(
+         gradient: LinearGradient(
+           begin: Alignment.topLeft,
+@@ -316,37 +201,57 @@ class MediaPoster extends StatelessWidget {
+         ),
+       ),
+       child: Center(
+-        child: Container(
+-          width: 44,
+-          height: 44,
+-          decoration: BoxDecoration(
+-            shape: BoxShape.circle,
+-            color: colors.primary.withValues(alpha: 0.12),
+-            border: Border.all(
+-              color: colors.primaryGlow.withValues(alpha: 0.25),
+-              width: 1.0,
+-            ),
+-          ),
+-          child: Icon(
+-            Icons.movie_filter_rounded,
+-            size: 24,
+-            color: colors.primaryGlow.withValues(alpha: 0.8),
++        child: Icon(
++          Icons.movie_filter_rounded,
++          size: 28,
++          color: colors.primaryGlow.withValues(alpha: 0.75),
++        ),
++      ),
++    );
++  }
++}
++
++class _MediaBadge extends StatelessWidget {
++  const _MediaBadge({required this.label, required this.color});
++
++  final String label;
++  final Color color;
++
++  @override
++  Widget build(BuildContext context) {
++    return DecoratedBox(
++      decoration: BoxDecoration(
++        color: color.withValues(alpha: 0.9),
++        borderRadius: HikariRadius.borderXs,
++      ),
++      child: Padding(
++        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
++        child: Text(
++          label,
++          style: const TextStyle(
++            fontSize: 10,
++            fontWeight: FontWeight.w700,
++            color: Colors.white,
++            letterSpacing: 0.5,
+           ),
+         ),
+       ),
+     );
+   }
+ }
+ 
+-class _ShimmerBox extends StatelessWidget {
+-  const _ShimmerBox({required this.baseColor, required this.highlightColor});
++class _PosterSkeleton extends StatelessWidget {
++  const _PosterSkeleton({
++    required this.baseColor,
++    required this.highlightColor,
++  });
+ 
+   final Color baseColor;
+   final Color highlightColor;
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return Container(
++    return DecoratedBox(
+       decoration: BoxDecoration(
+         gradient: LinearGradient(
+           begin: Alignment.topLeft,
+diff --git a/lib/domain/library/library.dart b/lib/domain/library/library.dart
+--- a/lib/domain/library/library.dart
++++ b/lib/domain/library/library.dart
+@@ -3,6 +3,7 @@ import 'package:hikari/domain/media/media.dart';
+ final class LibraryEntry {
+   LibraryEntry({required this.media, required DateTime addedAt})
+     : addedAt = addedAt.toUtc();
++
+   final Media media;
+   final DateTime addedAt;
+ }
+@@ -13,3 +14,12 @@ abstract interface class LibraryRepository {
+   Future<bool> contains(SourceMediaRef media);
+   Future<List<LibraryEntry>> loadAll();
+ }
++
++/// Optional capability for repositories that can publish live library changes.
++///
++/// Keeping this separate preserves the small base contract for tests or future
++/// non-reactive implementations.
++abstract interface class ObservableLibraryRepository
++    implements LibraryRepository {
++  Stream<List<LibraryEntry>> watchAll();
++}
+diff --git a/lib/domain/playback/video_playback.dart b/lib/domain/playback/video_playback.dart
+--- a/lib/domain/playback/video_playback.dart
++++ b/lib/domain/playback/video_playback.dart
+@@ -0,0 +1,14 @@
++/// Platform-independent controls exposed by an active video playback.
++///
++/// Rendering the native video surface remains infrastructure-specific. Feature
++/// UI depends only on this small state/command contract.
++abstract interface class VideoPlaybackControls {
++  Stream<void> get changes;
++  bool get playing;
++  Duration get position;
++  Duration get duration;
++
++  Future<void> play();
++  Future<void> pause();
++  Future<void> seek(Duration position);
++}
+diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
+--- a/lib/features/home/home_page.dart
++++ b/lib/features/home/home_page.dart
+@@ -1,5 +1,3 @@
+-import 'dart:async';
+-
+ import 'package:flutter/material.dart';
+ import 'package:hikari/app/theme/hikari_theme.dart';
+ import 'package:hikari/core/ui/components/hikari_button.dart';
+@@ -8,24 +6,25 @@ import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+ import 'package:hikari/core/ui/patterns/media_poster.dart';
+ import 'package:hikari/domain/library/library.dart';
+ import 'package:hikari/domain/media/media.dart';
++import 'package:hikari/features/home/home_view_model.dart';
+ import 'package:hikari/features/home/widgets/continue_shelf.dart';
+ import 'package:hikari/features/home/widgets/hero_carousel.dart';
+-
+ import 'package:hikari/features/shell/app_navigation_shell.dart';
+ 
+ enum HomeFilterType {
+   all('All'),
+   anime('Anime'),
+   manga('Manga'),
+-  novel('Light Novels'),
+-  movies('Movies');
++  novel('Light Novels');
+ 
+   const HomeFilterType(this.label);
+   final String label;
+ }
+ 
+-/// The Home Dashboard screen with Hero banner, Continue Reading shelf,
+-/// category filters, and trending grid.
++/// Home composes only real application data.
++///
++/// Explicit discover items take precedence when a future browse capability
++/// supplies them. Otherwise the grid is backed by the user's live Library.
+ class HomePage extends StatefulWidget {
+   const HomePage({
+     super.key,
+@@ -34,11 +33,9 @@ class HomePage extends StatefulWidget {
+     this.featuredItems = const [],
+     this.continueItems = const [],
+     this.trendingItems = const [],
+-    this.onOpenDetails,
+     this.onNavigateToSearch,
+     this.onNavigateToLibrary,
+     this.showLocalMediaPrompt = false,
+-    this.scanLocalMedia,
+     this.onChooseFolder,
+     this.openRemoteManga,
+     this.openRemoteNovels,
+@@ -49,495 +46,360 @@ class HomePage extends StatefulWidget {
+   final List<FeaturedHeroItem> featuredItems;
+   final List<ContinueReadingItem> continueItems;
+   final List<Media> trendingItems;
+-  final void Function(BuildContext, Media)? onOpenDetails;
+   final VoidCallback? onNavigateToSearch;
+   final VoidCallback? onNavigateToLibrary;
+   final bool showLocalMediaPrompt;
+-  final Future<List<Media>?> Function()? scanLocalMedia;
+   final VoidCallback? onChooseFolder;
+   final VoidCallback? openRemoteManga;
+   final VoidCallback? openRemoteNovels;
+ 
+-  static const _defaultFeaturedItems = [
+-    FeaturedHeroItem(
+-      media: Media(
+-        title: 'Aether Bound',
+-        type: MediaType.anime,
+-        source: SourceMediaRef(
+-          sourceId: SourceId('featured'),
+-          itemId: 'aether_bound',
+-        ),
+-      ),
+-      tagline: 'Immersive dynamic artwork with from a popular anime (e.g.) end watching series.',
+-      genres: ['Action', 'Fantasy', 'Sci-Fi'],
+-      primaryActionLabel: 'Play Episode 14',
+-      secondaryActionLabel: 'My List',
+-    ),
+-  ];
+-
+-  static const _defaultContinueItems = [
+-    ContinueReadingItem(
+-      media: Media(
+-        title: 'Demon Slayer',
+-        type: MediaType.anime,
+-        source: SourceMediaRef(sourceId: SourceId('continue'), itemId: 'ds'),
+-      ),
+-      progress: 0.65,
+-      progressLabel: 'S2 Ep 8 · 14m left',
+-    ),
+-    ContinueReadingItem(
+-      media: Media(
+-        title: 'Berserk Vol 24',
+-        type: MediaType.manga,
+-        source: SourceMediaRef(
+-          sourceId: SourceId('continue'),
+-          itemId: 'berserk',
+-        ),
+-      ),
+-      progress: 0.40,
+-      progressLabel: 'Ch. 198 · 15m left',
+-    ),
+-    ContinueReadingItem(
+-      media: Media(
+-        title: 'Jujutsu Kaisen',
+-        type: MediaType.anime,
+-        source: SourceMediaRef(sourceId: SourceId('continue'), itemId: 'jjk'),
+-      ),
+-      progress: 0.82,
+-      progressLabel: 'S1 Ep 19 · 14m left',
+-    ),
+-    ContinueReadingItem(
+-      media: Media(
+-        title: 'Chainsaw Man',
+-        type: MediaType.anime,
+-        source: SourceMediaRef(sourceId: SourceId('continue'), itemId: 'csm'),
+-      ),
+-      progress: 0.25,
+-      progressLabel: 'S1 Ep 13 · 12m left',
+-    ),
+-  ];
+-
+-  static const _defaultTrendingItems = [
+-    Media(
+-      title: 'Attack on Titan',
+-      type: MediaType.anime,
+-      source: SourceMediaRef(sourceId: SourceId('trending'), itemId: 'aot'),
+-    ),
+-    Media(
+-      title: 'Vagabond',
+-      type: MediaType.manga,
+-      source: SourceMediaRef(
+-        sourceId: SourceId('trending'),
+-        itemId: 'vagabond',
+-      ),
+-    ),
+-    Media(
+-      title: 'Perfect Blue',
+-      type: MediaType.anime,
+-      source: SourceMediaRef(
+-        sourceId: SourceId('trending'),
+-        itemId: 'perfect_blue',
+-      ),
+-    ),
+-    Media(
+-      title: 'Solo Leveling',
+-      type: MediaType.lightNovel,
+-      source: SourceMediaRef(
+-        sourceId: SourceId('trending'),
+-        itemId: 'solo_leveling',
+-      ),
+-    ),
+-    Media(
+-      title: 'Cyberpunk Edgerunners',
+-      type: MediaType.anime,
+-      source: SourceMediaRef(
+-        sourceId: SourceId('trending'),
+-        itemId: 'cyberpunk',
+-      ),
+-    ),
+-    Media(
+-      title: 'Chainsaw Man',
+-      type: MediaType.manga,
+-      source: SourceMediaRef(
+-        sourceId: SourceId('trending'),
+-        itemId: 'csm_manga',
+-      ),
+-    ),
+-  ];
+-
+-  static const _showcaseMetadata =
+-      <String, ({String rating, String status, String subtitle})>{
+-        'Attack on Titan': (
+-          rating: '9.2',
+-          status: 'Watching',
+-          subtitle: '9.2 ★ | Anime',
+-        ),
+-        'Vagabond': (
+-          rating: '9.5',
+-          status: 'Watching',
+-          subtitle: '9.5 ★ | Manga',
+-        ),
+-        'Perfect Blue': (
+-          rating: '8.8',
+-          status: 'Plan to Watch',
+-          subtitle: '8.8 ★ | Movie',
+-        ),
+-        'Solo Leveling': (
+-          rating: '9.1',
+-          status: 'Watching',
+-          subtitle: '9.1 ★ | Light Novel',
+-        ),
+-        'Cyberpunk Edgerunners': (
+-          rating: '8.9',
+-          status: 'Plan to Watch',
+-          subtitle: '8.9 ★ | Anime',
+-        ),
+-        'Chainsaw Man': (
+-          rating: '9.0',
+-          status: 'Ongoing',
+-          subtitle: '9.0 ★ | Manga',
+-        ),
+-      };
+-
+   @override
+   State<HomePage> createState() => _HomePageState();
+ }
+ 
+ class _HomePageState extends State<HomePage> {
++  late final HomeViewModel _model = HomeViewModel(widget.library);
+   HomeFilterType _selectedFilter = HomeFilterType.all;
+ 
+   @override
+-  void initState() {
+-    super.initState();
+-    if (widget.showLocalMediaPrompt && widget.scanLocalMedia != null) {
+-      unawaited(widget.scanLocalMedia!());
+-    }
++  void dispose() {
++    _model.dispose();
++    super.dispose();
+   }
+ 
+-  List<FeaturedHeroItem> get _effectiveFeatured =>
+-      widget.featuredItems.isNotEmpty
+-      ? widget.featuredItems
+-      : HomePage._defaultFeaturedItems;
+-
+-  List<ContinueReadingItem> get _effectiveContinue =>
+-      widget.continueItems.isNotEmpty
+-      ? widget.continueItems
+-      : HomePage._defaultContinueItems;
+-
+-  List<Media> get _filteredTrending {
+-    final base = widget.trendingItems.isNotEmpty
+-        ? widget.trendingItems
+-        : HomePage._defaultTrendingItems;
+-    if (_selectedFilter == HomeFilterType.all) return base;
+-    return base.where((item) {
++  List<Media> _filteredItems(List<Media> items) {
++    if (_selectedFilter == HomeFilterType.all) return items;
++    return items.where((item) {
+       return switch (_selectedFilter) {
+         HomeFilterType.all => true,
+         HomeFilterType.anime => item.type == MediaType.anime,
+         HomeFilterType.manga => item.type == MediaType.manga,
+         HomeFilterType.novel => item.type == MediaType.lightNovel,
+-        HomeFilterType.movies =>
+-          item.type == MediaType.anime &&
+-              (item.title.contains('Movie') || item.title == 'Perfect Blue'),
+       };
+-    }).toList();
++    }).toList(growable: false);
+   }
+ 
+   void _navigateToSearch(BuildContext context) {
+     if (widget.onNavigateToSearch != null) {
+       widget.onNavigateToSearch!();
+-    } else {
+-      AppNavigationScope.of(context)?.selectTab(AppTab.search.index);
++      return;
+     }
++    AppNavigationScope.of(context)?.selectTab(AppTab.search.index);
+   }
+ 
+   void _navigateToLibrary(BuildContext context) {
+     if (widget.onNavigateToLibrary != null) {
+       widget.onNavigateToLibrary!();
+-    } else {
+-      AppNavigationScope.of(context)?.selectTab(AppTab.library.index);
++      return;
+     }
++    AppNavigationScope.of(context)?.selectTab(AppTab.library.index);
+   }
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final colors = context.hikariColors;
++    return ListenableBuilder(
++      listenable: _model,
++      builder: (context, _) {
++        final colors = context.hikariColors;
++        final state = _model.state;
++        final usesBrowseFeed = widget.trendingItems.isNotEmpty;
++        final feed = usesBrowseFeed
++            ? widget.trendingItems
++            : state.libraryItems;
++        final filteredFeed = _filteredItems(feed);
+ 
+-    return HikariScaffold(
+-      useSafeArea: true,
+-      body: CustomScrollView(
+-        physics: const BouncingScrollPhysics(),
+-        slivers: [
+-          // Top App Bar Header
+-          SliverToBoxAdapter(
+-            child: Padding(
+-              padding: const EdgeInsets.symmetric(
+-                horizontal: HikariSpacing.lg,
+-                vertical: HikariSpacing.sm,
+-              ),
+-              child: Row(
+-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+-                children: [
+-                  Row(
+-                    children: [
+-                      Container(
+-                        width: 32,
+-                        height: 32,
+-                        decoration: BoxDecoration(
+-                          gradient: LinearGradient(
+-                            colors: [colors.primary, colors.secondary],
+-                          ),
+-                          borderRadius: HikariRadius.borderSm,
+-                        ),
+-                        child: const Icon(
+-                          Icons.auto_awesome,
+-                          color: Colors.white,
+-                          size: 18,
+-                        ),
+-                      ),
+-                      const SizedBox(width: HikariSpacing.sm),
+-                      Text(
+-                        'Hikari',
+-                        style: HikariTypography.titleLarge.copyWith(
+-                          color: colors.textPrimary,
+-                          fontWeight: FontWeight.w700,
+-                          letterSpacing: 0.5,
+-                        ),
+-                      ),
+-                    ],
++        return HikariScaffold(
++          useSafeArea: true,
++          body: CustomScrollView(
++            physics: const BouncingScrollPhysics(),
++            slivers: [
++              SliverToBoxAdapter(child: _buildHeader(context, colors)),
++              if (widget.showLocalMediaPrompt)
++                SliverToBoxAdapter(child: _buildLocalMediaCard(colors)),
++              if (widget.featuredItems.isNotEmpty)
++                SliverToBoxAdapter(
++                  child: Padding(
++                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
++                    child: HeroCarousel(
++                      items: widget.featuredItems,
++                      onOpenMedia: widget.openMedia,
++                    ),
+                   ),
+-                  Row(
+-                    children: [
+-                      // Primary Unified Search button
+-                      IconButton(
+-                        tooltip: 'Search',
+-                        onPressed: () => _navigateToSearch(context),
+-                        icon: Icon(
+-                          Icons.search_rounded,
+-                          color: colors.textPrimary,
+-                        ),
+-                      ),
+-                      if (widget.openRemoteManga != null)
+-                        IconButton(
+-                          tooltip: 'Search manga',
+-                          onPressed: widget.openRemoteManga,
+-                          icon: Icon(
+-                            Icons.auto_stories_outlined,
+-                            color: colors.textSecondary,
+-                          ),
+-                        ),
+-                      if (widget.openRemoteNovels != null)
+-                        IconButton(
+-                          tooltip: 'Search novels',
+-                          onPressed: widget.openRemoteNovels,
+-                          icon: Icon(
+-                            Icons.chrome_reader_mode_outlined,
+-                            color: colors.textSecondary,
+-                          ),
+-                        ),
+-                    ],
++                ),
++              if (widget.continueItems.isNotEmpty)
++                SliverToBoxAdapter(
++                  child: Padding(
++                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
++                    child: ContinueShelf(
++                      items: widget.continueItems,
++                      onOpenMedia: widget.openMedia,
++                      onSeeAll: () => _navigateToLibrary(context),
++                    ),
++                  ),
++                ),
++              if (feed.isNotEmpty) ...[
++                SliverToBoxAdapter(
++                  child: _buildFeedHeader(
++                    colors,
++                    usesBrowseFeed ? 'Discover' : 'Recently added',
+                   ),
+-                ],
+-              ),
+-            ),
+-          ),
+-
+-          // Local Media Quick Access Card
+-          if (widget.showLocalMediaPrompt)
+-            SliverToBoxAdapter(
+-              child: Padding(
+-                padding: const EdgeInsets.symmetric(
+-                  horizontal: HikariSpacing.lg,
+-                  vertical: HikariSpacing.xs,
+                 ),
+-                child: Material(
+-                  color: colors.surfaceContainer,
+-                  shape: RoundedRectangleBorder(
+-                    borderRadius: HikariRadius.borderMd,
+-                    side: BorderSide(color: colors.border),
++                const SliverToBoxAdapter(
++                  child: SizedBox(height: HikariSpacing.lg),
++                ),
++                _buildFeedGrid(colors, filteredFeed),
++              ] else if (state.loading)
++                const SliverToBoxAdapter(
++                  child: Padding(
++                    padding: EdgeInsets.all(HikariSpacing.xl),
++                    child: Center(child: CircularProgressIndicator()),
+                   ),
+-                  clipBehavior: Clip.antiAlias,
++                )
++              else
++                SliverToBoxAdapter(
+                   child: Padding(
+-                    padding: const EdgeInsets.all(HikariSpacing.md),
+-                    child: Row(
+-                      children: [
+-                        Container(
+-                          padding: const EdgeInsets.all(10),
+-                          decoration: BoxDecoration(
+-                            color: colors.primary.withValues(alpha: 0.15),
+-                            borderRadius: HikariRadius.borderSm,
+-                          ),
+-                          child: Icon(
+-                            Icons.folder_open_rounded,
+-                            color: colors.primaryGlow,
+-                            size: 24,
+-                          ),
+-                        ),
+-                        const SizedBox(width: HikariSpacing.md),
+-                        Expanded(
+-                          child: Column(
+-                            crossAxisAlignment: CrossAxisAlignment.start,
+-                            children: [
+-                              Text(
+-                                'Local media',
+-                                style: TextStyle(
+-                                  fontWeight: FontWeight.w600,
+-                                  fontSize: 14,
+-                                  color: colors.textPrimary,
+-                                ),
+-                              ),
+-                              const SizedBox(height: 2),
+-                              Text(
+-                                'Import and browse anime, manga, and light novels from storage.',
+-                                style: TextStyle(
+-                                  fontSize: 12,
+-                                  color: colors.textSecondary,
+-                                ),
+-                              ),
+-                            ],
+-                          ),
+-                        ),
+-                        const SizedBox(width: HikariSpacing.sm),
+-                        SizedBox(
+-                          width: 125,
+-                          child: HikariButton(
+-                            label: 'Choose folder',
+-                            size: HikariButtonSize.small,
+-                            variant: HikariButtonVariant.secondary,
+-                            onPressed: widget.onChooseFolder,
+-                          ),
++                    padding: const EdgeInsets.all(HikariSpacing.xl),
++                    child: Center(
++                      child: Text(
++                        state.error == null
++                            ? 'Add media to your Library to populate Home.'
++                            : 'Could not load recent Library items.',
++                        textAlign: TextAlign.center,
++                        style: TextStyle(
++                          color: colors.textMuted,
++                          fontSize: 13,
+                         ),
+-                      ],
++                      ),
+                     ),
+                   ),
+                 ),
++              const SliverToBoxAdapter(
++                child: SizedBox(height: HikariSpacing.xxl),
+               ),
+-            ),
++            ],
++          ),
++        );
++      },
++    );
++  }
+ 
+-          // 16:9 Hero Carousel
+-          if (_effectiveFeatured.isNotEmpty)
+-            SliverToBoxAdapter(
+-              child: Padding(
+-                padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
+-                child: HeroCarousel(
+-                  items: _effectiveFeatured,
+-                  onOpenMedia: widget.openMedia,
+-                  onOpenDetails: widget.onOpenDetails,
++  Widget _buildHeader(BuildContext context, HikariColors colors) {
++    return Padding(
++      padding: const EdgeInsets.symmetric(
++        horizontal: HikariSpacing.lg,
++        vertical: HikariSpacing.sm,
++      ),
++      child: Row(
++        mainAxisAlignment: MainAxisAlignment.spaceBetween,
++        children: [
++          Row(
++            children: [
++              Container(
++                width: 32,
++                height: 32,
++                decoration: BoxDecoration(
++                  gradient: LinearGradient(
++                    colors: [colors.primary, colors.secondary],
++                  ),
++                  borderRadius: HikariRadius.borderSm,
++                ),
++                child: const Icon(
++                  Icons.auto_awesome,
++                  color: Colors.white,
++                  size: 18,
+                 ),
+               ),
+-            ),
+-
+-          // Continue Watching & Reading Shelf
+-          if (_effectiveContinue.isNotEmpty) ...[
+-            SliverToBoxAdapter(
+-              child: Padding(
+-                padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
+-                child: ContinueShelf(
+-                  items: _effectiveContinue,
+-                  onOpenMedia: widget.openMedia,
+-                  onSeeAll: () => _navigateToLibrary(context),
++              const SizedBox(width: HikariSpacing.sm),
++              Text(
++                'Hikari',
++                style: HikariTypography.titleLarge.copyWith(
++                  color: colors.textPrimary,
++                  fontWeight: FontWeight.w700,
++                  letterSpacing: 0.5,
+                 ),
+               ),
+-            ),
+-          ],
+-
+-          // Filter Pill Chips
+-          SliverToBoxAdapter(
+-            child: Padding(
+-              padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+-              child: Column(
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Text(
+-                    'Discover',
+-                    style: HikariTypography.titleMedium.copyWith(
+-                      color: colors.textPrimary,
+-                    ),
++            ],
++          ),
++          Row(
++            children: [
++              IconButton(
++                tooltip: 'Search',
++                onPressed: () => _navigateToSearch(context),
++                icon: Icon(Icons.search_rounded, color: colors.textPrimary),
++              ),
++              if (widget.openRemoteManga != null)
++                IconButton(
++                  tooltip: 'Search manga',
++                  onPressed: widget.openRemoteManga,
++                  icon: Icon(
++                    Icons.auto_stories_outlined,
++                    color: colors.textSecondary,
+                   ),
+-                  const SizedBox(height: HikariSpacing.sm),
+-                  SingleChildScrollView(
+-                    scrollDirection: Axis.horizontal,
+-                    child: Row(
+-                      children: HomeFilterType.values.map((filter) {
+-                        return Padding(
+-                          padding: const EdgeInsets.only(
+-                            right: HikariSpacing.sm,
+-                          ),
+-                          child: HikariChip(
+-                            label: filter.label,
+-                            isSelected: _selectedFilter == filter,
+-                            onTap: () =>
+-                                setState(() => _selectedFilter = filter),
+-                          ),
+-                        );
+-                      }).toList(),
+-                    ),
++                ),
++              if (widget.openRemoteNovels != null)
++                IconButton(
++                  tooltip: 'Search novels',
++                  onPressed: widget.openRemoteNovels,
++                  icon: Icon(
++                    Icons.chrome_reader_mode_outlined,
++                    color: colors.textSecondary,
+                   ),
+-                ],
+-              ),
+-            ),
++                ),
++            ],
+           ),
++        ],
++      ),
++    );
++  }
+ 
+-          const SliverToBoxAdapter(child: SizedBox(height: HikariSpacing.lg)),
+-
+-          // Trending / Library Media Grid
+-          if (_filteredTrending.isNotEmpty)
+-            SliverPadding(
+-              padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+-              sliver: SliverGrid(
+-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+-                  crossAxisCount: context.responsiveGridColumns,
+-                  crossAxisSpacing: HikariSpacing.md,
+-                  mainAxisSpacing: HikariSpacing.md,
+-                  childAspectRatio: 2 / 3,
++  Widget _buildLocalMediaCard(HikariColors colors) {
++    return Padding(
++      padding: const EdgeInsets.symmetric(
++        horizontal: HikariSpacing.lg,
++        vertical: HikariSpacing.xs,
++      ),
++      child: Material(
++        color: colors.surfaceContainer,
++        shape: RoundedRectangleBorder(
++          borderRadius: HikariRadius.borderMd,
++          side: BorderSide(color: colors.border),
++        ),
++        clipBehavior: Clip.antiAlias,
++        child: Padding(
++          padding: const EdgeInsets.all(HikariSpacing.md),
++          child: Row(
++            children: [
++              Container(
++                padding: const EdgeInsets.all(10),
++                decoration: BoxDecoration(
++                  color: colors.primary.withValues(alpha: 0.15),
++                  borderRadius: HikariRadius.borderSm,
++                ),
++                child: Icon(
++                  Icons.folder_open_rounded,
++                  color: colors.primaryGlow,
++                  size: 24,
+                 ),
+-                delegate: SliverChildBuilderDelegate((context, index) {
+-                  final item = _filteredTrending[index];
+-                  final meta = HomePage._showcaseMetadata[item.title];
+-                  final badgeColor = item.type == MediaType.anime
+-                      ? colors.badgeVideo
+-                      : item.type == MediaType.manga
+-                      ? colors.badgeManga
+-                      : colors.badgeNovel;
+-                  final badgeText = item.type == MediaType.anime
+-                      ? 'ANIME'
+-                      : item.type == MediaType.manga
+-                      ? 'MANGA'
+-                      : 'NOVEL';
+-
+-                  return MediaPoster(
+-                    title: item.title,
+-                    rating: meta?.rating,
+-                    statusText: meta?.status,
+-                    subtitle: meta?.subtitle,
+-                    badgeText: meta == null ? badgeText : null,
+-                    badgeColor: badgeColor,
+-                    onTap: () {
+-                      if (widget.onOpenDetails != null) {
+-                        widget.onOpenDetails!(context, item);
+-                      } else {
+-                        widget.openMedia(context, item);
+-                      }
+-                    },
+-                  );
+-                }, childCount: _filteredTrending.length),
+               ),
+-            )
+-          else
+-            SliverToBoxAdapter(
+-              child: Padding(
+-                padding: const EdgeInsets.all(HikariSpacing.xl),
+-                child: Center(
+-                  child: Text(
+-                    'No items in this category.',
+-                    style: TextStyle(color: colors.textMuted, fontSize: 13),
+-                  ),
++              const SizedBox(width: HikariSpacing.md),
++              Expanded(
++                child: Column(
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  children: [
++                    Text(
++                      'Local media',
++                      style: TextStyle(
++                        fontWeight: FontWeight.w600,
++                        fontSize: 14,
++                        color: colors.textPrimary,
++                      ),
++                    ),
++                    const SizedBox(height: 2),
++                    Text(
++                      'Choose the persisted local-media root used by Hikari.',
++                      style: TextStyle(
++                        fontSize: 12,
++                        color: colors.textSecondary,
++                      ),
++                    ),
++                  ],
+                 ),
+               ),
+-            ),
++              const SizedBox(width: HikariSpacing.sm),
++              SizedBox(
++                width: 125,
++                child: HikariButton(
++                  label: 'Choose folder',
++                  size: HikariButtonSize.small,
++                  variant: HikariButtonVariant.secondary,
++                  onPressed: widget.onChooseFolder,
++                ),
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
+ 
+-          const SliverToBoxAdapter(child: SizedBox(height: HikariSpacing.xxl)),
++  Widget _buildFeedHeader(HikariColors colors, String title) {
++    return Padding(
++      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Text(
++            title,
++            style: HikariTypography.titleMedium.copyWith(
++              color: colors.textPrimary,
++            ),
++          ),
++          const SizedBox(height: HikariSpacing.sm),
++          SingleChildScrollView(
++            scrollDirection: Axis.horizontal,
++            child: Row(
++              children: HomeFilterType.values.map((filter) {
++                return Padding(
++                  padding: const EdgeInsets.only(right: HikariSpacing.sm),
++                  child: HikariChip(
++                    label: filter.label,
++                    isSelected: _selectedFilter == filter,
++                    onTap: () => setState(() => _selectedFilter = filter),
++                  ),
++                );
++              }).toList(),
++            ),
++          ),
+         ],
+       ),
+     );
+   }
++
++  Widget _buildFeedGrid(HikariColors colors, List<Media> items) {
++    if (items.isEmpty) {
++      return SliverToBoxAdapter(
++        child: Padding(
++          padding: const EdgeInsets.all(HikariSpacing.xl),
++          child: Center(
++            child: Text(
++              'No items in this category.',
++              style: TextStyle(color: colors.textMuted, fontSize: 13),
++            ),
++          ),
++        ),
++      );
++    }
++
++    return SliverPadding(
++      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
++      sliver: SliverGrid(
++        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
++          crossAxisCount: context.responsiveGridColumns,
++          crossAxisSpacing: HikariSpacing.md,
++          mainAxisSpacing: HikariSpacing.md,
++          childAspectRatio: 2 / 3,
++        ),
++        delegate: SliverChildBuilderDelegate((context, index) {
++          final item = items[index];
++          final badgeColor = switch (item.type) {
++            MediaType.anime => colors.badgeVideo,
++            MediaType.manga => colors.badgeManga,
++            MediaType.lightNovel => colors.badgeNovel,
++          };
++          final badgeText = switch (item.type) {
++            MediaType.anime => 'ANIME',
++            MediaType.manga => 'MANGA',
++            MediaType.lightNovel => 'NOVEL',
++          };
++
++          return MediaPoster(
++            title: item.title,
++            badgeText: badgeText,
++            badgeColor: badgeColor,
++            onTap: () => widget.openMedia(context, item),
++          );
++        }, childCount: items.length),
++      ),
++    );
++  }
+ }
+diff --git a/lib/features/home/home_view_model.dart b/lib/features/home/home_view_model.dart
+--- a/lib/features/home/home_view_model.dart
++++ b/lib/features/home/home_view_model.dart
+@@ -0,0 +1,90 @@
++import 'dart:async';
++
++import 'package:flutter/foundation.dart';
++import 'package:hikari/domain/library/library.dart';
++import 'package:hikari/domain/media/media.dart';
++
++@immutable
++final class HomeUiState {
++  const HomeUiState({
++    this.loading = false,
++    this.libraryItems = const [],
++    this.error,
++  });
++
++  final bool loading;
++  final List<Media> libraryItems;
++  final Object? error;
++}
++
++/// Supplies Home with real library-backed media without teaching the view about
++/// persistence or Drift.
++final class HomeViewModel extends ChangeNotifier {
++  HomeViewModel(LibraryRepository? repository) : _repository = repository {
++    if (repository == null) return;
++    if (repository is ObservableLibraryRepository) {
++      _state = const HomeUiState(loading: true);
++      _subscription = repository.watchAll().listen(
++        _acceptEntries,
++        onError: _acceptError,
++      );
++    } else {
++      unawaited(reload());
++    }
++  }
++
++  final LibraryRepository? _repository;
++  StreamSubscription<List<LibraryEntry>>? _subscription;
++
++  HomeUiState _state = const HomeUiState();
++  HomeUiState get state => _state;
++  bool _disposed = false;
++
++  Future<void> reload() async {
++    final repository = _repository;
++    if (repository == null || _disposed) return;
++    _publish(
++      HomeUiState(
++        loading: true,
++        libraryItems: _state.libraryItems,
++      ),
++    );
++    try {
++      _acceptEntries(await repository.loadAll());
++    } catch (error) {
++      _acceptError(error);
++    }
++  }
++
++  void _acceptEntries(List<LibraryEntry> entries) {
++    _publish(
++      HomeUiState(
++        libraryItems: List.unmodifiable(
++          entries.map((entry) => entry.media),
++        ),
++      ),
++    );
++  }
++
++  void _acceptError(Object error) {
++    _publish(
++      HomeUiState(
++        libraryItems: _state.libraryItems,
++        error: error,
++      ),
++    );
++  }
++
++  void _publish(HomeUiState state) {
++    if (_disposed) return;
++    _state = state;
++    notifyListeners();
++  }
++
++  @override
++  void dispose() {
++    _disposed = true;
++    unawaited(_subscription?.cancel());
++    super.dispose();
++  }
++}
+diff --git a/lib/features/library/library_page.dart b/lib/features/library/library_page.dart
+--- a/lib/features/library/library_page.dart
++++ b/lib/features/library/library_page.dart
+@@ -7,237 +7,152 @@ import 'package:hikari/core/ui/patterns/media_poster.dart';
+ import 'package:hikari/domain/library/library.dart';
+ import 'package:hikari/domain/media/media.dart';
+ import 'package:hikari/features/library/library_button.dart';
++import 'package:hikari/features/library/library_view_model.dart';
+ 
+-enum LibraryViewMode { grid, list }
+-
+-enum LibrarySortOption {
+-  recent('Recently Added'),
+-  title('Title (A-Z)');
+-
+-  const LibrarySortOption(this.label);
+-  final String label;
+-}
+-
+-enum LibraryCategoryTab {
+-  all('All'),
+-  inProgress('In Progress'),
+-  completed('Completed'),
+-  favorites('Favorites');
+-
+-  const LibraryCategoryTab(this.label);
+-  final String label;
+-}
+-
+-/// Upgraded Library screen supporting category tabs, Grid/List view toggle,
+-/// media type filters, and sorting.
+ class LibraryPage extends StatefulWidget {
+   const LibraryPage({
+     super.key,
+     required this.repository,
+     required this.openMedia,
+-    this.onOpenDetails,
+   });
+ 
+   final LibraryRepository repository;
+   final void Function(BuildContext, Media) openMedia;
+-  final void Function(BuildContext, Media)? onOpenDetails;
+ 
+   @override
+   State<LibraryPage> createState() => _LibraryPageState();
+ }
+ 
+ class _LibraryPageState extends State<LibraryPage> {
+-  late Future<List<LibraryEntry>> _entriesFuture;
+-  LibraryViewMode _viewMode = LibraryViewMode.grid;
+-  LibraryCategoryTab _selectedTab = LibraryCategoryTab.all;
+-  MediaType? _selectedMediaType;
+-  final LibrarySortOption _sortOption = LibrarySortOption.recent;
++  late final LibraryViewModel _model = LibraryViewModel(widget.repository);
+ 
+   @override
+-  void initState() {
+-    super.initState();
+-    _reloadLibrary();
+-  }
+-
+-  void _reloadLibrary() => setState(() {
+-    _entriesFuture = widget.repository.loadAll();
+-  });
+-
+-  List<LibraryEntry> _filterAndSortEntries(List<LibraryEntry> entries) {
+-    var filtered = entries.where((e) {
+-      if (_selectedMediaType != null && e.media.type != _selectedMediaType) {
+-        return false;
+-      }
+-      return true;
+-    }).toList();
+-
+-    if (_sortOption == LibrarySortOption.title) {
+-      filtered.sort((a, b) => a.media.title.compareTo(b.media.title));
+-    } else {
+-      filtered.sort((a, b) => b.addedAt.compareTo(a.addedAt));
+-    }
+-
+-    return filtered;
++  void dispose() {
++    _model.dispose();
++    super.dispose();
+   }
+ 
+   @override
+   Widget build(BuildContext context) {
+     final colors = context.hikariColors;
+ 
+-    return HikariScaffold(
+-      useSafeArea: true,
+-      appBar: AppBar(
+-        title: Text(
+-          'Library',
+-          style: HikariTypography.titleLarge.copyWith(
+-            color: colors.textPrimary,
+-            fontWeight: FontWeight.w700,
+-          ),
+-        ),
+-        actions: [
+-          HikariIconButton(
+-            icon: Icon(
+-              _viewMode == LibraryViewMode.grid
+-                  ? Icons.view_list_rounded
+-                  : Icons.grid_view_rounded,
+-            ),
+-            tooltip: _viewMode == LibraryViewMode.grid
+-                ? 'Switch to list view'
+-                : 'Switch to grid view',
+-            onPressed: () => setState(() {
+-              _viewMode = _viewMode == LibraryViewMode.grid
+-                  ? LibraryViewMode.list
+-                  : LibraryViewMode.grid;
+-            }),
+-          ),
+-          const SizedBox(width: HikariSpacing.xs),
+-        ],
+-      ),
+-      body: FutureBuilder<List<LibraryEntry>>(
+-        future: _entriesFuture,
+-        builder: (context, snapshot) {
+-          if (snapshot.connectionState != ConnectionState.done) {
+-            return const Center(child: CircularProgressIndicator());
+-          }
+-          if (snapshot.hasError) {
+-            return Center(
+-              child: Column(
+-                mainAxisSize: MainAxisSize.min,
+-                children: [
+-                  const Text('Could not load your library.'),
+-                  const SizedBox(height: HikariSpacing.sm),
+-                  TextButton(
+-                    onPressed: _reloadLibrary,
+-                    child: const Text('Try again'),
+-                  ),
+-                ],
++    return ListenableBuilder(
++      listenable: _model,
++      builder: (context, _) {
++        final state = _model.state;
++        return HikariScaffold(
++          useSafeArea: true,
++          appBar: AppBar(
++            title: Text(
++              'Library',
++              style: HikariTypography.titleLarge.copyWith(
++                color: colors.textPrimary,
++                fontWeight: FontWeight.w700,
+               ),
+-            );
+-          }
+-
+-          final allEntries = snapshot.data ?? [];
+-          if (allEntries.isEmpty) {
+-            return const Center(
+-              child: Text(
+-                'Your library is empty.',
+-                style: TextStyle(fontSize: 14),
++            ),
++            actions: [
++              HikariIconButton(
++                icon: Icon(
++                  state.viewMode == LibraryViewMode.grid
++                      ? Icons.view_list_rounded
++                      : Icons.grid_view_rounded,
++                ),
++                tooltip: state.viewMode == LibraryViewMode.grid
++                    ? 'Switch to list view'
++                    : 'Switch to grid view',
++                onPressed: _model.toggleViewMode,
+               ),
+-            );
+-          }
++              const SizedBox(width: HikariSpacing.xs),
++            ],
++          ),
++          body: _buildBody(context, state, colors),
++        );
++      },
++    );
++  }
+ 
+-          final displayEntries = _filterAndSortEntries(allEntries);
++  Widget _buildBody(
++    BuildContext context,
++    LibraryUiState state,
++    HikariColors colors,
++  ) {
++    if (state.loading) {
++      return const Center(child: CircularProgressIndicator());
++    }
++    if (state.error != null) {
++      return Center(
++        child: Column(
++          mainAxisSize: MainAxisSize.min,
++          children: [
++            const Text('Could not load your library.'),
++            const SizedBox(height: HikariSpacing.sm),
++            TextButton(onPressed: _model.reload, child: const Text('Try again')),
++          ],
++        ),
++      );
++    }
++    if (state.entries.isEmpty) {
++      return const Center(
++        child: Text('Your library is empty.', style: TextStyle(fontSize: 14)),
++      );
++    }
+ 
+-          return Column(
+-            children: [
+-              // Filter and Category Bar
+-              Padding(
+-                padding: const EdgeInsets.symmetric(
+-                  horizontal: HikariSpacing.lg,
+-                  vertical: HikariSpacing.xs,
++    final entries = state.visibleEntries;
++    return Column(
++      children: [
++        Padding(
++          padding: const EdgeInsets.symmetric(
++            horizontal: HikariSpacing.lg,
++            vertical: HikariSpacing.xs,
++          ),
++          child: SingleChildScrollView(
++            scrollDirection: Axis.horizontal,
++            child: Row(
++              children: [
++                HikariChip(
++                  label: 'All Types',
++                  isSelected: state.mediaType == null,
++                  onTap: () => _model.selectMediaType(null),
+                 ),
+-                child: SingleChildScrollView(
+-                  scrollDirection: Axis.horizontal,
+-                  child: Row(
+-                    children: [
+-                      // Category Tabs
+-                      ...LibraryCategoryTab.values.map((tab) {
+-                        return Padding(
+-                          padding: const EdgeInsets.only(
+-                            right: HikariSpacing.xs,
+-                          ),
+-                          child: HikariChip(
+-                            label: tab.label,
+-                            isSelected: _selectedTab == tab,
+-                            onTap: () => setState(() => _selectedTab = tab),
+-                          ),
+-                        );
+-                      }),
+-                      const SizedBox(width: HikariSpacing.sm),
+-                      // Media Type Filter Chips
+-                      HikariChip(
+-                        label: 'All Types',
+-                        isSelected: _selectedMediaType == null,
+-                        onTap: () => setState(() => _selectedMediaType = null),
+-                      ),
+-                      const SizedBox(width: HikariSpacing.xs),
+-                      HikariChip(
+-                        label: 'Anime',
+-                        customBadgeColor: colors.badgeVideo,
+-                        isSelected: _selectedMediaType == MediaType.anime,
+-                        onTap: () => setState(
+-                          () => _selectedMediaType =
+-                              _selectedMediaType == MediaType.anime
+-                              ? null
+-                              : MediaType.anime,
+-                        ),
+-                      ),
+-                      const SizedBox(width: HikariSpacing.xs),
+-                      HikariChip(
+-                        label: 'Manga',
+-                        customBadgeColor: colors.badgeManga,
+-                        isSelected: _selectedMediaType == MediaType.manga,
+-                        onTap: () => setState(
+-                          () => _selectedMediaType =
+-                              _selectedMediaType == MediaType.manga
+-                              ? null
+-                              : MediaType.manga,
+-                        ),
+-                      ),
+-                      const SizedBox(width: HikariSpacing.xs),
+-                      HikariChip(
+-                        label: 'Novel',
+-                        customBadgeColor: colors.badgeNovel,
+-                        isSelected: _selectedMediaType == MediaType.lightNovel,
+-                        onTap: () => setState(
+-                          () => _selectedMediaType =
+-                              _selectedMediaType == MediaType.lightNovel
+-                              ? null
+-                              : MediaType.lightNovel,
+-                        ),
+-                      ),
+-                    ],
+-                  ),
++                const SizedBox(width: HikariSpacing.xs),
++                HikariChip(
++                  label: 'Anime',
++                  customBadgeColor: colors.badgeVideo,
++                  isSelected: state.mediaType == MediaType.anime,
++                  onTap: () => _model.selectMediaType(MediaType.anime),
+                 ),
+-              ),
+-              const SizedBox(height: HikariSpacing.sm),
+-
+-              // Content View (Grid or List)
+-              Expanded(
+-                child: displayEntries.isEmpty
+-                    ? Center(
+-                        child: Text(
+-                          'No items match selected filter.',
+-                          style: TextStyle(color: colors.textMuted),
+-                        ),
+-                      )
+-                    : _viewMode == LibraryViewMode.grid
+-                    ? _buildGridView(context, displayEntries)
+-                    : _buildListView(context, displayEntries),
+-              ),
+-            ],
+-          );
+-        },
+-      ),
++                const SizedBox(width: HikariSpacing.xs),
++                HikariChip(
++                  label: 'Manga',
++                  customBadgeColor: colors.badgeManga,
++                  isSelected: state.mediaType == MediaType.manga,
++                  onTap: () => _model.selectMediaType(MediaType.manga),
++                ),
++                const SizedBox(width: HikariSpacing.xs),
++                HikariChip(
++                  label: 'Novel',
++                  customBadgeColor: colors.badgeNovel,
++                  isSelected: state.mediaType == MediaType.lightNovel,
++                  onTap: () => _model.selectMediaType(MediaType.lightNovel),
++                ),
++              ],
++            ),
++          ),
++        ),
++        const SizedBox(height: HikariSpacing.sm),
++        Expanded(
++          child: entries.isEmpty
++              ? Center(
++                  child: Text(
++                    'No items match the selected media type.',
++                    style: TextStyle(color: colors.textMuted),
++                  ),
++                )
++              : state.viewMode == LibraryViewMode.grid
++              ? _buildGridView(context, entries)
++              : _buildListView(context, entries),
++        ),
++      ],
+     );
+   }
+ 
+@@ -256,38 +171,32 @@ class _LibraryPageState extends State<LibraryPage> {
+       itemCount: entries.length,
+       itemBuilder: (context, index) {
+         final media = entries[index].media;
+-        final badgeColor = media.type == MediaType.anime
+-            ? colors.badgeVideo
+-            : media.type == MediaType.manga
+-            ? colors.badgeManga
+-            : colors.badgeNovel;
+-        final badgeText = media.type == MediaType.anime
+-            ? 'ANIME'
+-            : media.type == MediaType.manga
+-            ? 'MANGA'
+-            : 'NOVEL';
++        final badgeColor = switch (media.type) {
++          MediaType.anime => colors.badgeVideo,
++          MediaType.manga => colors.badgeManga,
++          MediaType.lightNovel => colors.badgeNovel,
++        };
++        final badgeText = switch (media.type) {
++          MediaType.anime => 'ANIME',
++          MediaType.manga => 'MANGA',
++          MediaType.lightNovel => 'NOVEL',
++        };
+ 
+         return Stack(
+           children: [
+             MediaPoster(
+               title: media.title,
+               badgeText: badgeText,
+               badgeColor: badgeColor,
+-              onTap: () {
+-                if (widget.onOpenDetails != null) {
+-                  widget.onOpenDetails!(context, media);
+-                } else {
+-                  widget.openMedia(context, media);
+-                }
+-              },
++              onTap: () => widget.openMedia(context, media),
+             ),
+             Positioned(
+               top: 4,
+               right: 4,
+               child: LibraryButton(
+                 repository: widget.repository,
+                 media: media,
+-                onChanged: _reloadLibrary,
++                onChanged: _model.repositoryChanged,
+               ),
+             ),
+           ],
+@@ -322,16 +231,19 @@ class _LibraryPageState extends State<LibraryPage> {
+                 color: colors.textPrimary,
+               ),
+             ),
+-            subtitle: Text(switch (media.type) {
+-              MediaType.anime => 'Anime',
+-              MediaType.manga => 'Manga',
+-              MediaType.lightNovel => 'Light Novel',
+-            }, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
++            subtitle: Text(
++              switch (media.type) {
++                MediaType.anime => 'Anime',
++                MediaType.manga => 'Manga',
++                MediaType.lightNovel => 'Light Novel',
++              },
++              style: TextStyle(color: colors.textSecondary, fontSize: 12),
++            ),
+             onTap: () => widget.openMedia(context, media),
+             trailing: LibraryButton(
+               repository: widget.repository,
+               media: media,
+-              onChanged: _reloadLibrary,
++              onChanged: _model.repositoryChanged,
+             ),
+           ),
+         );
+diff --git a/lib/features/library/library_view_model.dart b/lib/features/library/library_view_model.dart
+--- a/lib/features/library/library_view_model.dart
++++ b/lib/features/library/library_view_model.dart
+@@ -0,0 +1,137 @@
++import 'dart:async';
++
++import 'package:flutter/foundation.dart';
++import 'package:hikari/domain/library/library.dart';
++import 'package:hikari/domain/media/media.dart';
++
++enum LibraryViewMode { grid, list }
++
++@immutable
++final class LibraryUiState {
++  const LibraryUiState({
++    this.loading = true,
++    this.entries = const [],
++    this.mediaType,
++    this.viewMode = LibraryViewMode.grid,
++    this.error,
++  });
++
++  final bool loading;
++  final List<LibraryEntry> entries;
++  final MediaType? mediaType;
++  final LibraryViewMode viewMode;
++  final Object? error;
++
++  List<LibraryEntry> get visibleEntries {
++    final type = mediaType;
++    if (type == null) return entries;
++    return entries
++        .where((entry) => entry.media.type == type)
++        .toList(growable: false);
++  }
++
++  LibraryUiState copyWith({
++    bool? loading,
++    List<LibraryEntry>? entries,
++    MediaType? mediaType,
++    bool clearMediaType = false,
++    LibraryViewMode? viewMode,
++    Object? error,
++    bool clearError = false,
++  }) {
++    return LibraryUiState(
++      loading: loading ?? this.loading,
++      entries: entries ?? this.entries,
++      mediaType: clearMediaType ? null : mediaType ?? this.mediaType,
++      viewMode: viewMode ?? this.viewMode,
++      error: clearError ? null : error ?? this.error,
++    );
++  }
++}
++
++final class LibraryViewModel extends ChangeNotifier {
++  LibraryViewModel(this._repository) {
++    final repository = _repository;
++    if (repository is ObservableLibraryRepository) {
++      _subscription = repository.watchAll().listen(
++        _acceptEntries,
++        onError: _acceptError,
++      );
++    } else {
++      reload();
++    }
++  }
++
++  final LibraryRepository _repository;
++  StreamSubscription<List<LibraryEntry>>? _subscription;
++
++  LibraryUiState _state = const LibraryUiState();
++  LibraryUiState get state => _state;
++  bool _disposed = false;
++
++  Future<void> reload() async {
++    if (_disposed) return;
++    _publish(_state.copyWith(loading: true, clearError: true));
++    try {
++      _acceptEntries(await _repository.loadAll());
++    } catch (error) {
++      _acceptError(error);
++    }
++  }
++
++  void selectMediaType(MediaType? type) {
++    if (type == null) {
++      _publish(_state.copyWith(clearMediaType: true));
++      return;
++    }
++    _publish(
++      _state.copyWith(
++        mediaType: _state.mediaType == type ? null : type,
++        clearMediaType: _state.mediaType == type,
++      ),
++    );
++  }
++
++  void repositoryChanged() {
++    if (_repository is! ObservableLibraryRepository) {
++      unawaited(reload());
++    }
++  }
++
++  void toggleViewMode() {
++    _publish(
++      _state.copyWith(
++        viewMode: _state.viewMode == LibraryViewMode.grid
++            ? LibraryViewMode.list
++            : LibraryViewMode.grid,
++      ),
++    );
++  }
++
++  void _acceptEntries(List<LibraryEntry> entries) {
++    _publish(
++      _state.copyWith(
++        loading: false,
++        entries: List.unmodifiable(entries),
++        clearError: true,
++      ),
++    );
++  }
++
++  void _acceptError(Object error) {
++    _publish(_state.copyWith(loading: false, error: error));
++  }
++
++  void _publish(LibraryUiState state) {
++    if (_disposed) return;
++    _state = state;
++    notifyListeners();
++  }
++
++  @override
++  void dispose() {
++    _disposed = true;
++    _subscription?.cancel();
++    super.dispose();
++  }
++}
+diff --git a/lib/features/manga_reader/manga_reader_page.dart b/lib/features/manga_reader/manga_reader_page.dart
+--- a/lib/features/manga_reader/manga_reader_page.dart
++++ b/lib/features/manga_reader/manga_reader_page.dart
+@@ -9,17 +9,7 @@ import 'package:hikari/domain/media/media.dart';
+ import 'package:hikari/domain/progress/progress.dart';
+ import 'package:hikari/domain/progress/resume.dart';
+ 
+-enum MangaReadingMode {
+-  ltr('Left-to-Right'),
+-  rtl('Right-to-Left (Manga)'),
+-  webtoon('Vertical Scroll (Webtoon)');
+-
+-  const MangaReadingMode(this.label);
+-  final String label;
+-}
+-
+-/// Immersive Manga Reader with floating glassmorphic toolbar, page slider,
+-/// and reading mode preferences.
++/// Immersive Manga Reader with floating chrome and real page navigation.
+ class MangaReaderPage extends StatefulWidget {
+   const MangaReaderPage({
+     super.key,
+@@ -53,7 +43,8 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+   ImageProvider? _savedImage;
+   bool _hasNavigated = false;
+   bool _showControls = true;
+-  MangaReadingMode _readingMode = MangaReadingMode.ltr;
++  double? _dragPage;
++  int _loadGeneration = 0;
+ 
+   void _displayed(ImageProvider image, int index) {
+     if (widget.initialProgress?.completed == true && !_hasNavigated) return;
+@@ -83,14 +74,13 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+   }
+ 
+   void _releaseImage() {
+-    final image = _image;
+     _image = null;
+     _savedImage = null;
+-    if (image != null) unawaited(image.evict());
+   }
+ 
+   @override
+   void dispose() {
++    _loadGeneration++;
+     _releaseImage();
+     _transform.dispose();
+     super.dispose();
+@@ -118,32 +108,37 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+   }
+ 
+   Future<void> _loadCurrent() async {
++    final generation = ++_loadGeneration;
+     _releaseImage();
+     _transform.value = Matrix4.identity();
+     setState(() {
+       _loading = true;
+       _failed = false;
+     });
+     try {
++      ImageProvider? image;
+       if (_pages!.isNotEmpty) {
+         final bytes = await widget.readPage(_pages![_index]);
+-        if (!mounted) return;
+-        _image = ResizeImage(
++        if (!mounted || generation != _loadGeneration) return;
++        image = ResizeImage(
+           MemoryImage(bytes),
+           width: 2048,
+           height: 4096,
+           policy: ResizeImagePolicy.fit,
+           allowUpscaling: false,
+         );
+       }
+-      if (mounted) setState(() => _loading = false);
++      if (!mounted || generation != _loadGeneration) return;
++      setState(() {
++        _image = image;
++        _loading = false;
++      });
+     } catch (_) {
+-      if (mounted) {
+-        setState(() {
+-          _failed = true;
+-          _loading = false;
+-        });
+-      }
++      if (!mounted || generation != _loadGeneration) return;
++      setState(() {
++        _failed = true;
++        _loading = false;
++      });
+     }
+   }
+ 
+@@ -168,60 +163,6 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+     setState(() => _showControls = !_showControls);
+   }
+ 
+-  void _showSettingsModal() {
+-    showModalBottomSheet<void>(
+-      context: context,
+-      backgroundColor: context.hikariColors.surfaceElevated,
+-      builder: (context) {
+-        return StatefulBuilder(
+-          builder: (context, setModalState) {
+-            return Padding(
+-              padding: const EdgeInsets.all(HikariSpacing.lg),
+-              child: Column(
+-                mainAxisSize: MainAxisSize.min,
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Text(
+-                    'Reader Settings',
+-                    style: HikariTypography.titleMedium.copyWith(
+-                      color: context.hikariColors.textPrimary,
+-                    ),
+-                  ),
+-                  const SizedBox(height: HikariSpacing.md),
+-                  Text(
+-                    'Reading Direction',
+-                    style: TextStyle(
+-                      fontSize: 12,
+-                      color: context.hikariColors.textSecondary,
+-                    ),
+-                  ),
+-                  const SizedBox(height: HikariSpacing.xs),
+-                  Wrap(
+-                    spacing: HikariSpacing.sm,
+-                    children: MangaReadingMode.values.map((mode) {
+-                      final selected = _readingMode == mode;
+-                      return ChoiceChip(
+-                        label: Text(mode.label),
+-                        selected: selected,
+-                        onSelected: (val) {
+-                          if (val) {
+-                            setState(() => _readingMode = mode);
+-                            setModalState(() {});
+-                          }
+-                        },
+-                      );
+-                    }).toList(),
+-                  ),
+-                  const SizedBox(height: HikariSpacing.lg),
+-                ],
+-              ),
+-            );
+-          },
+-        );
+-      },
+-    );
+-  }
+-
+   Widget _failure(String message) => Center(
+     child: SingleChildScrollView(
+       child: Column(
+@@ -344,11 +285,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+                             ],
+                           ),
+                         ),
+-                        HikariIconButton(
+-                          icon: const Icon(Icons.tune_rounded),
+-                          tooltip: 'Settings',
+-                          onPressed: _showSettingsModal,
+-                        ),
++
+                       ],
+                     ),
+                   ),
+@@ -417,15 +354,30 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
+                                       ),
+                                     ),
+                                     child: Slider(
+-                                      value: (_index + 1).toDouble(),
++                                      value:
++                                          _dragPage ?? (_index + 1).toDouble(),
+                                       min: 1,
+                                       max: pages.length.toDouble(),
+                                       divisions: pages.length > 1
+                                           ? pages.length - 1
+                                           : 1,
+-                                      onChanged: (val) {
+-                                        _jumpToPage(val.toInt() - 1);
+-                                      },
++                                      onChanged: _loading
++                                          ? null
++                                          : (value) {
++                                              setState(
++                                                () => _dragPage = value,
++                                              );
++                                            },
++                                      onChangeEnd: _loading
++                                          ? null
++                                          : (value) {
++                                              setState(
++                                                () => _dragPage = null,
++                                              );
++                                              _jumpToPage(
++                                                value.round() - 1,
++                                              );
++                                            },
+                                     ),
+                                   ),
+                                 ],
+diff --git a/lib/features/novel_reader/novel_content_view.dart b/lib/features/novel_reader/novel_content_view.dart
+--- a/lib/features/novel_reader/novel_content_view.dart
++++ b/lib/features/novel_reader/novel_content_view.dart
+@@ -13,12 +13,14 @@ class NovelContentView extends StatelessWidget {
+     required this.readResource,
+     this.onTapLink,
+     this.htmlKey,
++    this.textStyle,
+   });
+ 
+   final GlobalKey<HtmlWidgetState>? htmlKey;
+   final RichReadingContent content;
+   final Future<Uint8List> Function(SourceMediaRef) readResource;
+   final Future<bool> Function(String)? onTapLink;
++  final TextStyle? textStyle;
+ 
+   @override
+   Widget build(BuildContext context) => HtmlWidget(
+@@ -36,7 +38,9 @@ class NovelContentView extends StatelessWidget {
+       );
+     },
+     onTapUrl: (url) async => await onTapLink?.call(url) ?? true,
+-    textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
++    textStyle:
++        textStyle ??
++        Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
+   );
+ }
+ 
+diff --git a/lib/features/novel_reader/novel_reader_page.dart b/lib/features/novel_reader/novel_reader_page.dart
+--- a/lib/features/novel_reader/novel_reader_page.dart
++++ b/lib/features/novel_reader/novel_reader_page.dart
+@@ -60,6 +60,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
+   double _position = 0;
+   bool _completed = false;
+   (double, bool)? _lastSaved;
++  final _progress = ValueNotifier<double>(0);
+ 
+   NovelReaderTheme _readerTheme = NovelReaderTheme.charcoal;
+   double _fontSize = 16.0;
+@@ -73,9 +74,9 @@ class _NovelReaderPageState extends State<NovelReaderPage>
+       _scroll.position.maxScrollExtent,
+     );
+     _completed = textAtEnd(_scroll.offset, _scroll.position.maxScrollExtent);
++    _progress.value = _position;
+     _debounce?.cancel();
+     _debounce = Timer(const Duration(milliseconds: 500), _flush);
+-    if (mounted) setState(() {});
+   }
+ 
+   Future<void> _flush() async {
+@@ -107,6 +108,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
+   void dispose() {
+     unawaited(_flush());
+     _scroll.dispose();
++    _progress.dispose();
+     WidgetsBinding.instance.removeObserver(this);
+     super.dispose();
+   }
+@@ -152,7 +154,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
+         );
+         _lastSaved = (_position, _completed);
+         _restored = true;
+-        if (mounted) setState(() {});
++        _progress.value = _position;
+       });
+     } catch (error) {
+       if (!mounted) return;
+@@ -326,6 +328,11 @@ class _NovelReaderPageState extends State<NovelReaderPage>
+                               ? NovelContentView(
+                                   content: _content!,
+                                   readResource: widget.readResource!,
++                                  textStyle: TextStyle(
++                                    color: _readerTheme.fg,
++                                    fontSize: _fontSize,
++                                    height: _lineHeight,
++                                  ),
+                                 )
+                               : SelectableText(
+                                   _text ?? '',
+@@ -339,33 +346,35 @@ class _NovelReaderPageState extends State<NovelReaderPage>
+                       ),
+                     ),
+             ),
+-            // Bottom Elegant % Progress Indicator Bar
+             if (!_loading && _error == null)
+-              Container(
+-                height: 24,
+-                padding: const EdgeInsets.symmetric(
+-                  horizontal: HikariSpacing.md,
+-                ),
+-                color: _readerTheme.bg,
+-                child: Row(
+-                  children: [
+-                    Expanded(
+-                      child: ui.MediaProgress(
+-                        progress: _position,
+-                        height: 2.5,
+-                        showGlow: false,
++              ValueListenableBuilder<double>(
++                valueListenable: _progress,
++                builder: (context, progress, _) => Container(
++                  height: 24,
++                  padding: const EdgeInsets.symmetric(
++                    horizontal: HikariSpacing.md,
++                  ),
++                  color: _readerTheme.bg,
++                  child: Row(
++                    children: [
++                      Expanded(
++                        child: ui.MediaProgress(
++                          progress: progress,
++                          height: 2.5,
++                          showGlow: false,
++                        ),
+                       ),
+-                    ),
+-                    const SizedBox(width: HikariSpacing.sm),
+-                    Text(
+-                      '${(_position * 100).toInt()}%',
+-                      style: TextStyle(
+-                        fontSize: 10,
+-                        fontWeight: FontWeight.w600,
+-                        color: _readerTheme.fg.withValues(alpha: 0.6),
++                      const SizedBox(width: HikariSpacing.sm),
++                      Text(
++                        (progress * 100).toInt().toString() + '%',
++                        style: TextStyle(
++                          fontSize: 10,
++                          fontWeight: FontWeight.w600,
++                          color: _readerTheme.fg.withValues(alpha: 0.6),
++                        ),
+                       ),
+-                    ),
+-                  ],
++                    ],
++                  ),
+                 ),
+               ),
+           ],
+diff --git a/lib/features/player/player_page.dart b/lib/features/player/player_page.dart
+--- a/lib/features/player/player_page.dart
++++ b/lib/features/player/player_page.dart
+@@ -1,23 +1,24 @@
+ import 'dart:async';
+-import 'dart:ui';
+ 
+ import 'package:flutter/material.dart';
+ import 'package:hikari/app/theme/hikari_theme.dart';
+ import 'package:hikari/core/ui/components/hikari_icon_button.dart';
++import 'package:hikari/domain/playback/video_playback.dart';
+ 
+-/// Cinematic Video Player screen with auto-fading overlay controls,
+-/// scrubber slider, 10s skip buttons, and playback settings.
++/// Video route chrome driven by the active playback session.
+ class PlayerPage extends StatefulWidget {
+   const PlayerPage({
+     super.key,
+     required this.title,
+     required this.playback,
++    this.controls,
+     this.beforeExit,
+     this.onNextEpisode,
+   });
+ 
+   final String title;
+   final Widget playback;
++  final VideoPlaybackControls? controls;
+   final Future<void> Function()? beforeExit;
+   final VoidCallback? onNextEpisode;
+ 
+@@ -30,110 +31,89 @@ class _PlayerPageState extends State<PlayerPage> {
+   bool _canPop = false;
+   bool _showControls = true;
+   Timer? _hideTimer;
+-  bool _isPlaying = true;
+-  double _playbackSpeed = 1.0;
+-  double _scrubberPosition = 0.35; // mock progress scrubber
+-  Duration _currentPosition = const Duration(minutes: 8, seconds: 24);
+-  final Duration _totalDuration = const Duration(minutes: 24, seconds: 0);
++  StreamSubscription<void>? _controlsSubscription;
++  bool? _lastPlaying;
++  double? _dragProgress;
+ 
+   @override
+   void initState() {
+     super.initState();
+-    _startHideTimer();
++    final controls = widget.controls;
++    _lastPlaying = controls?.playing;
++    _controlsSubscription = controls?.changes.listen((_) {
++      if (!mounted || controls.playing == _lastPlaying) return;
++      _lastPlaying = controls.playing;
++      if (controls.playing) {
++        if (_showControls) _restartHideTimer();
++      } else {
++        _hideTimer?.cancel();
++      }
++    });
++    _restartHideTimer();
+   }
+ 
+-  void _startHideTimer() {
++  void _restartHideTimer() {
+     _hideTimer?.cancel();
++    final controls = widget.controls;
++    if (controls == null || !controls.playing) return;
+     _hideTimer = Timer(const Duration(seconds: 3), () {
+-      if (mounted && _isPlaying) {
+-        setState(() => _showControls = false);
+-      }
++      if (mounted) setState(() => _showControls = false);
+     });
+   }
+ 
+   void _toggleControls() {
+     setState(() => _showControls = !_showControls);
+-    if (_showControls && _isPlaying) {
+-      _startHideTimer();
++    if (_showControls) _restartHideTimer();
++  }
++
++  Future<void> _togglePlayPause() async {
++    final controls = widget.controls;
++    if (controls == null) return;
++    try {
++      if (controls.playing) {
++        await controls.pause();
++        _hideTimer?.cancel();
++      } else {
++        await controls.play();
++        _restartHideTimer();
++      }
++    } catch (_) {
++      _showPlaybackError();
+     }
+   }
+ 
+-  void _togglePlayPause() {
+-    setState(() => _isPlaying = !_isPlaying);
+-    if (_isPlaying) {
+-      _startHideTimer();
+-    } else {
+-      _hideTimer?.cancel();
++  Future<void> _seekRelative(int seconds) async {
++    final controls = widget.controls;
++    if (controls == null) return;
++    try {
++      await controls.seek(controls.position + Duration(seconds: seconds));
++      _restartHideTimer();
++    } catch (_) {
++      _showPlaybackError();
+     }
+   }
+ 
+-  void _seekRelative(int seconds) {
+-    setState(() {
+-      final newSeconds = (_currentPosition.inSeconds + seconds).clamp(
+-        0,
+-        _totalDuration.inSeconds,
++  Future<void> _seekToProgress(double progress) async {
++    final controls = widget.controls;
++    if (controls == null || controls.duration <= Duration.zero) return;
++    try {
++      await controls.seek(
++        Duration(
++          microseconds:
++              (controls.duration.inMicroseconds * progress).round(),
++        ),
+       );
+-      _currentPosition = Duration(seconds: newSeconds);
+-      _scrubberPosition = _totalDuration.inSeconds > 0
+-          ? newSeconds / _totalDuration.inSeconds
+-          : 0.0;
+-    });
+-    if (_isPlaying) _startHideTimer();
++      _restartHideTimer();
++    } catch (_) {
++      _showPlaybackError();
++    }
+   }
+ 
+-  void _showSettingsModal() {
+-    _hideTimer?.cancel();
+-    showModalBottomSheet<void>(
+-      context: context,
+-      backgroundColor: context.hikariColors.surfaceElevated,
+-      builder: (context) {
+-        return StatefulBuilder(
+-          builder: (context, setModalState) {
+-            final colors = context.hikariColors;
+-            return Padding(
+-              padding: const EdgeInsets.all(HikariSpacing.lg),
+-              child: Column(
+-                mainAxisSize: MainAxisSize.min,
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  Text(
+-                    'Playback Settings',
+-                    style: HikariTypography.titleMedium.copyWith(
+-                      color: colors.textPrimary,
+-                    ),
+-                  ),
+-                  const SizedBox(height: HikariSpacing.md),
+-                  Text(
+-                    'Playback Speed',
+-                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+-                  ),
+-                  const SizedBox(height: HikariSpacing.xs),
+-                  Wrap(
+-                    spacing: HikariSpacing.sm,
+-                    children: [0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+-                      final selected = _playbackSpeed == speed;
+-                      return ChoiceChip(
+-                        label: Text('${speed}x'),
+-                        selected: selected,
+-                        onSelected: (val) {
+-                          if (val) {
+-                            setState(() => _playbackSpeed = speed);
+-                            setModalState(() {});
+-                          }
+-                        },
+-                      );
+-                    }).toList(),
+-                  ),
+-                  const SizedBox(height: HikariSpacing.lg),
+-                ],
+-              ),
+-            );
+-          },
+-        );
+-      },
+-    ).then((_) {
+-      if (_isPlaying) _startHideTimer();
+-    });
++  void _showPlaybackError() {
++    if (!mounted) return;
++    ScaffoldMessenger.of(context).showSnackBar(
++      const SnackBar(content: Text('Could not update playback.')),
++    );
+   }
+ 
+   Future<void> _exit() async {
+@@ -151,7 +131,6 @@ class _PlayerPageState extends State<PlayerPage> {
+     }
+     if (!mounted) return;
+     setState(() => _canPop = true);
+-    // PopScope must publish eligibility before the final pop notification.
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+       if (mounted && ModalRoute.of(context)!.isCurrent) {
+         Navigator.of(context).pop();
+@@ -162,21 +141,26 @@ class _PlayerPageState extends State<PlayerPage> {
+   @override
+   void dispose() {
+     _hideTimer?.cancel();
++    unawaited(_controlsSubscription?.cancel());
+     if (!_exiting) {
+       unawaited(widget.beforeExit?.call().catchError((Object _) {}));
+     }
+     super.dispose();
+   }
+ 
+-  String _formatDuration(Duration d) {
+-    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+-    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+-    return '$minutes:$seconds';
++  String _formatDuration(Duration duration) {
++    final hours = duration.inHours;
++    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
++    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
++    if (hours > 0) {
++      return hours.toString() + ':' + minutes + ':' + seconds;
++    }
++    return minutes + ':' + seconds;
+   }
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final colors = context.hikariColors;
++    final controls = widget.controls;
+ 
+     return PopScope<void>(
+       canPop: _canPop,
+@@ -185,177 +169,141 @@ class _PlayerPageState extends State<PlayerPage> {
+       },
+       child: Scaffold(
+         backgroundColor: Colors.black,
+-        // AppBar with title ensures backward compatibility for tests finding title or AppBar back
+         appBar: AppBar(
+           title: Text(widget.title),
+           backgroundColor: Colors.black,
+           leading: BackButton(onPressed: _exit),
+-          actions: [
+-            HikariIconButton(
+-              icon: const Icon(Icons.tune_rounded),
+-              tooltip: 'Settings',
+-              onPressed: _showSettingsModal,
+-            ),
+-          ],
+         ),
+         body: SafeArea(
+           child: Stack(
+             fit: StackFit.expand,
+             children: [
+-              // Player Surface (RepaintBoundary optimized)
+               Center(child: RepaintBoundary(child: widget.playback)),
++              if (controls != null) ...[
++                Positioned.fill(
++                  child: GestureDetector(
++                    onTap: _toggleControls,
++                    behavior: HitTestBehavior.translucent,
++                    child: const SizedBox.expand(),
++                  ),
++                ),
++                StreamBuilder<void>(
++                  stream: controls.changes,
++                  builder: (context, _) => _buildPlaybackControls(controls),
++                ),
++              ],
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++
++  Widget _buildPlaybackControls(VideoPlaybackControls controls) {
++    if (!_showControls) return const SizedBox.shrink();
+ 
+-              // Tap detection overlay
+-              Positioned.fill(
+-                child: GestureDetector(
+-                  onTap: _toggleControls,
+-                  behavior: HitTestBehavior.translucent,
+-                  child: const SizedBox.expand(),
++    final colors = context.hikariColors;
++    final duration = controls.duration;
++    final progress =
++        _dragProgress ??
++        (duration > Duration.zero
++            ? (controls.position.inMicroseconds / duration.inMicroseconds)
++                  .clamp(0.0, 1.0)
++            : 0.0);
++
++    return Stack(
++      fit: StackFit.expand,
++      children: [
++        Center(
++          child: Row(
++            mainAxisAlignment: MainAxisAlignment.center,
++            children: [
++              HikariIconButton(
++                icon: const Icon(Icons.replay_10_rounded),
++                tooltip: 'Rewind 10s',
++                size: 52,
++                iconSize: 32,
++                variant: HikariIconButtonVariant.glass,
++                onPressed: () => _seekRelative(-10),
++              ),
++              const SizedBox(width: HikariSpacing.xl),
++              HikariIconButton(
++                icon: Icon(
++                  controls.playing
++                      ? Icons.pause_rounded
++                      : Icons.play_arrow_rounded,
+                 ),
++                tooltip: controls.playing ? 'Pause' : 'Play',
++                size: 64,
++                iconSize: 40,
++                variant: HikariIconButtonVariant.primary,
++                onPressed: _togglePlayPause,
+               ),
+-
+-              // Center Transport Controls (10s skip, Play/Pause, Next)
+-              if (_showControls)
+-                Center(
+-                  child: Row(
+-                    mainAxisAlignment: MainAxisAlignment.center,
++              const SizedBox(width: HikariSpacing.xl),
++              HikariIconButton(
++                icon: const Icon(Icons.forward_10_rounded),
++                tooltip: 'Forward 10s',
++                size: 52,
++                iconSize: 32,
++                variant: HikariIconButtonVariant.glass,
++                onPressed: () => _seekRelative(10),
++              ),
++            ],
++          ),
++        ),
++        Positioned(
++          bottom: 0,
++          left: 0,
++          right: 0,
++          child: ColoredBox(
++            color: colors.background.withValues(alpha: 0.88),
++            child: Padding(
++              padding: const EdgeInsets.symmetric(
++                horizontal: HikariSpacing.lg,
++                vertical: HikariSpacing.sm,
++              ),
++              child: Column(
++                mainAxisSize: MainAxisSize.min,
++                children: [
++                  Slider(
++                    value: progress,
++                    onChanged: duration <= Duration.zero
++                        ? null
++                        : (value) => setState(() => _dragProgress = value),
++                    onChangeEnd: duration <= Duration.zero
++                        ? null
++                        : (value) {
++                            setState(() => _dragProgress = null);
++                            _seekToProgress(value);
++                          },
++                  ),
++                  Row(
++                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                     children: [
+-                      HikariIconButton(
+-                        icon: const Icon(Icons.replay_10_rounded),
+-                        tooltip: 'Rewind 10s',
+-                        size: 52,
+-                        iconSize: 32,
+-                        variant: HikariIconButtonVariant.glass,
+-                        onPressed: () => _seekRelative(-10),
+-                      ),
+-                      const SizedBox(width: HikariSpacing.xl),
+-                      HikariIconButton(
+-                        icon: Icon(
+-                          _isPlaying
+-                              ? Icons.pause_rounded
+-                              : Icons.play_arrow_rounded,
++                      Text(
++                        _formatDuration(controls.position) +
++                            ' / ' +
++                            _formatDuration(duration),
++                        style: TextStyle(
++                          fontSize: 12,
++                          color: colors.textSecondary,
++                          fontWeight: FontWeight.w500,
+                         ),
+-                        tooltip: _isPlaying ? 'Pause' : 'Play',
+-                        size: 64,
+-                        iconSize: 40,
+-                        variant: HikariIconButtonVariant.primary,
+-                        onPressed: _togglePlayPause,
+-                      ),
+-                      const SizedBox(width: HikariSpacing.xl),
+-                      HikariIconButton(
+-                        icon: const Icon(Icons.forward_10_rounded),
+-                        tooltip: 'Forward 10s',
+-                        size: 52,
+-                        iconSize: 32,
+-                        variant: HikariIconButtonVariant.glass,
+-                        onPressed: () => _seekRelative(10),
+                       ),
+-                      if (widget.onNextEpisode != null) ...[
+-                        const SizedBox(width: HikariSpacing.md),
+-                        HikariIconButton(
+-                          icon: const Icon(Icons.skip_next_rounded),
+-                          tooltip: 'Next Episode',
+-                          size: 52,
+-                          iconSize: 28,
+-                          variant: HikariIconButtonVariant.glass,
++                      if (widget.onNextEpisode != null)
++                        TextButton.icon(
+                           onPressed: widget.onNextEpisode,
++                          icon: const Icon(Icons.skip_next_rounded),
++                          label: const Text('Next'),
+                         ),
+-                      ],
+                     ],
+                   ),
+-                ),
+-
+-              // Bottom Scrubber Bar & Timers
+-              if (_showControls)
+-                Positioned(
+-                  bottom: 0,
+-                  left: 0,
+-                  right: 0,
+-                  child: ClipRect(
+-                    child: BackdropFilter(
+-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+-                      child: Container(
+-                        padding: const EdgeInsets.symmetric(
+-                          horizontal: HikariSpacing.lg,
+-                          vertical: HikariSpacing.sm,
+-                        ),
+-                        decoration: BoxDecoration(
+-                          color: colors.background.withValues(alpha: 0.8),
+-                          border: Border(
+-                            top: BorderSide(color: colors.borderSubtle),
+-                          ),
+-                        ),
+-                        child: Column(
+-                          mainAxisSize: MainAxisSize.min,
+-                          children: [
+-                            SliderTheme(
+-                              data: SliderThemeData(
+-                                activeTrackColor: colors.primary,
+-                                inactiveTrackColor: colors.surfaceHighlight,
+-                                thumbColor: colors.primaryGlow,
+-                                trackHeight: 3.5,
+-                                thumbShape: const RoundSliderThumbShape(
+-                                  enabledThumbRadius: 6,
+-                                ),
+-                              ),
+-                              child: Slider(
+-                                value: _scrubberPosition,
+-                                onChanged: (val) {
+-                                  setState(() {
+-                                    _scrubberPosition = val;
+-                                    _currentPosition = Duration(
+-                                      seconds: (val * _totalDuration.inSeconds)
+-                                          .toInt(),
+-                                    );
+-                                  });
+-                                },
+-                              ),
+-                            ),
+-                            Row(
+-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+-                              children: [
+-                                Text(
+-                                  '${_formatDuration(_currentPosition)} / ${_formatDuration(_totalDuration)}',
+-                                  style: TextStyle(
+-                                    fontSize: 12,
+-                                    color: colors.textSecondary,
+-                                    fontWeight: FontWeight.w500,
+-                                  ),
+-                                ),
+-                                Row(
+-                                  children: [
+-                                    HikariIconButton(
+-                                      icon: const Icon(
+-                                        Icons.picture_in_picture_alt_rounded,
+-                                      ),
+-                                      size: 36,
+-                                      iconSize: 18,
+-                                      tooltip: 'Picture in Picture',
+-                                      onPressed: () {},
+-                                    ),
+-                                    HikariIconButton(
+-                                      icon: const Icon(
+-                                        Icons.fullscreen_rounded,
+-                                      ),
+-                                      size: 36,
+-                                      iconSize: 20,
+-                                      tooltip: 'Fullscreen',
+-                                      onPressed: () {},
+-                                    ),
+-                                  ],
+-                                ),
+-                              ],
+-                            ),
+-                          ],
+-                        ),
+-                      ),
+-                    ),
+-                  ),
+-                ),
+-            ],
++                ],
++              ),
++            ),
+           ),
+         ),
+-      ),
++      ],
+     );
+   }
+ }
+diff --git a/lib/features/search/unified_search_page.dart b/lib/features/search/unified_search_page.dart
+--- a/lib/features/search/unified_search_page.dart
++++ b/lib/features/search/unified_search_page.dart
+@@ -1,5 +1,3 @@
+-import 'dart:async';
+-
+ import 'package:flutter/material.dart';
+ import 'package:hikari/app/theme/hikari_theme.dart';
+ import 'package:hikari/application/search/search_manga.dart';
+@@ -11,18 +9,10 @@ import 'package:hikari/core/ui/patterns/async_state_view.dart';
+ import 'package:hikari/core/ui/patterns/media_poster.dart';
+ import 'package:hikari/domain/library/library.dart';
+ import 'package:hikari/domain/media/media.dart';
++import 'package:hikari/features/library/library_button.dart';
++import 'package:hikari/features/search/unified_search_view_model.dart';
+ 
+-enum SearchMediaTypeFilter {
+-  all('All'),
+-  anime('Anime'),
+-  manga('Manga'),
+-  novel('Light Novels');
+-
+-  const SearchMediaTypeFilter(this.label);
+-  final String label;
+-}
+-
+-/// Unified Search Screen supporting debounced querying across Manga, Novel, and Local media sources.
++/// Unified Search renders state owned by [UnifiedSearchViewModel].
+ class UnifiedSearchPage extends StatefulWidget {
+   const UnifiedSearchPage({
+     super.key,
+@@ -31,7 +21,6 @@ class UnifiedSearchPage extends StatefulWidget {
+     this.searchNovels,
+     this.scanLocalMedia,
+     this.library,
+-    this.onOpenDetails,
+     this.initialQuery = '',
+   });
+ 
+@@ -40,7 +29,6 @@ class UnifiedSearchPage extends StatefulWidget {
+   final SearchNovels? searchNovels;
+   final Future<List<Media>?> Function()? scanLocalMedia;
+   final LibraryRepository? library;
+-  final void Function(BuildContext, Media)? onOpenDetails;
+   final String initialQuery;
+ 
+   @override
+@@ -49,301 +37,195 @@ class UnifiedSearchPage extends StatefulWidget {
+ 
+ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
+   late final TextEditingController _searchController;
+-  String _currentQuery = '';
+-  SearchMediaTypeFilter _typeFilter = SearchMediaTypeFilter.all;
+-  AsyncViewStatus _status = AsyncViewStatus.empty;
+-  String? _errorMessage;
+-  List<Media> _results = [];
+-  int _searchRequestId = 0;
++  late final UnifiedSearchViewModel _model;
+ 
+   @override
+   void initState() {
+     super.initState();
+-    _currentQuery = widget.initialQuery;
+     _searchController = TextEditingController(text: widget.initialQuery);
+-    if (_currentQuery.trim().isNotEmpty) {
+-      _executeSearch(_currentQuery);
++    _model = UnifiedSearchViewModel(
++      searchManga: widget.searchManga,
++      searchNovels: widget.searchNovels,
++      scanLocalMedia: widget.scanLocalMedia,
++      initialQuery: widget.initialQuery,
++    );
++    if (widget.initialQuery.trim().isNotEmpty) {
++      _model.search(widget.initialQuery);
+     }
+   }
+ 
+   @override
+   void dispose() {
+     _searchController.dispose();
++    _model.dispose();
+     super.dispose();
+   }
+ 
+-  Future<void> _executeSearch(String query) async {
+-    final trimmed = query.trim();
+-    _currentQuery = trimmed;
+-    if (trimmed.isEmpty) {
+-      setState(() {
+-        _status = AsyncViewStatus.empty;
+-        _results = [];
+-      });
+-      return;
+-    }
+-
+-    final requestId = ++_searchRequestId;
+-    setState(() {
+-      _status = AsyncViewStatus.loading;
+-      _errorMessage = null;
+-    });
+-
+-    try {
+-      final combined = <Media>[];
+-
+-      // 1. Search Manga if enabled
+-      if (widget.searchManga != null &&
+-          widget.searchManga!.options.isNotEmpty &&
+-          (_typeFilter == SearchMediaTypeFilter.all ||
+-              _typeFilter == SearchMediaTypeFilter.manga)) {
+-        try {
+-          final firstSource = widget.searchManga!.options.first;
+-          final mangaPage = await widget.searchManga!.execute(
+-            sourceId: firstSource.id,
+-            query: trimmed,
+-          );
+-          combined.addAll(mangaPage.results.map((p) => p.media));
+-        } catch (_) {
+-          // Keep searching other sources even if one fails
+-        }
+-      }
+-
+-      // 2. Search Novels if enabled
+-      if (widget.searchNovels != null &&
+-          widget.searchNovels!.options.isNotEmpty &&
+-          (_typeFilter == SearchMediaTypeFilter.all ||
+-              _typeFilter == SearchMediaTypeFilter.novel)) {
+-        try {
+-          final firstNovelSource = widget.searchNovels!.options.first;
+-          final novelPage = await widget.searchNovels!.execute(
+-            sourceId: firstNovelSource.id,
+-            query: trimmed,
+-          );
+-          combined.addAll(novelPage.results.map((p) => p.media));
+-        } catch (_) {
+-          // Keep searching other sources
+-        }
+-      }
+-
+-      // 3. Search Local Media if enabled
+-      if (widget.scanLocalMedia != null &&
+-          (_typeFilter == SearchMediaTypeFilter.all ||
+-              _typeFilter == SearchMediaTypeFilter.anime)) {
+-        try {
+-          final localItems = await widget.scanLocalMedia!();
+-          if (localItems != null) {
+-            final filtered = localItems.where(
+-              (m) => m.title.toLowerCase().contains(trimmed.toLowerCase()),
+-            );
+-            combined.addAll(filtered);
+-          }
+-        } catch (_) {}
+-      }
+-
+-      if (requestId != _searchRequestId || !mounted) return;
+-
+-      setState(() {
+-        _results = combined;
+-        _status = combined.isEmpty
+-            ? AsyncViewStatus.empty
+-            : AsyncViewStatus.content;
+-      });
+-    } catch (e) {
+-      if (requestId != _searchRequestId || !mounted) return;
+-      setState(() {
+-        _errorMessage = 'Search failed: ${e.toString()}';
+-        _status = AsyncViewStatus.error;
+-      });
+-    }
+-  }
+-
+-  List<Media> get _filteredResults {
+-    if (_typeFilter == SearchMediaTypeFilter.all) return _results;
+-    return _results.where((item) {
+-      return switch (_typeFilter) {
+-        SearchMediaTypeFilter.all => true,
+-        SearchMediaTypeFilter.anime => item.type == MediaType.anime,
+-        SearchMediaTypeFilter.manga => item.type == MediaType.manga,
+-        SearchMediaTypeFilter.novel => item.type == MediaType.lightNovel,
+-      };
+-    }).toList();
+-  }
+-
+   @override
+   Widget build(BuildContext context) {
+     final colors = context.hikariColors;
+ 
+-    return HikariScaffold(
+-      useSafeArea: true,
+-      body: Column(
+-        children: [
+-          // Search Bar & Filter Header
+-          Padding(
+-            padding: const EdgeInsets.fromLTRB(
+-              HikariSpacing.lg,
+-              HikariSpacing.md,
+-              HikariSpacing.lg,
+-              HikariSpacing.sm,
+-            ),
+-            child: Column(
+-              children: [
+-                HikariSearchBar(
+-                  controller: _searchController,
+-                  initialQuery: _currentQuery,
+-                  onChanged: (q) => _executeSearch(q),
++    return ListenableBuilder(
++      listenable: _model,
++      builder: (context, _) {
++        final state = _model.state;
++        return HikariScaffold(
++          useSafeArea: true,
++          body: Column(
++            children: [
++              Padding(
++                padding: const EdgeInsets.fromLTRB(
++                  HikariSpacing.lg,
++                  HikariSpacing.md,
++                  HikariSpacing.lg,
++                  HikariSpacing.sm,
+                 ),
+-                const SizedBox(height: HikariSpacing.sm),
+-                SingleChildScrollView(
+-                  scrollDirection: Axis.horizontal,
+-                  child: Row(
+-                    children: SearchMediaTypeFilter.values.map((f) {
+-                      return Padding(
+-                        padding: const EdgeInsets.only(right: HikariSpacing.sm),
+-                        child: HikariChip(
+-                          label: f.label,
+-                          isSelected: _typeFilter == f,
+-                          onTap: () {
+-                            setState(() => _typeFilter = f);
+-                            if (_currentQuery.isNotEmpty) {
+-                              _executeSearch(_currentQuery);
+-                            }
+-                          },
+-                        ),
+-                      );
+-                    }).toList(),
+-                  ),
+-                ),
+-              ],
+-            ),
+-          ),
+-
+-          // Search Body / Results Grid
+-          Expanded(
+-            child: AsyncStateView(
+-              status: _status,
+-              emptyTitle: _currentQuery.isEmpty
+-                  ? 'Explore & Search'
+-                  : 'No results found',
+-              emptyMessage: _currentQuery.isEmpty
+-                  ? 'Type a title above to find anime, manga, and light novels across your sources.'
+-                  : 'No matches found for "$_currentQuery". Try a different title or change source filter.',
+-              emptyIcon: _currentQuery.isEmpty
+-                  ? Icons.search_rounded
+-                  : Icons.search_off_rounded,
+-              emptyAction: _currentQuery.isEmpty
+-                  ? Padding(
+-                      padding: const EdgeInsets.only(top: HikariSpacing.md),
+-                      child: Column(
+-                        mainAxisSize: MainAxisSize.min,
+-                        children: [
+-                          Text(
+-                            'Popular Searches',
+-                            style: TextStyle(
+-                              fontSize: 12,
+-                              fontWeight: FontWeight.w600,
+-                              color: colors.textSecondary,
++                child: Column(
++                  children: [
++                    HikariSearchBar(
++                      controller: _searchController,
++                      initialQuery: state.query,
++                      onChanged: _model.search,
++                    ),
++                    const SizedBox(height: HikariSpacing.sm),
++                    SingleChildScrollView(
++                      scrollDirection: Axis.horizontal,
++                      child: Row(
++                        children: SearchMediaTypeFilter.values.map((filter) {
++                          return Padding(
++                            padding: const EdgeInsets.only(
++                              right: HikariSpacing.sm,
+                             ),
+-                          ),
+-                          const SizedBox(height: HikariSpacing.sm),
+-                          Wrap(
+-                            alignment: WrapAlignment.center,
+-                            spacing: HikariSpacing.xs,
+-                            runSpacing: HikariSpacing.xs,
+-                            children:
+-                                [
+-                                      'Demon Slayer',
+-                                      'Solo Leveling',
+-                                      'Chainsaw Man',
+-                                      'Jujutsu Kaisen',
+-                                      'Attack on Titan',
+-                                      'One Piece',
+-                                      'Spy x Family',
+-                                    ]
+-                                    .map(
+-                                      (tag) => ActionChip(
+-                                        label: Text(
+-                                          tag,
+-                                          style: TextStyle(
+-                                            color: colors.primaryGlow,
+-                                            fontSize: 12,
+-                                            fontWeight: FontWeight.w500,
+-                                          ),
+-                                        ),
+-                                        backgroundColor: colors.surfaceElevated,
+-                                        side: BorderSide(color: colors.border),
+-                                        shape: RoundedRectangleBorder(
+-                                          borderRadius: BorderRadius.circular(
+-                                            16,
+-                                          ),
+-                                        ),
+-                                        onPressed: () {
+-                                          _searchController.text = tag;
+-                                          _executeSearch(tag);
+-                                        },
+-                                      ),
+-                                    )
+-                                    .toList(),
+-                          ),
+-                        ],
++                            child: HikariChip(
++                              label: filter.label,
++                              isSelected: state.filter == filter,
++                              onTap: () => _model.selectFilter(filter),
++                            ),
++                          );
++                        }).toList(),
+                       ),
+-                    )
+-                  : null,
+-              errorMessage: _errorMessage,
+-              onRetry: () => _executeSearch(_currentQuery),
+-              contentBuilder: (context) {
+-                final displayItems = _filteredResults;
+-                if (displayItems.isEmpty) {
+-                  return Center(
+-                    child: Text(
+-                      'No matches for "$_currentQuery" with selected filter.',
+-                      style: TextStyle(color: colors.textMuted),
+                     ),
+-                  );
+-                }
+-
+-                return GridView.builder(
+-                  padding: const EdgeInsets.all(HikariSpacing.lg),
+-                  physics: const BouncingScrollPhysics(),
+-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+-                    crossAxisCount: context.responsiveGridColumns,
+-                    crossAxisSpacing: HikariSpacing.md,
+-                    mainAxisSpacing: HikariSpacing.md,
+-                    childAspectRatio: 2 / 3,
++                  ],
++                ),
++              ),
++              if (state.failedSourceCount > 0 &&
++                  state.status == UnifiedSearchStatus.ready)
++                Padding(
++                  padding: const EdgeInsets.symmetric(
++                    horizontal: HikariSpacing.lg,
++                    vertical: HikariSpacing.xs,
+                   ),
+-                  itemCount: displayItems.length,
+-                  itemBuilder: (context, index) {
+-                    final item = displayItems[index];
+-                    final badgeColor = item.type == MediaType.anime
+-                        ? colors.badgeVideo
+-                        : item.type == MediaType.manga
+-                        ? colors.badgeManga
+-                        : colors.badgeNovel;
+-                    final badgeText = item.type == MediaType.anime
+-                        ? 'ANIME'
+-                        : item.type == MediaType.manga
+-                        ? 'MANGA'
+-                        : 'NOVEL';
++                  child: Text(
++                    'Some configured sources could not be searched.',
++                    style: TextStyle(
++                      color: colors.warning,
++                      fontSize: 12,
++                    ),
++                  ),
++                ),
++              Expanded(child: _buildBody(context, state, colors)),
++            ],
++          ),
++        );
++      },
++    );
++  }
+ 
+-                    return MediaPoster(
+-                      title: item.title,
+-                      badgeText: badgeText,
+-                      badgeColor: badgeColor,
+-                      onTap: () {
+-                        if (widget.onOpenDetails != null) {
+-                          widget.onOpenDetails!(context, item);
+-                        } else {
+-                          widget.openMedia(context, item);
+-                        }
+-                      },
+-                    );
+-                  },
+-                );
+-              },
++  Widget _buildBody(
++    BuildContext context,
++    UnifiedSearchUiState state,
++    HikariColors colors,
++  ) {
++    final status = switch (state.status) {
++      UnifiedSearchStatus.idle => AsyncViewStatus.empty,
++      UnifiedSearchStatus.loading => AsyncViewStatus.loading,
++      UnifiedSearchStatus.ready => AsyncViewStatus.content,
++      UnifiedSearchStatus.empty => AsyncViewStatus.empty,
++      UnifiedSearchStatus.error => AsyncViewStatus.error,
++    };
++
++    return AsyncStateView(
++      status: status,
++      emptyTitle: state.query.isEmpty ? 'Explore & Search' : 'No results found',
++      emptyMessage: state.query.isEmpty
++          ? 'Type a title above to search your configured media sources.'
++          : 'No matches found for "' + state.query + '".',
++      emptyIcon: state.query.isEmpty
++          ? Icons.search_rounded
++          : Icons.search_off_rounded,
++      errorMessage: state.errorMessage,
++      onRetry: _model.retry,
++      contentBuilder: (_) {
++        final results = state.visibleResults;
++        if (results.isEmpty) {
++          return Center(
++            child: Text(
++              'No matches for the selected media type.',
++              style: TextStyle(color: colors.textMuted),
+             ),
+-          ),
+-        ],
++          );
++        }
++        return _buildResultsGrid(context, results, colors);
++      },
++    );
++  }
++
++  Widget _buildResultsGrid(
++    BuildContext context,
++    List<UnifiedSearchResult> results,
++    HikariColors colors,
++  ) {
++    return GridView.builder(
++      padding: const EdgeInsets.all(HikariSpacing.lg),
++      physics: const BouncingScrollPhysics(),
++      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
++        crossAxisCount: context.responsiveGridColumns,
++        crossAxisSpacing: HikariSpacing.md,
++        mainAxisSpacing: HikariSpacing.md,
++        childAspectRatio: 2 / 3,
+       ),
++      itemCount: results.length,
++      itemBuilder: (context, index) {
++        final result = results[index];
++        final media = result.media;
++        final badgeColor = switch (media.type) {
++          MediaType.anime => colors.badgeVideo,
++          MediaType.manga => colors.badgeManga,
++          MediaType.lightNovel => colors.badgeNovel,
++        };
++        final badgeText = switch (media.type) {
++          MediaType.anime => 'ANIME',
++          MediaType.manga => 'MANGA',
++          MediaType.lightNovel => 'NOVEL',
++        };
++        final authors = result.metadata?.authors ?? const <String>[];
++        final subtitle = [
++          result.sourceName,
++          if (authors.isNotEmpty) authors.first,
++        ].join(' · ');
++
++        return Stack(
++          fit: StackFit.expand,
++          children: [
++            MediaPoster(
++              title: media.title,
++              subtitle: subtitle,
++              badgeText: badgeText,
++              badgeColor: badgeColor,
++              onTap: () => widget.openMedia(context, media),
++            ),
++            if (widget.library != null)
++              Positioned(
++                top: HikariSpacing.xs,
++                right: HikariSpacing.xs,
++                child: LibraryButton(
++                  repository: widget.library!,
++                  media: media,
++                ),
++              ),
++          ],
++        );
++      },
+     );
+   }
+ }
+diff --git a/lib/features/search/unified_search_view_model.dart b/lib/features/search/unified_search_view_model.dart
+--- a/lib/features/search/unified_search_view_model.dart
++++ b/lib/features/search/unified_search_view_model.dart
+@@ -0,0 +1,301 @@
++import 'package:flutter/foundation.dart';
++import 'package:hikari/application/search/search_manga.dart';
++import 'package:hikari/application/search/search_novels.dart';
++import 'package:hikari/domain/media/media.dart';
++import 'package:hikari/domain/media/metadata.dart';
++
++enum SearchMediaTypeFilter {
++  all('All'),
++  anime('Anime'),
++  manga('Manga'),
++  novel('Light Novels');
++
++  const SearchMediaTypeFilter(this.label);
++  final String label;
++}
++
++enum UnifiedSearchStatus { idle, loading, ready, empty, error }
++
++final class UnifiedSearchResult {
++  const UnifiedSearchResult({
++    required this.media,
++    required this.sourceName,
++    this.metadata,
++  });
++
++  final Media media;
++  final String sourceName;
++  final MediaMetadata? metadata;
++}
++
++@immutable
++final class UnifiedSearchUiState {
++  const UnifiedSearchUiState({
++    this.query = '',
++    this.filter = SearchMediaTypeFilter.all,
++    this.status = UnifiedSearchStatus.idle,
++    this.results = const [],
++    this.failedSourceCount = 0,
++    this.errorMessage,
++  });
++
++  final String query;
++  final SearchMediaTypeFilter filter;
++  final UnifiedSearchStatus status;
++  final List<UnifiedSearchResult> results;
++  final int failedSourceCount;
++  final String? errorMessage;
++
++  List<UnifiedSearchResult> get visibleResults {
++    if (filter == SearchMediaTypeFilter.all) return results;
++    return results.where((result) {
++      return switch (filter) {
++        SearchMediaTypeFilter.all => true,
++        SearchMediaTypeFilter.anime => result.media.type == MediaType.anime,
++        SearchMediaTypeFilter.manga => result.media.type == MediaType.manga,
++        SearchMediaTypeFilter.novel =>
++          result.media.type == MediaType.lightNovel,
++      };
++    }).toList(growable: false);
++  }
++
++  UnifiedSearchUiState copyWith({
++    String? query,
++    SearchMediaTypeFilter? filter,
++    UnifiedSearchStatus? status,
++    List<UnifiedSearchResult>? results,
++    int? failedSourceCount,
++    String? errorMessage,
++    bool clearError = false,
++  }) {
++    return UnifiedSearchUiState(
++      query: query ?? this.query,
++      filter: filter ?? this.filter,
++      status: status ?? this.status,
++      results: results ?? this.results,
++      failedSourceCount: failedSourceCount ?? this.failedSourceCount,
++      errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
++    );
++  }
++}
++
++/// Owns unified-search state and fans one query out to configured sources.
++final class UnifiedSearchViewModel extends ChangeNotifier {
++  UnifiedSearchViewModel({
++    SearchManga? searchManga,
++    SearchNovels? searchNovels,
++    Future<List<Media>?> Function()? scanLocalMedia,
++    String initialQuery = '',
++  }) : _searchManga = searchManga,
++       _searchNovels = searchNovels,
++       _scanLocalMedia = scanLocalMedia,
++       _state = UnifiedSearchUiState(query: initialQuery.trim());
++
++  final SearchManga? _searchManga;
++  final SearchNovels? _searchNovels;
++  final Future<List<Media>?> Function()? _scanLocalMedia;
++
++  UnifiedSearchUiState _state;
++  UnifiedSearchUiState get state => _state;
++
++  bool _disposed = false;
++  int _generation = 0;
++  Future<List<Media>>? _localCatalogFuture;
++
++  void selectFilter(SearchMediaTypeFilter filter) {
++    if (_state.filter == filter) return;
++    _publish(_state.copyWith(filter: filter));
++  }
++
++  Future<void> search(String rawQuery) async {
++    final query = rawQuery.trim();
++    if (query.isEmpty) {
++      _generation++;
++      _publish(
++        UnifiedSearchUiState(
++          filter: _state.filter,
++          status: UnifiedSearchStatus.idle,
++        ),
++      );
++      return;
++    }
++
++    final generation = ++_generation;
++    _publish(
++      _state.copyWith(
++        query: query,
++        status: UnifiedSearchStatus.loading,
++        failedSourceCount: 0,
++        clearError: true,
++      ),
++    );
++
++    final tasks = <Future<_SearchBatch>>[
++      ..._mangaTasks(query),
++      ..._novelTasks(query),
++      if (_scanLocalMedia != null) _searchLocal(query),
++    ];
++
++    if (tasks.isEmpty) {
++      if (_disposed || generation != _generation) return;
++      _publish(
++        _state.copyWith(
++          query: query,
++          results: const [],
++          status: UnifiedSearchStatus.empty,
++          failedSourceCount: 0,
++          clearError: true,
++        ),
++      );
++      return;
++    }
++
++    final batches = await Future.wait(tasks);
++    if (_disposed || generation != _generation) return;
++
++    final failedSourceCount = batches.where((batch) => batch.failed).length;
++    final results = _deduplicate(
++      batches.expand((batch) => batch.results),
++    );
++
++    if (results.isEmpty && failedSourceCount == batches.length) {
++      _publish(
++        _state.copyWith(
++          query: query,
++          results: const [],
++          status: UnifiedSearchStatus.error,
++          failedSourceCount: failedSourceCount,
++          errorMessage: 'All configured search sources failed. Try again.',
++        ),
++      );
++      return;
++    }
++
++    _publish(
++      _state.copyWith(
++        query: query,
++        results: results,
++        status: results.isEmpty
++            ? UnifiedSearchStatus.empty
++            : UnifiedSearchStatus.ready,
++        failedSourceCount: failedSourceCount,
++        clearError: true,
++      ),
++    );
++  }
++
++  Future<void> retry() => search(_state.query);
++
++  /// Invalidates the session-local SAF catalog after a folder change or rescan.
++  Future<void> refreshLocalCatalog() async {
++    _localCatalogFuture = null;
++    if (_state.query.isNotEmpty) await search(_state.query);
++  }
++
++  Iterable<Future<_SearchBatch>> _mangaTasks(String query) sync* {
++    final search = _searchManga;
++    if (search == null) return;
++    for (final source in search.options) {
++      yield _guardSource(() async {
++        final page = await search.execute(sourceId: source.id, query: query);
++        return page.results
++            .map(
++              (preview) => UnifiedSearchResult(
++                media: preview.media,
++                metadata: preview.metadata,
++                sourceName: source.name,
++              ),
++            )
++            .toList(growable: false);
++      });
++    }
++  }
++
++  Iterable<Future<_SearchBatch>> _novelTasks(String query) sync* {
++    final search = _searchNovels;
++    if (search == null) return;
++    for (final source in search.options) {
++      yield _guardSource(() async {
++        final page = await search.execute(sourceId: source.id, query: query);
++        return page.results
++            .map(
++              (preview) => UnifiedSearchResult(
++                media: preview.media,
++                metadata: preview.metadata,
++                sourceName: source.name,
++              ),
++            )
++            .toList(growable: false);
++      });
++    }
++  }
++
++  Future<_SearchBatch> _searchLocal(String query) {
++    return _guardSource(() async {
++      final catalog = await _localCatalog();
++      final normalized = query.toLowerCase();
++      return catalog
++          .where(
++            (media) => media.title.toLowerCase().contains(normalized),
++          )
++          .map(
++            (media) => UnifiedSearchResult(
++              media: media,
++              sourceName: 'Local media',
++            ),
++          )
++          .toList(growable: false);
++    });
++  }
++
++  Future<List<Media>> _localCatalog() {
++    return _localCatalogFuture ??= () async {
++      try {
++        final media = await _scanLocalMedia!.call();
++        return List.unmodifiable(media ?? const <Media>[]);
++      } catch (_) {
++        _localCatalogFuture = null;
++        rethrow;
++      }
++    }();
++  }
++
++  Future<_SearchBatch> _guardSource(
++    Future<List<UnifiedSearchResult>> Function() operation,
++  ) async {
++    try {
++      return _SearchBatch(await operation());
++    } catch (_) {
++      return const _SearchBatch([], failed: true);
++    }
++  }
++
++  List<UnifiedSearchResult> _deduplicate(
++    Iterable<UnifiedSearchResult> results,
++  ) {
++    final seen = <SourceMediaRef>{};
++    return List.unmodifiable(
++      results.where((result) => seen.add(result.media.source)),
++    );
++  }
++
++  void _publish(UnifiedSearchUiState state) {
++    if (_disposed) return;
++    _state = state;
++    notifyListeners();
++  }
++
++  @override
++  void dispose() {
++    _disposed = true;
++    _generation++;
++    super.dispose();
++  }
++}
++
++final class _SearchBatch {
++  const _SearchBatch(this.results, {this.failed = false});
++
++  final List<UnifiedSearchResult> results;
++  final bool failed;
++}
+diff --git a/lib/features/settings/settings_page.dart b/lib/features/settings/settings_page.dart
+--- a/lib/features/settings/settings_page.dart
++++ b/lib/features/settings/settings_page.dart
+@@ -3,21 +3,26 @@ import 'package:hikari/app/theme/hikari_theme.dart';
+ import 'package:hikari/core/ui/components/hikari_button.dart';
+ import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+ 
+-/// Settings screen for managing appearance, extensions, storage cache, and about info.
++/// Settings exposes only capabilities backed by real application callbacks.
++///
++/// Appearance remains app-session state until Hikari introduces a persisted
++/// preferences contract. Cache UI is hidden when no cache service is composed.
+ class SettingsPage extends StatefulWidget {
+   const SettingsPage({
+     super.key,
+     this.isOled = false,
+     this.onToggleOled,
+     this.onSelectAccent,
+     this.onClearCache,
++    this.cacheSizeLabel,
+     this.onChooseLocalFolder,
+   });
+ 
+   final bool isOled;
+   final ValueChanged<bool>? onToggleOled;
+   final ValueChanged<Color>? onSelectAccent;
+   final Future<void> Function()? onClearCache;
++  final String? cacheSizeLabel;
+   final Future<void> Function()? onChooseLocalFolder;
+ 
+   @override
+@@ -27,14 +32,13 @@ class SettingsPage extends StatefulWidget {
+ class _SettingsPageState extends State<SettingsPage> {
+   late bool _isOled;
+   bool _isClearingCache = false;
+-  String _cacheSize = '28.4 MB';
+ 
+-  final List<Color> _accentColors = const [
+-    Color(0xFF8B5CF6), // Electric Violet
+-    Color(0xFFEC4899), // Electric Rose
+-    Color(0xFF06B6D4), // Cyan
+-    Color(0xFF10B981), // Emerald
+-    Color(0xFFF59E0B), // Amber
++  static const _accentColors = [
++    Color(0xFF8B5CF6),
++    Color(0xFFEC4899),
++    Color(0xFF06B6D4),
++    Color(0xFF10B981),
++    Color(0xFFF59E0B),
+   ];
+ 
+   @override
+@@ -43,30 +47,32 @@ class _SettingsPageState extends State<SettingsPage> {
+     _isOled = widget.isOled;
+   }
+ 
++  @override
++  void didUpdateWidget(SettingsPage oldWidget) {
++    super.didUpdateWidget(oldWidget);
++    if (oldWidget.isOled != widget.isOled) {
++      _isOled = widget.isOled;
++    }
++  }
++
+   Future<void> _handleClearCache() async {
++    final clearCache = widget.onClearCache;
++    if (clearCache == null || _isClearingCache) return;
++
+     setState(() => _isClearingCache = true);
+     try {
+-      if (widget.onClearCache != null) {
+-        await widget.onClearCache!();
+-      } else {
+-        await Future<void>.delayed(const Duration(milliseconds: 400));
+-      }
+-      if (mounted) {
+-        setState(() {
+-          _cacheSize = '0.0 MB';
+-          _isClearingCache = false;
+-        });
+-        ScaffoldMessenger.of(context).showSnackBar(
+-          const SnackBar(content: Text('Cache cleared successfully!')),
+-        );
+-      }
++      await clearCache();
++      if (!mounted) return;
++      ScaffoldMessenger.of(
++        context,
++      ).showSnackBar(const SnackBar(content: Text('Cache cleared.')));
+     } catch (_) {
+-      if (mounted) {
+-        setState(() => _isClearingCache = false);
+-        ScaffoldMessenger.of(
+-          context,
+-        ).showSnackBar(const SnackBar(content: Text('Failed to clear cache.')));
+-      }
++      if (!mounted) return;
++      ScaffoldMessenger.of(
++        context,
++      ).showSnackBar(const SnackBar(content: Text('Failed to clear cache.')));
++    } finally {
++      if (mounted) setState(() => _isClearingCache = false);
+     }
+   }
+ 
+@@ -88,149 +94,143 @@ class _SettingsPageState extends State<SettingsPage> {
+       body: ListView(
+         padding: const EdgeInsets.all(HikariSpacing.lg),
+         children: [
+-          // Section: Appearance
+           _buildSectionHeader('Appearance', colors),
+           _buildSettingCard(
+             colors,
+             children: [
+               SwitchListTile(
+                 title: const Text('OLED Pure Black'),
+                 subtitle: const Text(
+-                  'Optimized for OLED displays to save power and enhance contrast',
++                  'Use a pure-black background on OLED displays.',
+                   style: TextStyle(fontSize: 12),
+                 ),
+                 value: _isOled,
+                 activeThumbColor: colors.primary,
+-                onChanged: (val) {
+-                  setState(() => _isOled = val);
+-                  widget.onToggleOled?.call(val);
+-                },
++                onChanged: widget.onToggleOled == null
++                    ? null
++                    : (value) {
++                        setState(() => _isOled = value);
++                        widget.onToggleOled!(value);
++                      },
+               ),
+-              const Divider(height: 1),
+-              Padding(
+-                padding: const EdgeInsets.all(HikariSpacing.md),
+-                child: Column(
+-                  crossAxisAlignment: CrossAxisAlignment.start,
+-                  children: [
+-                    const Text(
+-                      'Accent Color',
+-                      style: TextStyle(
+-                        fontSize: 14,
+-                        fontWeight: FontWeight.w500,
++              if (widget.onSelectAccent != null) ...[
++                const Divider(height: 1),
++                Padding(
++                  padding: const EdgeInsets.all(HikariSpacing.md),
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      const Text(
++                        'Accent Color',
++                        style: TextStyle(
++                          fontSize: 14,
++                          fontWeight: FontWeight.w500,
++                        ),
+                       ),
+-                    ),
+-                    const SizedBox(height: HikariSpacing.sm),
+-                    Row(
+-                      children: _accentColors.map((c) {
+-                        final isSelected =
+-                            colors.primary.toARGB32() == c.toARGB32();
+-                        return Padding(
+-                          padding: const EdgeInsets.only(
+-                            right: HikariSpacing.sm,
+-                          ),
+-                          child: GestureDetector(
+-                            onTap: () => widget.onSelectAccent?.call(c),
+-                            child: Container(
+-                              width: 36,
+-                              height: 36,
+-                              decoration: BoxDecoration(
+-                                color: c,
+-                                shape: BoxShape.circle,
+-                                border: isSelected
+-                                    ? Border.all(
+-                                        color: Colors.white,
+-                                        width: 2.5,
+-                                      )
+-                                    : null,
+-                                boxShadow: isSelected
+-                                    ? [
+-                                        BoxShadow(
+-                                          color: c.withValues(alpha: 0.6),
+-                                          blurRadius: 8,
+-                                        ),
+-                                      ]
+-                                    : null,
++                      const SizedBox(height: HikariSpacing.sm),
++                      Row(
++                        children: _accentColors.map((color) {
++                          final selected =
++                              colors.primary.toARGB32() == color.toARGB32();
++                          return Padding(
++                            padding: const EdgeInsets.only(
++                              right: HikariSpacing.sm,
++                            ),
++                            child: InkResponse(
++                              onTap: () => widget.onSelectAccent!(color),
++                              radius: 24,
++                              child: Semantics(
++                                label: 'Select accent color',
++                                selected: selected,
++                                button: true,
++                                child: Container(
++                                  width: 36,
++                                  height: 36,
++                                  decoration: BoxDecoration(
++                                    color: color,
++                                    shape: BoxShape.circle,
++                                    border: selected
++                                        ? Border.all(
++                                            color: colors.textPrimary,
++                                            width: 2.5,
++                                          )
++                                        : null,
++                                  ),
++                                ),
+                               ),
+                             ),
+-                          ),
+-                        );
+-                      }).toList(),
+-                    ),
+-                  ],
++                          );
++                        }).toList(),
++                      ),
++                      const SizedBox(height: HikariSpacing.xs),
++                      Text(
++                        'Appearance preferences currently apply to this app session.',
++                        style: TextStyle(
++                          fontSize: 11,
++                          color: colors.textMuted,
++                        ),
++                      ),
++                    ],
++                  ),
+                 ),
+-              ),
++              ],
+             ],
+           ),
+-
+-          const SizedBox(height: HikariSpacing.xl),
+-
+-          // Section: Sources & Storage
+-          _buildSectionHeader('Sources & Storage', colors),
+-          _buildSettingCard(
+-            colors,
+-            children: [
+-              if (widget.onChooseLocalFolder != null)
+-                ListTile(
+-                  leading: const Icon(Icons.folder_open_rounded),
+-                  title: const Text('Local Media Folder'),
+-                  subtitle: const Text(
+-                    'Change or rescan your local manga/novel directory',
+-                    style: TextStyle(fontSize: 12),
++          if (widget.onChooseLocalFolder != null ||
++              widget.onClearCache != null) ...[
++            const SizedBox(height: HikariSpacing.xl),
++            _buildSectionHeader('Sources & Storage', colors),
++            _buildSettingCard(
++              colors,
++              children: [
++                if (widget.onChooseLocalFolder != null)
++                  ListTile(
++                    leading: const Icon(Icons.folder_open_rounded),
++                    title: const Text('Local Media Folder'),
++                    subtitle: const Text(
++                      'Change Hikari\'s persisted local-media root.',
++                      style: TextStyle(fontSize: 12),
++                    ),
++                    trailing: const Icon(Icons.chevron_right_rounded),
++                    onTap: widget.onChooseLocalFolder,
+                   ),
+-                  trailing: const Icon(Icons.chevron_right_rounded),
+-                  onTap: widget.onChooseLocalFolder,
+-                ),
+-              ListTile(
+-                leading: const Icon(Icons.cleaning_services_rounded),
+-                title: const Text('Temporary Cache'),
+-                subtitle: Text(
+-                  'Images and cached reader pages: $_cacheSize',
+-                  style: const TextStyle(fontSize: 12),
+-                ),
+-                trailing: SizedBox(
+-                  width: 96,
+-                  child: HikariButton(
+-                    label: 'Clear',
+-                    size: HikariButtonSize.small,
+-                    variant: HikariButtonVariant.secondary,
+-                    isLoading: _isClearingCache,
+-                    onPressed: _handleClearCache,
++                if (widget.onChooseLocalFolder != null &&
++                    widget.onClearCache != null)
++                  const Divider(height: 1),
++                if (widget.onClearCache != null)
++                  ListTile(
++                    leading: const Icon(Icons.cleaning_services_rounded),
++                    title: const Text('Temporary Cache'),
++                    subtitle: Text(
++                      widget.cacheSizeLabel == null
++                          ? 'Clear temporary cached content.'
++                          : 'Cached content: ${widget.cacheSizeLabel}',
++                      style: const TextStyle(fontSize: 12),
++                    ),
++                    trailing: SizedBox(
++                      width: 96,
++                      child: HikariButton(
++                        label: 'Clear',
++                        size: HikariButtonSize.small,
++                        variant: HikariButtonVariant.secondary,
++                        isLoading: _isClearingCache,
++                        onPressed: _handleClearCache,
++                      ),
++                    ),
+                   ),
+-                ),
+-              ),
+-            ],
+-          ),
+-
++              ],
++            ),
++          ],
+           const SizedBox(height: HikariSpacing.xl),
+-
+-          // Section: About
+           _buildSectionHeader('About Hikari', colors),
+           _buildSettingCard(
+             colors,
+-            children: [
+-              const ListTile(
++            children: const [
++              ListTile(
+                 leading: Icon(Icons.auto_awesome),
+                 title: Text('Hikari'),
+                 subtitle: Text(
+-                  'Version 1.1.0 · Cinematic Neo-Material',
+-                  style: TextStyle(fontSize: 12),
+-                ),
+-              ),
+-              const Divider(height: 1),
+-              const ListTile(
+-                leading: Icon(Icons.verified_user_rounded),
+-                title: Text('Architecture Guard'),
+-                subtitle: Text(
+-                  'Clean Layered Architecture with ADR-003 Guardrails',
+-                  style: TextStyle(fontSize: 12),
+-                ),
+-              ),
+-              const Divider(height: 1),
+-              const ListTile(
+-                leading: Icon(Icons.code_rounded),
+-                title: Text('License'),
+-                subtitle: Text(
+-                  'Open Source under MIT License',
++                  'Anime, manga, and light-novel media client.',
+                   style: TextStyle(fontSize: 12),
+                 ),
+               ),
+diff --git a/lib/infrastructure/playback/media_kit_video_session.dart b/lib/infrastructure/playback/media_kit_video_session.dart
+--- a/lib/infrastructure/playback/media_kit_video_session.dart
++++ b/lib/infrastructure/playback/media_kit_video_session.dart
+@@ -1,5 +1,6 @@
+ import 'dart:async';
+ 
++import 'package:hikari/domain/playback/video_playback.dart';
+ import 'package:hikari/domain/progress/progress.dart';
+ import 'package:hikari/domain/progress/resume.dart';
+ import 'package:hikari/infrastructure/playback/video_driver.dart';
+@@ -9,7 +10,7 @@ import 'package:media_kit_video/media_kit_video.dart';
+ enum _Phase { resetting, opening, active, failed, closing, closed }
+ 
+ /// A route's identity and frozen progress, not a native player owner.
+-final class MediaKitVideoPlayback {
++final class MediaKitVideoPlayback implements VideoPlaybackControls {
+   MediaKitVideoPlayback._(
+     this._owner,
+     this.locator,
+@@ -24,14 +25,40 @@ final class MediaKitVideoPlayback {
+   final _duration = Completer<Duration?>();
+   late Future<void> ready;
+   Future<void>? _finish;
+-  final _changes = StreamController<void>.broadcast(sync: true);
+-  Stream<void> get changes => _changes.stream;
++  final _surfaceChanges = StreamController<void>.broadcast(sync: true);
++  final _controlChanges = StreamController<void>.broadcast(sync: true);
++  @override
++  Stream<void> get changes => _controlChanges.stream;
++  Stream<void> get surfaceChanges => _surfaceChanges.stream;
+   String? error;
+   bool get loading => _phase == _Phase.resetting || _phase == _Phase.opening;
+   VideoController? get controller => _owner._driver?.controller;
++
++  bool _playing = false;
++  Duration _position = Duration.zero;
++  Duration _playbackDuration = Duration.zero;
++
++  @override
++  bool get playing => _playing;
++  @override
++  Duration get position => _position;
++  @override
++  Duration get duration => _playbackDuration;
++
++  @override
++  Future<void> play() => _owner._setPlaying(this, true);
++  @override
++  Future<void> pause() => _owner._setPlaying(this, false);
++  @override
++  Future<void> seek(Duration position) => _owner._seek(this, position);
++
+   Future<void> finish() => _finish ??= _owner._finish(this);
+-  void _changed() {
+-    if (!_changes.isClosed) _changes.add(null);
++  void _surfaceChanged() {
++    if (!_surfaceChanges.isClosed) _surfaceChanges.add(null);
++  }
++
++  void _controlsChanged() {
++    if (!_controlChanges.isClosed) _controlChanges.add(null);
+   }
+ }
+ 
+@@ -73,7 +100,9 @@ final class MediaKitVideoSession {
+             !session._duration.isCompleted) {
+           session._duration.complete(duration);
+         } else if (session._phase == _Phase.active) {
++          session._playbackDuration = duration;
+           session._tracker.noteDuration(duration);
++          session._controlsChanged();
+         }
+       }),
+     );
+@@ -86,7 +115,9 @@ final class MediaKitVideoSession {
+             position <= Duration.zero) {
+           return;
+         }
++        session._position = position;
+         session._tracker.notePosition(position, session._tracker.duration);
++        session._controlsChanged();
+       }),
+     );
+     _subscriptions.add(
+@@ -102,7 +133,10 @@ final class MediaKitVideoSession {
+     _subscriptions.add(
+       driver.playing.listen((playing) {
+         final session = _currentPlayback;
+-        if (session != null && !playing) unawaited(_flush(session));
++        if (session == null) return;
++        session._playing = playing;
++        session._controlsChanged();
++        if (!playing) unawaited(_flush(session));
+       }),
+     );
+     _subscriptions.add(
+@@ -114,7 +148,7 @@ final class MediaKitVideoSession {
+           return;
+         }
+         session.error = message;
+-        session._changed();
++        session._surfaceChanged();
+       }),
+     );
+     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+@@ -153,11 +187,15 @@ final class MediaKitVideoSession {
+         if (duration == null || !_isCurrentPhase(session, _Phase.opening)) {
+           return;
+         }
+-        await _driver!.seek(resumeVideo(initialProgress, duration));
++        final initialPosition = resumeVideo(initialProgress, duration);
++        await _driver!.seek(initialPosition);
+         if (!_isCurrentPhase(session, _Phase.opening)) return;
++        session._playbackDuration = duration;
++        session._position = initialPosition;
+         session._tracker.noteDuration(duration);
+         session._phase = _Phase.active;
+-        session._changed();
++        session._surfaceChanged();
++        session._controlsChanged();
+         if (_isForeground) await _driver!.play();
+       } catch (error) {
+         if (!_isCurrentPhase(session, _Phase.resetting) &&
+@@ -167,7 +205,7 @@ final class MediaKitVideoSession {
+         }
+         session._phase = _Phase.failed;
+         session.error = error.toString();
+-        session._changed();
++        session._surfaceChanged();
+       }
+     });
+     return session;
+@@ -183,7 +221,7 @@ final class MediaKitVideoSession {
+     } catch (_) {
+       if (!_isCurrentPhase(session, _Phase.active)) return;
+       session.error = 'Could not save playback progress.';
+-      session._changed();
++      session._surfaceChanged();
+     }
+   }
+ 
+@@ -206,11 +244,48 @@ final class MediaKitVideoSession {
+       } finally {
+         session._phase = _Phase.closed;
+         if (identical(_currentPlayback, session)) _currentPlayback = null;
+-        await session._changes.close();
++        await session._surfaceChanges.close();
++        await session._controlChanges.close();
+       }
+     });
+   }
+ 
++  Future<void> _setPlaying(
++    MediaKitVideoPlayback session,
++    bool playing,
++  ) {
++    return _enqueue(() async {
++      if (!_isCurrentPhase(session, _Phase.active)) return;
++      if (playing) {
++        await _driver!.play();
++      } else {
++        await _driver!.pause();
++      }
++    });
++  }
++
++  Future<void> _seek(
++    MediaKitVideoPlayback session,
++    Duration position,
++  ) {
++    return _enqueue(() async {
++      if (!_isCurrentPhase(session, _Phase.active)) return;
++      final duration = session._playbackDuration;
++      final target = duration > Duration.zero
++          ? Duration(
++              microseconds: position.inMicroseconds.clamp(
++                0,
++                duration.inMicroseconds,
++              ),
++            )
++          : Duration.zero;
++      await _driver!.seek(target);
++      if (!_isCurrentPhase(session, _Phase.active)) return;
++      session._position = target;
++      session._controlsChanged();
++    });
++  }
++
+   Future<void> setForeground(bool foreground) {
+     _isForeground = foreground;
+     final session = _currentPlayback;
+diff --git a/lib/infrastructure/repositories/sqlite_library_repository.dart b/lib/infrastructure/repositories/sqlite_library_repository.dart
+--- a/lib/infrastructure/repositories/sqlite_library_repository.dart
++++ b/lib/infrastructure/repositories/sqlite_library_repository.dart
+@@ -3,7 +3,7 @@ import 'package:hikari/domain/library/library.dart';
+ import 'package:hikari/domain/media/media.dart';
+ import 'package:hikari/infrastructure/persistence/user_database.dart';
+ 
+-final class SqliteLibraryRepository implements LibraryRepository {
++final class SqliteLibraryRepository implements ObservableLibraryRepository {
+   SqliteLibraryRepository(this._database);
+ 
+   final UserDatabase _database;
+@@ -45,11 +45,20 @@ final class SqliteLibraryRepository implements LibraryRepository {
+ 
+   @override
+   Future<List<LibraryEntry>> loadAll() async {
+-    final rows = await (_database.select(
+-      _database.libraryRecords,
+-    )..orderBy([(table) => OrderingTerm.desc(table.addedAt)])).get();
++    final rows = await _orderedQuery().get();
++    return rows.map(_mapLibraryEntry).toList(growable: false);
++  }
++
++  @override
++  Stream<List<LibraryEntry>> watchAll() {
++    return _orderedQuery().watch().map(
++      (rows) => List.unmodifiable(rows.map(_mapLibraryEntry)),
++    );
++  }
+ 
+-    return rows.map(_mapLibraryEntry).toList();
++  SimpleSelectStatement<$LibraryRecordsTable, LibraryRecord> _orderedQuery() {
++    return _database.select(_database.libraryRecords)
++      ..orderBy([(table) => OrderingTerm.desc(table.addedAt)]);
+   }
+ }
+ 
+diff --git a/test/home_page_test.dart b/test/home_page_test.dart
+--- a/test/home_page_test.dart
++++ b/test/home_page_test.dart
+@@ -65,4 +65,23 @@ void main() {
+     await tester.pumpAndSettle();
+     expect(find.text('One Piece'), findsWidgets);
+   });
++
++  testWidgets('HomePage never invents showcase media for empty inputs', (
++    tester,
++  ) async {
++    await tester.pumpWidget(
++      MaterialApp(
++        theme: HikariTheme.darkTheme(),
++        home: HomePage(openMedia: (_, _) {}),
++      ),
++    );
++
++    expect(find.text('Attack on Titan'), findsNothing);
++    expect(find.text('Demon Slayer'), findsNothing);
++    expect(
++      find.textContaining('Add media to your Library'),
++      findsOneWidget,
++    );
++  });
++
+ }
+diff --git a/test/library_page_test.dart b/test/library_page_test.dart
+--- a/test/library_page_test.dart
++++ b/test/library_page_test.dart
+@@ -119,4 +119,24 @@ void main() {
+     await tester.pumpAndSettle();
+     expect(await library.contains(media.source), isFalse);
+   });
++
++  testWidgets('reactive repository updates an already mounted LibraryPage', (
++    tester,
++  ) async {
++    await tester.pumpWidget(
++      MaterialApp(
++        home: LibraryPage(repository: library, openMedia: (_, _) {}),
++      ),
++    );
++    await tester.pumpAndSettle();
++    expect(find.text('Your library is empty.'), findsOneWidget);
++
++    await library.upsert(
++      LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
++    );
++    await tester.pumpAndSettle();
++
++    expect(find.text('Saved book'), findsOneWidget);
++  });
++
+ }
+diff --git a/test/media_kit_video_session_test.dart b/test/media_kit_video_session_test.dart
+--- a/test/media_kit_video_session_test.dart
++++ b/test/media_kit_video_session_test.dart
+@@ -311,4 +311,27 @@ void main() {
+       await b.finish();
+     },
+   );
++  test('playback controls expose real playing position duration and seek', () async {
++    final playback = open('A');
++    await playback.ready;
++
++    expect(playback.duration, const Duration(seconds: 100));
++    expect(playback.playing, isTrue);
++
++    await playback.pause();
++    expect(playback.playing, isFalse);
++
++    await playback.seek(const Duration(seconds: 25));
++    expect(playback.position, const Duration(seconds: 25));
++    expect(driver.seeks.last, const Duration(seconds: 25));
++
++    await playback.seek(const Duration(seconds: 999));
++    expect(playback.position, const Duration(seconds: 100));
++    expect(driver.seeks.last, const Duration(seconds: 100));
++
++    await playback.play();
++    expect(playback.playing, isTrue);
++    await playback.finish();
++  });
++
+ }
+diff --git a/test/settings_page_test.dart b/test/settings_page_test.dart
+--- a/test/settings_page_test.dart
++++ b/test/settings_page_test.dart
+@@ -34,6 +34,6 @@ void main() {
+     await tester.tap(find.text('Clear'));
+     await tester.pumpAndSettle();
+     expect(cacheCleared, isTrue);
+-    expect(find.textContaining('0.0 MB'), findsOneWidget);
++    expect(find.text('Cache cleared.'), findsOneWidget);
+   });
+ }
+diff --git a/test/unified_search_view_model_test.dart b/test/unified_search_view_model_test.dart
+--- a/test/unified_search_view_model_test.dart
++++ b/test/unified_search_view_model_test.dart
+@@ -0,0 +1,58 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:hikari/domain/media/media.dart';
++import 'package:hikari/features/search/unified_search_view_model.dart';
++
++void main() {
++  const media = Media(
++    title: 'Solo Leveling',
++    type: MediaType.anime,
++    source: SourceMediaRef(sourceId: SourceId.local, itemId: 'solo'),
++  );
++
++  test('local catalog scans once across queries in one view-model session', () async {
++    var scans = 0;
++    final model = UnifiedSearchViewModel(
++      scanLocalMedia: () async {
++        scans++;
++        return const [media];
++      },
++    );
++    addTearDown(model.dispose);
++
++    await model.search('Solo');
++    expect(model.state.visibleResults.single.media, media);
++
++    await model.search('Leveling');
++    expect(model.state.visibleResults.single.media, media);
++    expect(scans, 1);
++  });
++
++  test('refreshLocalCatalog invalidates the cached SAF scan', () async {
++    var scans = 0;
++    final model = UnifiedSearchViewModel(
++      scanLocalMedia: () async {
++        scans++;
++        return const [media];
++      },
++    );
++    addTearDown(model.dispose);
++
++    await model.search('Solo');
++    await model.refreshLocalCatalog();
++
++    expect(scans, 2);
++  });
++
++  test('media type filters are presentation-only over fetched results', () async {
++    final model = UnifiedSearchViewModel(
++      scanLocalMedia: () async => const [media],
++    );
++    addTearDown(model.dispose);
++
++    await model.search('Solo');
++    model.selectFilter(SearchMediaTypeFilter.manga);
++
++    expect(model.state.results, hasLength(1));
++    expect(model.state.visibleResults, isEmpty);
++  });
++}
