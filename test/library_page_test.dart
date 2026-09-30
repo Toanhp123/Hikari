@@ -119,4 +119,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(await library.contains(media.source), isFalse);
   });
+
+  testWidgets('reactive repository updates an already mounted LibraryPage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LibraryPage(repository: library, openMedia: (_, _) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Your library is empty.'), findsOneWidget);
+
+    await library.upsert(
+      LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saved book'), findsOneWidget);
+  });
+
 }

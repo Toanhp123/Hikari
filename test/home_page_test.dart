@@ -65,4 +65,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('One Piece'), findsWidgets);
   });
+
+  testWidgets('HomePage never invents showcase media for empty inputs', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(openMedia: (_, _) {}),
+      ),
+    );
+
+    expect(find.text('Attack on Titan'), findsNothing);
+    expect(find.text('Demon Slayer'), findsNothing);
+    expect(
+      find.textContaining('Add media to your Library'),
+      findsOneWidget,
+    );
+  });
+
 }

@@ -3,22 +3,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
-import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/domain/media/source.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
-import 'package:hikari/features/media_details/media_details_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/features/player/video_surface.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
+import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
 import 'package:hikari/features/search/unified_search_page.dart';
 import 'package:hikari/features/settings/settings_page.dart';
@@ -125,8 +124,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         publication,
       ),
     };
-    await Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => page));
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => page),
+    );
   }
 
   Widget _buildVideoPage(VideoOpenTarget target) {
@@ -137,9 +137,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
     return PlayerPage(
       title: target.media.title,
+      controls: playback,
       beforeExit: playback.finish,
       playback: VideoSurface(
-        changes: playback.changes,
+        changes: playback.surfaceChanges,
         controller: () => playback.controller,
         loading: () => playback.loading,
         error: () => playback.error,
@@ -223,18 +224,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _openDetails(BuildContext context, Media media) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => MediaDetailsPage(
-          media: media,
-          openMedia: _openMedia,
-          library: _dependencies.libraryRepository,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final localSource = _dependencies.localMediaSource;
@@ -255,9 +244,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             HomePage(
               openMedia: _openMedia,
               library: libraryRepository,
-              onOpenDetails: _openDetails,
               showLocalMediaPrompt: localSource.isAvailable,
-              scanLocalMedia: localSource.scanSelectedRoot,
               onChooseFolder: () async => await localSource.chooseRoot(),
               openRemoteManga: canSearchManga
                   ? () => Navigator.of(context).push(
@@ -288,13 +275,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               searchManga: _dependencies.searchManga,
               searchNovels: _dependencies.searchNovels,
               scanLocalMedia: localSource.scanSelectedRoot,
-              onOpenDetails: _openDetails,
             ),
             LibraryPage(repository: libraryRepository, openMedia: _openMedia),
             SettingsPage(
               isOled: _isOled,
-              onToggleOled: (val) => setState(() => _isOled = val),
-              onSelectAccent: (val) => setState(() => _accentColor = val),
+              onToggleOled: (value) => setState(() => _isOled = value),
+              onSelectAccent: (value) => setState(() => _accentColor = value),
               onChooseLocalFolder: localSource.chooseRoot,
             ),
           ],

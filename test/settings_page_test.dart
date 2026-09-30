@@ -34,6 +34,6 @@ void main() {
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
     expect(cacheCleared, isTrue);
-    expect(find.textContaining('0.0 MB'), findsOneWidget);
+    expect(find.text('Cache cleared.'), findsOneWidget);
   });
 }
