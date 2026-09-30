@@ -11,11 +11,14 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
+import 'package:hikari/features/shell/app_navigation_shell.dart';
+
 enum HomeFilterType {
   all('All'),
   anime('Anime'),
   manga('Manga'),
-  novel('Light Novels');
+  novel('Light Novels'),
+  movies('Movies');
 
   const HomeFilterType(this.label);
   final String label;
@@ -55,6 +58,147 @@ class HomePage extends StatefulWidget {
   final VoidCallback? openRemoteManga;
   final VoidCallback? openRemoteNovels;
 
+  static const _defaultFeaturedItems = [
+    FeaturedHeroItem(
+      media: Media(
+        title: 'Aether Bound',
+        type: MediaType.anime,
+        source: SourceMediaRef(
+          sourceId: SourceId('featured'),
+          itemId: 'aether_bound',
+        ),
+      ),
+      tagline: 'Immersive dynamic artwork with from a popular anime (e.g.) end watching series.',
+      genres: ['Action', 'Fantasy', 'Sci-Fi'],
+      primaryActionLabel: 'Play Episode 14',
+      secondaryActionLabel: 'My List',
+    ),
+  ];
+
+  static const _defaultContinueItems = [
+    ContinueReadingItem(
+      media: Media(
+        title: 'Demon Slayer',
+        type: MediaType.anime,
+        source: SourceMediaRef(sourceId: SourceId('continue'), itemId: 'ds'),
+      ),
+      progress: 0.65,
+      progressLabel: 'S2 Ep 8 · 14m left',
+    ),
+    ContinueReadingItem(
+      media: Media(
+        title: 'Berserk Vol 24',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('continue'),
+          itemId: 'berserk',
+        ),
+      ),
+      progress: 0.40,
+      progressLabel: 'Ch. 198 · 15m left',
+    ),
+    ContinueReadingItem(
+      media: Media(
+        title: 'Jujutsu Kaisen',
+        type: MediaType.anime,
+        source: SourceMediaRef(sourceId: SourceId('continue'), itemId: 'jjk'),
+      ),
+      progress: 0.82,
+      progressLabel: 'S1 Ep 19 · 14m left',
+    ),
+    ContinueReadingItem(
+      media: Media(
+        title: 'Chainsaw Man',
+        type: MediaType.anime,
+        source: SourceMediaRef(sourceId: SourceId('continue'), itemId: 'csm'),
+      ),
+      progress: 0.25,
+      progressLabel: 'S1 Ep 13 · 12m left',
+    ),
+  ];
+
+  static const _defaultTrendingItems = [
+    Media(
+      title: 'Attack on Titan',
+      type: MediaType.anime,
+      source: SourceMediaRef(sourceId: SourceId('trending'), itemId: 'aot'),
+    ),
+    Media(
+      title: 'Vagabond',
+      type: MediaType.manga,
+      source: SourceMediaRef(
+        sourceId: SourceId('trending'),
+        itemId: 'vagabond',
+      ),
+    ),
+    Media(
+      title: 'Perfect Blue',
+      type: MediaType.anime,
+      source: SourceMediaRef(
+        sourceId: SourceId('trending'),
+        itemId: 'perfect_blue',
+      ),
+    ),
+    Media(
+      title: 'Solo Leveling',
+      type: MediaType.lightNovel,
+      source: SourceMediaRef(
+        sourceId: SourceId('trending'),
+        itemId: 'solo_leveling',
+      ),
+    ),
+    Media(
+      title: 'Cyberpunk Edgerunners',
+      type: MediaType.anime,
+      source: SourceMediaRef(
+        sourceId: SourceId('trending'),
+        itemId: 'cyberpunk',
+      ),
+    ),
+    Media(
+      title: 'Chainsaw Man',
+      type: MediaType.manga,
+      source: SourceMediaRef(
+        sourceId: SourceId('trending'),
+        itemId: 'csm_manga',
+      ),
+    ),
+  ];
+
+  static const _showcaseMetadata =
+      <String, ({String rating, String status, String subtitle})>{
+        'Attack on Titan': (
+          rating: '9.2',
+          status: 'Watching',
+          subtitle: '9.2 ★ | Anime',
+        ),
+        'Vagabond': (
+          rating: '9.5',
+          status: 'Watching',
+          subtitle: '9.5 ★ | Manga',
+        ),
+        'Perfect Blue': (
+          rating: '8.8',
+          status: 'Plan to Watch',
+          subtitle: '8.8 ★ | Movie',
+        ),
+        'Solo Leveling': (
+          rating: '9.1',
+          status: 'Watching',
+          subtitle: '9.1 ★ | Light Novel',
+        ),
+        'Cyberpunk Edgerunners': (
+          rating: '8.9',
+          status: 'Plan to Watch',
+          subtitle: '8.9 ★ | Anime',
+        ),
+        'Chainsaw Man': (
+          rating: '9.0',
+          status: 'Ongoing',
+          subtitle: '9.0 ★ | Manga',
+        ),
+      };
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -70,16 +214,48 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  List<FeaturedHeroItem> get _effectiveFeatured =>
+      widget.featuredItems.isNotEmpty
+      ? widget.featuredItems
+      : HomePage._defaultFeaturedItems;
+
+  List<ContinueReadingItem> get _effectiveContinue =>
+      widget.continueItems.isNotEmpty
+      ? widget.continueItems
+      : HomePage._defaultContinueItems;
+
   List<Media> get _filteredTrending {
-    if (_selectedFilter == HomeFilterType.all) return widget.trendingItems;
-    return widget.trendingItems.where((item) {
+    final base = widget.trendingItems.isNotEmpty
+        ? widget.trendingItems
+        : HomePage._defaultTrendingItems;
+    if (_selectedFilter == HomeFilterType.all) return base;
+    return base.where((item) {
       return switch (_selectedFilter) {
         HomeFilterType.all => true,
         HomeFilterType.anime => item.type == MediaType.anime,
         HomeFilterType.manga => item.type == MediaType.manga,
         HomeFilterType.novel => item.type == MediaType.lightNovel,
+        HomeFilterType.movies =>
+          item.type == MediaType.anime &&
+              (item.title.contains('Movie') || item.title == 'Perfect Blue'),
       };
     }).toList();
+  }
+
+  void _navigateToSearch(BuildContext context) {
+    if (widget.onNavigateToSearch != null) {
+      widget.onNavigateToSearch!();
+    } else {
+      AppNavigationScope.of(context)?.selectTab(AppTab.search.index);
+    }
+  }
+
+  void _navigateToLibrary(BuildContext context) {
+    if (widget.onNavigateToLibrary != null) {
+      widget.onNavigateToLibrary!();
+    } else {
+      AppNavigationScope.of(context)?.selectTab(AppTab.library.index);
+    }
   }
 
   @override
@@ -131,28 +307,31 @@ class _HomePageState extends State<HomePage> {
                   ),
                   Row(
                     children: [
+                      // Primary Unified Search button
+                      IconButton(
+                        tooltip: 'Search',
+                        onPressed: () => _navigateToSearch(context),
+                        icon: Icon(
+                          Icons.search_rounded,
+                          color: colors.textPrimary,
+                        ),
+                      ),
                       if (widget.openRemoteManga != null)
                         IconButton(
                           tooltip: 'Search manga',
                           onPressed: widget.openRemoteManga,
-                          icon: Icon(Icons.search, color: colors.textPrimary),
+                          icon: Icon(
+                            Icons.auto_stories_outlined,
+                            color: colors.textSecondary,
+                          ),
                         ),
                       if (widget.openRemoteNovels != null)
                         IconButton(
                           tooltip: 'Search novels',
                           onPressed: widget.openRemoteNovels,
                           icon: Icon(
-                            Icons.menu_book,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                      if (widget.onNavigateToSearch != null)
-                        IconButton(
-                          tooltip: 'Search',
-                          onPressed: widget.onNavigateToSearch,
-                          icon: Icon(
-                            Icons.search_rounded,
-                            color: colors.textPrimary,
+                            Icons.chrome_reader_mode_outlined,
+                            color: colors.textSecondary,
                           ),
                         ),
                     ],
@@ -235,12 +414,12 @@ class _HomePageState extends State<HomePage> {
             ),
 
           // 16:9 Hero Carousel
-          if (widget.featuredItems.isNotEmpty)
+          if (_effectiveFeatured.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
                 child: HeroCarousel(
-                  items: widget.featuredItems,
+                  items: _effectiveFeatured,
                   onOpenMedia: widget.openMedia,
                   onOpenDetails: widget.onOpenDetails,
                 ),
@@ -248,14 +427,14 @@ class _HomePageState extends State<HomePage> {
             ),
 
           // Continue Watching & Reading Shelf
-          if (widget.continueItems.isNotEmpty) ...[
+          if (_effectiveContinue.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
                 child: ContinueShelf(
-                  items: widget.continueItems,
+                  items: _effectiveContinue,
                   onOpenMedia: widget.openMedia,
-                  onSeeAll: widget.onNavigateToLibrary,
+                  onSeeAll: () => _navigateToLibrary(context),
                 ),
               ),
             ),
@@ -313,6 +492,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final item = _filteredTrending[index];
+                  final meta = HomePage._showcaseMetadata[item.title];
                   final badgeColor = item.type == MediaType.anime
                       ? colors.badgeVideo
                       : item.type == MediaType.manga
@@ -326,7 +506,10 @@ class _HomePageState extends State<HomePage> {
 
                   return MediaPoster(
                     title: item.title,
-                    badgeText: badgeText,
+                    rating: meta?.rating,
+                    statusText: meta?.status,
+                    subtitle: meta?.subtitle,
+                    badgeText: meta == null ? badgeText : null,
                     badgeColor: badgeColor,
                     onTap: () {
                       if (widget.onOpenDetails != null) {

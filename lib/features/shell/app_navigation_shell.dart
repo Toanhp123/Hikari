@@ -19,16 +19,36 @@ enum AppTab {
   IconData get icon => switch (this) {
     AppTab.home => Icons.home_outlined,
     AppTab.search => Icons.search_rounded,
-    AppTab.library => Icons.bookmarks_outlined,
-    AppTab.settings => Icons.tune_rounded,
+    AppTab.library => Icons.collections_bookmark_outlined,
+    AppTab.settings => Icons.settings_outlined,
   };
 
   IconData get selectedIcon => switch (this) {
     AppTab.home => Icons.home_rounded,
-    AppTab.search => Icons.manage_search_rounded,
-    AppTab.library => Icons.bookmarks_rounded,
-    AppTab.settings => Icons.tune_rounded,
+    AppTab.search => Icons.search_rounded,
+    AppTab.library => Icons.collections_bookmark_rounded,
+    AppTab.settings => Icons.settings_rounded,
   };
+}
+
+/// Allows descendant widgets to programmatically read or change the selected tab.
+class AppNavigationScope extends InheritedWidget {
+  const AppNavigationScope({
+    super.key,
+    required this.currentIndex,
+    required this.selectTab,
+    required super.child,
+  });
+
+  final int currentIndex;
+  final void Function(int) selectTab;
+
+  static AppNavigationScope? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppNavigationScope>();
+
+  @override
+  bool updateShouldNotify(AppNavigationScope oldWidget) =>
+      currentIndex != oldWidget.currentIndex;
 }
 
 /// Adaptive Navigation Shell supporting Glassmorphism Bottom Nav (< 600dp)
@@ -81,97 +101,152 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           const SizedBox.shrink(),
     ];
 
-    if (isCompact) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        body: IndexedStack(index: _currentIndex, children: children),
-        bottomNavigationBar: _buildGlassmorphicBottomBar(context),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Row(
-          children: [
-            _buildNavigationRail(context),
-            Expanded(
-              child: IndexedStack(index: _currentIndex, children: children),
+    final shell = isCompact
+        ? Scaffold(
+            extendBody: true,
+            backgroundColor: Colors.transparent,
+            body: IndexedStack(index: _currentIndex, children: children),
+            bottomNavigationBar: _buildGlassmorphicBottomBar(context),
+          )
+        : Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Row(
+              children: [
+                _buildNavigationRail(context),
+                Expanded(
+                  child: IndexedStack(index: _currentIndex, children: children),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
-    }
+          );
+
+    return AppNavigationScope(
+      currentIndex: _currentIndex,
+      selectTab: _selectTab,
+      child: shell,
+    );
   }
 
   Widget _buildGlassmorphicBottomBar(BuildContext context) {
     final colors = context.hikariColors;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return RepaintBoundary(
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: colors.surface.withValues(
-                alpha: colors.isOled ? 0.95 : 0.8,
-              ),
-              border: Border(
-                top: BorderSide(color: colors.borderSubtle, width: 1.0),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: AppTab.values.map((tab) {
-                final isSelected = tab.index == _currentIndex;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => _selectTab(tab.index),
-                    behavior: HitTestBehavior.opaque,
-                    child: Tooltip(
-                      message: tab.label,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AnimatedContainer(
-                            duration: HikariMotion.fast,
-                            curve: HikariMotion.curveStandard,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? colors.primary.withValues(alpha: 0.16)
-                                  : Colors.transparent,
-                              borderRadius: HikariRadius.borderCapsule,
-                            ),
-                            child: Icon(
-                              isSelected ? tab.selectedIcon : tab.icon,
-                              size: 22,
-                              color: isSelected
-                                  ? colors.primaryGlow
-                                  : colors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            tab.label,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? colors.textPrimary
-                                  : colors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, bottomInset > 0 ? 8 : 16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                height: 64,
+                decoration: BoxDecoration(
+                  color: colors.isOled
+                      ? const Color(0xEB0B0F17)
+                      : const Color(0xD9121826),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    width: 1.0,
                   ),
-                );
-              }).toList(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 28,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: 0.15),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: AppTab.values.map((tab) {
+                    final isSelected = tab.index == _currentIndex;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => _selectTab(tab.index),
+                        behavior: HitTestBehavior.opaque,
+                        child: Tooltip(
+                          message: tab.label,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AnimatedContainer(
+                                duration: HikariMotion.fast,
+                                curve: HikariMotion.curveStandard,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? colors.primary.withValues(alpha: 0.22)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: isSelected
+                                      ? Border.all(
+                                          color: colors.primaryGlow.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                          width: 1.0,
+                                        )
+                                      : null,
+                                ),
+                                child: Icon(
+                                  isSelected ? tab.selectedIcon : tab.icon,
+                                  size: 21,
+                                  color: isSelected
+                                      ? colors.primaryGlow
+                                      : colors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                tab.label,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? colors.textPrimary
+                                      : colors.textMuted,
+                                ),
+                              ),
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                width: 14,
+                                height: 2,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? colors.primaryGlow
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(1),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: colors.primaryGlow,
+                                            blurRadius: 4,
+                                            spreadRadius: 0.5,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
           ),
         ),

@@ -48,6 +48,7 @@ class UnifiedSearchPage extends StatefulWidget {
 }
 
 class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
+  late final TextEditingController _searchController;
   String _currentQuery = '';
   SearchMediaTypeFilter _typeFilter = SearchMediaTypeFilter.all;
   AsyncViewStatus _status = AsyncViewStatus.empty;
@@ -59,9 +60,16 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
   void initState() {
     super.initState();
     _currentQuery = widget.initialQuery;
+    _searchController = TextEditingController(text: widget.initialQuery);
     if (_currentQuery.trim().isNotEmpty) {
       _executeSearch(_currentQuery);
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _executeSearch(String query) async {
@@ -181,6 +189,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
             child: Column(
               children: [
                 HikariSearchBar(
+                  controller: _searchController,
                   initialQuery: _currentQuery,
                   onChanged: (q) => _executeSearch(q),
                 ),
@@ -222,6 +231,64 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
               emptyIcon: _currentQuery.isEmpty
                   ? Icons.search_rounded
                   : Icons.search_off_rounded,
+              emptyAction: _currentQuery.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: HikariSpacing.md),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Popular Searches',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: HikariSpacing.sm),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: HikariSpacing.xs,
+                            runSpacing: HikariSpacing.xs,
+                            children:
+                                [
+                                      'Demon Slayer',
+                                      'Solo Leveling',
+                                      'Chainsaw Man',
+                                      'Jujutsu Kaisen',
+                                      'Attack on Titan',
+                                      'One Piece',
+                                      'Spy x Family',
+                                    ]
+                                    .map(
+                                      (tag) => ActionChip(
+                                        label: Text(
+                                          tag,
+                                          style: TextStyle(
+                                            color: colors.primaryGlow,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        backgroundColor: colors.surfaceElevated,
+                                        side: BorderSide(color: colors.border),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        onPressed: () {
+                                          _searchController.text = tag;
+                                          _executeSearch(tag);
+                                        },
+                                      ),
+                                    )
+                                    .toList(),
+                          ),
+                        ],
+                      ),
+                    )
+                  : null,
               errorMessage: _errorMessage,
               onRetry: () => _executeSearch(_currentQuery),
               contentBuilder: (context) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/media/media.dart';
 
 class ContinueReadingItem {
@@ -43,71 +42,214 @@ class ContinueShelf extends StatelessWidget {
         // Shelf Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.history_rounded,
-                    size: 20,
-                    color: colors.primaryGlow,
+          child: InkWell(
+            onTap: onSeeAll,
+            borderRadius: HikariRadius.borderSm,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Continue Watching & Reading',
+                  style: HikariTypography.titleMedium.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(width: HikariSpacing.xs),
-                  Text(
-                    'Continue Watching & Reading',
-                    style: HikariTypography.titleMedium.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              if (onSeeAll != null)
-                TextButton(
-                  onPressed: onSeeAll,
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: colors.primaryGlow,
-                  ),
-                  child: const Text('See All', style: TextStyle(fontSize: 12)),
                 ),
-            ],
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: colors.textSecondary,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: HikariSpacing.sm),
 
-        // Horizontal Carousel
+        // Horizontal Carousel of Neo-Material Landscape Cards
         SizedBox(
-          height: 190,
+          height: 195,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             itemCount: items.length,
             separatorBuilder: (context, index) =>
                 const SizedBox(width: HikariSpacing.md),
             itemBuilder: (context, index) {
               final item = items[index];
-              return SizedBox(
-                width: 120,
-                child: MediaPoster(
-                  title: item.media.title,
-                  subtitle: item.progressLabel,
-                  progress: item.progress,
-                  badgeText:
-                      item.badgeText ??
-                      (item.media.type == MediaType.anime
-                          ? 'ANIME'
-                          : item.media.type == MediaType.manga
-                          ? 'MANGA'
-                          : 'NOVEL'),
-                  badgeColor:
-                      item.badgeColor ??
-                      (item.media.type == MediaType.anime
-                          ? colors.badgeVideo
-                          : item.media.type == MediaType.manga
-                          ? colors.badgeManga
-                          : colors.badgeNovel),
+              final isHighlighted = index == 0 || item.progress > 0.7;
+
+              return RepaintBoundary(
+                child: GestureDetector(
                   onTap: () => onOpenMedia(context, item.media),
+                  child: Container(
+                    width: 165,
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainer,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: colors.borderSubtle,
+                        width: 1.0,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Card Thumbnail Header (16:10 ratio)
+                        SizedBox(
+                          height: 105,
+                          width: double.infinity,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      colors.surfaceElevated,
+                                      colors.surfaceContainer,
+                                      colors.surface,
+                                    ],
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    item.media.type == MediaType.anime
+                                        ? Icons.movie_filter_rounded
+                                        : item.media.type == MediaType.manga
+                                        ? Icons.auto_stories_rounded
+                                        : Icons.chrome_reader_mode_rounded,
+                                    size: 32,
+                                    color: colors.primaryGlow.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Subtle bottom scrim
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                height: 32,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.transparent,
+                                        Color(0x990B0F17),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Card Content
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.media.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: colors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item.progressLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: colors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // Bottom row with Progress Bar and Play Button
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(2),
+                                        child: SizedBox(
+                                          height: 3,
+                                          child: LinearProgressIndicator(
+                                            value: item.progress.clamp(
+                                              0.0,
+                                              1.0,
+                                            ),
+                                            backgroundColor: colors.border,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  colors.primaryGlow,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isHighlighted
+                                            ? colors.primary
+                                            : const Color(0x33FFFFFF),
+                                        boxShadow: isHighlighted
+                                            ? [
+                                                BoxShadow(
+                                                  color: colors.primaryGlow
+                                                      .withValues(alpha: 0.6),
+                                                  blurRadius: 8,
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: const Icon(
+                                        Icons.play_arrow_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             },

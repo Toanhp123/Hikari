@@ -14,6 +14,9 @@ class MediaPoster extends StatelessWidget {
     this.heroTag,
     this.badgeText,
     this.badgeColor,
+    this.rating,
+    this.statusText,
+    this.statusColor,
     this.progress,
     this.subtitle,
     this.onTap,
@@ -28,6 +31,9 @@ class MediaPoster extends StatelessWidget {
   final String? heroTag;
   final String? badgeText;
   final Color? badgeColor;
+  final String? rating;
+  final String? statusText;
+  final Color? statusColor;
   final double? progress;
   final String? subtitle;
   final VoidCallback? onTap;
@@ -111,8 +117,52 @@ class MediaPoster extends StatelessWidget {
               ),
             ),
 
-            // Badge (top-right or top-left)
-            if (badgeText != null && badgeText!.isNotEmpty)
+            // Top-left Star Rating or Badge
+            if (rating != null && rating!.isNotEmpty)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xD90B0F17),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      width: 0.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 13,
+                        color: Color(0xFFFBBF24),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        rating!,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (badgeText != null && badgeText!.isNotEmpty)
               Positioned(
                 top: 8,
                 left: 8,
@@ -142,6 +192,44 @@ class MediaPoster extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+
+            // Top-right Status Pill (Watching / Plan to Watch / Type)
+            if (statusText != null && statusText!.isNotEmpty)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (statusColor ?? colors.surfaceElevated).withValues(
+                      alpha: 0.85,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      width: 0.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    statusText!,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFF1F5F9),
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
@@ -216,12 +304,34 @@ class MediaPoster extends StatelessWidget {
 
   Widget _fallbackPlaceholder(HikariColors colors) {
     return Container(
-      color: colors.surfaceContainer,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.surfaceElevated,
+            colors.surfaceContainer,
+            colors.surface,
+          ],
+        ),
+      ),
       child: Center(
-        child: Icon(
-          Icons.movie_filter_outlined,
-          size: 32,
-          color: colors.textMuted.withValues(alpha: 0.5),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: colors.primary.withValues(alpha: 0.12),
+            border: Border.all(
+              color: colors.primaryGlow.withValues(alpha: 0.25),
+              width: 1.0,
+            ),
+          ),
+          child: Icon(
+            Icons.movie_filter_rounded,
+            size: 24,
+            color: colors.primaryGlow.withValues(alpha: 0.8),
+          ),
         ),
       ),
     );

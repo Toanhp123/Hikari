@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
 import 'package:hikari/domain/media/media.dart';
 
 class FeaturedHeroItem {
@@ -10,12 +9,16 @@ class FeaturedHeroItem {
     required this.tagline,
     required this.genres,
     this.bannerUrl,
+    this.primaryActionLabel,
+    this.secondaryActionLabel,
   });
 
   final Media media;
   final String tagline;
   final List<String> genres;
   final String? bannerUrl;
+  final String? primaryActionLabel;
+  final String? secondaryActionLabel;
 }
 
 /// A 16:9 cinematic hero banner with ambient glow and call-to-action buttons.
@@ -56,8 +59,10 @@ class _HeroCarouselState extends State<HeroCarousel> {
     final colors = context.hikariColors;
     if (widget.items.isEmpty) return const SizedBox.shrink();
 
+    final isCompact = context.isCompact;
+
     return AspectRatio(
-      aspectRatio: 16 / 9,
+      aspectRatio: isCompact ? (16 / 11) : (16 / 7),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -70,38 +75,35 @@ class _HeroCarouselState extends State<HeroCarousel> {
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Fallback dark gradient banner
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topRight,
-                        end: Alignment.bottomLeft,
-                        colors: [
-                          colors.primary.withValues(alpha: 0.3),
-                          colors.surfaceContainer,
-                          colors.background,
-                        ],
-                      ),
-                    ),
-                  ),
+                  // Fallback dark celestial gradient banner
+                  if (item.bannerUrl != null && item.bannerUrl!.isNotEmpty)
+                    Image.network(
+                      item.bannerUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildCelestialGradient(colors),
+                    )
+                  else
+                    _buildCelestialGradient(colors),
 
-                  // Bottom and Left Scrim Gradient
+                  // Bottom and Left Scrim Gradient fading into deep obsidian
                   Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.transparent,
-                          Color(0x800B0F17),
-                          Color(0xFA0B0F17),
+                          Color(0x33000000),
+                          Color(0x660B0F17),
+                          Color(0xCC0B0F17),
+                          Color(0xFF0B0F17),
                         ],
-                        stops: [0.3, 0.7, 1.0],
+                        stops: [0.0, 0.35, 0.75, 1.0],
                       ),
                     ),
                   ),
 
-                  // Text and Actions
+                  // Text and Actions Overlay
                   Positioned(
                     left: HikariSpacing.lg,
                     right: HikariSpacing.lg,
@@ -110,15 +112,23 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Genre pills
-                        if (item.genres.isNotEmpty)
-                          Wrap(
-                            spacing: HikariSpacing.xs,
-                            children: item.genres.take(3).map((g) {
-                              return HikariChip(label: g);
-                            }).toList(),
+                        // Wordmark
+                        Text(
+                          'H I K A R I',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 6,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.8),
+                                blurRadius: 10,
+                              ),
+                            ],
                           ),
-                        const SizedBox(height: HikariSpacing.xs),
+                        ),
+                        const SizedBox(height: 4),
 
                         // Title
                         Text(
@@ -126,37 +136,44 @@ class _HeroCarouselState extends State<HeroCarousel> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: HikariTypography.headline.copyWith(
-                            color: colors.textPrimary,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.2,
                             shadows: [
                               Shadow(
-                                color: Colors.black.withValues(alpha: 0.8),
-                                blurRadius: 8,
+                                color: Colors.black.withValues(alpha: 0.9),
+                                blurRadius: 12,
                               ),
                             ],
                           ),
                         ),
 
-                        // Tagline
+                        // Tagline / Synopsis
                         if (item.tagline.isNotEmpty) ...[
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
                             item.tagline,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: HikariTypography.bodySmall.copyWith(
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.35,
                               color: colors.textSecondary,
                             ),
                           ),
                         ],
                         const SizedBox(height: HikariSpacing.sm),
 
-                        // Buttons
+                        // CTA Buttons matching Mock 1
                         Row(
                           children: [
                             HikariButton(
-                              label: item.media.type == MediaType.anime
-                                  ? 'Watch Now'
-                                  : 'Read Now',
+                              label:
+                                  item.primaryActionLabel ??
+                                  (item.media.type == MediaType.anime
+                                      ? 'Watch Now'
+                                      : 'Read Now'),
                               icon: Icon(
                                 item.media.type == MediaType.anime
                                     ? Icons.play_arrow_rounded
@@ -167,16 +184,19 @@ class _HeroCarouselState extends State<HeroCarousel> {
                               onPressed: () =>
                                   widget.onOpenMedia(context, item.media),
                             ),
-                            if (widget.onOpenDetails != null) ...[
-                              const SizedBox(width: HikariSpacing.sm),
-                              HikariButton(
-                                label: 'Details',
-                                variant: HikariButtonVariant.secondary,
-                                size: HikariButtonSize.small,
-                                onPressed: () =>
-                                    widget.onOpenDetails!(context, item.media),
-                              ),
-                            ],
+                            const SizedBox(width: HikariSpacing.sm),
+                            HikariButton(
+                              label: item.secondaryActionLabel ?? 'My List',
+                              variant: HikariButtonVariant.secondary,
+                              size: HikariButtonSize.small,
+                              onPressed: () {
+                                if (widget.onOpenDetails != null) {
+                                  widget.onOpenDetails!(context, item.media);
+                                } else {
+                                  widget.onOpenMedia(context, item.media);
+                                }
+                              },
+                            ),
                           ],
                         ),
                       ],
@@ -211,6 +231,37 @@ class _HeroCarouselState extends State<HeroCarousel> {
                 }),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCelestialGradient(HikariColors colors) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0.4, -0.3),
+          radius: 1.2,
+          colors: [
+            colors.primary.withValues(alpha: 0.35),
+            const Color(0xFF1B1438),
+            colors.surfaceContainer,
+            colors.background,
+          ],
+          stops: const [0.0, 0.4, 0.75, 1.0],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 20,
+            right: 40,
+            child: Icon(
+              Icons.auto_awesome,
+              size: 120,
+              color: colors.primaryGlow.withValues(alpha: 0.08),
+            ),
+          ),
         ],
       ),
     );

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/search/search_manga.dart';
+import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_button.dart';
@@ -39,51 +42,134 @@ class _RemoteMangaSearchPageState extends State<RemoteMangaSearchPage> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _viewModel,
-    builder: (context, _) => Scaffold(
-      appBar: AppBar(title: const Text('Manga search')),
-      body: _viewModel.sources.isEmpty
-          ? const Center(child: Text('No manga search source is available.'))
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+  Widget build(BuildContext context) {
+    final colors = context.hikariColors;
+
+    return ListenableBuilder(
+      listenable: _viewModel,
+      builder: (context, _) => HikariScaffold(
+        useSafeArea: true,
+        appBar: AppBar(
+          title: Text(
+            'Manga search',
+            style: HikariTypography.titleLarge.copyWith(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: _viewModel.sources.isEmpty
+            ? Center(
+                child: Text(
+                  'No manga search source is available.',
+                  style: TextStyle(color: colors.textMuted),
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: HikariSpacing.lg,
+                  vertical: HikariSpacing.sm,
+                ),
                 child: Column(
                   children: [
-                    if (_viewModel.sources.length > 1) _buildSourcePicker(),
-                    TextField(
-                      controller: _queryController,
-                      enabled: true,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: _viewModel.search,
-                      decoration: InputDecoration(
-                        labelText: _viewModel.sources.length == 1
-                            ? 'Manga title · ${_viewModel.selectedSource!.name}'
-                            : 'Manga title',
-                        border: const OutlineInputBorder(),
+                    if (_viewModel.sources.length > 1)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: HikariSpacing.sm),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: HikariSpacing.md,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceContainer,
+                          borderRadius: HikariRadius.borderMd,
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: _buildSourcePicker(colors),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.all(HikariSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainer,
+                        borderRadius: HikariRadius.borderMd,
+                        border: Border.all(color: colors.border),
+                      ),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: _queryController,
+                            enabled: true,
+                            textInputAction: TextInputAction.search,
+                            onSubmitted: _viewModel.search,
+                            style: TextStyle(color: colors.textPrimary),
+                            decoration: InputDecoration(
+                              labelText: _viewModel.sources.length == 1
+                                  ? 'Manga title · ${_viewModel.selectedSource!.name}'
+                                  : 'Manga title',
+                              labelStyle: TextStyle(
+                                color: colors.textSecondary,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.search_rounded,
+                                color: colors.primaryGlow,
+                              ),
+                              filled: true,
+                              fillColor: colors.surfaceElevated,
+                              border: OutlineInputBorder(
+                                borderRadius: HikariRadius.borderSm,
+                                borderSide: BorderSide(color: colors.border),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: HikariRadius.borderSm,
+                                borderSide: BorderSide(color: colors.border),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: HikariRadius.borderSm,
+                                borderSide: BorderSide(
+                                  color: colors.primaryGlow,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: HikariSpacing.sm),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: SizedBox(
+                              height: 38,
+                              child: HikariButton(
+                                label: 'Search',
+                                icon: const Icon(
+                                  Icons.manage_search_rounded,
+                                  size: 18,
+                                ),
+                                size: HikariButtonSize.small,
+                                onPressed:
+                                    _viewModel.state is RemoteMangaSearchLoading
+                                    ? null
+                                    : () => _viewModel.search(
+                                        _queryController.text,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: _viewModel.state is RemoteMangaSearchLoading
-                            ? null
-                            : () => _viewModel.search(_queryController.text),
-                        icon: const Icon(Icons.search),
-                        label: const Text('Search'),
-                      ),
-                    ),
-                    Expanded(child: _buildResults(_viewModel.state)),
+                    const SizedBox(height: HikariSpacing.md),
+                    Expanded(child: _buildResults(_viewModel.state, colors)),
                   ],
                 ),
               ),
-            ),
-    ),
-  );
+      ),
+    );
+  }
 
-  Widget _buildSourcePicker() => DropdownButton<SourceId>(
+  Widget _buildSourcePicker(HikariColors colors) => DropdownButton<SourceId>(
     value: _viewModel.selectedSource!.id,
     isExpanded: true,
+    dropdownColor: colors.surfaceElevated,
+    underline: const SizedBox.shrink(),
+    style: TextStyle(color: colors.textPrimary, fontSize: 14),
     onChanged: _viewModel.selectSource,
     items: [
       for (final source in _viewModel.sources)
@@ -91,62 +177,141 @@ class _RemoteMangaSearchPageState extends State<RemoteMangaSearchPage> {
     ],
   );
 
-  Widget _buildResults(RemoteMangaSearchUiState state) => switch (state) {
-    RemoteMangaSearchIdle() => const Center(
-      child: Text('Search for a manga title.'),
-    ),
-    RemoteMangaSearchLoading() => const Center(
-      child: CircularProgressIndicator(),
-    ),
-    RemoteMangaSearchFailure() => Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Could not search. Check source access or rate limits and try again.',
+  Widget _buildResults(RemoteMangaSearchUiState state, HikariColors colors) =>
+      switch (state) {
+        RemoteMangaSearchIdle() => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.auto_stories_rounded,
+                size: 48,
+                color: colors.textMuted.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: HikariSpacing.sm),
+              Text(
+                'Search for a manga title.',
+                style: TextStyle(color: colors.textMuted, fontSize: 14),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: _viewModel.retry,
-            child: const Text('Try again'),
+        ),
+        RemoteMangaSearchLoading() => Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
           ),
-        ],
-      ),
-    ),
-    RemoteMangaSearchReady(
-      :final results,
-      :final hasNextPage,
-      :final loadingMore,
-      :final pageFailed,
-    ) =>
-      ListView.builder(
-        itemCount: results.length + 1,
-        itemBuilder: (context, index) {
-          if (index == results.length) {
-            return Column(
-              children: [
-                if (results.isEmpty) const Text('No manga found.'),
-                if (loadingMore)
-                  const Center(child: CircularProgressIndicator())
-                else if (hasNextPage)
-                  TextButton(
-                    onPressed: _viewModel.loadMore,
-                    child: Text(pageFailed ? 'Retry next page' : 'Load more'),
+        ),
+        RemoteMangaSearchFailure() => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, size: 40, color: colors.error),
+              const SizedBox(height: HikariSpacing.sm),
+              Text(
+                'Could not search. Check source access or rate limits and try again.',
+                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: HikariSpacing.sm),
+              TextButton(
+                onPressed: _viewModel.retry,
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+        RemoteMangaSearchReady(
+          :final results,
+          :final hasNextPage,
+          :final loadingMore,
+          :final pageFailed,
+        ) =>
+          ListView.separated(
+            physics: const BouncingScrollPhysics(),
+            itemCount: results.length + 1,
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: HikariSpacing.xs),
+            itemBuilder: (context, index) {
+              if (index == results.length) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: HikariSpacing.md,
                   ),
-              ],
-            );
-          }
-          final preview = results[index];
-          final media = preview.media;
-          return ListTile(
-            key: ValueKey(media.source),
-            title: Text(media.title),
-            subtitle: Text(_viewModel.selectedSource!.name),
-            onTap: () => widget.openMedia(context, media),
-            trailing: widget.library == null
-                ? null
-                : LibraryButton(repository: widget.library!, media: media),
-          );
-        },
-      ),
-  };
+                  child: Column(
+                    children: [
+                      if (results.isEmpty)
+                        Text(
+                          'No manga found.',
+                          style: TextStyle(color: colors.textMuted),
+                        ),
+                      if (loadingMore)
+                        Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              colors.primary,
+                            ),
+                          ),
+                        )
+                      else if (hasNextPage)
+                        TextButton(
+                          onPressed: _viewModel.loadMore,
+                          child: Text(
+                            pageFailed ? 'Retry next page' : 'Load more',
+                            style: TextStyle(color: colors.primaryGlow),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }
+              final preview = results[index];
+              final media = preview.media;
+              return Material(
+                color: colors.surfaceContainer,
+                shape: RoundedRectangleBorder(
+                  borderRadius: HikariRadius.borderMd,
+                  side: BorderSide(color: colors.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  key: ValueKey(media.source),
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: colors.badgeManga.withValues(alpha: 0.15),
+                      borderRadius: HikariRadius.borderSm,
+                    ),
+                    child: Icon(
+                      Icons.book_rounded,
+                      color: colors.badgeManga,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    media.title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _viewModel.selectedSource!.name,
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  ),
+                  onTap: () => widget.openMedia(context, media),
+                  trailing: widget.library == null
+                      ? null
+                      : SizedBox(
+                          width: 80,
+                          child: LibraryButton(
+                            repository: widget.library!,
+                            media: media,
+                          ),
+                        ),
+                ),
+              );
+            },
+          ),
+      };
 }

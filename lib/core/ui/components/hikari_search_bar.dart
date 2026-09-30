@@ -7,6 +7,7 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 class HikariSearchBar extends StatefulWidget {
   const HikariSearchBar({
     super.key,
+    this.controller,
     this.initialQuery = '',
     required this.onChanged,
     this.onSubmitted,
@@ -15,6 +16,7 @@ class HikariSearchBar extends StatefulWidget {
     this.autofocus = false,
   });
 
+  final TextEditingController? controller;
   final String initialQuery;
   final ValueChanged<String> onChanged;
   final ValueChanged<String>? onSubmitted;
@@ -33,13 +35,16 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialQuery);
+    _controller =
+        widget.controller ?? TextEditingController(text: widget.initialQuery);
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
-    _controller.dispose();
+    if (widget.controller == null) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 

@@ -42,20 +42,20 @@ class HikariScaffold extends StatelessWidget {
       endDrawer: endDrawer,
       body: Stack(
         children: [
-          // Background ambient gradient
-          if (showAmbientGlow && !colors.isOled)
+          // Background ambient gradient mesh
+          if (showAmbientGlow && !colors.isOled) ...[
             Positioned(
               top: -120,
               right: -80,
               child: IgnorePointer(
                 child: Container(
-                  width: 320,
-                  height: 320,
+                  width: 340,
+                  height: 340,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        colors.primary.withValues(alpha: 0.12),
+                        colors.primary.withValues(alpha: 0.14),
                         colors.primary.withValues(alpha: 0.0),
                       ],
                     ),
@@ -63,6 +63,26 @@ class HikariScaffold extends StatelessWidget {
                 ),
               ),
             ),
+            Positioned(
+              bottom: 120,
+              left: -100,
+              child: IgnorePointer(
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        colors.secondary.withValues(alpha: 0.06),
+                        colors.secondary.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           content,
         ],
       ),
