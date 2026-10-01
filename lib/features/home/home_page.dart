@@ -36,8 +36,6 @@ class HomePage extends StatefulWidget {
     this.trendingItems = const [],
     this.onNavigateToSearch,
     this.onNavigateToLibrary,
-    this.showLocalMediaEntry = false,
-    this.onNavigateToLocal,
     this.openRemoteManga,
     this.openRemoteNovels,
   });
@@ -49,8 +47,6 @@ class HomePage extends StatefulWidget {
   final List<Media> trendingItems;
   final VoidCallback? onNavigateToSearch;
   final VoidCallback? onNavigateToLibrary;
-  final bool showLocalMediaEntry;
-  final VoidCallback? onNavigateToLocal;
   final VoidCallback? openRemoteManga;
   final VoidCallback? openRemoteNovels;
 
@@ -137,13 +133,6 @@ class _HomePageState extends State<HomePage> {
                       items: widget.featuredItems,
                       onOpenMedia: widget.openMedia,
                     ),
-                  ),
-                ),
-              if (widget.showLocalMediaEntry)
-                _boundedSliverBox(
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
-                    child: _buildLocalMediaCard(colors),
                   ),
                 ),
               if (!usesBrowseFeed && state.error != null && feed.isNotEmpty)
@@ -263,85 +252,6 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.search_rounded),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLocalMediaCard(HikariColors colors) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-      child: Material(
-        color: colors.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderLg,
-          side: BorderSide(color: colors.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: widget.onNavigateToLocal,
-          child: Padding(
-            padding: const EdgeInsets.all(HikariSpacing.md),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.14),
-                    borderRadius: HikariRadius.borderMd,
-                    border: Border.all(
-                      color: colors.primary.withValues(alpha: 0.24),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.folder_open_rounded,
-                    color: colors.primaryGlow,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: HikariSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Local media',
-                        style: HikariTypography.titleSmall.copyWith(
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Browse video, manga and novels from your chosen folder.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: HikariTypography.bodySmall.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: HikariSpacing.sm),
-                if (!context.isCompact) ...[
-                  Text(
-                    'Open Local',
-                    style: HikariTypography.labelMedium.copyWith(
-                      color: colors.primaryGlow,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: HikariSpacing.xs),
-                ],
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: colors.primaryGlow,
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -575,9 +485,7 @@ class _HomePageState extends State<HomePage> {
       contentBuilder: (_) => const SizedBox.shrink(),
       emptyIcon: Icons.explore_rounded,
       emptyTitle: 'Start your library',
-      emptyMessage: widget.showLocalMediaEntry
-          ? 'Search supported sources or open Local above. Media you add to your Library will appear here for quick access.'
-          : 'Search supported sources and add media to your Library. Your latest additions will appear here for quick access.',
+      emptyMessage: 'Search supported sources and add media to your Library. Your latest additions will appear here for quick access.',
       emptyAction: actions.isEmpty
           ? null
           : Wrap(

@@ -78,11 +78,8 @@ void main() {
     expect(posterTitles, ['One Piece']);
   });
 
-  testWidgets('empty Home offers real discovery and local actions', (
-    tester,
-  ) async {
+  testWidgets('empty Home offers real discovery actions', (tester) async {
     var searchCount = 0;
-    var localCount = 0;
     var mangaCount = 0;
     var novelCount = 0;
 
@@ -92,8 +89,6 @@ void main() {
         home: HomePage(
           openMedia: (_, _) {},
           onNavigateToSearch: () => searchCount++,
-          showLocalMediaEntry: true,
-          onNavigateToLocal: () => localCount++,
           openRemoteManga: () => mangaCount++,
           openRemoteNovels: () => novelCount++,
         ),
@@ -101,19 +96,18 @@ void main() {
     );
 
     expect(find.text('Start your library'), findsOneWidget);
-    expect(find.text('Open Local'), findsOneWidget);
+    expect(find.text('Open Local'), findsNothing);
+    expect(find.text('Local media'), findsNothing);
     expect(find.text('Search'), findsOneWidget);
     expect(find.text('Browse manga'), findsOneWidget);
     expect(find.text('Browse novels'), findsOneWidget);
     expect(find.text('Attack on Titan'), findsNothing);
 
     await tester.tap(find.text('Search'));
-    await tester.tap(find.text('Open Local'));
     await tester.tap(find.text('Browse manga'));
     await tester.tap(find.text('Browse novels'));
 
     expect(searchCount, 1);
-    expect(localCount, 1);
     expect(mangaCount, 1);
     expect(novelCount, 1);
   });

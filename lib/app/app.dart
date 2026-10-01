@@ -265,9 +265,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                   _navigationController.selectTab(AppTab.search),
               onNavigateToLibrary: () =>
                   _navigationController.selectTab(AppTab.library),
-              showLocalMediaEntry: localSource.isAvailable,
-              onNavigateToLocal: () =>
-                  _navigationController.selectTab(AppTab.local),
               openRemoteManga: canSearchManga
                   ? () => Navigator.of(context).push(
                       MaterialPageRoute<void>(

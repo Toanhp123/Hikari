@@ -151,7 +151,7 @@ void main() {
       final dependencies = AppDependencies.create(database: db);
       await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Open Local'));
+      await tester.tap(find.byTooltip('Local'));
       await tester.pump();
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 200)),
@@ -241,9 +241,9 @@ void main() {
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
 
-    expect(find.text('Local media'), findsOneWidget);
-    expect(find.text('Open Local'), findsOneWidget);
-    await tester.tap(find.text('Open Local'));
+    expect(find.text('Local media'), findsNothing);
+    expect(find.text('Open Local'), findsNothing);
+    await tester.tap(find.byTooltip('Local'));
     await tester.pumpAndSettle();
     expect(find.text('Choose a folder to find local media.'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
