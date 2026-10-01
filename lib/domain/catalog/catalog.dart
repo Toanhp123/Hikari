@@ -45,9 +45,23 @@ final class CatalogEntry {
     required this.type,
     this.coverUrl,
     this.bannerUrl,
+    Iterable<String> genres = const [],
+  }) : genres = List.unmodifiable(genres);
+
+  final CatalogEntryId id;
+  final String title;
+  final MediaType type;
+  final String? coverUrl;
+  final String? bannerUrl;
+  final List<String> genres;
+}
+
+final class CatalogEntryDetails {
+  CatalogEntryDetails({
+    required this.entry,
+    this.description,
     Iterable<String> synonyms = const [],
     Iterable<String> alternateTitles = const [],
-    Iterable<String> genres = const [],
     this.averageScore,
     this.popularity,
     this.format,
@@ -59,32 +73,30 @@ final class CatalogEntry {
     this.volumes,
     Iterable<String> studios = const [],
     Iterable<String> staff = const [],
+    Iterable<CatalogRelatedEntry> relations = const [],
+    Iterable<String> warnings = const [],
   }) : synonyms = List.unmodifiable(synonyms),
        alternateTitles = List.unmodifiable(alternateTitles),
-       genres = List.unmodifiable(genres),
        studios = List.unmodifiable(studios),
-       staff = List.unmodifiable(staff);
-  final CatalogEntryId id;
-  final String title;
-  final MediaType type;
-  final String? coverUrl, bannerUrl;
-  final List<String> synonyms, alternateTitles, genres, studios, staff;
-  final int? averageScore, popularity, episodes, chapters, volumes, year;
+       staff = List.unmodifiable(staff),
+       relations = List.unmodifiable(relations),
+       warnings = List.unmodifiable(warnings);
+
+  final CatalogEntry entry;
+  final String? description;
+  final List<String> synonyms;
+  final List<String> alternateTitles;
+  final int? averageScore;
+  final int? popularity;
   final CatalogFormat? format;
   final CatalogStatus? status;
   final CatalogSeason? season;
-}
-
-final class CatalogEntryDetails {
-  CatalogEntryDetails({
-    required this.entry,
-    this.description,
-    Iterable<CatalogRelatedEntry> relations = const [],
-    Iterable<String> warnings = const [],
-  }) : relations = List.unmodifiable(relations),
-       warnings = List.unmodifiable(warnings);
-  final CatalogEntry entry;
-  final String? description;
+  final int? year;
+  final int? episodes;
+  final int? chapters;
+  final int? volumes;
+  final List<String> studios;
+  final List<String> staff;
   final List<CatalogRelatedEntry> relations;
   final List<String> warnings;
 }

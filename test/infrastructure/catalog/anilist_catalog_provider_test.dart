@@ -273,12 +273,12 @@ void main() {
       final details = await provider.loadDetails(
         const CatalogEntryId(provider: 'anilist', value: '9'),
       );
-      expect(details!.entry.format, CatalogFormat.oneShot);
-      expect(details.entry.status, CatalogStatus.notYetReleased);
-      expect(details.entry.year, 2025);
-      expect(details.entry.alternateTitles, ['Romaji', 'Native']);
-      expect(details.entry.studios, ['Studio']);
-      expect(details.entry.staff, ['Author']);
+      expect(details!.format, CatalogFormat.oneShot);
+      expect(details.status, CatalogStatus.notYetReleased);
+      expect(details.year, 2025);
+      expect(details.alternateTitles, ['Romaji', 'Native']);
+      expect(details.studios, ['Studio']);
+      expect(details.staff, ['Author']);
       expect(details.description, 'Plain & text');
       expect(details.relations.map((relation) => relation.entry.id.value), [
         '10',

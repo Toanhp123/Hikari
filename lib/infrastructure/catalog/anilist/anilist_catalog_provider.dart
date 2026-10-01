@@ -58,7 +58,7 @@ final class AniListCatalogProvider implements CatalogProvider {
     final year = now.year;
     final season = _season(now.month);
     const fields =
-        'id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity isAdult title { english romaji native } coverImage { large }';
+        'id type format title { english romaji native } coverImage { large }';
     const featuredFields = '$fields bannerImage genres';
     final query =
         '''query { featuredAnime: Page(perPage: $_featuredCandidatePoolSize) { media(type: ANIME sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } featuredManga: Page(perPage: $_featuredCandidatePoolSize) { media(type: MANGA format_not: NOVEL sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } featuredNovels: Page(perPage: $_featuredCandidatePoolSize) { media(type: MANGA format: NOVEL sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } trending: Page(perPage: 10) { media(sort: TRENDING_DESC isAdult: false) { $fields } } anime: Page(perPage: 10) { media(type: ANIME sort: POPULARITY_DESC isAdult: false) { $fields } } manga: Page(perPage: 10) { media(type: MANGA format_not: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } novels: Page(perPage: 10) { media(type: MANGA format: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } seasonal: Page(perPage: 10) { media(type: ANIME season: $season seasonYear: $year sort: POPULARITY_DESC isAdult: false) { $fields } } }''';
@@ -70,10 +70,7 @@ final class AniListCatalogProvider implements CatalogProvider {
     final warnings = _errors(response['errors']);
     final sections = <CatalogSection, List<CatalogEntry>>{};
 
-    List<CatalogEntry> readSection(
-      String key, {
-      bool includeRichMetadata = false,
-    }) {
+    List<CatalogEntry> readSection(String key) {
       final rows = _asMap(root[key])?['media'];
       if (rows is! List) {
         warnings.add('Some catalog sections are unavailable.');
@@ -81,10 +78,7 @@ final class AniListCatalogProvider implements CatalogProvider {
       }
       final items = <CatalogEntry>[];
       for (final row in rows) {
-        final catalogEntry = _entry(
-          row,
-          includeRichMetadata: includeRichMetadata,
-        );
+        final catalogEntry = _entry(row);
         if (catalogEntry == null) {
           warnings.add('Some invalid catalog entries were omitted.');
         } else {
@@ -95,9 +89,9 @@ final class AniListCatalogProvider implements CatalogProvider {
     }
 
     sections[CatalogSection.featured] = _balancedFeatured([
-      readSection('featuredAnime', includeRichMetadata: true),
-      readSection('featuredManga', includeRichMetadata: true),
-      readSection('featuredNovels', includeRichMetadata: true),
+      readSection('featuredAnime'),
+      readSection('featuredManga'),
+      readSection('featuredNovels'),
     ]);
     for (final entry in const {
       'trending': CatalogSection.trending,
@@ -117,7 +111,7 @@ final class AniListCatalogProvider implements CatalogProvider {
     if (normalized.isEmpty) return const [];
 
     const fields =
-        'id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity title { english romaji native } coverImage { large }';
+        'id type format title { english romaji native } coverImage { large }';
     final request =
         r'''query($search: String!, $type: MediaType, $format: MediaFormat, $formatNot: MediaFormat) { Page(perPage: 30) { media(search: $search type: $type format: $format format_not: $formatNot sort: SEARCH_MATCH isAdult: false) { '''
         '$fields } } }';
@@ -152,7 +146,7 @@ final class AniListCatalogProvider implements CatalogProvider {
       return null;
     }
     const query =
-        r'''query($id: Int) { Media(id: $id) { id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity description(asHtml: true) genres synonyms title { english romaji native } coverImage { large } bannerImage studios(isMain: true) { nodes { name } } staff(perPage: 12, sort: RELEVANCE) { edges { role node { name { full } } } } relations { edges { relationType node { id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity title { english romaji native } coverImage { large } } } } } }''';
+        r'''query($id: Int) { Media(id: $id) { id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity description(asHtml: true) genres synonyms title { english romaji native } coverImage { large } bannerImage studios(isMain: true) { nodes { name } } staff(perPage: 12, sort: RELEVANCE) { edges { role node { name { full } } } } relations { edges { relationType node { id type format title { english romaji native } coverImage { large } } } } } }''';
     final response = await _request(query, variables: {'id': numericId});
     final item = _asMap(_asMap(response['data'])?['Media']);
     final warnings = _errors(response['errors']);
@@ -160,7 +154,7 @@ final class AniListCatalogProvider implements CatalogProvider {
       throw FormatException(warnings.join(' '));
     }
     if (item == null || item['id'] != numericId) return null;
-    final entry = _entry(item, includeRichMetadata: true);
+    final entry = _entry(item);
     if (entry == null) return null;
     final relations = <CatalogRelatedEntry>[];
     final edges = _asMap(item['relations'])?['edges'];
@@ -191,9 +185,25 @@ final class AniListCatalogProvider implements CatalogProvider {
         );
       }
     }
+    final titles = _asMap(item['title']);
     return CatalogEntryDetails(
       entry: entry,
       description: _plain(item['description']),
+      synonyms: _strings(item['synonyms']),
+      alternateTitles: _alternateTitles(titles, entry.title),
+      averageScore: _integer(item['averageScore']),
+      popularity: _integer(item['popularity']),
+      format: _format(item['format']),
+      status: _status(item['status']),
+      season: _enumValue(CatalogSeason.values, item['season']),
+      year:
+          _integer(item['seasonYear']) ??
+          _integer(_asMap(item['startDate'])?['year']),
+      episodes: _integer(item['episodes']),
+      chapters: _integer(item['chapters']),
+      volumes: _integer(item['volumes']),
+      studios: _studioNames(item['studios']),
+      staff: _staffNames(item['staff']),
       relations: relations,
       warnings: warnings.toSet(),
     );
@@ -221,7 +231,7 @@ final class AniListCatalogProvider implements CatalogProvider {
     return decoded;
   }
 
-  CatalogEntry? _entry(Object? value, {bool includeRichMetadata = false}) {
+  CatalogEntry? _entry(Object? value) {
     final raw = _asMap(value);
     if (raw == null) return null;
     final id = raw['id'];
@@ -239,37 +249,29 @@ final class AniListCatalogProvider implements CatalogProvider {
         : null;
     if (title == null || type == null) return null;
     final cover = _asMap(raw['coverImage'])?['large'];
-    final date = _asMap(raw['startDate']);
-    final year = _integer(raw['seasonYear']) ?? _integer(date?['year']);
-    final alternates = [
-      if (_text(titles['romaji']) case final value? when value != title) value,
-      if (_text(titles['native']) case final value?
-          when value != title && value != _text(titles['romaji']))
-        value,
-    ];
     return CatalogEntry(
       id: CatalogEntryId(provider: this.id, value: '$id'),
       title: title,
       type: type,
       coverUrl: cover is String ? cover : null,
-      bannerUrl: includeRichMetadata && raw['bannerImage'] is String
+      bannerUrl: raw['bannerImage'] is String
           ? raw['bannerImage'] as String
           : null,
-      synonyms: includeRichMetadata ? _strings(raw['synonyms']) : const [],
-      alternateTitles: alternates,
-      genres: includeRichMetadata ? _strings(raw['genres']) : const [],
-      averageScore: _integer(raw['averageScore']),
-      popularity: _integer(raw['popularity']),
-      format: _format(formatName),
-      status: _status(raw['status']),
-      season: _enumValue(CatalogSeason.values, raw['season']),
-      year: year,
-      episodes: _integer(raw['episodes']),
-      chapters: _integer(raw['chapters']),
-      volumes: _integer(raw['volumes']),
-      studios: includeRichMetadata ? _studioNames(raw['studios']) : const [],
-      staff: includeRichMetadata ? _staffNames(raw['staff']) : const [],
+      genres: _strings(raw['genres']),
     );
+  }
+
+  static List<String> _alternateTitles(
+    Map<Object?, Object?>? titles,
+    String primaryTitle,
+  ) {
+    if (titles == null) return const [];
+    final romaji = _text(titles['romaji']);
+    final native = _text(titles['native']);
+    return [
+      if (romaji != null && romaji != primaryTitle) romaji,
+      if (native != null && native != primaryTitle && native != romaji) native,
+    ];
   }
 
   static List<CatalogEntry> _balancedFeatured(List<List<CatalogEntry>> pools) {

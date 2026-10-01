@@ -19,9 +19,10 @@ void main() {
       title: 'Title',
       type: MediaType.anime,
       coverUrl: 'https://example/cover',
-      synonyms: ['Alt'],
       genres: ['Drama'],
     );
-    expect(() => entry.synonyms.add('x'), throwsUnsupportedError);
+    final details = CatalogEntryDetails(entry: entry, synonyms: ['Alt']);
+    expect(() => entry.genres.add('x'), throwsUnsupportedError);
+    expect(() => details.synonyms.add('x'), throwsUnsupportedError);
   });
 }

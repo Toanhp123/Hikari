@@ -37,7 +37,7 @@ class HomePage extends StatefulWidget {
     this.progressRepository,
     this.discoverCatalog,
     this.openCatalogDetail,
-    this.catalogRevision = 0,
+    this.refreshRevision = 0,
     this.continueItems = const [],
     this.onNavigateToSearch,
     this.onNavigateToLibrary,
@@ -50,7 +50,7 @@ class HomePage extends StatefulWidget {
   final ProgressRepository? progressRepository;
   final DiscoverCatalog? discoverCatalog;
   final void Function(BuildContext, CatalogEntry)? openCatalogDetail;
-  final int catalogRevision;
+  final int refreshRevision;
   final List<ContinueReadingItem> continueItems;
   final VoidCallback? onNavigateToSearch;
   final VoidCallback? onNavigateToLibrary;
@@ -71,7 +71,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void didUpdateWidget(HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.catalogRevision != widget.catalogRevision) {
+    if (oldWidget.refreshRevision != widget.refreshRevision) {
       _model.reload();
     }
   }

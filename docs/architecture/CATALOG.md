@@ -1,6 +1,6 @@
 # External catalog
 
-Catalog discovery and search are read-only. Each `CatalogEntry` has an opaque, provider-qualified `CatalogEntryId`; it is normalized metadata, not `Media`, `SourceMediaRef`, a source registry entry, library content, or playable/readable capability. AniList supplies Home discovery, the primary Search destination, and details. Watch/Read starts explicit title-seeded source search against registered/local sources; user must select a real source result.
+Catalog discovery and search are read-only. Each `CatalogEntry` has an opaque, provider-qualified `CatalogEntryId`; it is normalized summary metadata, not `Media`, `SourceMediaRef`, a source registry entry, library content, or playable/readable capability. Rich fields that are only needed after navigation live on `CatalogEntryDetails`; `CatalogEntry` keeps the summary/hero fields used by discovery and search. AniList supplies Home discovery, the primary Search destination, and details. Watch/Read starts explicit title-seeded source search against registered/local sources; user must select a real source result.
 
 Progress and Library remain independent. Home Continue joins progress records only to saved Library entries by their exact source reference; source availability is checked when opening an item. It omits completed records; chapter-parent resume remains deferred because current progress identifies only concrete source media.
 

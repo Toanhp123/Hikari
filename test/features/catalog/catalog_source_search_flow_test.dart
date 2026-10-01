@@ -7,8 +7,8 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
-import 'package:hikari/features/search/unified_search_page.dart';
-import 'package:hikari/features/search/unified_search_view_model.dart';
+import 'package:hikari/features/source_search/source_search_page.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
@@ -53,14 +53,14 @@ void main() {
         await tester.tap(find.text(type == MediaType.anime ? 'Watch' : 'Read'));
         await tester.pumpAndSettle();
 
-        final page = tester.widget<UnifiedSearchPage>(
-          find.byType(UnifiedSearchPage),
+        final page = tester.widget<SourceSearchPage>(
+          find.byType(SourceSearchPage),
         );
         expect(page.initialQuery, 'Catalog title');
         expect(page.initialFilter, switch (type) {
-          MediaType.anime => SearchMediaTypeFilter.anime,
-          MediaType.manga => SearchMediaTypeFilter.manga,
-          MediaType.lightNovel => SearchMediaTypeFilter.novel,
+          MediaType.anime => SourceSearchFilter.anime,
+          MediaType.manga => SourceSearchFilter.manga,
+          MediaType.lightNovel => SourceSearchFilter.novel,
         });
         expect(
           tester.widget<TextField>(find.byType(TextField)).controller!.text,

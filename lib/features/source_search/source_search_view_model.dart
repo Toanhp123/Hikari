@@ -1,23 +1,24 @@
 import 'package:flutter/foundation.dart';
+
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 
-enum SearchMediaTypeFilter {
+enum SourceSearchFilter {
   all('All'),
   anime('Anime'),
   manga('Manga'),
   novel('Light Novels');
 
-  const SearchMediaTypeFilter(this.label);
+  const SourceSearchFilter(this.label);
   final String label;
 }
 
-enum UnifiedSearchStatus { idle, loading, ready, empty, error }
+enum SourceSearchStatus { idle, loading, ready, empty, error }
 
-final class UnifiedSearchResult {
-  const UnifiedSearchResult({
+final class SourceSearchResult {
+  const SourceSearchResult({
     required this.media,
     required this.sourceName,
     this.metadata,
@@ -29,40 +30,33 @@ final class UnifiedSearchResult {
 }
 
 @immutable
-final class UnifiedSearchUiState {
-  const UnifiedSearchUiState({
+final class SourceSearchUiState {
+  const SourceSearchUiState({
     this.query = '',
-    this.filter = SearchMediaTypeFilter.all,
-    this.status = UnifiedSearchStatus.idle,
+    this.filter = SourceSearchFilter.all,
+    this.status = SourceSearchStatus.idle,
     this.results = const [],
     this.failedSourceCount = 0,
     this.errorMessage,
   });
 
   final String query;
-  final SearchMediaTypeFilter filter;
-  final UnifiedSearchStatus status;
-  final List<UnifiedSearchResult> results;
+  final SourceSearchFilter filter;
+  final SourceSearchStatus status;
+  final List<SourceSearchResult> results;
   final int failedSourceCount;
   final String? errorMessage;
 
-  List<UnifiedSearchResult> get visibleResults {
-    if (filter == SearchMediaTypeFilter.all) return results;
-    return results
-        .where((result) => _matchesFilter(result.media.type, filter))
-        .toList(growable: false);
-  }
-
-  UnifiedSearchUiState copyWith({
+  SourceSearchUiState copyWith({
     String? query,
-    SearchMediaTypeFilter? filter,
-    UnifiedSearchStatus? status,
-    List<UnifiedSearchResult>? results,
+    SourceSearchFilter? filter,
+    SourceSearchStatus? status,
+    List<SourceSearchResult>? results,
     int? failedSourceCount,
     String? errorMessage,
     bool clearError = false,
   }) {
-    return UnifiedSearchUiState(
+    return SourceSearchUiState(
       query: query ?? this.query,
       filter: filter ?? this.filter,
       status: status ?? this.status,
@@ -73,47 +67,31 @@ final class UnifiedSearchUiState {
   }
 }
 
-/// Owns unified-search state and fans one query out to relevant configured sources.
-final class UnifiedSearchViewModel extends ChangeNotifier {
-  factory UnifiedSearchViewModel({
-    SearchManga? searchManga,
-    SearchNovels? searchNovels,
-    Future<List<Media>?> Function()? scanLocalMedia,
-    String initialQuery = '',
-    SearchMediaTypeFilter initialFilter = SearchMediaTypeFilter.all,
-  }) {
-    return UnifiedSearchViewModel._(
-      searchManga,
-      searchNovels,
-      scanLocalMedia,
-      initialQuery,
-      initialFilter,
-    );
-  }
-
-  UnifiedSearchViewModel._(
+/// Owns source-search state and fans one query out to relevant configured sources.
+final class SourceSearchViewModel extends ChangeNotifier {
+  SourceSearchViewModel({
     this._searchManga,
     this._searchNovels,
     this._scanLocalMedia,
-    String initialQuery,
-    SearchMediaTypeFilter initialFilter,
-  ) : _state = UnifiedSearchUiState(
-        query: initialQuery.trim(),
-        filter: initialFilter,
-      );
+    String initialQuery = '',
+    SourceSearchFilter initialFilter = SourceSearchFilter.all,
+  }) : _state = SourceSearchUiState(
+         query: initialQuery.trim(),
+         filter: initialFilter,
+       );
 
   final SearchManga? _searchManga;
   final SearchNovels? _searchNovels;
   final Future<List<Media>?> Function()? _scanLocalMedia;
 
-  UnifiedSearchUiState _state;
-  UnifiedSearchUiState get state => _state;
+  SourceSearchUiState _state;
+  SourceSearchUiState get state => _state;
 
   bool _disposed = false;
   int _generation = 0;
   Future<List<Media>>? _localCatalogFuture;
 
-  Future<void> selectFilter(SearchMediaTypeFilter filter) async {
+  Future<void> selectFilter(SourceSearchFilter filter) async {
     if (_state.filter == filter) return;
     _publish(_state.copyWith(filter: filter));
     if (_state.query.isNotEmpty) {
@@ -126,9 +104,9 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     if (query.isEmpty) {
       _generation++;
       _publish(
-        UnifiedSearchUiState(
+        SourceSearchUiState(
           filter: _state.filter,
-          status: UnifiedSearchStatus.idle,
+          status: SourceSearchStatus.idle,
         ),
       );
       return;
@@ -138,7 +116,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     _publish(
       _state.copyWith(
         query: query,
-        status: UnifiedSearchStatus.loading,
+        status: SourceSearchStatus.loading,
         failedSourceCount: 0,
         clearError: true,
       ),
@@ -146,11 +124,11 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
 
     final filter = _state.filter;
     final tasks = <Future<_SearchBatch>>[
-      if (filter == SearchMediaTypeFilter.all ||
-          filter == SearchMediaTypeFilter.manga)
+      if (filter == SourceSearchFilter.all ||
+          filter == SourceSearchFilter.manga)
         ..._mangaTasks(query),
-      if (filter == SearchMediaTypeFilter.all ||
-          filter == SearchMediaTypeFilter.novel)
+      if (filter == SourceSearchFilter.all ||
+          filter == SourceSearchFilter.novel)
         ..._novelTasks(query),
       if (_scanLocalMedia != null) _searchLocal(query, filter),
     ];
@@ -161,7 +139,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
         _state.copyWith(
           query: query,
           results: const [],
-          status: UnifiedSearchStatus.empty,
+          status: SourceSearchStatus.empty,
           failedSourceCount: 0,
           clearError: true,
         ),
@@ -180,7 +158,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
         _state.copyWith(
           query: query,
           results: const [],
-          status: UnifiedSearchStatus.error,
+          status: SourceSearchStatus.error,
           failedSourceCount: failedSourceCount,
           errorMessage: 'All configured search sources failed. Try again.',
         ),
@@ -193,8 +171,8 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
         query: query,
         results: results,
         status: results.isEmpty
-            ? UnifiedSearchStatus.empty
-            : UnifiedSearchStatus.ready,
+            ? SourceSearchStatus.empty
+            : SourceSearchStatus.ready,
         failedSourceCount: failedSourceCount,
         clearError: true,
       ),
@@ -211,7 +189,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
         final page = await search.execute(sourceId: source.id, query: query);
         return page.results
             .map(
-              (preview) => UnifiedSearchResult(
+              (preview) => SourceSearchResult(
                 media: preview.media,
                 metadata: preview.metadata,
                 sourceName: source.name,
@@ -230,7 +208,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
         final page = await search.execute(sourceId: source.id, query: query);
         return page.results
             .map(
-              (preview) => UnifiedSearchResult(
+              (preview) => SourceSearchResult(
                 media: preview.media,
                 metadata: preview.metadata,
                 sourceName: source.name,
@@ -241,10 +219,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     }
   }
 
-  Future<_SearchBatch> _searchLocal(
-    String query,
-    SearchMediaTypeFilter filter,
-  ) {
+  Future<_SearchBatch> _searchLocal(String query, SourceSearchFilter filter) {
     return _guardSource(() async {
       final catalog = await _localCatalog();
       final normalized = query.toLowerCase();
@@ -253,7 +228,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
           .where((media) => media.title.toLowerCase().contains(normalized))
           .map(
             (media) =>
-                UnifiedSearchResult(media: media, sourceName: 'Local media'),
+                SourceSearchResult(media: media, sourceName: 'Local media'),
           )
           .toList(growable: false);
     });
@@ -279,7 +254,7 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
   }
 
   Future<_SearchBatch> _guardSource(
-    Future<List<UnifiedSearchResult>> Function() operation,
+    Future<List<SourceSearchResult>> Function() operation,
   ) async {
     try {
       return _SearchBatch(await operation());
@@ -288,16 +263,14 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     }
   }
 
-  List<UnifiedSearchResult> _deduplicate(
-    Iterable<UnifiedSearchResult> results,
-  ) {
+  List<SourceSearchResult> _deduplicate(Iterable<SourceSearchResult> results) {
     final seen = <SourceMediaRef>{};
     return List.unmodifiable(
       results.where((result) => seen.add(result.media.source)),
     );
   }
 
-  void _publish(UnifiedSearchUiState state) {
+  void _publish(SourceSearchUiState state) {
     if (_disposed) return;
     _state = state;
     notifyListeners();
@@ -311,18 +284,18 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
   }
 }
 
-bool _matchesFilter(MediaType type, SearchMediaTypeFilter filter) {
+bool _matchesFilter(MediaType type, SourceSearchFilter filter) {
   return switch (filter) {
-    SearchMediaTypeFilter.all => true,
-    SearchMediaTypeFilter.anime => type == MediaType.anime,
-    SearchMediaTypeFilter.manga => type == MediaType.manga,
-    SearchMediaTypeFilter.novel => type == MediaType.lightNovel,
+    SourceSearchFilter.all => true,
+    SourceSearchFilter.anime => type == MediaType.anime,
+    SourceSearchFilter.manga => type == MediaType.manga,
+    SourceSearchFilter.novel => type == MediaType.lightNovel,
   };
 }
 
 final class _SearchBatch {
   const _SearchBatch(this.results, {this.failed = false});
 
-  final List<UnifiedSearchResult> results;
+  final List<SourceSearchResult> results;
   final bool failed;
 }

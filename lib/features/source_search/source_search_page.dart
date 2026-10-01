@@ -12,11 +12,11 @@ import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_button.dart';
-import 'package:hikari/features/search/unified_search_view_model.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
 
-/// Unified Search renders state owned by [UnifiedSearchViewModel].
-class UnifiedSearchPage extends StatefulWidget {
-  const UnifiedSearchPage({
+/// Source Search renders state owned by [SourceSearchViewModel].
+class SourceSearchPage extends StatefulWidget {
+  const SourceSearchPage({
     super.key,
     required this.openMedia,
     this.searchManga,
@@ -24,7 +24,7 @@ class UnifiedSearchPage extends StatefulWidget {
     this.scanLocalMedia,
     this.library,
     this.initialQuery = '',
-    this.initialFilter = SearchMediaTypeFilter.all,
+    this.initialFilter = SourceSearchFilter.all,
   });
 
   final void Function(BuildContext, Media) openMedia;
@@ -33,21 +33,21 @@ class UnifiedSearchPage extends StatefulWidget {
   final Future<List<Media>?> Function()? scanLocalMedia;
   final LibraryRepository? library;
   final String initialQuery;
-  final SearchMediaTypeFilter initialFilter;
+  final SourceSearchFilter initialFilter;
 
   @override
-  State<UnifiedSearchPage> createState() => _UnifiedSearchPageState();
+  State<SourceSearchPage> createState() => _SourceSearchPageState();
 }
 
-class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
+class _SourceSearchPageState extends State<SourceSearchPage> {
   late final TextEditingController _searchController;
-  late final UnifiedSearchViewModel _model;
+  late final SourceSearchViewModel _model;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController(text: widget.initialQuery);
-    _model = UnifiedSearchViewModel(
+    _model = SourceSearchViewModel(
       searchManga: widget.searchManga,
       searchNovels: widget.searchNovels,
       scanLocalMedia: widget.scanLocalMedia,
@@ -96,7 +96,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: SearchMediaTypeFilter.values.map((filter) {
+                        children: SourceSearchFilter.values.map((filter) {
                           return Padding(
                             padding: const EdgeInsets.only(
                               right: HikariSpacing.sm,
@@ -115,7 +115,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
                 ),
               ),
               if (state.failedSourceCount > 0 &&
-                  state.status == UnifiedSearchStatus.ready)
+                  state.status == SourceSearchStatus.ready)
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: HikariSpacing.lg,
@@ -136,20 +136,20 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
 
   Widget _buildBody(
     BuildContext context,
-    UnifiedSearchUiState state,
+    SourceSearchUiState state,
     HikariColors colors,
   ) {
     final status = switch (state.status) {
-      UnifiedSearchStatus.idle => AsyncViewStatus.empty,
-      UnifiedSearchStatus.loading => AsyncViewStatus.loading,
-      UnifiedSearchStatus.ready => AsyncViewStatus.content,
-      UnifiedSearchStatus.empty => AsyncViewStatus.empty,
-      UnifiedSearchStatus.error => AsyncViewStatus.error,
+      SourceSearchStatus.idle => AsyncViewStatus.empty,
+      SourceSearchStatus.loading => AsyncViewStatus.loading,
+      SourceSearchStatus.ready => AsyncViewStatus.content,
+      SourceSearchStatus.empty => AsyncViewStatus.empty,
+      SourceSearchStatus.error => AsyncViewStatus.error,
     };
 
     return AsyncStateView(
       status: status,
-      emptyTitle: state.query.isEmpty ? 'Explore & Search' : 'No results found',
+      emptyTitle: state.query.isEmpty ? 'Find a source' : 'No results found',
       emptyMessage: state.query.isEmpty
           ? 'Type a title above to search your configured media sources.'
           : 'No matches found for "${state.query}".',
@@ -159,7 +159,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
       errorMessage: state.errorMessage,
       onRetry: _model.retry,
       contentBuilder: (_) {
-        final results = state.visibleResults;
+        final results = state.results;
         if (results.isEmpty) {
           return Center(
             child: Text(
@@ -175,7 +175,7 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
 
   Widget _buildResultsGrid(
     BuildContext context,
-    List<UnifiedSearchResult> results,
+    List<SourceSearchResult> results,
     HikariColors colors,
   ) {
     return GridView.builder(

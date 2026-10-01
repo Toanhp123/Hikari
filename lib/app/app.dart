@@ -24,9 +24,9 @@ import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
-import 'package:hikari/features/search/unified_search_page.dart';
-import 'package:hikari/features/search/unified_search_view_model.dart'
-    show SearchMediaTypeFilter;
+import 'package:hikari/features/source_search/source_search_page.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart'
+    show SourceSearchFilter;
 import 'package:hikari/features/settings/settings_page.dart';
 
 class HikariApp extends StatefulWidget {
@@ -44,16 +44,16 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   bool _isOpeningMedia = false;
   bool _isOled = false;
   Color? _accentColor;
-  int _localCatalogRevision = 0;
-  int _localPageRevision = 0;
+  int _homeRefreshRevision = 0;
+  int _localScanRevision = 0;
 
   Future<bool> _chooseLocalRoot({bool fromSettings = false}) async {
     final selected = await _dependencies.localMediaSource.chooseRoot();
     if (selected && mounted) {
       setState(() {
-        _localCatalogRevision++;
+        _homeRefreshRevision++;
         // Local already scans its own selection; only external changes refresh it.
-        if (fromSettings) _localPageRevision++;
+        if (fromSettings) _localScanRevision++;
       });
     }
     return selected;
@@ -105,7 +105,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   void _openCatalogSourceSearch(BuildContext context, CatalogEntry entry) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => UnifiedSearchPage(
+        builder: (_) => SourceSearchPage(
           openMedia: _openMedia,
           library: _dependencies.libraryRepository,
           searchManga: _dependencies.searchManga,
@@ -113,9 +113,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           scanLocalMedia: _dependencies.localMediaSource.scanSelectedRoot,
           initialQuery: entry.title,
           initialFilter: switch (entry.type) {
-            MediaType.anime => SearchMediaTypeFilter.anime,
-            MediaType.manga => SearchMediaTypeFilter.manga,
-            MediaType.lightNovel => SearchMediaTypeFilter.novel,
+            MediaType.anime => SourceSearchFilter.anime,
+            MediaType.manga => SourceSearchFilter.manga,
+            MediaType.lightNovel => SourceSearchFilter.novel,
           },
         ),
       ),
@@ -130,7 +130,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       target = await _dependencies.openMedia.execute(media);
       if (!context.mounted) return;
       await _pushMediaTarget(context, target);
-      if (mounted) setState(() => _localCatalogRevision++);
+      if (mounted) setState(() => _homeRefreshRevision++);
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -303,7 +303,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               progressRepository: _dependencies.progressRepository,
               discoverCatalog: _dependencies.discoverCatalog,
               openCatalogDetail: _openCatalogDetail,
-              catalogRevision: _localCatalogRevision,
+              refreshRevision: _homeRefreshRevision,
               onNavigateToSearch: () =>
                   _navigationController.selectTab(AppTab.search),
               onNavigateToLibrary: () =>
@@ -341,7 +341,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               openMedia: _openMedia,
               library: libraryRepository,
               supported: localSource.isAvailable,
-              catalogRevision: _localPageRevision,
+              scanRevision: _localScanRevision,
             ),
             AppTab.library: LibraryPage(
               repository: libraryRepository,

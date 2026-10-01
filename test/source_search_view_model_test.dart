@@ -8,7 +8,7 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
-import 'package:hikari/features/search/unified_search_view_model.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
 
 void main() {
   const media = Media(
@@ -21,7 +21,7 @@ void main() {
     'local catalog scans once across queries in one view-model session',
     () async {
       var scans = 0;
-      final model = UnifiedSearchViewModel(
+      final model = SourceSearchViewModel(
         scanLocalMedia: () async {
           scans++;
           return const [media];
@@ -30,10 +30,10 @@ void main() {
       addTearDown(model.dispose);
 
       await model.search('Solo');
-      expect(model.state.visibleResults.single.media, media);
+      expect(model.state.results.single.media, media);
 
       await model.search('Leveling');
-      expect(model.state.visibleResults.single.media, media);
+      expect(model.state.results.single.media, media);
       expect(scans, 1);
     },
   );
@@ -44,9 +44,9 @@ void main() {
       type: MediaType.manga,
       source: SourceMediaRef(sourceId: SourceId.local, itemId: 'solo-manga'),
     );
-    final model = UnifiedSearchViewModel(
+    final model = SourceSearchViewModel(
       scanLocalMedia: () async => const [media, manga],
-      initialFilter: SearchMediaTypeFilter.manga,
+      initialFilter: SourceSearchFilter.manga,
     );
     addTearDown(model.dispose);
 
@@ -63,14 +63,14 @@ void main() {
       final novel = _NovelSource();
       final registry = SourceRegistry([manga, novel]);
       var scans = 0;
-      final model = UnifiedSearchViewModel(
+      final model = SourceSearchViewModel(
         searchManga: SearchManga(registry),
         searchNovels: SearchNovels(registry),
         scanLocalMedia: () async {
           scans++;
           return const [media];
         },
-        initialFilter: SearchMediaTypeFilter.anime,
+        initialFilter: SourceSearchFilter.anime,
       );
       addTearDown(model.dispose);
 
@@ -79,17 +79,17 @@ void main() {
       expect(novel.searches, 0);
       expect(scans, 1);
 
-      await model.selectFilter(SearchMediaTypeFilter.manga);
+      await model.selectFilter(SourceSearchFilter.manga);
       expect(manga.searches, 1);
       expect(novel.searches, 0);
       expect(scans, 1);
 
-      await model.selectFilter(SearchMediaTypeFilter.novel);
+      await model.selectFilter(SourceSearchFilter.novel);
       expect(manga.searches, 1);
       expect(novel.searches, 1);
       expect(scans, 1);
 
-      await model.selectFilter(SearchMediaTypeFilter.all);
+      await model.selectFilter(SourceSearchFilter.all);
       expect(manga.searches, 2);
       expect(novel.searches, 2);
       expect(scans, 1);

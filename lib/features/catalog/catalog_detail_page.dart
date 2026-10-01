@@ -98,13 +98,14 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                 ),
               ),
             Text(entry.title, style: HikariTypography.titleLarge),
-            if (entry.alternateTitles.isNotEmpty)
-              Text(entry.alternateTitles.join(' · ')),
-            if (entry.synonyms.isNotEmpty)
+            if (details.alternateTitles.isNotEmpty)
+              Text(details.alternateTitles.join(' · ')),
+            if (details.synonyms.isNotEmpty)
               Wrap(
                 spacing: HikariSpacing.sm,
                 children: [
-                  for (final title in entry.synonyms) Chip(label: Text(title)),
+                  for (final title in details.synonyms)
+                    Chip(label: Text(title)),
                 ],
               ),
             if (entry.genres.isNotEmpty)
@@ -124,20 +125,21 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                   TextButton(onPressed: _retry, child: const Text('Retry')),
                 ],
               ),
-            if (entry.averageScore != null) Text('Score ${entry.averageScore}'),
-            if (entry.popularity != null)
-              Text('Popularity ${entry.popularity}'),
-            if (entry.format != null) Text('Format: ${entry.format!.name}'),
-            if (entry.status != null)
-              Text('Status: ${_statusLabel(entry.status!)}'),
+            if (details.averageScore != null)
+              Text('Score ${details.averageScore}'),
+            if (details.popularity != null)
+              Text('Popularity ${details.popularity}'),
+            if (details.format != null) Text('Format: ${details.format!.name}'),
+            if (details.status != null)
+              Text('Status: ${_statusLabel(details.status!)}'),
 
-            if (entry.year != null)
-              Text('${entry.season?.name ?? ''} ${entry.year}'),
-            if (entry.episodes != null) Text('${entry.episodes} episodes'),
-            if (entry.chapters != null) Text('${entry.chapters} chapters'),
-            if (entry.volumes != null) Text('${entry.volumes} volumes'),
-            for (final studio in entry.studios) Text(studio),
-            for (final staff in entry.staff) Text(staff),
+            if (details.year != null)
+              Text('${details.season?.name ?? ''} ${details.year}'),
+            if (details.episodes != null) Text('${details.episodes} episodes'),
+            if (details.chapters != null) Text('${details.chapters} chapters'),
+            if (details.volumes != null) Text('${details.volumes} volumes'),
+            for (final studio in details.studios) Text(studio),
+            for (final staff in details.staff) Text(staff),
             for (final relation in details.relations)
               ListTile(
                 title: Text(relation.entry.title),

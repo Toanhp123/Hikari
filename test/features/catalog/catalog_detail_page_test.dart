@@ -18,6 +18,17 @@ void main() {
       final detail = CatalogEntryDetails(
         entry: _anime,
         description: 'Description',
+        alternateTitles: ['Japanese title'],
+        synonyms: ['Alternate'],
+        averageScore: 91,
+        popularity: 55,
+        format: CatalogFormat.tv,
+        status: CatalogStatus.finished,
+        season: CatalogSeason.summer,
+        year: 2025,
+        episodes: 12,
+        studios: ['Example Studio'],
+        staff: ['Writer'],
         warnings: ['Some fields unavailable'],
         relations: [
           CatalogRelatedEntry(
@@ -122,7 +133,6 @@ void main() {
       id: _related.id,
       title: 'Book A',
       type: MediaType.manga,
-      alternateTitles: ['Translated title'],
     );
     await tester.pumpWidget(
       _app(
@@ -154,18 +164,7 @@ final _anime = CatalogEntry(
   title: 'Anime A',
   type: MediaType.anime,
   coverUrl: 'https://example/cover',
-  alternateTitles: ['Japanese title'],
-  synonyms: ['Alternate'],
   genres: ['Action'],
-  averageScore: 91,
-  popularity: 55,
-  format: CatalogFormat.tv,
-  status: CatalogStatus.finished,
-  season: CatalogSeason.summer,
-  year: 2025,
-  episodes: 12,
-  studios: ['Example Studio'],
-  staff: ['Writer'],
 );
 
 final _related = CatalogEntry(
