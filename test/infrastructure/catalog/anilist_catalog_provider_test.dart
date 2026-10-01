@@ -9,7 +9,7 @@ void main() {
     'discovery batches valid query sections and surfaces partial warnings',
     () async {
       late String body;
-      final provider = AnilistCatalogProvider(
+      final provider = AniListCatalogProvider(
         clock: () => DateTime.utc(2026, 3, 31),
         post: (_, value) async {
           body = value;
@@ -74,7 +74,7 @@ void main() {
       12: 'FALL',
     }.entries) {
       late String query;
-      final provider = AnilistCatalogProvider(
+      final provider = AniListCatalogProvider(
         clock: () => DateTime.utc(2026, entry.key, 1),
         post: (_, body) async {
           query = (jsonDecode(body)['query'] as String);
@@ -101,7 +101,7 @@ void main() {
   test(
     'details normalize enum values, titles, year and authors safely',
     () async {
-      final provider = AnilistCatalogProvider(
+      final provider = AniListCatalogProvider(
         post: (_, body) async {
           expect(body, contains('description(asHtml: true)'));
           expect(body, contains('staff(perPage: 12'));
@@ -190,7 +190,7 @@ void main() {
   );
 
   test('detail GraphQL failure is not reported as a missing entry', () async {
-    final provider = AnilistCatalogProvider(
+    final provider = AniListCatalogProvider(
       post: (_, _) async => const AniListHttpResponse(
         200,
         '{"data":{"Media":null},"errors":[{"message":"upstream failed"}]}',
@@ -204,7 +204,7 @@ void main() {
   });
 
   test('detail response must match requested id; rate limit throws', () async {
-    final provider = AnilistCatalogProvider(
+    final provider = AniListCatalogProvider(
       post: (_, _) async => AniListHttpResponse(
         200,
         jsonEncode({
@@ -221,7 +221,7 @@ void main() {
       isNull,
     );
     await provider.close();
-    final limited = AnilistCatalogProvider(
+    final limited = AniListCatalogProvider(
       post: (_, _) async => const AniListHttpResponse(429, '{}'),
     );
     await expectLater(limited.discover(), throwsA(isA<Exception>()));

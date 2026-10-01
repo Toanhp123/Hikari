@@ -17,8 +17,8 @@ final class AniListHttpResponse {
   final String body;
 }
 
-final class AnilistCatalogProvider implements CatalogProvider {
-  AnilistCatalogProvider({AniListHttpPost? post, DateTime Function()? clock})
+final class AniListCatalogProvider implements CatalogProvider {
+  AniListCatalogProvider({AniListHttpPost? post, DateTime Function()? clock})
     : _clock = clock ?? DateTime.now {
     _post = post ?? _send;
   }

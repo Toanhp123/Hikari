@@ -48,7 +48,7 @@ final class AppDependencies {
     Iterable<MediaSource> additionalSources = const [],
   }) {
     final resolvedLocalSource = localMediaSource ?? LocalMediaSource();
-    final resolvedCatalogProvider = catalogProvider ?? AnilistCatalogProvider();
+    final resolvedCatalogProvider = catalogProvider ?? AniListCatalogProvider();
     final sourceRegistry = SourceRegistry([
       resolvedLocalSource,
       ...additionalSources,

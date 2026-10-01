@@ -1,0 +1,124 @@
+import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:hikari/app/app.dart';
+import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/search/unified_search_page.dart';
+import 'package:hikari/features/search/unified_search_view_model.dart';
+import 'package:hikari/infrastructure/local_media/local_media_source.dart';
+import 'package:hikari/infrastructure/persistence/user_database.dart';
+
+void main() {
+  for (final type in MediaType.values) {
+    testWidgets('Home detail opens title-seeded ${type.name} source search', (
+      tester,
+    ) async {
+      final media = CatalogMedia(
+        id: const CatalogMediaId(provider: 'test', value: '1'),
+        title: 'Catalog title',
+        type: type,
+      );
+      final database = UserDatabase(NativeDatabase.memory());
+      final local = _LocalCatalog();
+      final dependencies = AppDependencies.create(
+        database: database,
+        localMediaSource: local,
+        catalogProvider: _Provider(
+          onDiscover: () async => CatalogDiscovery(
+            sections: {
+              CatalogSection.featured: [media],
+            },
+          ),
+          onDetails: (_) async => CatalogDetails(media: media),
+        ),
+      );
+      addTearDown(() async {
+        await dependencies.dispose();
+        await database.close();
+      });
+
+      try {
+        await tester.pumpWidget(HikariApp(dependencies: dependencies));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Catalog title'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(CatalogDetailPage), findsOneWidget);
+        expect(local.scans, 0);
+
+        await tester.tap(find.text(type == MediaType.anime ? 'Watch' : 'Read'));
+        await tester.pumpAndSettle();
+
+        final page = tester.widget<UnifiedSearchPage>(
+          find.byType(UnifiedSearchPage),
+        );
+        expect(page.initialQuery, 'Catalog title');
+        expect(page.initialFilter, switch (type) {
+          MediaType.anime => SearchMediaTypeFilter.anime,
+          MediaType.manga => SearchMediaTypeFilter.manga,
+          MediaType.lightNovel => SearchMediaTypeFilter.novel,
+        });
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          'Catalog title',
+        );
+        expect(local.scans, 1);
+        expect(find.text('Catalog title ${type.name}'), findsOneWidget);
+        for (final other in MediaType.values.where((value) => value != type)) {
+          expect(find.text('Catalog title ${other.name}'), findsNothing);
+        }
+        expect(await dependencies.libraryRepository.loadAll(), isEmpty);
+      } finally {
+        // Drift closes watched queries on a zero-duration timer. Unmount and
+        // pump that timer before testWidgets verifies there are no timers left.
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(Duration.zero);
+      }
+    });
+  }
+}
+
+final class _LocalCatalog extends LocalMediaSource {
+  int scans = 0;
+
+  @override
+  Future<List<Media>> scanSelectedRoot() async {
+    scans++;
+    return [
+      for (final type in MediaType.values)
+        Media(
+          title: 'Catalog title ${type.name}',
+          type: type,
+          source: SourceMediaRef(sourceId: SourceId.local, itemId: type.name),
+        ),
+    ];
+  }
+}
+
+final class _Provider implements CatalogProvider {
+  _Provider({
+    Future<CatalogDiscovery> Function()? onDiscover,
+    Future<CatalogDetails?> Function(CatalogMediaId)? onDetails,
+  }) : _onDiscover =
+           onDiscover ?? (() async => CatalogDiscovery(sections: const {})),
+       _onDetails = onDetails ?? ((_) async => null);
+
+  final Future<CatalogDiscovery> Function() _onDiscover;
+  final Future<CatalogDetails?> Function(CatalogMediaId) _onDetails;
+
+  @override
+  String get id => 'test';
+
+  @override
+  Future<CatalogDiscovery> discover() => _onDiscover();
+
+  @override
+  Future<CatalogDetails?> details(CatalogMediaId id) => _onDetails(id);
+
+  @override
+  Future<void> close() async {}
+}
