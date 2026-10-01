@@ -4,6 +4,7 @@ import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 class CatalogDiscoverySections extends StatefulWidget {
   const CatalogDiscoverySections({
@@ -67,6 +68,8 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
       }
       final discovery = snapshot.data!;
       final sections = discovery.sections;
+      final featured =
+          sections[CatalogSection.featured] ?? const <CatalogEntry>[];
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -78,8 +81,14 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
               ],
             ),
           ],
+          if (featured.isNotEmpty) ...[
+            const SizedBox(height: HikariSpacing.md),
+            HeroCarousel(entries: featured, openDetail: widget.openDetail),
+            const SizedBox(height: HikariSpacing.md),
+          ],
           for (final section in CatalogSection.values)
-            if ((sections[section] ?? []).isNotEmpty) ...[
+            if (section != CatalogSection.featured &&
+                (sections[section] ?? []).isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   HikariSpacing.lg,

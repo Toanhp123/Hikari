@@ -6,9 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
+import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/widgets/catalog_discovery_sections.dart';
+import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 void main() {
   testWidgets('Home renders all six catalog sections', (tester) async {
@@ -42,6 +44,61 @@ void main() {
     ]) {
       expect(find.text(title), findsOneWidget);
     }
+  });
+
+  testWidgets('Featured uses the catalog hero and opens catalog detail', (
+    tester,
+  ) async {
+    final featured = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'featured'),
+      title: 'Featured story',
+      type: MediaType.lightNovel,
+      bannerUrl: 'https://example/banner',
+      genres: const ['Fantasy', 'Adventure'],
+    );
+    final trending = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'trending'),
+      title: 'Trending story',
+      type: MediaType.manga,
+    );
+    CatalogEntry? opened;
+
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discover: DiscoverCatalog(
+              _Provider(
+                onDiscover: () async => CatalogDiscovery(
+                  sections: {
+                    CatalogSection.featured: [featured],
+                    CatalogSection.trending: [trending],
+                  },
+                ),
+              ),
+            ),
+            openDetail: (entry) => opened = entry,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HeroCarousel), findsOneWidget);
+    expect(find.text('Featured'), findsOneWidget);
+    expect(find.text('Featured story'), findsOneWidget);
+    expect(find.text('View details'), findsOneWidget);
+    expect(find.text('Watch Now'), findsNothing);
+    expect(find.text('Read Now'), findsNothing);
+
+    final posterTitles = tester
+        .widgetList<MediaPoster>(find.byType(MediaPoster))
+        .map((poster) => poster.title);
+    expect(posterTitles, contains('Trending story'));
+    expect(posterTitles, isNot(contains('Featured story')));
+
+    await tester.tap(find.text('View details'));
+    expect(opened, same(featured));
   });
 
   testWidgets('Home discovery loads, shows partial warning and retries', (

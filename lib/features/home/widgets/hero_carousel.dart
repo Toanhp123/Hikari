@@ -2,41 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 
-class FeaturedHeroItem {
-  const FeaturedHeroItem({
-    required this.media,
-    required this.tagline,
-    required this.genres,
-    this.bannerUrl,
-    this.primaryActionLabel,
-    this.secondaryActionLabel,
-  });
-
-  final Media media;
-  final String tagline;
-  final List<String> genres;
-  final String? bannerUrl;
-  final String? primaryActionLabel;
-  final String? secondaryActionLabel;
-}
-
-/// Manual cinematic hero for real featured content.
+/// Manual cinematic carousel for catalog Featured entries.
 ///
-/// Mobile uses swipe navigation; medium and expanded layouts also expose
-/// explicit previous/next controls. The carousel never auto-advances.
+/// Catalog entries are metadata only, so the hero opens catalog detail instead
+/// of pretending the entry is playable/readable source media.
 class HeroCarousel extends StatefulWidget {
   const HeroCarousel({
     super.key,
-    required this.items,
-    required this.onOpenMedia,
-    this.onOpenDetails,
+    required this.entries,
+    required this.openDetail,
   });
 
-  final List<FeaturedHeroItem> items;
-  final void Function(BuildContext, Media) onOpenMedia;
-  final void Function(BuildContext, Media)? onOpenDetails;
+  final List<CatalogEntry> entries;
+  final ValueChanged<CatalogEntry> openDetail;
 
   @override
   State<HeroCarousel> createState() => _HeroCarouselState();
@@ -59,7 +40,9 @@ class _HeroCarouselState extends State<HeroCarousel> {
   }
 
   Future<void> _goToPage(int page) async {
-    if (page < 0 || page >= widget.items.length || page == _currentPage) return;
+    if (page < 0 || page >= widget.entries.length || page == _currentPage) {
+      return;
+    }
     await _pageController.animateToPage(
       page,
       duration: HikariMotion.normal,
@@ -69,7 +52,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.items.isEmpty) return const SizedBox.shrink();
+    if (widget.entries.isEmpty) return const SizedBox.shrink();
 
     final isCompact = context.isCompact;
 
@@ -78,7 +61,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
         horizontal: isCompact ? 0 : HikariSpacing.lg,
       ),
       child: AspectRatio(
-        aspectRatio: isCompact ? (16 / 11) : (16 / 7),
+        aspectRatio: isCompact ? (4 / 3) : (16 / 7),
         child: ClipRRect(
           borderRadius: isCompact ? BorderRadius.zero : HikariRadius.borderLg,
           child: Stack(
@@ -86,21 +69,24 @@ class _HeroCarouselState extends State<HeroCarousel> {
             children: [
               PageView.builder(
                 controller: _pageController,
-                itemCount: widget.items.length,
+                itemCount: widget.entries.length,
                 onPageChanged: (page) => setState(() => _currentPage = page),
                 itemBuilder: (context, index) => _HeroSlide(
-                  item: widget.items[index],
-                  onOpenMedia: widget.onOpenMedia,
-                  onOpenDetails: widget.onOpenDetails,
+                  entry: widget.entries[index],
+                  position: index + 1,
+                  total: widget.entries.length,
+                  openDetail: widget.openDetail,
                 ),
               ),
-              if (widget.items.length > 1) ...[
+              if (widget.entries.length > 1) ...[
                 Positioned(
                   top: HikariSpacing.md,
                   right: HikariSpacing.lg,
-                  child: _PageCounter(
-                    current: _currentPage + 1,
-                    total: widget.items.length,
+                  child: ExcludeSemantics(
+                    child: _PageCounter(
+                      current: _currentPage + 1,
+                      total: widget.entries.length,
+                    ),
                   ),
                 ),
                 if (!isCompact) ...[
@@ -127,7 +113,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                       child: HikariIconButton(
                         tooltip: 'Next featured item',
                         variant: HikariIconButtonVariant.glass,
-                        onPressed: _currentPage < widget.items.length - 1
+                        onPressed: _currentPage < widget.entries.length - 1
                             ? () => _goToPage(_currentPage + 1)
                             : null,
                         icon: const Icon(Icons.chevron_right_rounded),
@@ -146,53 +132,71 @@ class _HeroCarouselState extends State<HeroCarousel> {
 
 class _HeroSlide extends StatelessWidget {
   const _HeroSlide({
-    required this.item,
-    required this.onOpenMedia,
-    required this.onOpenDetails,
+    required this.entry,
+    required this.position,
+    required this.total,
+    required this.openDetail,
   });
 
-  final FeaturedHeroItem item;
-  final void Function(BuildContext, Media) onOpenMedia;
-  final void Function(BuildContext, Media)? onOpenDetails;
+  final CatalogEntry entry;
+  final int position;
+  final int total;
+  final ValueChanged<CatalogEntry> openDetail;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
-    final typeLabel = switch (item.media.type) {
+    final isCompact = context.isCompact;
+    final typeLabel = switch (entry.type) {
       MediaType.anime => 'Anime',
       MediaType.manga => 'Manga',
       MediaType.lightNovel => 'Light novel',
     };
-    final metadata = [typeLabel, ...item.genres.take(2)].join(' · ');
-    final bannerUrl = item.bannerUrl;
+    final metadata = [typeLabel, ...entry.genres.take(2)].join(' · ');
+    final bannerUrl = entry.bannerUrl;
 
     return Semantics(
       container: true,
-      label: 'Featured: ${item.media.title}',
+      label: 'Featured $position of $total',
       child: Stack(
         fit: StackFit.expand,
         children: [
+          _buildFallbackArtwork(colors),
           if (bannerUrl != null && bannerUrl.isNotEmpty)
             Image.network(
               bannerUrl,
               fit: BoxFit.cover,
+              alignment: Alignment.center,
               filterQuality: FilterQuality.medium,
-              errorBuilder: (_, _, _) => _buildFallbackArtwork(colors),
-            )
-          else
-            _buildFallbackArtwork(colors),
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0x24000000),
-                  colors.background.withValues(alpha: 0.24),
+                  Colors.transparent,
+                  colors.background.withValues(alpha: 0.18),
+                  colors.scrimMedium,
                   colors.scrimStrong,
-                  colors.background,
                 ],
-                stops: const [0.0, 0.35, 0.76, 1.0],
+                stops: const [0.0, 0.38, 0.74, 1.0],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  colors.scrimStrong,
+                  colors.scrimMedium,
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.46, 0.82],
               ),
             ),
           ),
@@ -201,77 +205,68 @@ class _HeroSlide extends StatelessWidget {
             right: HikariSpacing.lg,
             bottom: HikariSpacing.lg,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 580),
+              constraints: const BoxConstraints(maxWidth: 620),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.glassSurface,
+                      borderRadius: HikariRadius.borderCapsule,
+                      border: Border.all(color: colors.glassBorder),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: HikariSpacing.sm,
+                        vertical: HikariSpacing.xs,
+                      ),
+                      child: Text(
+                        'Featured',
+                        style: HikariTypography.labelSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: HikariSpacing.sm),
+                  Text(
+                    entry.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        (isCompact
+                                ? HikariTypography.headline
+                                : HikariTypography.display)
+                            .copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              shadows: [
+                                Shadow(
+                                  color: colors.scrimStrong,
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
+                  ),
+                  const SizedBox(height: HikariSpacing.xs),
                   Text(
                     metadata,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: HikariTypography.labelMedium.copyWith(
-                      color: Colors.white.withValues(alpha: 0.82),
+                      color: Colors.white.withValues(alpha: 0.84),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: HikariSpacing.xs),
-                  Text(
-                    item.media.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: HikariTypography.headline.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      shadows: const [
-                        Shadow(color: Colors.black54, blurRadius: 12),
-                      ],
-                    ),
-                  ),
-                  if (item.tagline.isNotEmpty) ...[
-                    const SizedBox(height: HikariSpacing.xs),
-                    Text(
-                      item.tagline,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: HikariTypography.bodySmall.copyWith(
-                        color: Colors.white.withValues(alpha: 0.78),
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: HikariSpacing.md),
-                  Wrap(
-                    spacing: HikariSpacing.sm,
-                    runSpacing: HikariSpacing.sm,
-                    children: [
-                      HikariButton(
-                        label:
-                            item.primaryActionLabel ??
-                            (item.media.type == MediaType.anime
-                                ? 'Watch Now'
-                                : 'Read Now'),
-                        icon: Icon(
-                          item.media.type == MediaType.anime
-                              ? Icons.play_arrow_rounded
-                              : Icons.menu_book_rounded,
-                          size: 18,
-                        ),
-                        size: HikariButtonSize.small,
-                        onPressed: () => onOpenMedia(context, item.media),
-                      ),
-                      if (onOpenDetails != null)
-                        HikariButton(
-                          label: item.secondaryActionLabel ?? 'Details',
-                          icon: const Icon(
-                            Icons.info_outline_rounded,
-                            size: 17,
-                          ),
-                          variant: HikariButtonVariant.secondary,
-                          size: HikariButtonSize.small,
-                          onPressed: () => onOpenDetails!(context, item.media),
-                        ),
-                    ],
+                  HikariButton(
+                    label: 'View details',
+                    icon: const Icon(Icons.info_outline_rounded, size: 18),
+                    size: HikariButtonSize.medium,
+                    onPressed: () => openDetail(entry),
                   ),
                 ],
               ),
@@ -290,7 +285,7 @@ class _HeroSlide extends StatelessWidget {
           radius: 1.2,
           colors: [
             colors.primary.withValues(alpha: 0.34),
-            const Color(0xFF1B1438),
+            colors.surfaceElevated,
             colors.surfaceContainer,
             colors.background,
           ],
