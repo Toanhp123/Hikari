@@ -87,6 +87,8 @@ Hikari uses explicit role routing so the strongest model spends tokens on decisi
 - for non-trivial implementation, the main agent should define the task contract first, delegate the bounded change to `implementer`, then inspect the resulting diff itself;
 - after implementation, Opus reviews correctness, architecture, scope, tests, and regression risk. If changes are required, send a concrete correction task back to `implementer` rather than silently rewriting substantial portions in the main thread;
 - run editing subagents sequentially when they may touch overlapping files. Parallel implementation is allowed only for clearly file-disjoint tasks with an explicit integration plan;
+- project subagents run in the **current checkout by default**. When launching `Explore` or `implementer`, omit worktree isolation. Do not pass `isolation: "worktree"` unless the user explicitly requested an isolated worktree for that specific delegation. A user-approved feature branch does not imply permission to create an additional worktree;
+- if agent orchestration unexpectedly creates a branch/worktree, repeatedly spawns/cancels agents, or otherwise stops making implementation progress, stop launching more agents. Inspect `git status --short --branch` and `git worktree list --porcelain`, report every unexpected Git artifact, and do not delete or prune anything without explicit user approval;
 - final project-wide verification remains the main agent's responsibility even when the implementer ran focused checks;
 - do not set `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` for normal Hikari work because per-agent model pins are intentional.
 

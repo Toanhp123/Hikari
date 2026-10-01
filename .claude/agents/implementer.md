@@ -18,6 +18,7 @@ Rules:
 - Add or update focused tests for behavior changes. Use TDD when the behavior can be expressed cleanly by a test.
 - Do not mass-format the repository. Format only touched Dart files and avoid unrelated churn.
 - Run the narrowest useful checks while implementing. The main agent owns the final project-wide verification and completion claim unless the delegation explicitly asks you to run broader gates.
-- Never create or switch branches/worktrees, commit, push, merge, reset, stash, or otherwise mutate Git history/state unless the user explicitly requested that Git action.
+- Work in the checkout you were given. Never create or switch branches/worktrees, commit, push, merge, reset, stash, or otherwise mutate Git history/state unless the user explicitly requested that Git action.
+- If the delegated task explicitly says to work on the current branch/current checkout but you discover that you were launched inside an unexpected Claude-created isolated worktree, make no edits. Report the isolation mismatch to the main agent so it can inventory Git state instead of retrying delegation.
 - Do not spawn another implementation agent. Return uncertainties and blockers to the main agent.
 - Before handoff, inspect your own diff for accidental scope growth, summarize changed files and tests/checks run, and call out any remaining risk.
