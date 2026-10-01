@@ -76,6 +76,22 @@ When multiple skills apply, use this order:
 4. **Superpowers execution/TDD** carries out the self-reviewed change without an approval pause.
 5. **Review + verification** close the task; Ponytail may run again as a simplification pass after correctness is established.
 
+### Model and subagent routing
+
+Hikari uses explicit role routing so the strongest model spends tokens on decisions and review instead of routine implementation or repository search. Model names here are Claude Code routing aliases; an external compatible router may map them to different backend models.
+
+- the main project session defaults to **Opus** via `.claude/settings.json` and acts as architect, orchestrator, difficult root-cause analyst, and final reviewer. It owns task decomposition, acceptance criteria, architectural decisions, integration decisions, and the completion claim; the user may still override the session model explicitly;
+- the project-level `Explore` subagent in `.claude/agents/Explore.md` overrides Claude Code's built-in Explore agent and is pinned to **Haiku** with low effort for read-only repository exploration;
+- the `implementer` subagent is pinned to **Sonnet** with high effort and owns bounded non-trivial code changes, focused tests, and local implementation checks after the main agent defines scope;
+- do not delegate a trivial `Read`, exact-symbol `Grep`, known-file lookup, or tiny mechanical edit merely to use a subagent; perform it directly in the main thread;
+- for non-trivial implementation, the main agent should define the task contract first, delegate the bounded change to `implementer`, then inspect the resulting diff itself;
+- after implementation, Opus reviews correctness, architecture, scope, tests, and regression risk. If changes are required, send a concrete correction task back to `implementer` rather than silently rewriting substantial portions in the main thread;
+- run editing subagents sequentially when they may touch overlapping files. Parallel implementation is allowed only for clearly file-disjoint tasks with an explicit integration plan;
+- final project-wide verification remains the main agent's responsibility even when the implementer ran focused checks;
+- do not set `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` for normal Hikari work because per-agent model pins are intentional.
+
+Add another persistent subagent only after a repeated, clearly bounded role justifies it. Keep the default team small: Opus leads and reviews, Sonnet implements, Haiku explores.
+
 ### Evidence routing gates
 
 Use the specialized evidence route before generic fallback tools when its trigger is met:

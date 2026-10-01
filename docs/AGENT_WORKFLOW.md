@@ -114,10 +114,34 @@ Typical routing:
 | Before completion claim | `verification-before-completion` |
 | Branch/integration decision explicitly requested by the user | `finishing-a-development-branch` |
 
+### Model and subagent routing
+
+Model choice follows the work role, not the tool name. The names below are Claude Code routing aliases; a compatible external router may map an alias to another backend model without changing Hikari's workflow.
+
+| Role | Default model | Boundary |
+| --- | --- | --- |
+| Main Hikari session | **Opus** | architecture, task decomposition, acceptance criteria, difficult root-cause analysis, final diff review, integration decisions, completion claim |
+| `Explore` | **Haiku**, low effort | read-only repository exploration when ownership is unclear, search output would be noisy, or cross-cutting investigation is useful |
+| `implementer` | **Sonnet**, high effort | bounded implementation, focused tests, localized refactors/fixes, and local implementation checks after scope is defined |
+
+The project pins these roles in `.claude/settings.json` and `.claude/agents/`. Claude Code's built-in Explore behavior may inherit the parent model, so Hikari provides its own project-level `Explore` definition instead of spending the main tier on routine repository search.
+
+Routing rules:
+
+- exact known file/symbol lookup → direct `Read`/targeted `Grep` in the main thread;
+- noisy or cross-cutting read-only exploration → `Explore` (Haiku), with Graphify-first routing when section 5 applies;
+- trivial mechanical edit whose delegation overhead exceeds the work → main thread (Opus);
+- non-trivial implementation → main Opus defines scope and acceptance criteria, then delegates a bounded task to `implementer` (Sonnet);
+- implementation handoff → main Opus inspects the actual diff and test evidence, checks architecture/scope/regression risk, and either accepts it or delegates a concrete correction back to `implementer`;
+- editing agents that may touch overlapping files run sequentially. Parallel implementation requires file-disjoint scopes and an explicit integration plan;
+- final project-wide verification and the completion claim remain the main Opus agent's responsibility.
+
+Do not launch a subagent simply because one exists. Do not use `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` during normal Hikari work because it defeats the project-level per-role model routing. Add another persistent subagent only when a repeated role has a clear context-isolation or specialization benefit.
+
 ### Hikari constraints on Superpowers
 
 - **Approval gates are autonomous in Hikari.** Do not wait for the user after brainstorming design, written spec, implementation plan, or execution-choice handoff unless a pause condition from section 2 applies. Self-review and continue.
-- When Superpowers asks the user to choose between execution modes, choose automatically. **Default to native/inline execution** in the current working tree because it preserves one coherent context and does not require extra Git lifecycle. Use subagent-driven implementation only when its isolation materially improves quality **and** it can obey Hikari's Git restrictions; read-only exploration/review subagents remain fine when useful.
+- When Superpowers asks the user to choose between execution modes, choose automatically. For a non-trivial bounded code change, prefer Hikari's project `implementer` subagent in the current working tree after the main Opus agent defines scope and acceptance criteria; use inline main-thread editing for trivial changes where delegation would cost more than the work. Do not create a branch/worktree merely to delegate. Additional isolation is allowed only when it materially improves safety and still obeys Hikari's Git restrictions.
 - Do not create a branch, worktree, commit, push, merge, or other Git mutation unless the user asked for it. `docs/GIT_WORKFLOW.md` remains authoritative. If a Superpowers path assumes such a mutation, preserve its planning/TDD/review intent but execute without that mutation.
 - Do not create a second plan merely because another planning surface exists. One current implementation plan is enough.
 - Treat Superpowers design/spec/plan files as **working artifacts**, not automatically as Hikari documentation. Do not commit them automatically. Before finalizing, remove transient planning artifacts from the requested patch unless they have durable project value; durable architecture rationale belongs in the relevant canonical doc/ADR.

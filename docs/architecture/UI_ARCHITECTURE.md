@@ -751,30 +751,22 @@ inheritance hierarchies.
 
 ---
 
-## 19. Foundation rollout
+## 19. Foundation status and active rollout
 
-The first UX/UI foundation pass should remain intentionally small.
+The initial UI foundation is now present in the repository: semantic theme
+foundations, shared primitives/patterns, responsive navigation and real feature
+screens all exercise this architecture.
 
-Recommended order:
+The project is therefore no longer in the “design the foundation first” stage.
+The active priority is to complete the existing product journeys before adding
+the next major feature set.
 
-```text
-1. semantic colors and ThemeData
-2. typography
-3. spacing and radius
-4. motion and breakpoints
-5. core primitives required by current screens
-6. common async/empty/error patterns
-7. media poster/progress patterns
-8. navigation shell
-9. feature-by-feature redesign
-```
+Detailed implementation sequencing, pass-level acceptance criteria and the
+phase exit gate live in
+[`../roadmap/UI_UX_COMPLETION.md`](../roadmap/UI_UX_COMPLETION.md).
 
-Do not redesign every screen before the foundation has been exercised by at
-least one real feature.
-
-A good first proving ground is Home/Library because it exercises navigation,
-media artwork, metadata, progress, loading states, and responsive layout without
-touching the specialized reader/player interaction model.
+Keep this document as the stable architectural authority. Do not copy live
+roadmap status here; update the roadmap as screen-by-screen work progresses.
 
 ---
 

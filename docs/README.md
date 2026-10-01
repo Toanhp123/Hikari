@@ -18,7 +18,8 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `architecture/EXTENSIONS.md` | Android manga extension discovery, trust, ABI bridge and bounded LNReader runtime | Working on installed manga extensions, packaged novel plugins or native compatibility |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
-| `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing while active tracking needs its own document | Planning or tracking active implementation |
+| `roadmap/UI_UX_COMPLETION.md` | Active UI/UX completion sequence, pass-level acceptance criteria, scope and phase exit gate | Polishing current product UX before adding the next major feature set |
+| `roadmap/*.md` | Other detailed execution status, milestones, and implementation sequencing while active tracking needs its own document | Planning or tracking active implementation |
 
 Architecture and roadmap documents are created only when real content requires them. Accepted cross-cutting decisions already live under `decisions/`.
 
