@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -66,11 +68,26 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  List<Media> _filteredItems(List<Media> items) {
-    if (_selectedFilter == HomeFilterType.all) return items;
+  List<HomeFilterType> _availableFilters(List<Media> items) {
+    final mediaTypes = items.map((item) => item.type).toSet();
+    if (mediaTypes.length <= 1) return const [];
+
+    return [
+      HomeFilterType.all,
+      if (mediaTypes.contains(MediaType.anime)) HomeFilterType.anime,
+      if (mediaTypes.contains(MediaType.manga)) HomeFilterType.manga,
+      if (mediaTypes.contains(MediaType.lightNovel)) HomeFilterType.novel,
+    ];
+  }
+
+  List<Media> _filteredItems(
+    List<Media> items,
+    HomeFilterType effectiveFilter,
+  ) {
+    if (effectiveFilter == HomeFilterType.all) return items;
     return items
         .where((item) {
-          return switch (_selectedFilter) {
+          return switch (effectiveFilter) {
             HomeFilterType.all => true,
             HomeFilterType.anime => item.type == MediaType.anime,
             HomeFilterType.manga => item.type == MediaType.manga,
@@ -89,29 +106,21 @@ class _HomePageState extends State<HomePage> {
         final state = _model.state;
         final usesBrowseFeed = widget.trendingItems.isNotEmpty;
         final feed = usesBrowseFeed ? widget.trendingItems : state.libraryItems;
-        final filteredFeed = _filteredItems(feed);
+        final availableFilters = _availableFilters(feed);
+        final effectiveFilter = availableFilters.contains(_selectedFilter)
+            ? _selectedFilter
+            : HomeFilterType.all;
+        final filteredFeed = _filteredItems(feed, effectiveFilter);
 
         return HikariScaffold(
           useSafeArea: true,
           body: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(child: _buildHeader(context, colors)),
-              if (widget.showLocalMediaEntry)
-                SliverToBoxAdapter(child: _buildLocalMediaCard(colors)),
-              if (widget.featuredItems.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
-                    child: HeroCarousel(
-                      items: widget.featuredItems,
-                      onOpenMedia: widget.openMedia,
-                    ),
-                  ),
-                ),
+              _boundedSliverBox(_buildHeader(colors)),
               if (widget.continueItems.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
+                _boundedSliverBox(
+                  Padding(
                     padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
                     child: ContinueShelf(
                       items: widget.continueItems,
@@ -120,41 +129,55 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              if (feed.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: _buildFeedHeader(
-                    colors,
-                    usesBrowseFeed ? 'Discover' : 'Recently added',
-                  ),
-                ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: HikariSpacing.lg),
-                ),
-                _buildFeedGrid(colors, filteredFeed),
-              ] else if (state.loading)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(HikariSpacing.xl),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                )
-              else
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(HikariSpacing.xl),
-                    child: Center(
-                      child: Text(
-                        state.error == null
-                            ? 'Add media to your Library to populate Home.'
-                            : 'Could not load recent Library items.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.textMuted, fontSize: 13),
-                      ),
+              if (widget.featuredItems.isNotEmpty)
+                _boundedSliverBox(
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
+                    child: HeroCarousel(
+                      items: widget.featuredItems,
+                      onOpenMedia: widget.openMedia,
                     ),
                   ),
                 ),
+              if (widget.showLocalMediaEntry)
+                _boundedSliverBox(
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
+                    child: _buildLocalMediaCard(colors),
+                  ),
+                ),
+              if (!usesBrowseFeed && state.error != null && feed.isNotEmpty)
+                _boundedSliverBox(
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
+                    child: _buildStaleLibraryNotice(colors),
+                  ),
+                ),
+              if (feed.isNotEmpty) ...[
+                _boundedSliverBox(
+                  _buildFeedHeader(
+                    colors,
+                    title: usesBrowseFeed ? 'Discover' : 'Recently added',
+                    filters: availableFilters,
+                    effectiveFilter: effectiveFilter,
+                    onSectionAction: usesBrowseFeed
+                        ? widget.onNavigateToSearch
+                        : widget.onNavigateToLibrary,
+                    sectionActionLabel: usesBrowseFeed ? 'Search' : 'Library',
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: HikariSpacing.md),
+                ),
+                _buildFeedGrid(colors, filteredFeed),
+              ] else if (state.loading)
+                _buildLoadingGrid()
+              else if (state.error != null)
+                _boundedSliverBox(_buildErrorState())
+              else
+                _boundedSliverBox(_buildEmptyState()),
               const SliverToBoxAdapter(
-                child: SizedBox(height: HikariSpacing.xxl),
+                child: SizedBox(height: HikariSpacing.xxxl),
               ),
             ],
           ),
@@ -163,11 +186,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, HikariColors colors) {
+  SliverToBoxAdapter _boundedSliverBox(Widget child) {
+    return SliverToBoxAdapter(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: HikariBreakpoints.maxContentWidth,
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(HikariColors colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: HikariSpacing.lg,
-        vertical: HikariSpacing.sm,
+      padding: const EdgeInsets.fromLTRB(
+        HikariSpacing.lg,
+        HikariSpacing.sm,
+        HikariSpacing.lg,
+        HikariSpacing.md,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -175,57 +213,54 @@ class _HomePageState extends State<HomePage> {
           Row(
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [colors.primary, colors.secondary],
                   ),
                   borderRadius: HikariRadius.borderSm,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: 0.22),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: const Icon(
                   Icons.auto_awesome,
                   color: Colors.white,
-                  size: 18,
+                  size: 19,
                 ),
               ),
               const SizedBox(width: HikariSpacing.sm),
-              Text(
-                'Hikari',
-                style: HikariTypography.titleLarge.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hikari',
+                    style: HikariTypography.titleLarge.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  Text(
+                    'Watch. Read. Resume.',
+                    style: HikariTypography.labelSmall.copyWith(
+                      color: colors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          Row(
-            children: [
-              IconButton(
-                tooltip: 'Search',
-                onPressed: widget.onNavigateToSearch,
-                icon: Icon(Icons.search_rounded, color: colors.textPrimary),
-              ),
-              if (widget.openRemoteManga != null)
-                IconButton(
-                  tooltip: 'Search manga',
-                  onPressed: widget.openRemoteManga,
-                  icon: Icon(
-                    Icons.auto_stories_outlined,
-                    color: colors.textSecondary,
-                  ),
-                ),
-              if (widget.openRemoteNovels != null)
-                IconButton(
-                  tooltip: 'Search novels',
-                  onPressed: widget.openRemoteNovels,
-                  icon: Icon(
-                    Icons.chrome_reader_mode_outlined,
-                    color: colors.textSecondary,
-                  ),
-                ),
-            ],
+          HikariIconButton(
+            tooltip: 'Search',
+            variant: HikariIconButtonVariant.filled,
+            onPressed: widget.onNavigateToSearch,
+            icon: const Icon(Icons.search_rounded),
           ),
         ],
       ),
@@ -234,67 +269,110 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildLocalMediaCard(HikariColors colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: HikariSpacing.lg,
-        vertical: HikariSpacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       child: Material(
         color: colors.surfaceContainer,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderMd,
+          borderRadius: HikariRadius.borderLg,
           side: BorderSide(color: colors.border),
         ),
         clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onNavigateToLocal,
+          child: Padding(
+            padding: const EdgeInsets.all(HikariSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.14),
+                    borderRadius: HikariRadius.borderMd,
+                    border: Border.all(
+                      color: colors.primary.withValues(alpha: 0.24),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.folder_open_rounded,
+                    color: colors.primaryGlow,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: HikariSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Local media',
+                        style: HikariTypography.titleSmall.copyWith(
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Browse video, manga and novels from your chosen folder.',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: HikariTypography.bodySmall.copyWith(
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: HikariSpacing.sm),
+                if (!context.isCompact) ...[
+                  Text(
+                    'Open Local',
+                    style: HikariTypography.labelMedium.copyWith(
+                      color: colors.primaryGlow,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: HikariSpacing.xs),
+                ],
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: colors.primaryGlow,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStaleLibraryNotice(HikariColors colors) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+      child: Material(
+        color: colors.warning.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(
+          borderRadius: HikariRadius.borderMd,
+          side: BorderSide(color: colors.warning.withValues(alpha: 0.28)),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(HikariSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: HikariSpacing.md,
+            vertical: HikariSpacing.sm,
+          ),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.15),
-                  borderRadius: HikariRadius.borderSm,
-                ),
-                child: Icon(
-                  Icons.folder_open_rounded,
-                  color: colors.primaryGlow,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: HikariSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Local media',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Browse media from your chosen folder.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              Icon(Icons.sync_problem_rounded, size: 20, color: colors.warning),
               const SizedBox(width: HikariSpacing.sm),
-              SizedBox(
-                width: 125,
-                child: HikariButton(
-                  label: 'Open Local',
-                  size: HikariButtonSize.small,
-                  variant: HikariButtonVariant.secondary,
-                  onPressed: widget.onNavigateToLocal,
+              Expanded(
+                child: Text(
+                  'Library refresh failed. Showing the last available items.',
+                  style: HikariTypography.bodySmall.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
+              TextButton(onPressed: _model.reload, child: const Text('Retry')),
             ],
           ),
         ),
@@ -302,34 +380,83 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFeedHeader(HikariColors colors, String title) {
+  Widget _buildFeedHeader(
+    HikariColors colors, {
+    required String title,
+    required List<HomeFilterType> filters,
+    required HomeFilterType effectiveFilter,
+    required VoidCallback? onSectionAction,
+    required String sectionActionLabel,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: HikariTypography.titleMedium.copyWith(
-              color: colors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: HikariSpacing.sm),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: HomeFilterType.values.map((filter) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: HikariSpacing.sm),
-                  child: HikariChip(
-                    label: filter.label,
-                    isSelected: _selectedFilter == filter,
-                    onTap: () => setState(() => _selectedFilter = filter),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: HikariTypography.titleMedium.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
                   ),
-                );
-              }).toList(),
-            ),
+                ),
+              ),
+              if (onSectionAction != null)
+                InkWell(
+                  onTap: onSectionAction,
+                  borderRadius: HikariRadius.borderSm,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: HikariSpacing.xs,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            sectionActionLabel,
+                            style: HikariTypography.labelMedium.copyWith(
+                              color: colors.primaryGlow,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 19,
+                            color: colors.primaryGlow,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
+          if (filters.isNotEmpty) ...[
+            const SizedBox(height: HikariSpacing.xs),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: filters
+                    .map((filter) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: HikariSpacing.sm),
+                        child: HikariChip(
+                          label: filter.label,
+                          isSelected: effectiveFilter == filter,
+                          onTap: () => setState(() => _selectedFilter = filter),
+                        ),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -337,49 +464,138 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildFeedGrid(HikariColors colors, List<Media> items) {
     if (items.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.all(HikariSpacing.xl),
+      return _boundedSliverBox(
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: HikariSpacing.lg,
+            vertical: HikariSpacing.xl,
+          ),
           child: Center(
             child: Text(
               'No items in this category.',
-              style: TextStyle(color: colors.textMuted, fontSize: 13),
+              style: HikariTypography.bodySmall.copyWith(
+                color: colors.textMuted,
+              ),
             ),
           ),
         ),
       );
     }
 
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: HikariBreakpoints.posterGridMaxExtent,
-          crossAxisSpacing: HikariSpacing.md,
-          mainAxisSpacing: HikariSpacing.md,
-          childAspectRatio: 2 / 3,
-        ),
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final item = items[index];
-          final badgeColor = switch (item.type) {
-            MediaType.anime => colors.badgeVideo,
-            MediaType.manga => colors.badgeManga,
-            MediaType.lightNovel => colors.badgeNovel,
-          };
-          final badgeText = switch (item.type) {
-            MediaType.anime => 'ANIME',
-            MediaType.manga => 'MANGA',
-            MediaType.lightNovel => 'NOVEL',
-          };
+    return _boundedGrid(
+      childCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final badgeColor = switch (item.type) {
+          MediaType.anime => colors.badgeVideo,
+          MediaType.manga => colors.badgeManga,
+          MediaType.lightNovel => colors.badgeNovel,
+        };
+        final badgeText = switch (item.type) {
+          MediaType.anime => 'ANIME',
+          MediaType.manga => 'MANGA',
+          MediaType.lightNovel => 'NOVEL',
+        };
 
-          return MediaPoster(
-            title: item.title,
-            badgeText: badgeText,
-            badgeColor: badgeColor,
-            onTap: () => widget.openMedia(context, item),
-          );
-        }, childCount: items.length),
-      ),
+        return MediaPoster(
+          title: item.title,
+          badgeText: badgeText,
+          badgeColor: badgeColor,
+          onTap: () => widget.openMedia(context, item),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingGrid() {
+    return _boundedGrid(
+      childCount: 6,
+      itemBuilder: (context, index) =>
+          const MediaPoster(title: '', isLoading: true),
+    );
+  }
+
+  Widget _boundedGrid({
+    required int childCount,
+    required Widget Function(BuildContext, int) itemBuilder,
+  }) {
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final extraWidth =
+            constraints.crossAxisExtent > HikariBreakpoints.maxContentWidth
+            ? constraints.crossAxisExtent - HikariBreakpoints.maxContentWidth
+            : 0.0;
+        final horizontalPadding = (extraWidth / 2) + HikariSpacing.lg;
+
+        return SliverPadding(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: HikariBreakpoints.posterGridMaxExtent,
+              crossAxisSpacing: HikariSpacing.md,
+              mainAxisSpacing: HikariSpacing.md,
+              childAspectRatio: 2 / 3,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              itemBuilder,
+              childCount: childCount,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final actions = <Widget>[
+      if (widget.onNavigateToSearch != null)
+        HikariButton(
+          label: 'Search',
+          icon: const Icon(Icons.search_rounded, size: 18),
+          onPressed: widget.onNavigateToSearch,
+        ),
+      if (widget.openRemoteManga != null)
+        HikariButton(
+          label: 'Browse manga',
+          icon: const Icon(Icons.auto_stories_outlined, size: 18),
+          variant: HikariButtonVariant.secondary,
+          onPressed: widget.openRemoteManga,
+        ),
+      if (widget.openRemoteNovels != null)
+        HikariButton(
+          label: 'Browse novels',
+          icon: const Icon(Icons.chrome_reader_mode_outlined, size: 18),
+          variant: HikariButtonVariant.secondary,
+          onPressed: widget.openRemoteNovels,
+        ),
+    ];
+
+    return AsyncStateView(
+      status: AsyncViewStatus.empty,
+      contentBuilder: (_) => const SizedBox.shrink(),
+      emptyIcon: Icons.explore_rounded,
+      emptyTitle: 'Start your library',
+      emptyMessage: widget.showLocalMediaEntry
+          ? 'Search supported sources or open Local above. Media you add to your Library will appear here for quick access.'
+          : 'Search supported sources and add media to your Library. Your latest additions will appear here for quick access.',
+      emptyAction: actions.isEmpty
+          ? null
+          : Wrap(
+              alignment: WrapAlignment.center,
+              spacing: HikariSpacing.sm,
+              runSpacing: HikariSpacing.sm,
+              children: actions,
+            ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return AsyncStateView(
+      status: AsyncViewStatus.error,
+      contentBuilder: (_) => const SizedBox.shrink(),
+      errorTitle: 'Could not load your Library',
+      errorMessage: 'Home could not refresh your saved media. Retry the Library load or keep exploring while the rest of Hikari remains available.',
+      onRetry: _model.reload,
     );
   }
 }

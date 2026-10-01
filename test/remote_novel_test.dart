@@ -228,7 +228,7 @@ void main() {
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Search novels'));
+    await tester.tap(find.text('Browse novels'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'novel');
     await tester.tap(find.text('Search'));
