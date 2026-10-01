@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-AniList discovery provides external metadata, not a `MediaSource`, source reference, or reading/playback capability. Catalog identity remains provider-qualified and opaque. Opening a catalog item starts explicit title-seeded search through configured sources; selecting a source result remains required before opening actual content. Catalog results never enter the library or progress store directly.
+AniList discovery and search provide external metadata, not a `MediaSource`, source reference, or reading/playback capability. Catalog identity remains provider-qualified and opaque. Opening a catalog item starts explicit title-seeded search through configured sources; selecting a source result remains required before opening actual content. Catalog results never enter the library or progress store directly.
 
 Progress and Library remain independent. Home Continue can only resume incomplete records by joining their `SourceMediaRef` against saved Library media. Chapter-parent resume is deferred until progress records can resolve a series-level parent without changing current persistence semantics.
 

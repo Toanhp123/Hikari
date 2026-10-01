@@ -2,7 +2,7 @@
 
 Hikari is a cross-platform Flutter media hub for movies, series, anime, manga/comics/webtoon, and novels.
 
-Primary targets are Android, Windows, and iOS, with Android as the first-priority platform. The current baseline includes Android local media, source-keyed SQLite Library/Progress, read-only AniList catalog discovery, and Android runtimes that adapt trusted Mihon-compatible manga extensions plus reviewed bundled LNReader-compatible novel plugins into the same source capabilities. Catalog metadata is intentionally separate from playable/readable sources: Watch/Read starts a source search and requires the user to choose real content. Remote providers come from compatible extensions; no built-in MangaDex provider is shipped. Without a compatible source, remote search is unavailable while catalog, local, and existing library functionality remain available.
+Primary targets are Android, Windows, and iOS, with Android as the first-priority platform. The current baseline includes Android local media, source-keyed SQLite Library/Progress, read-only AniList catalog discovery/search/details, and Android runtimes that adapt trusted Mihon-compatible manga extensions plus reviewed bundled LNReader-compatible novel plugins into the same source capabilities. Catalog metadata is intentionally separate from playable/readable sources: the primary Search tab searches catalog metadata, while Watch/Read starts a source search and requires the user to choose real content. Remote providers come from compatible extensions; no built-in MangaDex provider is shipped. Without a compatible source, remote search is unavailable while catalog, local, and existing library functionality remain available.
 
 ## Project documentation
 

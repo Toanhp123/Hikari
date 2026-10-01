@@ -134,6 +134,71 @@ void main() {
     }
   });
 
+  test('search uses search match and media-type filters', () async {
+    for (final testCase in <(MediaType?, Map<String, Object?>)>[
+      (null, const {}),
+      (MediaType.anime, const {'type': 'ANIME'}),
+      (MediaType.manga, const {'type': 'MANGA', 'formatNot': 'NOVEL'}),
+      (MediaType.lightNovel, const {'type': 'MANGA', 'format': 'NOVEL'}),
+    ]) {
+      late Map<String, dynamic> request;
+      final provider = AniListCatalogProvider(
+        post: (_, body) async {
+          request = jsonDecode(body) as Map<String, dynamic>;
+          return AniListHttpResponse(
+            200,
+            jsonEncode({
+              'data': {
+                'Page': {
+                  'media': [_row(1, 'ANIME', 'Match')],
+                },
+              },
+            }),
+          );
+        },
+      );
+      addTearDown(provider.close);
+
+      final result = await provider.search('  Match  ', type: testCase.$1);
+
+      expect(result.single.title, 'Match');
+      final query = request['query'] as String;
+      expect(query, contains('search: \$search'));
+      expect(query, contains('sort: SEARCH_MATCH'));
+      expect(query, contains('isAdult: false'));
+      expect(request['variables'], {'search': 'Match', ...testCase.$2});
+    }
+  });
+
+  test('catalog search reports GraphQL failure instead of empty results', () async {
+    final provider = AniListCatalogProvider(
+      post: (_, _) async => const AniListHttpResponse(
+        200,
+        '{"data":{"Page":{"media":[]}},"errors":[{"message":"search failed"}]}',
+      ),
+    );
+    addTearDown(provider.close);
+
+    await expectLater(
+      provider.search('Frieren'),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('empty catalog search does not call AniList', () async {
+    var requests = 0;
+    final provider = AniListCatalogProvider(
+      post: (_, _) async {
+        requests++;
+        return const AniListHttpResponse(200, '{}');
+      },
+    );
+    addTearDown(provider.close);
+
+    expect(await provider.search('   '), isEmpty);
+    expect(requests, 0);
+  });
+
   test(
     'details normalize enum values, titles, year and authors safely',
     () async {

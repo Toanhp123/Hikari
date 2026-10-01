@@ -50,6 +50,10 @@ final class _FakeCatalogProvider implements CatalogProvider {
       CatalogDiscovery(sections: const {});
 
   @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) {
     loadDetailsCalls++;
     return onLoadDetails(id);

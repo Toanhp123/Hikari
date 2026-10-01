@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
 void main() {
@@ -48,6 +49,10 @@ final class _TrackedCatalogProvider implements CatalogProvider {
   @override
   Future<CatalogDiscovery> discover() async =>
       CatalogDiscovery(sections: const {});
+
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
 
   @override
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;

@@ -112,6 +112,7 @@ abstract interface class CatalogProvider {
   String get id;
 
   Future<CatalogDiscovery> discover();
+  Future<List<CatalogEntry>> search(String query, {MediaType? type});
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id);
   Future<void> close();
 }

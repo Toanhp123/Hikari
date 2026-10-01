@@ -164,6 +164,10 @@ final class _Provider implements CatalogProvider {
   Future<CatalogDiscovery> discover() => _onDiscover();
 
   @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) =>
       _onLoadDetails(id);
 

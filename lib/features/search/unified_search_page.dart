@@ -25,7 +25,6 @@ class UnifiedSearchPage extends StatefulWidget {
     this.library,
     this.initialQuery = '',
     this.initialFilter = SearchMediaTypeFilter.all,
-    this.catalogRevision = 0,
   });
 
   final void Function(BuildContext, Media) openMedia;
@@ -35,7 +34,6 @@ class UnifiedSearchPage extends StatefulWidget {
   final LibraryRepository? library;
   final String initialQuery;
   final SearchMediaTypeFilter initialFilter;
-  final int catalogRevision;
 
   @override
   State<UnifiedSearchPage> createState() => _UnifiedSearchPageState();
@@ -58,14 +56,6 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
     );
     if (widget.initialQuery.trim().isNotEmpty) {
       _model.search(widget.initialQuery);
-    }
-  }
-
-  @override
-  void didUpdateWidget(UnifiedSearchPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.catalogRevision != widget.catalogRevision) {
-      _model.refreshLocalCatalog();
     }
   }
 

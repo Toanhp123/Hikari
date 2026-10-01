@@ -203,12 +203,6 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
 
   Future<void> retry() => search(_state.query);
 
-  /// Invalidates the session-local SAF catalog after a folder change or rescan.
-  Future<void> refreshLocalCatalog() async {
-    _localCatalogFuture = null;
-    if (_state.query.isNotEmpty) await search(_state.query);
-  }
-
   Iterable<Future<_SearchBatch>> _mangaTasks(String query) sync* {
     final search = _searchManga;
     if (search == null) return;

@@ -1,5 +1,6 @@
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
@@ -30,6 +31,7 @@ final class AppDependencies {
     required this.ownsCatalogProvider,
     required this.discoverCatalog,
     required this.loadCatalogEntryDetails,
+    required this.searchCatalog,
     required this.openMedia,
     required this.openMangaChapter,
     required this.searchManga,
@@ -68,6 +70,7 @@ final class AppDependencies {
       ownsCatalogProvider: catalogProvider == null || ownsCatalogProvider,
       discoverCatalog: DiscoverCatalog(resolvedCatalogProvider),
       loadCatalogEntryDetails: LoadCatalogEntryDetails(resolvedCatalogProvider),
+      searchCatalog: SearchCatalog(resolvedCatalogProvider),
       openMedia: OpenMedia(sourceRegistry, progressRepository),
       openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
       searchManga: SearchManga(sourceRegistry),
@@ -83,6 +86,7 @@ final class AppDependencies {
   final CatalogProvider catalogProvider;
   final DiscoverCatalog discoverCatalog;
   final LoadCatalogEntryDetails loadCatalogEntryDetails;
+  final SearchCatalog searchCatalog;
   final OpenMedia openMedia;
   final OpenMangaChapter openMangaChapter;
   final SearchManga searchManga;

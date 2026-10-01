@@ -112,6 +112,40 @@ final class AniListCatalogProvider implements CatalogProvider {
   }
 
   @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async {
+    final normalized = query.trim();
+    if (normalized.isEmpty) return const [];
+
+    const fields =
+        'id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity title { english romaji native } coverImage { large }';
+    final request =
+        r'''query($search: String!, $type: MediaType, $format: MediaFormat, $formatNot: MediaFormat) { Page(perPage: 30) { media(search: $search type: $type format: $format format_not: $formatNot sort: SEARCH_MATCH isAdult: false) { '''
+        '$fields } } }';
+    final variables = <String, Object?>{
+      'search': normalized,
+      ...switch (type) {
+        MediaType.anime => {'type': 'ANIME'},
+        MediaType.manga => {'type': 'MANGA', 'formatNot': 'NOVEL'},
+        MediaType.lightNovel => {'type': 'MANGA', 'format': 'NOVEL'},
+        null => const <String, Object?>{},
+      },
+    };
+
+    final response = await _request(request, variables: variables);
+    final rows = _asMap(_asMap(response['data'])?['Page'])?['media'];
+    final errors = _errors(response['errors']);
+    if (rows is! List) {
+      if (errors.isNotEmpty) throw FormatException(errors.join(' '));
+      throw const FormatException('Catalog search response is invalid.');
+    }
+    if (rows.isEmpty && errors.isNotEmpty) {
+      throw FormatException(errors.join(' '));
+    }
+
+    return List.unmodifiable(rows.map(_entry).whereType<CatalogEntry>());
+  }
+
+  @override
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async {
     final numericId = int.tryParse(id.value);
     if (id.provider != this.id || numericId == null || numericId <= 0) {

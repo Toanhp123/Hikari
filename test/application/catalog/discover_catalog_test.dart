@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
 
 void main() {
   test('DiscoverCatalog delegates discovery to provider', () async {
@@ -29,6 +30,10 @@ final class _FakeCatalogProvider implements CatalogProvider {
     discoverCalls++;
     return onDiscover();
   }
+
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
 
   @override
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;

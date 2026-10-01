@@ -11,6 +11,7 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/catalog/catalog_search_page.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
@@ -116,7 +117,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             MediaType.manga => SearchMediaTypeFilter.manga,
             MediaType.lightNovel => SearchMediaTypeFilter.novel,
           },
-          catalogRevision: _localCatalogRevision,
         ),
       ),
     );
@@ -331,13 +331,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                     )
                   : null,
             ),
-            AppTab.search: UnifiedSearchPage(
-              openMedia: _openMedia,
-              library: libraryRepository,
-              searchManga: _dependencies.searchManga,
-              searchNovels: _dependencies.searchNovels,
-              scanLocalMedia: localSource.scanSelectedRoot,
-              catalogRevision: _localCatalogRevision,
+            AppTab.search: CatalogSearchPage(
+              searchCatalog: _dependencies.searchCatalog,
+              openDetail: _openCatalogDetail,
             ),
             AppTab.local: LocalMediaPage(
               scanSelectedRoot: localSource.scanSelectedRoot,

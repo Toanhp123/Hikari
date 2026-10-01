@@ -246,6 +246,10 @@ final class _CatalogProvider implements CatalogProvider {
     },
   );
   @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
   @override
   Future<void> close() async {}

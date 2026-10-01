@@ -169,27 +169,19 @@ Novels
 
 ## 5.2 Search
 
-Search cần có khả năng phát triển từ:
+Search chính của app là catalog search: người dùng tìm metadata trung tính trước, mở Catalog Detail, rồi mới chọn source thật khi Watch/Read.
 
 ```text
-search trong một source
+Search tab
+  → Catalog search
+  → Catalog Detail
+  → source search
+  → Media + SourceMediaRef
 ```
 
-đến:
+Source search vẫn hợp nhất local, manga extensions và novel plugins theo capability hiện có; kết quả source dùng domain `Media` chung thay vì để UI phụ thuộc trực tiếp vào dữ liệu provider.
 
-```text
-search nhiều source
-```
-
-và cuối cùng:
-
-```text
-unified search
-```
-
-Search result phải sử dụng domain model chung thay vì để UI phụ thuộc trực tiếp vào dữ liệu riêng của từng provider.
-
-Catalog discovery là metadata flow riêng, không phải content source. AniList hiện cung cấp discovery/details cho Home; khi người dùng chọn Watch/Read, Hikari seed title vào unified source search và chỉ mở nội dung sau khi người dùng chọn một source result thật. Chi tiết boundary nằm tại [CATALOG](architecture/CATALOG.md).
+Catalog là metadata flow riêng, không phải content source. AniList hiện cung cấp discovery/search/details; Catalog identity không được chuyển trực tiếp thành source identity. Khi người dùng chọn Watch/Read, Hikari seed title vào source search và chỉ mở nội dung sau khi người dùng chọn một source result thật. Chi tiết boundary nằm tại [CATALOG](architecture/CATALOG.md).
 
 ---
 
@@ -1029,7 +1021,7 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
   [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
 - remote novel có search phân trang, details/chapter list, rich HTML/resources và Library/progress qua capability riêng; không ép remote chapter thành plain text;
-- AniList catalog discovery/details đã có boundary riêng ngoài `SourceRegistry`; catalog identity không phải `SourceMediaRef`, không được lưu trực tiếp vào Library/Progress, và Watch/Read đi qua title-seeded source search. Xem [CATALOG](architecture/CATALOG.md) và [ADR-011](decisions/ADR-011-catalog-content-boundary.md);
+- AniList catalog discovery/search/details đã có boundary riêng ngoài `SourceRegistry`; catalog identity không phải `SourceMediaRef`, không được lưu trực tiếp vào Library/Progress, và Watch/Read đi qua title-seeded source search. Xem [CATALOG](architecture/CATALOG.md) và [ADR-011](decisions/ADR-011-catalog-content-boundary.md);
 - application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
   `OpenNovelChapter`, `SearchNovels`, `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
   thể đăng ký mà không thêm provider-specific branch vào open workflow; Android
