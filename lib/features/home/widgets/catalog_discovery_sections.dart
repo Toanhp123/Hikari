@@ -132,7 +132,7 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
   );
 
   String _sectionTitle(CatalogSection section) => switch (section) {
-    CatalogSection.featured => 'Featured this season',
+    CatalogSection.featured => 'Featured',
     CatalogSection.trending => 'Trending',
     CatalogSection.popularAnime => 'Popular Anime',
     CatalogSection.popularManga => 'Popular Manga',

@@ -6,4 +6,4 @@ Progress and Library remain independent. Home Continue joins progress records on
 
 Catalog providers are composed separately from `SourceRegistry`. AniList provider owns its HTTP client when default-composed and is closed by `AppDependencies`; injected providers are caller-owned unless ownership is explicitly transferred.
 
-GraphQL discovery batches bounded sections in one request to respect AniList rate limits. Partial sections and details remain visible with warnings when valid response data exists. A detail response with no media and GraphQL errors is a retryable failure, not a missing entry. Discovery queries exclude adult media.
+GraphQL discovery batches bounded sections in one request to respect AniList rate limits. Featured is a balanced spotlight built from separate trending Anime, Manga, and Light Novel candidate pools, capped equally per media type and interleaved without a custom cross-type score. Partial sections and details remain visible with warnings when valid response data exists. A detail response with no media and GraphQL errors is a retryable failure, not a missing entry. Discovery queries exclude adult media.

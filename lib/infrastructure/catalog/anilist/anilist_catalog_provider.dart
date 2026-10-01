@@ -24,6 +24,8 @@ final class AniListCatalogProvider implements CatalogProvider {
   }
 
   static const _endpoint = 'https://graphql.anilist.co';
+  static const _featuredCandidatePoolSize = 4;
+  static const _featuredEntriesPerType = 2;
   late final AniListHttpPost _post;
   final DateTime Function() _clock;
   HttpClient? _client;
@@ -57,8 +59,9 @@ final class AniListCatalogProvider implements CatalogProvider {
     final season = _season(now.month);
     const fields =
         'id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity isAdult title { english romaji native } coverImage { large }';
+    const featuredFields = '$fields bannerImage genres';
     final query =
-        '''query { trending: Page(perPage: 10) { media(sort: TRENDING_DESC isAdult: false) { $fields } } anime: Page(perPage: 10) { media(type: ANIME sort: POPULARITY_DESC isAdult: false) { $fields } } manga: Page(perPage: 10) { media(type: MANGA format_not: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } novels: Page(perPage: 10) { media(type: MANGA format: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } seasonal: Page(perPage: 10) { media(type: ANIME season: $season seasonYear: $year sort: POPULARITY_DESC isAdult: false) { $fields } } }''';
+        '''query { featuredAnime: Page(perPage: $_featuredCandidatePoolSize) { media(type: ANIME sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } featuredManga: Page(perPage: $_featuredCandidatePoolSize) { media(type: MANGA format_not: NOVEL sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } featuredNovels: Page(perPage: $_featuredCandidatePoolSize) { media(type: MANGA format: NOVEL sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } trending: Page(perPage: 10) { media(sort: TRENDING_DESC isAdult: false) { $fields } } anime: Page(perPage: 10) { media(type: ANIME sort: POPULARITY_DESC isAdult: false) { $fields } } manga: Page(perPage: 10) { media(type: MANGA format_not: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } novels: Page(perPage: 10) { media(type: MANGA format: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } seasonal: Page(perPage: 10) { media(type: ANIME season: $season seasonYear: $year sort: POPULARITY_DESC isAdult: false) { $fields } } }''';
     final response = await _request(query);
     final root = _asMap(response['data']);
     if (root == null) {
@@ -66,6 +69,36 @@ final class AniListCatalogProvider implements CatalogProvider {
     }
     final warnings = _errors(response['errors']);
     final sections = <CatalogSection, List<CatalogEntry>>{};
+
+    List<CatalogEntry> readSection(
+      String key, {
+      bool includeRichMetadata = false,
+    }) {
+      final rows = _asMap(root[key])?['media'];
+      if (rows is! List) {
+        warnings.add('Some catalog sections are unavailable.');
+        return const [];
+      }
+      final items = <CatalogEntry>[];
+      for (final row in rows) {
+        final catalogEntry = _entry(
+          row,
+          includeRichMetadata: includeRichMetadata,
+        );
+        if (catalogEntry == null) {
+          warnings.add('Some invalid catalog entries were omitted.');
+        } else {
+          items.add(catalogEntry);
+        }
+      }
+      return List.unmodifiable(items);
+    }
+
+    sections[CatalogSection.featured] = _balancedFeatured([
+      readSection('featuredAnime', includeRichMetadata: true),
+      readSection('featuredManga', includeRichMetadata: true),
+      readSection('featuredNovels', includeRichMetadata: true),
+    ]);
     for (final entry in const {
       'trending': CatalogSection.trending,
       'anime': CatalogSection.popularAnime,
@@ -73,24 +106,8 @@ final class AniListCatalogProvider implements CatalogProvider {
       'novels': CatalogSection.popularLightNovels,
       'seasonal': CatalogSection.seasonalAnime,
     }.entries) {
-      final rows = _asMap(root[entry.key])?['media'];
-      if (rows is! List) {
-        warnings.add('Some catalog sections are unavailable.');
-        sections[entry.value] = const [];
-        continue;
-      }
-      final items = <CatalogEntry>[];
-      for (final row in rows) {
-        final entry = _entry(row);
-        if (entry == null) {
-          warnings.add('Some invalid catalog entries were omitted.');
-        } else {
-          items.add(entry);
-        }
-      }
-      sections[entry.value] = List.unmodifiable(items);
+      sections[entry.value] = readSection(entry.key);
     }
-    sections[CatalogSection.featured] = sections[CatalogSection.seasonalAnime]!;
     return CatalogDiscovery(sections: sections, warnings: warnings.toSet());
   }
 
@@ -109,7 +126,7 @@ final class AniListCatalogProvider implements CatalogProvider {
       throw FormatException(warnings.join(' '));
     }
     if (item == null || item['id'] != numericId) return null;
-    final entry = _entry(item, extra: true);
+    final entry = _entry(item, includeRichMetadata: true);
     if (entry == null) return null;
     final relations = <CatalogRelatedEntry>[];
     final edges = _asMap(item['relations'])?['edges'];
@@ -170,7 +187,7 @@ final class AniListCatalogProvider implements CatalogProvider {
     return decoded;
   }
 
-  CatalogEntry? _entry(Object? value, {bool extra = false}) {
+  CatalogEntry? _entry(Object? value, {bool includeRichMetadata = false}) {
     final raw = _asMap(value);
     if (raw == null) return null;
     final id = raw['id'];
@@ -201,12 +218,12 @@ final class AniListCatalogProvider implements CatalogProvider {
       title: title,
       type: type,
       coverUrl: cover is String ? cover : null,
-      bannerUrl: extra && raw['bannerImage'] is String
+      bannerUrl: includeRichMetadata && raw['bannerImage'] is String
           ? raw['bannerImage'] as String
           : null,
-      synonyms: extra ? _strings(raw['synonyms']) : const [],
+      synonyms: includeRichMetadata ? _strings(raw['synonyms']) : const [],
       alternateTitles: alternates,
-      genres: extra ? _strings(raw['genres']) : const [],
+      genres: includeRichMetadata ? _strings(raw['genres']) : const [],
       averageScore: _integer(raw['averageScore']),
       popularity: _integer(raw['popularity']),
       format: _format(formatName),
@@ -216,9 +233,19 @@ final class AniListCatalogProvider implements CatalogProvider {
       episodes: _integer(raw['episodes']),
       chapters: _integer(raw['chapters']),
       volumes: _integer(raw['volumes']),
-      studios: extra ? _studioNames(raw['studios']) : const [],
-      staff: extra ? _staffNames(raw['staff']) : const [],
+      studios: includeRichMetadata ? _studioNames(raw['studios']) : const [],
+      staff: includeRichMetadata ? _staffNames(raw['staff']) : const [],
     );
+  }
+
+  static List<CatalogEntry> _balancedFeatured(List<List<CatalogEntry>> pools) {
+    final featured = <CatalogEntry>[];
+    for (var index = 0; index < _featuredEntriesPerType; index++) {
+      for (final pool in pools) {
+        if (index < pool.length) featured.add(pool[index]);
+      }
+    }
+    return List.unmodifiable(featured);
   }
 
   static Map<Object?, Object?>? _asMap(Object? value) =>

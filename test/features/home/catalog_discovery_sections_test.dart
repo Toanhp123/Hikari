@@ -33,7 +33,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     for (final title in [
-      'Featured this season',
+      'Featured',
       'Trending',
       'Popular Anime',
       'Popular Manga',
@@ -78,7 +78,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Featured this season'), findsOneWidget);
+    expect(find.text('Featured'), findsOneWidget);
     expect(find.text('Anime A'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(

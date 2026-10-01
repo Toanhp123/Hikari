@@ -45,7 +45,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(find.byType(ContinueShelf)).dy,
-      lessThan(tester.getTopLeft(find.text('Featured this season')).dy),
+      lessThan(tester.getTopLeft(find.text('Featured')).dy),
     );
   });
 
@@ -97,13 +97,13 @@ void main() {
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Pick up where you left off'), findsOneWidget);
     expect(find.text('Chapter 1050'), findsOneWidget);
-    expect(find.text('Featured this season'), findsOneWidget);
+    expect(find.text('Featured'), findsOneWidget);
     expect(find.text('Catalog show'), findsOneWidget);
     expect(find.text('Recently added'), findsOneWidget);
 
     expect(
       tester.getTopLeft(find.byType(ContinueShelf)).dy,
-      lessThan(tester.getTopLeft(find.text('Featured this season')).dy),
+      lessThan(tester.getTopLeft(find.text('Featured')).dy),
     );
 
     await tester.tap(find.text('Manga'));

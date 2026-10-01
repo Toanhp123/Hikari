@@ -1,17 +1,21 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/infrastructure/catalog/anilist/anilist_catalog_provider.dart';
 
 void main() {
   test(
-    'discovery batches valid query sections and surfaces partial warnings',
+    'discovery batches sections and builds balanced cross-media Featured',
     () async {
       late String body;
+      var requests = 0;
       final provider = AniListCatalogProvider(
         clock: () => DateTime.utc(2026, 3, 31),
         post: (_, value) async {
+          requests++;
           body = value;
           return AniListHttpResponse(
             200,
@@ -20,43 +24,72 @@ void main() {
                 {'message': 'section failed'},
               ],
               'data': {
-                'trending': {
+                'featuredAnime': {
                   'media': [
-                    {
-                      'id': 8,
-                      'type': 'ANIME',
-                      'title': {'romaji': 'Show'},
-                    },
+                    _row(101, 'ANIME', 'Anime 1', banner: true),
+                    _row(102, 'ANIME', 'Anime 2'),
+                    _row(103, 'ANIME', 'Anime 3'),
                   ],
                 },
+                'featuredManga': {
+                  'media': [_row(201, 'MANGA', 'Manga 1')],
+                },
+                'featuredNovels': {
+                  'media': [
+                    _row(301, 'MANGA', 'Novel 1', format: 'NOVEL'),
+                    _row(302, 'MANGA', 'Novel 2', format: 'NOVEL'),
+                  ],
+                },
+                'trending': {'media': <Object?>[]},
                 'anime': {'media': <Object?>[]},
                 'manga': {'media': <Object?>[]},
                 'novels': {'media': <Object?>[]},
-                'seasonal': {
-                  'media': [
-                    {
-                      'id': 8,
-                      'type': 'ANIME',
-                      'title': {'romaji': 'Show'},
-                    },
-                  ],
-                },
+                'seasonal': {'media': <Object?>[]},
               },
             }),
           );
         },
       );
       final result = await provider.discover();
-      expect(result.sections[CatalogSection.featured]!.single.title, 'Show');
+      expect(requests, 1);
+      final featured = result.sections[CatalogSection.featured]!;
+      expect(featured.map((entry) => entry.title), [
+        'Anime 1',
+        'Manga 1',
+        'Novel 1',
+        'Anime 2',
+        'Novel 2',
+      ]);
+      expect(featured.map((entry) => entry.type), [
+        MediaType.anime,
+        MediaType.manga,
+        MediaType.lightNovel,
+        MediaType.anime,
+        MediaType.lightNovel,
+      ]);
+      expect(featured.first.bannerUrl, 'https://example/banner/101');
+      expect(featured.first.genres, ['Action']);
+      expect(featured.map((entry) => entry.title), isNot(contains('Anime 3')));
       expect(result.sections[CatalogSection.popularLightNovels], isEmpty);
       expect(result.warnings, contains(contains('section failed')));
+
       final query = jsonDecode(body)['query'] as String;
-      expect(query, isNot(contains('type_in')));
+      expect(query, contains('featuredAnime: Page(perPage: 4)'));
+      expect(query, contains('featuredManga: Page(perPage: 4)'));
+      expect(query, contains('featuredNovels: Page(perPage: 4)'));
+      expect(query, contains('type: ANIME sort: [TRENDING_DESC, SCORE_DESC]'));
+      expect(
+        query,
+        contains(
+          'type: MANGA format_not: NOVEL sort: [TRENDING_DESC, SCORE_DESC]',
+        ),
+      );
+      expect(
+        query,
+        contains('type: MANGA format: NOVEL sort: [TRENDING_DESC, SCORE_DESC]'),
+      );
       expect(query, contains('season: WINTER seasonYear: 2026'));
-      expect(query, contains('format: NOVEL'));
-      expect(query, contains('format_not: NOVEL'));
-      expect(query, contains('TRENDING_DESC'));
-      expect(query, isNot(contains('featured:')));
+      expect(query, isNot(contains('type_in')));
       expect(query, isNot(contains('isAdult: true')));
       await provider.close();
     },
@@ -82,6 +115,9 @@ void main() {
             200,
             jsonEncode({
               'data': {
+                'featuredAnime': {'media': <Object?>[]},
+                'featuredManga': {'media': <Object?>[]},
+                'featuredNovels': {'media': <Object?>[]},
                 'seasonal': {'media': <Object?>[]},
                 'trending': {'media': <Object?>[]},
                 'anime': {'media': <Object?>[]},
@@ -231,3 +267,18 @@ void main() {
     await expectLater(limited.discover(), throwsA(isA<Exception>()));
   });
 }
+
+Map<String, Object?> _row(
+  int id,
+  String type,
+  String title, {
+  String? format,
+  bool banner = false,
+}) => {
+  'id': id,
+  'type': type,
+  'format': ?format,
+  'title': {'romaji': title},
+  if (banner) 'bannerImage': 'https://example/banner/$id',
+  if (banner) 'genres': ['Action'],
+};
