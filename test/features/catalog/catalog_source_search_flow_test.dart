@@ -17,8 +17,8 @@ void main() {
     testWidgets('Home detail opens title-seeded ${type.name} source search', (
       tester,
     ) async {
-      final media = CatalogMedia(
-        id: const CatalogMediaId(provider: 'test', value: '1'),
+      final entry = CatalogEntry(
+        id: const CatalogEntryId(provider: 'test', value: '1'),
         title: 'Catalog title',
         type: type,
       );
@@ -30,10 +30,10 @@ void main() {
         catalogProvider: _Provider(
           onDiscover: () async => CatalogDiscovery(
             sections: {
-              CatalogSection.featured: [media],
+              CatalogSection.featured: [entry],
             },
           ),
-          onDetails: (_) async => CatalogDetails(media: media),
+          onLoadDetails: (_) async => CatalogEntryDetails(entry: entry),
         ),
       );
       addTearDown(() async {
@@ -102,13 +102,13 @@ final class _LocalCatalog extends LocalMediaSource {
 final class _Provider implements CatalogProvider {
   _Provider({
     Future<CatalogDiscovery> Function()? onDiscover,
-    Future<CatalogDetails?> Function(CatalogMediaId)? onDetails,
+    Future<CatalogEntryDetails?> Function(CatalogEntryId)? onLoadDetails,
   }) : _onDiscover =
            onDiscover ?? (() async => CatalogDiscovery(sections: const {})),
-       _onDetails = onDetails ?? ((_) async => null);
+       _onLoadDetails = onLoadDetails ?? ((_) async => null);
 
   final Future<CatalogDiscovery> Function() _onDiscover;
-  final Future<CatalogDetails?> Function(CatalogMediaId) _onDetails;
+  final Future<CatalogEntryDetails?> Function(CatalogEntryId) _onLoadDetails;
 
   @override
   String get id => 'test';
@@ -117,7 +117,8 @@ final class _Provider implements CatalogProvider {
   Future<CatalogDiscovery> discover() => _onDiscover();
 
   @override
-  Future<CatalogDetails?> details(CatalogMediaId id) => _onDetails(id);
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) =>
+      _onLoadDetails(id);
 
   @override
   Future<void> close() async {}

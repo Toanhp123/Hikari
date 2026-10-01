@@ -65,7 +65,7 @@ final class AniListCatalogProvider implements CatalogProvider {
       throw const FormatException('Catalog response has no data object.');
     }
     final warnings = _errors(response['errors']);
-    final sections = <CatalogSection, List<CatalogMedia>>{};
+    final sections = <CatalogSection, List<CatalogEntry>>{};
     for (final entry in const {
       'trending': CatalogSection.trending,
       'anime': CatalogSection.popularAnime,
@@ -79,13 +79,13 @@ final class AniListCatalogProvider implements CatalogProvider {
         sections[entry.value] = const [];
         continue;
       }
-      final items = <CatalogMedia>[];
+      final items = <CatalogEntry>[];
       for (final row in rows) {
-        final media = _media(row);
-        if (media == null) {
+        final entry = _entry(row);
+        if (entry == null) {
           warnings.add('Some invalid catalog entries were omitted.');
         } else {
-          items.add(media);
+          items.add(entry);
         }
       }
       sections[entry.value] = List.unmodifiable(items);
@@ -95,7 +95,7 @@ final class AniListCatalogProvider implements CatalogProvider {
   }
 
   @override
-  Future<CatalogDetails?> details(CatalogMediaId id) async {
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async {
     final numericId = int.tryParse(id.value);
     if (id.provider != this.id || numericId == null || numericId <= 0) {
       return null;
@@ -109,9 +109,9 @@ final class AniListCatalogProvider implements CatalogProvider {
       throw FormatException(warnings.join(' '));
     }
     if (item == null || item['id'] != numericId) return null;
-    final media = _media(item, extra: true);
-    if (media == null) return null;
-    final relations = <CatalogRelationMedia>[];
+    final entry = _entry(item, extra: true);
+    if (entry == null) return null;
+    final relations = <CatalogRelatedEntry>[];
     final edges = _asMap(item['relations'])?['edges'];
     if (edges is! List) {
       warnings.add('Related catalog entries are unavailable.');
@@ -125,23 +125,23 @@ final class AniListCatalogProvider implements CatalogProvider {
           );
           continue;
         }
-        final related = _media(relatedRaw);
-        if (related == null) {
+        final relatedEntry = _entry(relatedRaw);
+        if (relatedEntry == null) {
           warnings.add(
             'Some related entries were omitted because metadata was invalid.',
           );
           continue;
         }
         relations.add(
-          CatalogRelationMedia(
+          CatalogRelatedEntry(
             relation: _relation(edge['relationType']),
-            media: related,
+            entry: relatedEntry,
           ),
         );
       }
     }
-    return CatalogDetails(
-      media: media,
+    return CatalogEntryDetails(
+      entry: entry,
       description: _plain(item['description']),
       relations: relations,
       warnings: warnings.toSet(),
@@ -170,7 +170,7 @@ final class AniListCatalogProvider implements CatalogProvider {
     return decoded;
   }
 
-  CatalogMedia? _media(Object? value, {bool extra = false}) {
+  CatalogEntry? _entry(Object? value, {bool extra = false}) {
     final raw = _asMap(value);
     if (raw == null) return null;
     final id = raw['id'];
@@ -196,8 +196,8 @@ final class AniListCatalogProvider implements CatalogProvider {
           when value != title && value != _text(titles['romaji']))
         value,
     ];
-    return CatalogMedia(
-      id: CatalogMediaId(provider: this.id, value: '$id'),
+    return CatalogEntry(
+      id: CatalogEntryId(provider: this.id, value: '$id'),
       title: title,
       type: type,
       coverUrl: cover is String ? cover : null,

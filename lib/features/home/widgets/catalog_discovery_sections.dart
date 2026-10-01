@@ -9,11 +9,11 @@ class CatalogDiscoverySections extends StatefulWidget {
   const CatalogDiscoverySections({
     super.key,
     required this.discover,
-    required this.openDetails,
+    required this.openDetail,
   });
 
   final DiscoverCatalog discover;
-  final void Function(CatalogMedia media) openDetails;
+  final void Function(CatalogEntry entry) openDetail;
 
   @override
   State<CatalogDiscoverySections> createState() =>
@@ -103,17 +103,17 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
                   separatorBuilder: (_, _) =>
                       const SizedBox(width: HikariSpacing.md),
                   itemBuilder: (context, index) {
-                    final item = sections[section]![index];
+                    final entry = sections[section]![index];
                     return SizedBox(
                       width: 148,
                       child: Material(
                         color: Colors.transparent,
                         child: MediaPoster(
-                          title: item.title,
-                          imageUrl: item.coverUrl,
-                          subtitle: item.type.name,
-                          badgeText: item.type.name.toUpperCase(),
-                          onTap: () => widget.openDetails(item),
+                          title: entry.title,
+                          imageUrl: entry.coverUrl,
+                          subtitle: entry.type.name,
+                          badgeText: entry.type.name.toUpperCase(),
+                          onTap: () => widget.openDetail(entry),
                         ),
                       ),
                     );

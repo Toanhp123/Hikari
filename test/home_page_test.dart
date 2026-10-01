@@ -20,8 +20,8 @@ void main() {
       type: MediaType.manga,
       source: SourceMediaRef(sourceId: SourceId.local, itemId: 'resume'),
     );
-    final catalogItem = CatalogMedia(
-      id: const CatalogMediaId(provider: 'test', value: '1'),
+    final catalogItem = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: '1'),
       title: 'Catalog later',
       type: MediaType.anime,
     );
@@ -38,7 +38,7 @@ void main() {
             ),
           ],
           discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
-          openCatalogDetails: (_, _) {},
+          openCatalogDetail: (_, _) {},
         ),
       ),
     );
@@ -67,8 +67,8 @@ void main() {
       type: MediaType.manga,
       source: SourceMediaRef(sourceId: SourceId.local, itemId: 'op'),
     );
-    final catalogItem = CatalogMedia(
-      id: const CatalogMediaId(provider: 'test', value: '1'),
+    final catalogItem = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: '1'),
       title: 'Catalog show',
       type: MediaType.anime,
     );
@@ -88,7 +88,7 @@ void main() {
             ),
           ],
           discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
-          openCatalogDetails: (_, _) {},
+          openCatalogDetail: (_, _) {},
         ),
       ),
     );
@@ -236,7 +236,7 @@ final class _FakeLibraryRepository implements LibraryRepository {
 
 final class _CatalogProvider implements CatalogProvider {
   _CatalogProvider(this.item);
-  final CatalogMedia item;
+  final CatalogEntry item;
   @override
   String get id => 'test';
   @override
@@ -246,7 +246,7 @@ final class _CatalogProvider implements CatalogProvider {
     },
   );
   @override
-  Future<CatalogDetails?> details(CatalogMediaId id) async => null;
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
   @override
   Future<void> close() async {}
 }

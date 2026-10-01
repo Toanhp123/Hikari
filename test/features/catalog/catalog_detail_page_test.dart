@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/application/catalog/load_catalog_details.dart';
+import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
@@ -13,28 +13,28 @@ void main() {
   testWidgets(
     'catalog detail renders normalized fields and routes relations/search',
     (tester) async {
-      CatalogMedia? related;
-      CatalogMedia? searched;
-      final detail = CatalogDetails(
-        media: _anime,
+      CatalogEntry? related;
+      CatalogEntry? searched;
+      final detail = CatalogEntryDetails(
+        entry: _anime,
         description: 'Description',
         warnings: ['Some fields unavailable'],
         relations: [
-          CatalogRelationMedia(
+          CatalogRelatedEntry(
             relation: CatalogRelation.sequel,
-            media: _related,
+            entry: _related,
           ),
         ],
       );
       await tester.pumpWidget(
         _app(
           CatalogDetailPage(
-            initial: _anime,
-            loadDetails: LoadCatalogDetails(
-              _Provider(onDetails: (_) async => detail),
+            initialEntry: _anime,
+            loadDetails: LoadCatalogEntryDetails(
+              _Provider(onLoadDetails: (_) async => detail),
             ),
-            openRelated: (media) => related = media,
-            openSourceSearch: (media) => searched = media,
+            openRelated: (entry) => related = entry,
+            openSourceSearch: (entry) => searched = entry,
           ),
         ),
       );
@@ -75,19 +75,19 @@ void main() {
     tester,
   ) async {
     var calls = 0;
-    final failedAttempt = Completer<CatalogDetails?>();
+    final failedAttempt = Completer<CatalogEntryDetails?>();
     final provider = _Provider(
-      onDetails: (_) {
+      onLoadDetails: (_) {
         if (++calls == 1) return Future.value(null);
         if (calls == 2) return failedAttempt.future;
-        return Future.value(CatalogDetails(media: _anime));
+        return Future.value(CatalogEntryDetails(entry: _anime));
       },
     );
     await tester.pumpWidget(
       _app(
         CatalogDetailPage(
-          initial: _anime,
-          loadDetails: LoadCatalogDetails(provider),
+          initialEntry: _anime,
+          loadDetails: LoadCatalogEntryDetails(provider),
           openRelated: (_) {},
           openSourceSearch: (_) {},
         ),
@@ -114,11 +114,11 @@ void main() {
     expect(find.text('Watch'), findsOneWidget);
   });
 
-  testWidgets('manga detail exposes Read callback with CatalogMedia', (
+  testWidgets('manga detail exposes Read callback with CatalogEntry', (
     tester,
   ) async {
-    CatalogMedia? searched;
-    final manga = CatalogMedia(
+    CatalogEntry? searched;
+    final manga = CatalogEntry(
       id: _related.id,
       title: 'Book A',
       type: MediaType.manga,
@@ -127,12 +127,14 @@ void main() {
     await tester.pumpWidget(
       _app(
         CatalogDetailPage(
-          initial: manga,
-          loadDetails: LoadCatalogDetails(
-            _Provider(onDetails: (_) async => CatalogDetails(media: manga)),
+          initialEntry: manga,
+          loadDetails: LoadCatalogEntryDetails(
+            _Provider(
+              onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
+            ),
           ),
           openRelated: (_) {},
-          openSourceSearch: (media) => searched = media,
+          openSourceSearch: (entry) => searched = entry,
         ),
       ),
     );
@@ -147,8 +149,8 @@ void main() {
 Widget _app(Widget child) =>
     MaterialApp(theme: HikariTheme.darkTheme(), home: child);
 
-final _anime = CatalogMedia(
-  id: const CatalogMediaId(provider: 'test', value: '1'),
+final _anime = CatalogEntry(
+  id: const CatalogEntryId(provider: 'test', value: '1'),
   title: 'Anime A',
   type: MediaType.anime,
   coverUrl: 'https://example/cover',
@@ -166,8 +168,8 @@ final _anime = CatalogMedia(
   staff: ['Writer'],
 );
 
-final _related = CatalogMedia(
-  id: const CatalogMediaId(provider: 'test', value: '2'),
+final _related = CatalogEntry(
+  id: const CatalogEntryId(provider: 'test', value: '2'),
   title: 'Related series',
   type: MediaType.manga,
 );
@@ -175,13 +177,13 @@ final _related = CatalogMedia(
 final class _Provider implements CatalogProvider {
   _Provider({
     Future<CatalogDiscovery> Function()? onDiscover,
-    Future<CatalogDetails?> Function(CatalogMediaId)? onDetails,
+    Future<CatalogEntryDetails?> Function(CatalogEntryId)? onLoadDetails,
   }) : _onDiscover =
            onDiscover ?? (() async => CatalogDiscovery(sections: const {})),
-       _onDetails = onDetails ?? ((_) async => null);
+       _onLoadDetails = onLoadDetails ?? ((_) async => null);
 
   final Future<CatalogDiscovery> Function() _onDiscover;
-  final Future<CatalogDetails?> Function(CatalogMediaId) _onDetails;
+  final Future<CatalogEntryDetails?> Function(CatalogEntryId) _onLoadDetails;
 
   @override
   String get id => 'test';
@@ -190,7 +192,8 @@ final class _Provider implements CatalogProvider {
   Future<CatalogDiscovery> discover() => _onDiscover();
 
   @override
-  Future<CatalogDetails?> details(CatalogMediaId id) => _onDetails(id);
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) =>
+      _onLoadDetails(id);
 
   @override
   Future<void> close() async {}

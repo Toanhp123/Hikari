@@ -1,12 +1,12 @@
 import 'package:hikari/domain/media/media.dart';
 
-final class CatalogMediaId {
-  const CatalogMediaId({required this.provider, required this.value});
+final class CatalogEntryId {
+  const CatalogEntryId({required this.provider, required this.value});
   final String provider;
   final String value;
   @override
   bool operator ==(Object other) =>
-      other is CatalogMediaId &&
+      other is CatalogEntryId &&
       other.provider == provider &&
       other.value == value;
   @override
@@ -38,8 +38,8 @@ enum CatalogRelation {
   other,
 }
 
-final class CatalogMedia {
-  CatalogMedia({
+final class CatalogEntry {
+  CatalogEntry({
     required this.id,
     required this.title,
     required this.type,
@@ -64,7 +64,7 @@ final class CatalogMedia {
        genres = List.unmodifiable(genres),
        studios = List.unmodifiable(studios),
        staff = List.unmodifiable(staff);
-  final CatalogMediaId id;
+  final CatalogEntryId id;
   final String title;
   final MediaType type;
   final String? coverUrl, bannerUrl;
@@ -75,43 +75,43 @@ final class CatalogMedia {
   final CatalogSeason? season;
 }
 
-final class CatalogDetails {
-  CatalogDetails({
-    required this.media,
+final class CatalogEntryDetails {
+  CatalogEntryDetails({
+    required this.entry,
     this.description,
-    Iterable<CatalogRelationMedia> relations = const [],
+    Iterable<CatalogRelatedEntry> relations = const [],
     Iterable<String> warnings = const [],
   }) : relations = List.unmodifiable(relations),
        warnings = List.unmodifiable(warnings);
-  final CatalogMedia media;
+  final CatalogEntry entry;
   final String? description;
-  final List<CatalogRelationMedia> relations;
+  final List<CatalogRelatedEntry> relations;
   final List<String> warnings;
 }
 
 final class CatalogDiscovery {
   CatalogDiscovery({
-    required Map<CatalogSection, List<CatalogMedia>> sections,
+    required Map<CatalogSection, List<CatalogEntry>> sections,
     Iterable<String> warnings = const [],
   }) : sections = Map.unmodifiable({
          for (final entry in sections.entries)
-           entry.key: List<CatalogMedia>.unmodifiable(entry.value),
+           entry.key: List<CatalogEntry>.unmodifiable(entry.value),
        }),
        warnings = List.unmodifiable(warnings);
-  final Map<CatalogSection, List<CatalogMedia>> sections;
+  final Map<CatalogSection, List<CatalogEntry>> sections;
   final List<String> warnings;
 }
 
-final class CatalogRelationMedia {
-  const CatalogRelationMedia({required this.relation, required this.media});
+final class CatalogRelatedEntry {
+  const CatalogRelatedEntry({required this.relation, required this.entry});
   final CatalogRelation relation;
-  final CatalogMedia media;
+  final CatalogEntry entry;
 }
 
 abstract interface class CatalogProvider {
   String get id;
 
   Future<CatalogDiscovery> discover();
-  Future<CatalogDetails?> details(CatalogMediaId id);
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id);
   Future<void> close();
 }

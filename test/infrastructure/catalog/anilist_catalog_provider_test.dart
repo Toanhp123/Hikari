@@ -169,17 +169,19 @@ void main() {
           );
         },
       );
-      final details = await provider.details(
-        const CatalogMediaId(provider: 'anilist', value: '9'),
+      final details = await provider.loadDetails(
+        const CatalogEntryId(provider: 'anilist', value: '9'),
       );
-      expect(details!.media.format, CatalogFormat.oneShot);
-      expect(details.media.status, CatalogStatus.notYetReleased);
-      expect(details.media.year, 2025);
-      expect(details.media.alternateTitles, ['Romaji', 'Native']);
-      expect(details.media.studios, ['Studio']);
-      expect(details.media.staff, ['Author']);
+      expect(details!.entry.format, CatalogFormat.oneShot);
+      expect(details.entry.status, CatalogStatus.notYetReleased);
+      expect(details.entry.year, 2025);
+      expect(details.entry.alternateTitles, ['Romaji', 'Native']);
+      expect(details.entry.studios, ['Studio']);
+      expect(details.entry.staff, ['Author']);
       expect(details.description, 'Plain & text');
-      expect(details.relations.map((r) => r.media.id.value), ['10']);
+      expect(details.relations.map((relation) => relation.entry.id.value), [
+        '10',
+      ]);
       expect(details.warnings, contains(contains('one field failed')));
       expect(
         details.warnings,
@@ -198,7 +200,9 @@ void main() {
     );
     addTearDown(provider.close);
     await expectLater(
-      provider.details(const CatalogMediaId(provider: 'anilist', value: '9')),
+      provider.loadDetails(
+        const CatalogEntryId(provider: 'anilist', value: '9'),
+      ),
       throwsA(isA<FormatException>()),
     );
   });
@@ -215,8 +219,8 @@ void main() {
       ),
     );
     expect(
-      await provider.details(
-        const CatalogMediaId(provider: 'anilist', value: '9'),
+      await provider.loadDetails(
+        const CatalogEntryId(provider: 'anilist', value: '9'),
       ),
       isNull,
     );

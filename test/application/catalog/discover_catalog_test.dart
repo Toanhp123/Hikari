@@ -31,7 +31,7 @@ final class _FakeCatalogProvider implements CatalogProvider {
   }
 
   @override
-  Future<CatalogDetails?> details(CatalogMediaId id) async => null;
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
 
   @override
   Future<void> close() async {}

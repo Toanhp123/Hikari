@@ -26,7 +26,7 @@ void main() {
                 ),
               ),
             ),
-            openDetails: (_) {},
+            openDetail: (_) {},
           ),
         ),
       ),
@@ -65,7 +65,7 @@ void main() {
       _app(
         CatalogDiscoverySections(
           discover: DiscoverCatalog(provider),
-          openDetails: (_) {},
+          openDetail: (_) {},
         ),
       ),
     );
@@ -94,7 +94,7 @@ void main() {
               ),
             ),
           ),
-          openDetails: (_) {},
+          openDetail: (_) {},
         ),
       ),
     );
@@ -124,7 +124,7 @@ void main() {
       _app(
         CatalogDiscoverySections(
           discover: DiscoverCatalog(provider),
-          openDetails: (_) {},
+          openDetail: (_) {},
         ),
       ),
     );
@@ -139,8 +139,8 @@ void main() {
 Widget _app(Widget child) =>
     MaterialApp(theme: HikariTheme.darkTheme(), home: child);
 
-final _anime = CatalogMedia(
-  id: const CatalogMediaId(provider: 'test', value: '1'),
+final _anime = CatalogEntry(
+  id: const CatalogEntryId(provider: 'test', value: '1'),
   title: 'Anime A',
   type: MediaType.anime,
   coverUrl: 'https://example/cover',
@@ -149,13 +149,13 @@ final _anime = CatalogMedia(
 final class _Provider implements CatalogProvider {
   _Provider({
     Future<CatalogDiscovery> Function()? onDiscover,
-    Future<CatalogDetails?> Function(CatalogMediaId)? onDetails,
+    Future<CatalogEntryDetails?> Function(CatalogEntryId)? onLoadDetails,
   }) : _onDiscover =
            onDiscover ?? (() async => CatalogDiscovery(sections: const {})),
-       _onDetails = onDetails ?? ((_) async => null);
+       _onLoadDetails = onLoadDetails ?? ((_) async => null);
 
   final Future<CatalogDiscovery> Function() _onDiscover;
-  final Future<CatalogDetails?> Function(CatalogMediaId) _onDetails;
+  final Future<CatalogEntryDetails?> Function(CatalogEntryId) _onLoadDetails;
 
   @override
   String get id => 'test';
@@ -164,7 +164,8 @@ final class _Provider implements CatalogProvider {
   Future<CatalogDiscovery> discover() => _onDiscover();
 
   @override
-  Future<CatalogDetails?> details(CatalogMediaId id) => _onDetails(id);
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) =>
+      _onLoadDetails(id);
 
   @override
   Future<void> close() async {}

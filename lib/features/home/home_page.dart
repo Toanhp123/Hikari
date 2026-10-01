@@ -36,7 +36,7 @@ class HomePage extends StatefulWidget {
     this.library,
     this.progressRepository,
     this.discoverCatalog,
-    this.openCatalogDetails,
+    this.openCatalogDetail,
     this.catalogRevision = 0,
     this.continueItems = const [],
     this.onNavigateToSearch,
@@ -49,7 +49,7 @@ class HomePage extends StatefulWidget {
   final LibraryRepository? library;
   final ProgressRepository? progressRepository;
   final DiscoverCatalog? discoverCatalog;
-  final void Function(BuildContext, CatalogMedia)? openCatalogDetails;
+  final void Function(BuildContext, CatalogEntry)? openCatalogDetail;
   final int catalogRevision;
   final List<ContinueReadingItem> continueItems;
   final VoidCallback? onNavigateToSearch;
@@ -146,12 +146,12 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               if (widget.discoverCatalog != null &&
-                  widget.openCatalogDetails != null)
+                  widget.openCatalogDetail != null)
                 _boundedSliverBox(
                   CatalogDiscoverySections(
                     discover: widget.discoverCatalog!,
-                    openDetails: (media) =>
-                        widget.openCatalogDetails!(context, media),
+                    openDetail: (entry) =>
+                        widget.openCatalogDetail!(context, entry),
                   ),
                 ),
               if (state.progressError != null)

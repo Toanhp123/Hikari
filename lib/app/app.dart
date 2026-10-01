@@ -88,20 +88,20 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
-  void _openCatalogDetails(BuildContext context, CatalogMedia media) {
+  void _openCatalogDetail(BuildContext context, CatalogEntry entry) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CatalogDetailPage(
-          initial: media,
-          loadDetails: _dependencies.loadCatalogDetails,
-          openRelated: (related) => _openCatalogDetails(context, related),
+          initialEntry: entry,
+          loadDetails: _dependencies.loadCatalogEntryDetails,
+          openRelated: (related) => _openCatalogDetail(context, related),
           openSourceSearch: (item) => _openCatalogSourceSearch(context, item),
         ),
       ),
     );
   }
 
-  void _openCatalogSourceSearch(BuildContext context, CatalogMedia media) {
+  void _openCatalogSourceSearch(BuildContext context, CatalogEntry entry) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => UnifiedSearchPage(
@@ -110,8 +110,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           searchManga: _dependencies.searchManga,
           searchNovels: _dependencies.searchNovels,
           scanLocalMedia: _dependencies.localMediaSource.scanSelectedRoot,
-          initialQuery: media.title,
-          initialFilter: switch (media.type) {
+          initialQuery: entry.title,
+          initialFilter: switch (entry.type) {
             MediaType.anime => SearchMediaTypeFilter.anime,
             MediaType.manga => SearchMediaTypeFilter.manga,
             MediaType.lightNovel => SearchMediaTypeFilter.novel,
@@ -302,7 +302,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               library: libraryRepository,
               progressRepository: _dependencies.progressRepository,
               discoverCatalog: _dependencies.discoverCatalog,
-              openCatalogDetails: _openCatalogDetails,
+              openCatalogDetail: _openCatalogDetail,
               catalogRevision: _localCatalogRevision,
               onNavigateToSearch: () =>
                   _navigationController.selectTab(AppTab.search),
