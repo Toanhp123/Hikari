@@ -13,7 +13,7 @@ void main() {
         clock: () => DateTime.utc(2026, 3, 31),
         post: (_, value) async {
           body = value;
-          return CatalogHttpResponse(
+          return AniListHttpResponse(
             200,
             jsonEncode({
               'errors': [
@@ -78,7 +78,7 @@ void main() {
         clock: () => DateTime.utc(2026, entry.key, 1),
         post: (_, body) async {
           query = (jsonDecode(body)['query'] as String);
-          return CatalogHttpResponse(
+          return AniListHttpResponse(
             200,
             jsonEncode({
               'data': {
@@ -106,7 +106,7 @@ void main() {
           expect(body, contains('description(asHtml: true)'));
           expect(body, contains('staff(perPage: 12'));
           expect(body, contains('{ role node {'));
-          return CatalogHttpResponse(
+          return AniListHttpResponse(
             200,
             jsonEncode({
               'errors': [
@@ -191,7 +191,7 @@ void main() {
 
   test('detail GraphQL failure is not reported as a missing entry', () async {
     final provider = AnilistCatalogProvider(
-      post: (_, _) async => const CatalogHttpResponse(
+      post: (_, _) async => const AniListHttpResponse(
         200,
         '{"data":{"Media":null},"errors":[{"message":"upstream failed"}]}',
       ),
@@ -205,7 +205,7 @@ void main() {
 
   test('detail response must match requested id; rate limit throws', () async {
     final provider = AnilistCatalogProvider(
-      post: (_, _) async => CatalogHttpResponse(
+      post: (_, _) async => AniListHttpResponse(
         200,
         jsonEncode({
           'data': {
@@ -222,7 +222,7 @@ void main() {
     );
     await provider.close();
     final limited = AnilistCatalogProvider(
-      post: (_, _) async => const CatalogHttpResponse(429, '{}'),
+      post: (_, _) async => const AniListHttpResponse(429, '{}'),
     );
     await expectLater(limited.discover(), throwsA(isA<Exception>()));
   });

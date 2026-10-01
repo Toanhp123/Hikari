@@ -1,4 +1,5 @@
-import 'package:hikari/application/catalog/catalog_workflows.dart';
+import 'package:hikari/application/catalog/discover_catalog.dart';
+import 'package:hikari/application/catalog/load_catalog_details.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';

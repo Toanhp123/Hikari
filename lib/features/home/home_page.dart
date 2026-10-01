@@ -7,14 +7,13 @@ import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
-import 'package:hikari/application/catalog/catalog_workflows.dart';
-import 'package:hikari/features/catalog/catalog_pages.dart';
+import 'package:hikari/application/catalog/discover_catalog.dart';
+import 'package:hikari/features/home/widgets/catalog_discovery_sections.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/home/home_view_model.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
-import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 enum HomeFilterType {
   all('All'),
@@ -28,8 +27,8 @@ enum HomeFilterType {
 
 /// Home composes only real application data.
 ///
-/// Explicit discover items take precedence when a future browse capability
-/// supplies them. Otherwise the grid is backed by the user's live Library.
+/// Catalog discovery supplies external browse metadata when configured.
+/// The resume shelf and media grid are backed by live user progress and Library.
 class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
@@ -39,9 +38,7 @@ class HomePage extends StatefulWidget {
     this.discoverCatalog,
     this.openCatalogDetails,
     this.catalogRevision = 0,
-    this.featuredItems = const [],
     this.continueItems = const [],
-    this.trendingItems = const [],
     this.onNavigateToSearch,
     this.onNavigateToLibrary,
     this.openRemoteManga,
@@ -54,9 +51,7 @@ class HomePage extends StatefulWidget {
   final DiscoverCatalog? discoverCatalog;
   final void Function(BuildContext, CatalogMedia)? openCatalogDetails;
   final int catalogRevision;
-  final List<FeaturedHeroItem> featuredItems;
   final List<ContinueReadingItem> continueItems;
-  final List<Media> trendingItems;
   final VoidCallback? onNavigateToSearch;
   final VoidCallback? onNavigateToLibrary;
   final VoidCallback? openRemoteManga;
@@ -123,8 +118,7 @@ class _HomePageState extends State<HomePage> {
       builder: (context, _) {
         final colors = context.hikariColors;
         final state = _model.state;
-        final usesBrowseFeed = widget.trendingItems.isNotEmpty;
-        final feed = usesBrowseFeed ? widget.trendingItems : state.libraryItems;
+        final feed = state.libraryItems;
         final availableFilters = _availableFilters(feed);
         final effectiveFilter = availableFilters.contains(_selectedFilter)
             ? _selectedFilter
@@ -154,20 +148,10 @@ class _HomePageState extends State<HomePage> {
               if (widget.discoverCatalog != null &&
                   widget.openCatalogDetails != null)
                 _boundedSliverBox(
-                  CatalogHomeSections(
+                  CatalogDiscoverySections(
                     discover: widget.discoverCatalog!,
                     openDetails: (media) =>
                         widget.openCatalogDetails!(context, media),
-                  ),
-                ),
-              if (widget.featuredItems.isNotEmpty)
-                _boundedSliverBox(
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
-                    child: HeroCarousel(
-                      items: widget.featuredItems,
-                      onOpenMedia: widget.openMedia,
-                    ),
                   ),
                 ),
               if (state.progressError != null)
@@ -177,7 +161,7 @@ class _HomePageState extends State<HomePage> {
                     child: Text('Some resume progress could not load.'),
                   ),
                 ),
-              if (!usesBrowseFeed && state.error != null && feed.isNotEmpty)
+              if (state.error != null && feed.isNotEmpty)
                 _boundedSliverBox(
                   Padding(
                     padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
@@ -188,13 +172,11 @@ class _HomePageState extends State<HomePage> {
                 _boundedSliverBox(
                   _buildFeedHeader(
                     colors,
-                    title: usesBrowseFeed ? 'Discover' : 'Recently added',
+                    title: 'Recently added',
                     filters: availableFilters,
                     effectiveFilter: effectiveFilter,
-                    onSectionAction: usesBrowseFeed
-                        ? widget.onNavigateToSearch
-                        : widget.onNavigateToLibrary,
-                    sectionActionLabel: usesBrowseFeed ? 'Search' : 'Library',
+                    onSectionAction: widget.onNavigateToLibrary,
+                    sectionActionLabel: 'Library',
                   ),
                 ),
                 const SliverToBoxAdapter(

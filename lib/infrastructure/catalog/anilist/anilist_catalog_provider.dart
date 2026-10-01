@@ -6,38 +6,33 @@ import 'package:html/parser.dart' as html;
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 
-typedef CatalogHttpPost = Future<CatalogHttpResponse> Function(
+typedef AniListHttpPost = Future<AniListHttpResponse> Function(
   Uri uri,
   String body,
 );
 
-final class CatalogHttpResponse {
-  const CatalogHttpResponse(this.statusCode, this.body);
+final class AniListHttpResponse {
+  const AniListHttpResponse(this.statusCode, this.body);
   final int statusCode;
   final String body;
 }
 
 final class AnilistCatalogProvider implements CatalogProvider {
-  AnilistCatalogProvider({CatalogHttpPost? post, DateTime Function()? clock})
+  AnilistCatalogProvider({AniListHttpPost? post, DateTime Function()? clock})
     : _clock = clock ?? DateTime.now {
     _post = post ?? _send;
   }
 
   static const _endpoint = 'https://graphql.anilist.co';
-  late final CatalogHttpPost _post;
+  late final AniListHttpPost _post;
   final DateTime Function() _clock;
   HttpClient? _client;
   bool _closed = false;
 
   @override
   String get id => 'anilist';
-  @override
-  Set<CatalogCapability> get capabilities => const {
-    CatalogCapability.discovery,
-    CatalogCapability.details,
-  };
 
-  Future<CatalogHttpResponse> _send(Uri uri, String body) async {
+  Future<AniListHttpResponse> _send(Uri uri, String body) async {
     final client = _client ??= HttpClient()
       ..connectionTimeout = const Duration(seconds: 12);
     final request = await client
@@ -46,7 +41,7 @@ final class AnilistCatalogProvider implements CatalogProvider {
     request.headers.contentType = ContentType.json;
     request.write(body);
     final response = await request.close().timeout(const Duration(seconds: 18));
-    return CatalogHttpResponse(
+    return AniListHttpResponse(
       response.statusCode,
       await utf8.decoder
           .bind(response)

@@ -13,7 +13,7 @@ void main() {
     expect(first, isNot(isA<SourceMediaRef>()));
   });
 
-  test('media collections are immutable; provider exposes capabilities', () {
+  test('media collections are immutable', () {
     final media = CatalogMedia(
       id: const CatalogMediaId(provider: 'anilist', value: '42'),
       title: 'Title',
@@ -23,6 +23,5 @@ void main() {
       genres: ['Drama'],
     );
     expect(() => media.synonyms.add('x'), throwsUnsupportedError);
-    expect(CatalogCapability.values, contains(CatalogCapability.details));
   });
 }

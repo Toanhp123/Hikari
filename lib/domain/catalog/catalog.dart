@@ -13,8 +13,6 @@ final class CatalogMediaId {
   int get hashCode => Object.hash(provider, value);
 }
 
-enum CatalogCapability { discovery, details }
-
 enum CatalogSection {
   featured,
   trending,
@@ -50,7 +48,6 @@ final class CatalogMedia {
     Iterable<String> synonyms = const [],
     Iterable<String> alternateTitles = const [],
     Iterable<String> genres = const [],
-    Iterable<String> warnings = const [],
     this.averageScore,
     this.popularity,
     this.format,
@@ -65,19 +62,13 @@ final class CatalogMedia {
   }) : synonyms = List.unmodifiable(synonyms),
        alternateTitles = List.unmodifiable(alternateTitles),
        genres = List.unmodifiable(genres),
-       warnings = List.unmodifiable(warnings),
        studios = List.unmodifiable(studios),
        staff = List.unmodifiable(staff);
   final CatalogMediaId id;
   final String title;
   final MediaType type;
   final String? coverUrl, bannerUrl;
-  final List<String> synonyms,
-      alternateTitles,
-      genres,
-      studios,
-      staff,
-      warnings;
+  final List<String> synonyms, alternateTitles, genres, studios, staff;
   final int? averageScore, popularity, episodes, chapters, volumes, year;
   final CatalogFormat? format;
   final CatalogStatus? status;
@@ -119,7 +110,7 @@ final class CatalogRelationMedia {
 
 abstract interface class CatalogProvider {
   String get id;
-  Set<CatalogCapability> get capabilities;
+
   Future<CatalogDiscovery> discover();
   Future<CatalogDetails?> details(CatalogMediaId id);
   Future<void> close();

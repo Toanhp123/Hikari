@@ -1,141 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/application/catalog/catalog_workflows.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/catalog/load_catalog_details.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
-
-class CatalogHomeSections extends StatefulWidget {
-  const CatalogHomeSections({
-    super.key,
-    required this.discover,
-    required this.openDetails,
-  });
-  final DiscoverCatalog discover;
-  final void Function(CatalogMedia media) openDetails;
-  @override
-  State<CatalogHomeSections> createState() => _CatalogHomeSectionsState();
-}
-
-class _CatalogHomeSectionsState extends State<CatalogHomeSections> {
-  late Future<CatalogDiscovery> _future = widget.discover.execute();
-  void _retry() {
-    final future = widget.discover.execute();
-    setState(() {
-      _future = future;
-    });
-  }
-
-  void _refresh() {
-    final future = widget.discover.execute();
-    setState(() {
-      _future = future;
-    });
-  }
-
-  @override
-  void didUpdateWidget(CatalogHomeSections oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.discover != widget.discover) _refresh();
-  }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<CatalogDiscovery>(
-    future: _future,
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return Padding(
-          padding: const EdgeInsets.all(HikariSpacing.lg),
-          child: AsyncStateView(
-            status: AsyncViewStatus.error,
-            contentBuilder: (_) => const SizedBox.shrink(),
-            errorTitle: 'Catalog unavailable',
-            errorMessage: 'Catalog discovery could not load.',
-            onRetry: _retry,
-          ),
-        );
-      }
-      if (!snapshot.hasData) {
-        return const Padding(
-          padding: EdgeInsets.all(HikariSpacing.lg),
-          child: LinearProgressIndicator(),
-        );
-      }
-      final discovery = snapshot.data!;
-      final sections = discovery.sections;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (discovery.warnings.isNotEmpty) ...[
-            MaterialBanner(
-              content: Text(discovery.warnings.join(' ')),
-              actions: [
-                TextButton(onPressed: _retry, child: const Text('Retry')),
-              ],
-            ),
-          ],
-          for (final section in CatalogSection.values)
-            if ((sections[section] ?? []).isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  HikariSpacing.lg,
-                  HikariSpacing.md,
-                  HikariSpacing.lg,
-                  HikariSpacing.sm,
-                ),
-                child: Text(
-                  _sectionTitle(section),
-                  style: HikariTypography.titleMedium,
-                ),
-              ),
-              SizedBox(
-                height: 228,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: HikariSpacing.lg,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: sections[section]!.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: HikariSpacing.md),
-                  itemBuilder: (context, index) {
-                    final item = sections[section]![index];
-                    return SizedBox(
-                      width: 148,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: MediaPoster(
-                          title: item.title,
-                          imageUrl: item.coverUrl,
-                          subtitle: item.type.name,
-                          badgeText: item.type.name.toUpperCase(),
-                          onTap: () => widget.openDetails(item),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          if (sections.values.every((items) => items.isEmpty))
-            const Padding(
-              padding: EdgeInsets.all(HikariSpacing.lg),
-              child: Text('No catalog results available.'),
-            ),
-        ],
-      );
-    },
-  );
-  String _sectionTitle(CatalogSection section) => switch (section) {
-    CatalogSection.featured => 'Featured this season',
-    CatalogSection.trending => 'Trending',
-    CatalogSection.popularAnime => 'Popular Anime',
-    CatalogSection.popularManga => 'Popular Manga',
-    CatalogSection.popularLightNovels => 'Popular Light Novels',
-    CatalogSection.seasonalAnime => 'Seasonal Anime',
-  };
-}
 
 class CatalogDetailPage extends StatefulWidget {
   const CatalogDetailPage({
@@ -143,12 +12,14 @@ class CatalogDetailPage extends StatefulWidget {
     required this.initial,
     required this.loadDetails,
     required this.openRelated,
-    required this.searchTitle,
+    required this.openSourceSearch,
   });
+
   final CatalogMedia initial;
   final LoadCatalogDetails loadDetails;
   final void Function(CatalogMedia media) openRelated;
-  final void Function(String title, MediaType type) searchTitle;
+  final void Function(CatalogMedia media) openSourceSearch;
+
   @override
   State<CatalogDetailPage> createState() => _CatalogDetailPageState();
 }
@@ -249,10 +120,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
               MaterialBanner(
                 content: Text(details.warnings.join(' ')),
                 actions: [
-                  TextButton(
-                    onPressed: _retry,
-                    child: const Text('Retry'),
-                  ),
+                  TextButton(onPressed: _retry, child: const Text('Retry')),
                 ],
               ),
             if (media.averageScore != null) Text('Score ${media.averageScore}'),
@@ -277,7 +145,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
               ),
             const SizedBox(height: HikariSpacing.md),
             FilledButton(
-              onPressed: () => widget.searchTitle(media.title, media.type),
+              onPressed: () => widget.openSourceSearch(media),
               child: Text(media.type == MediaType.anime ? 'Watch' : 'Read'),
             ),
             const Text(

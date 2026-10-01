@@ -3,16 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/app/navigation/app_navigation_shell.dart';
-import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
-import 'package:hikari/features/catalog/catalog_pages.dart';
-import 'package:hikari/features/search/unified_search_view_model.dart'
-    show SearchMediaTypeFilter;
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
@@ -26,6 +24,8 @@ import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
 import 'package:hikari/features/search/unified_search_page.dart';
+import 'package:hikari/features/search/unified_search_view_model.dart'
+    show SearchMediaTypeFilter;
 import 'package:hikari/features/settings/settings_page.dart';
 
 class HikariApp extends StatefulWidget {
@@ -95,24 +95,28 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           initial: media,
           loadDetails: _dependencies.loadCatalogDetails,
           openRelated: (related) => _openCatalogDetails(context, related),
-          searchTitle: (title, type) => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => UnifiedSearchPage(
-                openMedia: _openMedia,
-                library: _dependencies.libraryRepository,
-                searchManga: _dependencies.searchManga,
-                searchNovels: _dependencies.searchNovels,
-                scanLocalMedia: _dependencies.localMediaSource.scanSelectedRoot,
-                initialQuery: title,
-                initialFilter: switch (type) {
-                  MediaType.anime => SearchMediaTypeFilter.anime,
-                  MediaType.manga => SearchMediaTypeFilter.manga,
-                  MediaType.lightNovel => SearchMediaTypeFilter.novel,
-                },
-                catalogRevision: _localCatalogRevision,
-              ),
-            ),
-          ),
+          openSourceSearch: (item) => _openCatalogSourceSearch(context, item),
+        ),
+      ),
+    );
+  }
+
+  void _openCatalogSourceSearch(BuildContext context, CatalogMedia media) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UnifiedSearchPage(
+          openMedia: _openMedia,
+          library: _dependencies.libraryRepository,
+          searchManga: _dependencies.searchManga,
+          searchNovels: _dependencies.searchNovels,
+          scanLocalMedia: _dependencies.localMediaSource.scanSelectedRoot,
+          initialQuery: media.title,
+          initialFilter: switch (media.type) {
+            MediaType.anime => SearchMediaTypeFilter.anime,
+            MediaType.manga => SearchMediaTypeFilter.manga,
+            MediaType.lightNovel => SearchMediaTypeFilter.novel,
+          },
+          catalogRevision: _localCatalogRevision,
         ),
       ),
     );
