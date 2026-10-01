@@ -49,15 +49,7 @@ final class UnifiedSearchUiState {
   List<UnifiedSearchResult> get visibleResults {
     if (filter == SearchMediaTypeFilter.all) return results;
     return results
-        .where((result) {
-          return switch (filter) {
-            SearchMediaTypeFilter.all => true,
-            SearchMediaTypeFilter.anime => result.media.type == MediaType.anime,
-            SearchMediaTypeFilter.manga => result.media.type == MediaType.manga,
-            SearchMediaTypeFilter.novel =>
-              result.media.type == MediaType.lightNovel,
-          };
-        })
+        .where((result) => _matchesFilter(result.media.type, filter))
         .toList(growable: false);
   }
 
@@ -81,7 +73,7 @@ final class UnifiedSearchUiState {
   }
 }
 
-/// Owns unified-search state and fans one query out to configured sources.
+/// Owns unified-search state and fans one query out to relevant configured sources.
 final class UnifiedSearchViewModel extends ChangeNotifier {
   factory UnifiedSearchViewModel({
     SearchManga? searchManga,
@@ -121,9 +113,12 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
   int _generation = 0;
   Future<List<Media>>? _localCatalogFuture;
 
-  void selectFilter(SearchMediaTypeFilter filter) {
+  Future<void> selectFilter(SearchMediaTypeFilter filter) async {
     if (_state.filter == filter) return;
     _publish(_state.copyWith(filter: filter));
+    if (_state.query.isNotEmpty) {
+      await search(_state.query);
+    }
   }
 
   Future<void> search(String rawQuery) async {
@@ -149,10 +144,15 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
       ),
     );
 
+    final filter = _state.filter;
     final tasks = <Future<_SearchBatch>>[
-      ..._mangaTasks(query),
-      ..._novelTasks(query),
-      if (_scanLocalMedia != null) _searchLocal(query),
+      if (filter == SearchMediaTypeFilter.all ||
+          filter == SearchMediaTypeFilter.manga)
+        ..._mangaTasks(query),
+      if (filter == SearchMediaTypeFilter.all ||
+          filter == SearchMediaTypeFilter.novel)
+        ..._novelTasks(query),
+      if (_scanLocalMedia != null) _searchLocal(query, filter),
     ];
 
     if (tasks.isEmpty) {
@@ -247,11 +247,15 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     }
   }
 
-  Future<_SearchBatch> _searchLocal(String query) {
+  Future<_SearchBatch> _searchLocal(
+    String query,
+    SearchMediaTypeFilter filter,
+  ) {
     return _guardSource(() async {
       final catalog = await _localCatalog();
       final normalized = query.toLowerCase();
       return catalog
+          .where((media) => _matchesFilter(media.type, filter))
           .where((media) => media.title.toLowerCase().contains(normalized))
           .map(
             (media) =>
@@ -311,6 +315,15 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     _generation++;
     super.dispose();
   }
+}
+
+bool _matchesFilter(MediaType type, SearchMediaTypeFilter filter) {
+  return switch (filter) {
+    SearchMediaTypeFilter.all => true,
+    SearchMediaTypeFilter.anime => type == MediaType.anime,
+    SearchMediaTypeFilter.manga => type == MediaType.manga,
+    SearchMediaTypeFilter.novel => type == MediaType.lightNovel,
+  };
 }
 
 final class _SearchBatch {

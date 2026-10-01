@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/search/search_manga.dart';
@@ -112,7 +114,8 @@ class _UnifiedSearchPageState extends State<UnifiedSearchPage> {
                             child: HikariChip(
                               label: filter.label,
                               isSelected: state.filter == filter,
-                              onTap: () => _model.selectFilter(filter),
+                              onTap: () =>
+                                  unawaited(_model.selectFilter(filter)),
                             ),
                           );
                         }).toList(),
