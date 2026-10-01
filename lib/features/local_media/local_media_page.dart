@@ -19,7 +19,7 @@ class LocalMediaPage extends StatefulWidget {
     required this.openMedia,
     this.supported = true,
     this.library,
-    this.catalogRevision = 0,
+    this.scanRevision = 0,
   });
 
   final Future<List<Media>?> Function() scanSelectedRoot;
@@ -27,7 +27,7 @@ class LocalMediaPage extends StatefulWidget {
   final void Function(BuildContext, Media) openMedia;
   final bool supported;
   final LibraryRepository? library;
-  final int catalogRevision;
+  final int scanRevision;
 
   @override
   State<LocalMediaPage> createState() => _LocalMediaPageState();
@@ -62,8 +62,7 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
   @override
   void didUpdateWidget(LocalMediaPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.supported &&
-        oldWidget.catalogRevision != widget.catalogRevision) {
+    if (widget.supported && oldWidget.scanRevision != widget.scanRevision) {
       _viewModel.scan(refresh: true);
     }
   }

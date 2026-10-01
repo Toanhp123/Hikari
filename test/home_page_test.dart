@@ -2,13 +2,53 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
-import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 void main() {
+  testWidgets('Continue shelf precedes catalog discovery', (tester) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const media = Media(
+      title: 'Resume first',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: SourceId.local, itemId: 'resume'),
+    );
+    final catalogItem = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: '1'),
+      title: 'Catalog later',
+      type: MediaType.anime,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(
+          openMedia: (_, _) {},
+          continueItems: const [
+            ContinueReadingItem(
+              media: media,
+              progress: .5,
+              progressLabel: '50% read',
+            ),
+          ],
+          discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
+          openCatalogDetail: (_, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.byType(ContinueShelf)).dy,
+      lessThan(tester.getTopLeft(find.text('Featured')).dy),
+    );
+  });
+
   testWidgets('Home prioritizes resume content before featured discovery', (
     tester,
   ) async {
@@ -27,6 +67,11 @@ void main() {
       type: MediaType.manga,
       source: SourceMediaRef(sourceId: SourceId.local, itemId: 'op'),
     );
+    final catalogItem = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: '1'),
+      title: 'Catalog show',
+      type: MediaType.anime,
+    );
 
     Media? selectedMedia;
     await tester.pumpWidget(
@@ -34,13 +79,7 @@ void main() {
         theme: HikariTheme.darkTheme(),
         home: HomePage(
           openMedia: (_, item) => selectedMedia = item,
-          featuredItems: const [
-            FeaturedHeroItem(
-              media: animeMedia,
-              tagline: 'Action, Supernatural',
-              genres: ['Action', 'Demons'],
-            ),
-          ],
+          library: _FakeLibraryRepository([animeMedia, mangaMedia]),
           continueItems: const [
             ContinueReadingItem(
               media: mangaMedia,
@@ -48,26 +87,24 @@ void main() {
               progressLabel: 'Chapter 1050',
             ),
           ],
-          trendingItems: const [animeMedia, mangaMedia],
+          discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
+          openCatalogDetail: (_, _) {},
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Pick up where you left off'), findsOneWidget);
     expect(find.text('Chapter 1050'), findsOneWidget);
-    expect(find.text('Discover'), findsOneWidget);
-    expect(find.text('Light Novels'), findsNothing);
-    expect(find.text('My List'), findsNothing);
+    expect(find.text('Featured'), findsOneWidget);
+    expect(find.text('Catalog show'), findsOneWidget);
+    expect(find.text('Recently added'), findsOneWidget);
 
     expect(
       tester.getTopLeft(find.byType(ContinueShelf)).dy,
-      lessThan(tester.getTopLeft(find.byType(HeroCarousel)).dy),
+      lessThan(tester.getTopLeft(find.text('Featured')).dy),
     );
-
-    await tester.tap(find.text('Watch Now'));
-    await tester.pumpAndSettle();
-    expect(selectedMedia, animeMedia);
 
     await tester.tap(find.text('Manga'));
     await tester.pumpAndSettle();
@@ -75,7 +112,17 @@ void main() {
         .widgetList<MediaPoster>(find.byType(MediaPoster))
         .map((poster) => poster.title)
         .toList();
-    expect(posterTitles, ['One Piece']);
+    expect(posterTitles, contains('One Piece'));
+    expect(posterTitles, isNot(contains('Chainsaw Man')));
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(MediaPoster),
+        matching: find.text('One Piece'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(selectedMedia, mangaMedia);
   });
 
   testWidgets('empty Home offers real discovery actions', (tester) async {
@@ -154,13 +201,58 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: HikariTheme.darkTheme(),
-        home: HomePage(openMedia: (_, _) {}, trendingItems: const [media]),
+        home: HomePage(
+          openMedia: (_, _) {},
+          library: _FakeLibraryRepository([media]),
+        ),
       ),
     );
+    await tester.pumpAndSettle();
 
     final posterLeft = tester.getTopLeft(find.byType(MediaPoster)).dx;
     expect(posterLeft, greaterThanOrEqualTo(190));
   });
+}
+
+final class _FakeLibraryRepository implements LibraryRepository {
+  _FakeLibraryRepository(this.media);
+  final List<Media> media;
+
+  @override
+  Future<List<LibraryEntry>> loadAll() async => [
+    for (final item in media)
+      LibraryEntry(media: item, addedAt: DateTime.utc(2026)),
+  ];
+
+  @override
+  Future<bool> contains(SourceMediaRef media) async => false;
+
+  @override
+  Future<void> remove(SourceMediaRef media) async {}
+
+  @override
+  Future<void> upsert(LibraryEntry entry) async {}
+}
+
+final class _CatalogProvider implements CatalogProvider {
+  _CatalogProvider(this.item);
+  final CatalogEntry item;
+  @override
+  String get id => 'test';
+  @override
+  Future<CatalogDiscovery> discover() async => CatalogDiscovery(
+    sections: {
+      CatalogSection.featured: [item],
+    },
+  );
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
+  @override
+  Future<void> close() async {}
 }
 
 final class _FailingLibraryRepository implements LibraryRepository {

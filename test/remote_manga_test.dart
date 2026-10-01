@@ -371,6 +371,8 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Browse manga'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Browse manga'));
         await tester.pumpAndSettle();
 
@@ -408,6 +410,8 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Browse manga'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Browse manga'));
       await tester.pumpAndSettle();
@@ -449,6 +453,8 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Browse manga'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Browse manga'));
     await tester.pumpAndSettle();
@@ -494,6 +500,8 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Browse manga'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Browse manga'));
     await tester.pumpAndSettle();

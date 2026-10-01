@@ -24,7 +24,7 @@ void main() {
     required Future<bool> Function() chooseRoot,
     required void Function(BuildContext, Media) openMedia,
     bool supported = true,
-    int catalogRevision = 0,
+    int scanRevision = 0,
   }) {
     return MaterialApp(
       home: LocalMediaPage(
@@ -32,7 +32,7 @@ void main() {
         chooseRoot: chooseRoot,
         openMedia: openMedia,
         supported: supported,
-        catalogRevision: catalogRevision,
+        scanRevision: scanRevision,
       ),
     );
   }
@@ -82,7 +82,7 @@ void main() {
       scanSelectedRoot: scan,
       chooseRoot: () async => false,
       openMedia: (_, _) {},
-      catalogRevision: revision,
+      scanRevision: revision,
     );
     await tester.pumpWidget(page(0));
     await tester.pumpWidget(page(1));

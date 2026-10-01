@@ -506,12 +506,14 @@ Settings
 
 Local restores and scans the saved folder without opening a picker. Folder
 selection is explicit in Local or Settings; Home offers an Open Local entry.
-Successful folder selection increments an app-owned Search catalog revision.
-Settings also increments Local's external-root revision; Local scans its own
-selection directly, avoiding a duplicate scan. Both pages reject stale in-flight
-results. Cancellation keeps the current catalog. Destination pages are keyed by
-`AppTab`, with runtime completeness validation rather than positional ordering. Local uses the shared media-opening and Library contracts;
-classification and archive handling remain in the existing source layer.
+Folder selection from Settings refreshes Local's external-root revision; selection
+from Local scans directly, avoiding duplicate scans. Source search is opened from
+Catalog Detail as a fresh route, so its session-local Local catalog cache starts
+fresh on each entry instead of sharing app-level invalidation state. Cancellation
+keeps the current catalog. Destination pages are keyed by `AppTab`, with runtime
+completeness validation rather than positional ordering. Local uses the shared
+media-opening and Library contracts; classification and archive handling remain in
+the existing source layer.
 
 Features should request navigation through normal presentation composition rather
 than reaching into infrastructure or source-specific objects.
