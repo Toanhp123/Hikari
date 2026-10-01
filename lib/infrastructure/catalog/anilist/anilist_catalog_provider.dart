@@ -1,0 +1,333 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:html/parser.dart' as html;
+import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
+
+typedef CatalogHttpPost = Future<CatalogHttpResponse> Function(
+  Uri uri,
+  String body,
+);
+
+final class CatalogHttpResponse {
+  const CatalogHttpResponse(this.statusCode, this.body);
+  final int statusCode;
+  final String body;
+}
+
+final class AnilistCatalogProvider implements CatalogProvider {
+  AnilistCatalogProvider({CatalogHttpPost? post, DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now {
+    _post = post ?? _send;
+  }
+
+  static const _endpoint = 'https://graphql.anilist.co';
+  late final CatalogHttpPost _post;
+  final DateTime Function() _clock;
+  HttpClient? _client;
+  bool _closed = false;
+
+  @override
+  String get id => 'anilist';
+  @override
+  Set<CatalogCapability> get capabilities => const {
+    CatalogCapability.discovery,
+    CatalogCapability.details,
+  };
+
+  Future<CatalogHttpResponse> _send(Uri uri, String body) async {
+    final client = _client ??= HttpClient()
+      ..connectionTimeout = const Duration(seconds: 12);
+    final request = await client
+        .postUrl(uri)
+        .timeout(const Duration(seconds: 12));
+    request.headers.contentType = ContentType.json;
+    request.write(body);
+    final response = await request.close().timeout(const Duration(seconds: 18));
+    return CatalogHttpResponse(
+      response.statusCode,
+      await utf8.decoder
+          .bind(response)
+          .join()
+          .timeout(const Duration(seconds: 12)),
+    );
+  }
+
+  @override
+  Future<CatalogDiscovery> discover() async {
+    final now = _clock().toUtc();
+    final year = now.year;
+    final season = _season(now.month);
+    const fields =
+        'id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity isAdult title { english romaji native } coverImage { large }';
+    final query =
+        '''query { trending: Page(perPage: 10) { media(sort: TRENDING_DESC isAdult: false) { $fields } } anime: Page(perPage: 10) { media(type: ANIME sort: POPULARITY_DESC isAdult: false) { $fields } } manga: Page(perPage: 10) { media(type: MANGA format_not: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } novels: Page(perPage: 10) { media(type: MANGA format: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } seasonal: Page(perPage: 10) { media(type: ANIME season: $season seasonYear: $year sort: POPULARITY_DESC isAdult: false) { $fields } } }''';
+    final response = await _request(query);
+    final root = _asMap(response['data']);
+    if (root == null) {
+      throw const FormatException('Catalog response has no data object.');
+    }
+    final warnings = _errors(response['errors']);
+    final sections = <CatalogSection, List<CatalogMedia>>{};
+    for (final entry in const {
+      'trending': CatalogSection.trending,
+      'anime': CatalogSection.popularAnime,
+      'manga': CatalogSection.popularManga,
+      'novels': CatalogSection.popularLightNovels,
+      'seasonal': CatalogSection.seasonalAnime,
+    }.entries) {
+      final rows = _asMap(root[entry.key])?['media'];
+      if (rows is! List) {
+        warnings.add('Some catalog sections are unavailable.');
+        sections[entry.value] = const [];
+        continue;
+      }
+      final items = <CatalogMedia>[];
+      for (final row in rows) {
+        final media = _media(row);
+        if (media == null) {
+          warnings.add('Some invalid catalog entries were omitted.');
+        } else {
+          items.add(media);
+        }
+      }
+      sections[entry.value] = List.unmodifiable(items);
+    }
+    sections[CatalogSection.featured] = sections[CatalogSection.seasonalAnime]!;
+    return CatalogDiscovery(sections: sections, warnings: warnings.toSet());
+  }
+
+  @override
+  Future<CatalogDetails?> details(CatalogMediaId id) async {
+    final numericId = int.tryParse(id.value);
+    if (id.provider != this.id || numericId == null || numericId <= 0) {
+      return null;
+    }
+    const query =
+        r'''query($id: Int) { Media(id: $id) { id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity description(asHtml: true) genres synonyms title { english romaji native } coverImage { large } bannerImage studios(isMain: true) { nodes { name } } staff(perPage: 12, sort: RELEVANCE) { edges { role node { name { full } } } } relations { edges { relationType node { id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity title { english romaji native } coverImage { large } } } } } }''';
+    final response = await _request(query, variables: {'id': numericId});
+    final item = _asMap(_asMap(response['data'])?['Media']);
+    final warnings = _errors(response['errors']);
+    if (item == null && warnings.isNotEmpty) {
+      throw FormatException(warnings.join(' '));
+    }
+    if (item == null || item['id'] != numericId) return null;
+    final media = _media(item, extra: true);
+    if (media == null) return null;
+    final relations = <CatalogRelationMedia>[];
+    final edges = _asMap(item['relations'])?['edges'];
+    if (edges is! List) {
+      warnings.add('Related catalog entries are unavailable.');
+    } else {
+      for (final rawEdge in edges) {
+        final edge = _asMap(rawEdge);
+        final relatedRaw = _asMap(edge?['node']);
+        if (edge == null || relatedRaw == null) {
+          warnings.add(
+            'Some related entries were omitted because metadata was invalid.',
+          );
+          continue;
+        }
+        final related = _media(relatedRaw);
+        if (related == null) {
+          warnings.add(
+            'Some related entries were omitted because metadata was invalid.',
+          );
+          continue;
+        }
+        relations.add(
+          CatalogRelationMedia(
+            relation: _relation(edge['relationType']),
+            media: related,
+          ),
+        );
+      }
+    }
+    return CatalogDetails(
+      media: media,
+      description: _plain(item['description']),
+      relations: relations,
+      warnings: warnings.toSet(),
+    );
+  }
+
+  Future<Map<String, dynamic>> _request(
+    String query, {
+    Map<String, Object?> variables = const {},
+  }) async {
+    if (_closed) throw StateError('Catalog provider is closed.');
+    final response = await _post(
+      Uri.parse(_endpoint),
+      jsonEncode({'query': query, 'variables': variables}),
+    ).timeout(const Duration(seconds: 25));
+    if (response.statusCode == 429) {
+      throw const HttpException('Catalog rate limit reached (HTTP 429).');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException('Catalog HTTP ${response.statusCode}.');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Catalog response is not an object.');
+    }
+    return decoded;
+  }
+
+  CatalogMedia? _media(Object? value, {bool extra = false}) {
+    final raw = _asMap(value);
+    if (raw == null) return null;
+    final id = raw['id'];
+    final titles = _asMap(raw['title']);
+    if (id is! int || id <= 0 || titles == null) return null;
+    final title =
+        _text(titles['english']) ??
+        _text(titles['romaji']) ??
+        _text(titles['native']);
+    final formatName = raw['format'];
+    final type = raw['type'] == 'ANIME'
+        ? MediaType.anime
+        : raw['type'] == 'MANGA'
+        ? (formatName == 'NOVEL' ? MediaType.lightNovel : MediaType.manga)
+        : null;
+    if (title == null || type == null) return null;
+    final cover = _asMap(raw['coverImage'])?['large'];
+    final date = _asMap(raw['startDate']);
+    final year = _integer(raw['seasonYear']) ?? _integer(date?['year']);
+    final alternates = [
+      if (_text(titles['romaji']) case final value? when value != title) value,
+      if (_text(titles['native']) case final value?
+          when value != title && value != _text(titles['romaji']))
+        value,
+    ];
+    return CatalogMedia(
+      id: CatalogMediaId(provider: this.id, value: '$id'),
+      title: title,
+      type: type,
+      coverUrl: cover is String ? cover : null,
+      bannerUrl: extra && raw['bannerImage'] is String
+          ? raw['bannerImage'] as String
+          : null,
+      synonyms: extra ? _strings(raw['synonyms']) : const [],
+      alternateTitles: alternates,
+      genres: extra ? _strings(raw['genres']) : const [],
+      averageScore: _integer(raw['averageScore']),
+      popularity: _integer(raw['popularity']),
+      format: _format(formatName),
+      status: _status(raw['status']),
+      season: _enumValue(CatalogSeason.values, raw['season']),
+      year: year,
+      episodes: _integer(raw['episodes']),
+      chapters: _integer(raw['chapters']),
+      volumes: _integer(raw['volumes']),
+      studios: extra ? _studioNames(raw['studios']) : const [],
+      staff: extra ? _staffNames(raw['staff']) : const [],
+    );
+  }
+
+  static Map<Object?, Object?>? _asMap(Object? value) =>
+      value is Map<Object?, Object?> ? value : null;
+  static List<String> _strings(Object? value) => value is List
+      ? value
+            .whereType<String>()
+            .where((s) => s.trim().isNotEmpty)
+            .toList(growable: false)
+      : const [];
+  static List<String> _studioNames(Object? value) {
+    final nodes = _asMap(value)?['nodes'];
+    return nodes is List
+        ? nodes
+              .map(_asMap)
+              .whereType<Map<Object?, Object?>>()
+              .map((v) => v['name'])
+              .whereType<String>()
+              .toList(growable: false)
+        : const [];
+  }
+
+  static List<String> _staffNames(Object? value) {
+    final edges = _asMap(value)?['edges'];
+    if (edges is! List) return const [];
+    return edges
+        .map(_asMap)
+        .whereType<Map<Object?, Object?>>()
+        .where((edge) {
+          final role = edge['role'];
+          return role is String &&
+              RegExp(
+                r'(story|creator|original)',
+                caseSensitive: false,
+              ).hasMatch(role);
+        })
+        .map((edge) => _asMap(_asMap(edge['node'])?['name'])?['full'])
+        .whereType<String>()
+        .toList(growable: false);
+  }
+
+  static String? _text(Object? value) =>
+      value is String && value.trim().isNotEmpty ? value.trim() : null;
+  static int? _integer(Object? value) => value is int ? value : null;
+  static CatalogFormat? _format(Object? value) => switch (value) {
+    'TV' => CatalogFormat.tv,
+    'MOVIE' => CatalogFormat.movie,
+    'OVA' => CatalogFormat.ova,
+    'ONA' => CatalogFormat.ona,
+    'SPECIAL' => CatalogFormat.special,
+    'MANGA' => CatalogFormat.manga,
+    'NOVEL' => CatalogFormat.novel,
+    'ONE_SHOT' => CatalogFormat.oneShot,
+    _ => null,
+  };
+  static CatalogStatus? _status(Object? value) => switch (value) {
+    'FINISHED' => CatalogStatus.finished,
+    'RELEASING' => CatalogStatus.releasing,
+    'NOT_YET_RELEASED' => CatalogStatus.notYetReleased,
+    'CANCELLED' => CatalogStatus.cancelled,
+    'HIATUS' => CatalogStatus.hiatus,
+    _ => null,
+  };
+  static T? _enumValue<T extends Enum>(List<T> values, Object? raw) {
+    if (raw is! String) return null;
+    for (final value in values) {
+      if (value.name.toUpperCase() == raw) return value;
+    }
+    return null;
+  }
+
+  static List<String> _errors(Object? value) {
+    if (value is! List) return [];
+    return value
+        .map(_asMap)
+        .whereType<Map<Object?, Object?>>()
+        .map((error) => error['message'])
+        .whereType<String>()
+        .map((message) => 'Some catalog data could not be loaded: $message')
+        .toList(growable: true);
+  }
+
+  static String? _plain(Object? value) =>
+      value is String ? html.parse(value).body?.text.trim() : null;
+  static CatalogRelation _relation(Object? value) => switch (value) {
+    'ADAPTATION' => CatalogRelation.adaptation,
+    'PREQUEL' => CatalogRelation.prequel,
+    'SEQUEL' => CatalogRelation.sequel,
+    'PARENT' => CatalogRelation.parent,
+    'SIDE_STORY' => CatalogRelation.sideStory,
+    'CHARACTER' => CatalogRelation.character,
+    _ => CatalogRelation.other,
+  };
+  static String _season(int month) => switch (month) {
+    1 || 2 || 3 => 'WINTER',
+    4 || 5 || 6 => 'SPRING',
+    7 || 8 || 9 => 'SUMMER',
+    _ => 'FALL',
+  };
+
+  @override
+  Future<void> close() async {
+    _closed = true;
+    _client?.close(force: true);
+    _client = null;
+  }
+}

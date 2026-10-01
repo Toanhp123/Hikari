@@ -5,6 +5,10 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/features/catalog/catalog_pages.dart';
+import 'package:hikari/features/search/unified_search_view_model.dart'
+    show SearchMediaTypeFilter;
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -84,6 +88,36 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
+  void _openCatalogDetails(BuildContext context, CatalogMedia media) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CatalogDetailPage(
+          initial: media,
+          loadDetails: _dependencies.loadCatalogDetails,
+          openRelated: (related) => _openCatalogDetails(context, related),
+          searchTitle: (title, type) => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => UnifiedSearchPage(
+                openMedia: _openMedia,
+                library: _dependencies.libraryRepository,
+                searchManga: _dependencies.searchManga,
+                searchNovels: _dependencies.searchNovels,
+                scanLocalMedia: _dependencies.localMediaSource.scanSelectedRoot,
+                initialQuery: title,
+                initialFilter: switch (type) {
+                  MediaType.anime => SearchMediaTypeFilter.anime,
+                  MediaType.manga => SearchMediaTypeFilter.manga,
+                  MediaType.lightNovel => SearchMediaTypeFilter.novel,
+                },
+                catalogRevision: _localCatalogRevision,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openMedia(BuildContext context, Media media) async {
     if (_isOpeningMedia) return;
     _isOpeningMedia = true;
@@ -92,6 +126,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       target = await _dependencies.openMedia.execute(media);
       if (!context.mounted) return;
       await _pushMediaTarget(context, target);
+      if (mounted) setState(() => _localCatalogRevision++);
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -261,6 +296,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.home: HomePage(
               openMedia: _openMedia,
               library: libraryRepository,
+              progressRepository: _dependencies.progressRepository,
+              discoverCatalog: _dependencies.discoverCatalog,
+              openCatalogDetails: _openCatalogDetails,
+              catalogRevision: _localCatalogRevision,
               onNavigateToSearch: () =>
                   _navigationController.selectTab(AppTab.search),
               onNavigateToLibrary: () =>

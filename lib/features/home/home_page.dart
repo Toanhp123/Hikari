@@ -6,8 +6,12 @@ import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/application/catalog/catalog_workflows.dart';
+import 'package:hikari/features/catalog/catalog_pages.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/home/home_view_model.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
@@ -31,6 +35,10 @@ class HomePage extends StatefulWidget {
     super.key,
     required this.openMedia,
     this.library,
+    this.progressRepository,
+    this.discoverCatalog,
+    this.openCatalogDetails,
+    this.catalogRevision = 0,
     this.featuredItems = const [],
     this.continueItems = const [],
     this.trendingItems = const [],
@@ -42,6 +50,10 @@ class HomePage extends StatefulWidget {
 
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final ProgressRepository? progressRepository;
+  final DiscoverCatalog? discoverCatalog;
+  final void Function(BuildContext, CatalogMedia)? openCatalogDetails;
+  final int catalogRevision;
   final List<FeaturedHeroItem> featuredItems;
   final List<ContinueReadingItem> continueItems;
   final List<Media> trendingItems;
@@ -55,8 +67,19 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final HomeViewModel _model = HomeViewModel(widget.library);
+  late final HomeViewModel _model = HomeViewModel(
+    widget.library,
+    progressRepository: widget.progressRepository,
+  );
   HomeFilterType _selectedFilter = HomeFilterType.all;
+
+  @override
+  void didUpdateWidget(HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.catalogRevision != widget.catalogRevision) {
+      _model.reload();
+    }
+  }
 
   @override
   void dispose() {
@@ -114,15 +137,27 @@ class _HomePageState extends State<HomePage> {
             physics: const BouncingScrollPhysics(),
             slivers: [
               _boundedSliverBox(_buildHeader(colors)),
-              if (widget.continueItems.isNotEmpty)
+              if (widget.continueItems.isNotEmpty ||
+                  state.continueItems.isNotEmpty)
                 _boundedSliverBox(
                   Padding(
                     padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
                     child: ContinueShelf(
-                      items: widget.continueItems,
+                      items: widget.continueItems.isNotEmpty
+                          ? widget.continueItems
+                          : state.continueItems,
                       onOpenMedia: widget.openMedia,
                       onSeeAll: widget.onNavigateToLibrary,
                     ),
+                  ),
+                ),
+              if (widget.discoverCatalog != null &&
+                  widget.openCatalogDetails != null)
+                _boundedSliverBox(
+                  CatalogHomeSections(
+                    discover: widget.discoverCatalog!,
+                    openDetails: (media) =>
+                        widget.openCatalogDetails!(context, media),
                   ),
                 ),
               if (widget.featuredItems.isNotEmpty)
@@ -133,6 +168,13 @@ class _HomePageState extends State<HomePage> {
                       items: widget.featuredItems,
                       onOpenMedia: widget.openMedia,
                     ),
+                  ),
+                ),
+              if (state.progressError != null)
+                _boundedSliverBox(
+                  const Padding(
+                    padding: EdgeInsets.all(HikariSpacing.md),
+                    child: Text('Some resume progress could not load.'),
                   ),
                 ),
               if (!usesBrowseFeed && state.error != null && feed.isNotEmpty)

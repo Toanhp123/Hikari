@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/application/catalog/catalog_workflows.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/home_page.dart';
@@ -9,6 +11,45 @@ import 'package:hikari/features/home/widgets/continue_shelf.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 void main() {
+  testWidgets('Continue shelf precedes catalog discovery', (tester) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const media = Media(
+      title: 'Resume first',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: SourceId.local, itemId: 'resume'),
+    );
+    final catalogItem = CatalogMedia(
+      id: const CatalogMediaId(provider: 'test', value: '1'),
+      title: 'Catalog later',
+      type: MediaType.anime,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(
+          openMedia: (_, _) {},
+          continueItems: const [
+            ContinueReadingItem(
+              media: media,
+              progress: .5,
+              progressLabel: '50% read',
+            ),
+          ],
+          discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
+          openCatalogDetails: (_, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.byType(ContinueShelf)).dy,
+      lessThan(tester.getTopLeft(find.text('Featured this season')).dy),
+    );
+  });
+
   testWidgets('Home prioritizes resume content before featured discovery', (
     tester,
   ) async {
@@ -161,6 +202,27 @@ void main() {
     final posterLeft = tester.getTopLeft(find.byType(MediaPoster)).dx;
     expect(posterLeft, greaterThanOrEqualTo(190));
   });
+}
+
+final class _CatalogProvider implements CatalogProvider {
+  _CatalogProvider(this.item);
+  final CatalogMedia item;
+  @override
+  String get id => 'test';
+  @override
+  Set<CatalogCapability> get capabilities => const {
+    CatalogCapability.discovery,
+  };
+  @override
+  Future<CatalogDiscovery> discover() async => CatalogDiscovery(
+    sections: {
+      CatalogSection.featured: [item],
+    },
+  );
+  @override
+  Future<CatalogDetails?> details(CatalogMediaId id) async => null;
+  @override
+  Future<void> close() async {}
 }
 
 final class _FailingLibraryRepository implements LibraryRepository {

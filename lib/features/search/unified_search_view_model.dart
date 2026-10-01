@@ -88,12 +88,14 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     SearchNovels? searchNovels,
     Future<List<Media>?> Function()? scanLocalMedia,
     String initialQuery = '',
+    SearchMediaTypeFilter initialFilter = SearchMediaTypeFilter.all,
   }) {
     return UnifiedSearchViewModel._(
       searchManga,
       searchNovels,
       scanLocalMedia,
       initialQuery,
+      initialFilter,
     );
   }
 
@@ -102,7 +104,11 @@ final class UnifiedSearchViewModel extends ChangeNotifier {
     this._searchNovels,
     this._scanLocalMedia,
     String initialQuery,
-  ) : _state = UnifiedSearchUiState(query: initialQuery.trim());
+    SearchMediaTypeFilter initialFilter,
+  ) : _state = UnifiedSearchUiState(
+        query: initialQuery.trim(),
+        filter: initialFilter,
+      );
 
   final SearchManga? _searchManga;
   final SearchNovels? _searchNovels;
