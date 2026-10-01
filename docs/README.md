@@ -86,11 +86,13 @@ It should not become an API reference or implementation plan.
 
 ```text
 architecture/
+├── CATALOG.md
 ├── EXTENSIONS.md
 ├── LOCAL_MEDIA.md
 ├── PRESENTATION.md
 ├── REMOTE_MANGA.md
 ├── SOURCES.md
+├── UI_ARCHITECTURE.md
 └── USER_STATE.md
 ```
 
@@ -159,12 +161,16 @@ Hikari/
     ├── AGENT_WORKFLOW.md
     ├── GIT_WORKFLOW.md
     ├── architecture/
+    │   ├── CATALOG.md
     │   ├── EXTENSIONS.md
     │   ├── LOCAL_MEDIA.md
     │   ├── PRESENTATION.md
     │   ├── REMOTE_MANGA.md
     │   ├── SOURCES.md
+    │   ├── UI_ARCHITECTURE.md
     │   └── USER_STATE.md
+    ├── roadmap/
+    │   └── UI_UX_COMPLETION.md
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
         ├── ADR-002-foundation-v1.md
@@ -175,7 +181,8 @@ Hikari/
         ├── ADR-007-android-manga-extension-runtime.md
         ├── ADR-008-external-remote-provider-ownership.md
         ├── ADR-009-stable-source-identities.md
-        └── ADR-010-bounded-lnreader-runtime.md
+        ├── ADR-010-bounded-lnreader-runtime.md
+        └── ADR-011-catalog-content-boundary.md
 ```
 
 Future `architecture/` and `roadmap/` documents are created incrementally only when the project has real knowledge or active execution state to store. Completed one-off plans should be removed after durable facts move to canonical architecture/product docs.

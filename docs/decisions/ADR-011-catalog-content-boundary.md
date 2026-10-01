@@ -1,4 +1,4 @@
-# ADR-009: Catalog metadata is not playable content
+# ADR-011: Catalog metadata is not playable content
 
 Status: Accepted
 
@@ -16,4 +16,3 @@ Alternatives rejected: putting AniList in `SourceRegistry` would equate metadata
 
 Implementation and UI layout details live in [Catalog architecture](../architecture/CATALOG.md).
 Revisit chapter resume when an existing source-neutral parent-resolution contract is designed.
-Եnd
