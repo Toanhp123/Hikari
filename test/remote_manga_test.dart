@@ -304,7 +304,7 @@ void main() {
     expect(dependencies.localMediaSource.id, SourceId.local);
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Search manga'), findsNothing);
+    expect(find.text('Browse manga'), findsNothing);
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -344,7 +344,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.byTooltip('Search manga'), findsNothing);
+        expect(find.text('Browse manga'), findsNothing);
       } finally {
         await tester.pumpWidget(const SizedBox());
         // Advance fake time so Drift's deferred stream disposal can finish.
@@ -371,7 +371,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('Search manga'));
+        await tester.tap(find.text('Browse manga'));
         await tester.pumpAndSettle();
 
         await tester.tap(find.byType(DropdownButton<SourceId>));
@@ -409,7 +409,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Search manga'));
+      await tester.tap(find.text('Browse manga'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'test');
       await tester.tap(find.text('Search'));
@@ -450,7 +450,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Search manga'));
+    await tester.tap(find.text('Browse manga'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'test');
     await tester.tap(find.text('Search'));
@@ -495,7 +495,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Search manga'));
+    await tester.tap(find.text('Browse manga'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'test');
     await tester.tap(find.text('Search'));
