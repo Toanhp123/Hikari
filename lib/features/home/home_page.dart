@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
@@ -41,8 +40,6 @@ class HomePage extends StatefulWidget {
     this.continueItems = const [],
     this.onNavigateToSearch,
     this.onNavigateToLibrary,
-    this.openRemoteManga,
-    this.openRemoteNovels,
   });
 
   final void Function(BuildContext, Media) openMedia;
@@ -54,8 +51,6 @@ class HomePage extends StatefulWidget {
   final List<ContinueReadingItem> continueItems;
   final VoidCallback? onNavigateToSearch;
   final VoidCallback? onNavigateToLibrary;
-  final VoidCallback? openRemoteManga;
-  final VoidCallback? openRemoteNovels;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -124,6 +119,8 @@ class _HomePageState extends State<HomePage> {
             ? _selectedFilter
             : HomeFilterType.all;
         final filteredFeed = _filteredItems(feed, effectiveFilter);
+        final hasCatalogDiscovery =
+            widget.discoverCatalog != null && widget.openCatalogDetail != null;
 
         return HikariScaffold(
           useSafeArea: true,
@@ -145,8 +142,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              if (widget.discoverCatalog != null &&
-                  widget.openCatalogDetail != null)
+              if (hasCatalogDiscovery)
                 _boundedSliverBox(
                   Padding(
                     padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
@@ -186,12 +182,10 @@ class _HomePageState extends State<HomePage> {
                   child: SizedBox(height: HikariSpacing.md),
                 ),
                 _buildFeedGrid(colors, filteredFeed),
-              ] else if (state.loading)
+              ] else if (state.loading && !hasCatalogDiscovery)
                 _buildLoadingGrid()
               else if (state.error != null)
-                _boundedSliverBox(_buildErrorState())
-              else
-                _boundedSliverBox(_buildEmptyState()),
+                _boundedSliverBox(_buildErrorState()),
               const SliverToBoxAdapter(
                 child: SizedBox(height: HikariSpacing.xxxl),
               ),
@@ -468,47 +462,6 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildEmptyState() {
-    final actions = <Widget>[
-      if (widget.onNavigateToSearch != null)
-        HikariButton(
-          label: 'Search',
-          icon: const Icon(Icons.search_rounded, size: 18),
-          onPressed: widget.onNavigateToSearch,
-        ),
-      if (widget.openRemoteManga != null)
-        HikariButton(
-          label: 'Browse manga',
-          icon: const Icon(Icons.auto_stories_outlined, size: 18),
-          variant: HikariButtonVariant.secondary,
-          onPressed: widget.openRemoteManga,
-        ),
-      if (widget.openRemoteNovels != null)
-        HikariButton(
-          label: 'Browse novels',
-          icon: const Icon(Icons.chrome_reader_mode_outlined, size: 18),
-          variant: HikariButtonVariant.secondary,
-          onPressed: widget.openRemoteNovels,
-        ),
-    ];
-
-    return AsyncStateView(
-      status: AsyncViewStatus.empty,
-      contentBuilder: (_) => const SizedBox.shrink(),
-      emptyIcon: Icons.explore_rounded,
-      emptyTitle: 'Start your library',
-      emptyMessage: 'Search supported sources and add media to your Library. Your latest additions will appear here for quick access.',
-      emptyAction: actions.isEmpty
-          ? null
-          : Wrap(
-              alignment: WrapAlignment.center,
-              spacing: HikariSpacing.sm,
-              runSpacing: HikariSpacing.sm,
-              children: actions,
-            ),
     );
   }
 

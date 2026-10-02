@@ -10,6 +10,7 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/sources/source_registry.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -20,6 +21,53 @@ import 'package:hikari/features/remote_novel/remote_novel_search_view_model.dart
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
+
+Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
+  await tester.tap(find.text('View details'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Read'));
+  await tester.pump();
+  for (
+    var i = 0;
+    i < 20 && find.byTooltip('Add to library').evaluate().isEmpty;
+    i++
+  ) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(find.byTooltip('Add to library'), findsOneWidget);
+}
+
+final class _TestCatalogProvider implements CatalogProvider {
+  _TestCatalogProvider(MediaType type)
+    : _entry = CatalogEntry(
+        id: const CatalogEntryId(provider: 'test', value: 'remote'),
+        title: 'novel',
+        type: type,
+      );
+
+  final CatalogEntry _entry;
+
+  @override
+  String get id => 'test';
+
+  @override
+  Future<CatalogDiscovery> discover() async => CatalogDiscovery(
+    sections: {
+      CatalogSection.featured: [_entry],
+    },
+  );
+
+  @override
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async =>
+      CatalogEntryDetails(entry: _entry);
+
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
+  Future<void> close() async {}
+}
 
 class FakeNovel
     implements NovelSearchSource, NovelSeriesSource, NovelChapterSource {
@@ -224,17 +272,12 @@ void main() {
     final source = FakeNovel();
     var dependencies = AppDependencies.create(
       database: db,
+      catalogProvider: _TestCatalogProvider(MediaType.lightNovel),
       additionalSources: [source],
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Browse novels'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Browse novels'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'novel');
-    await tester.tap(find.text('Search'));
-    await tester.pumpAndSettle();
+    await _openCatalogSourceSearch(tester);
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Novel 1'));

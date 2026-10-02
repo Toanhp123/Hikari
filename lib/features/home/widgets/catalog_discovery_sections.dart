@@ -57,16 +57,13 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
             status: AsyncViewStatus.error,
             contentBuilder: (_) => const SizedBox.shrink(),
             errorTitle: 'Catalog unavailable',
-            errorMessage: 'Catalog discovery could not load.',
+            errorMessage: 'Could not load discovery. Check your connection and try again.',
             onRetry: _retry,
           ),
         );
       }
       if (!snapshot.hasData) {
-        return const Padding(
-          padding: EdgeInsets.all(HikariSpacing.lg),
-          child: LinearProgressIndicator(),
-        );
+        return const _CatalogLoadingSkeleton();
       }
       final discovery = snapshot.data!;
       final sections = discovery.sections;
@@ -102,11 +99,7 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
               ),
               Builder(
                 builder: (context) {
-                  final posterWidth = context.isCompact
-                      ? 132.0
-                      : context.isMedium
-                      ? 144.0
-                      : 156.0;
+                  final posterWidth = _catalogPosterWidth(context);
                   return SizedBox(
                     height: posterWidth * 1.5,
                     child: ListView.separated(
@@ -168,4 +161,92 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
     CatalogSection.popularLightNovels => 'Popular Light Novels',
     CatalogSection.seasonalAnime => 'Seasonal Anime',
   };
+}
+
+double _catalogPosterWidth(BuildContext context) => context.isCompact
+    ? 132.0
+    : context.isMedium
+    ? 144.0
+    : 156.0;
+
+class _CatalogLoadingSkeleton extends StatelessWidget {
+  const _CatalogLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.hikariColors;
+    final posterWidth = _catalogPosterWidth(context);
+
+    return Semantics(
+      key: const ValueKey('catalog-loading-skeleton'),
+      container: true,
+      label: 'Loading catalog',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.isCompact ? 0 : HikariSpacing.lg,
+              ),
+              child: AspectRatio(
+                aspectRatio: context.isCompact ? (16 / 10) : (16 / 7),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: context.isCompact
+                        ? BorderRadius.zero
+                        : HikariRadius.borderLg,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        colors.surfaceElevated,
+                        colors.surfaceContainer,
+                        colors.surface,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            for (var section = 0; section < 2; section++) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  HikariSpacing.lg,
+                  HikariSpacing.xl,
+                  HikariSpacing.lg,
+                  HikariSpacing.sm,
+                ),
+                child: Container(
+                  width: section == 0 ? 112 : 148,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceElevated,
+                    borderRadius: HikariRadius.borderCapsule,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: posterWidth * 1.5,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HikariSpacing.lg,
+                  ),
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 4,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(width: HikariSpacing.md),
+                  itemBuilder: (_, _) => SizedBox(
+                    width: posterWidth,
+                    child: const MediaPoster(title: '', isLoading: true),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

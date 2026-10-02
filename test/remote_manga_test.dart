@@ -10,6 +10,7 @@ import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/source_registry.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -23,6 +24,49 @@ import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
+
+Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
+  await tester.tap(find.text('View details'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Read'));
+  await tester.pump();
+  for (var i = 0; i < 20 && find.text('Series').evaluate().isEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(find.text('Series'), findsOneWidget);
+}
+
+final class _TestCatalogProvider implements CatalogProvider {
+  _TestCatalogProvider(MediaType type)
+    : _entry = CatalogEntry(
+        id: const CatalogEntryId(provider: 'test', value: 'remote'),
+        title: 'test',
+        type: type,
+      );
+
+  final CatalogEntry _entry;
+
+  @override
+  String get id => 'test';
+
+  @override
+  Future<CatalogDiscovery> discover() async => CatalogDiscovery(
+    sections: {
+      CatalogSection.featured: [_entry],
+    },
+  );
+
+  @override
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async =>
+      CatalogEntryDetails(entry: _entry);
+
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
+  Future<void> close() async {}
+}
 
 class FakeRemote
     implements MangaSearchSource, MangaSeriesSource, MangaPageSource {
@@ -366,23 +410,13 @@ void main() {
           HikariApp(
             dependencies: AppDependencies.create(
               database: db,
+              catalogProvider: _TestCatalogProvider(MediaType.manga),
               additionalSources: [FakeRemote(), _SecondRemote()],
             ),
           ),
         );
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Browse manga'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Browse manga'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byType(DropdownButton<SourceId>));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Second remote').last);
-        await tester.pumpAndSettle();
-        await tester.enterText(find.byType(TextField), 'test');
-        await tester.tap(find.text('Search'));
-        await tester.pumpAndSettle();
+        await _openCatalogSourceSearch(tester);
 
         expect(find.text('Second series'), findsOneWidget);
       } finally {
@@ -406,18 +440,13 @@ void main() {
         HikariApp(
           dependencies: AppDependencies.create(
             database: db,
+            catalogProvider: _TestCatalogProvider(MediaType.manga),
             additionalSources: [UnavailableRemote()],
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Browse manga'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Browse manga'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'test');
-      await tester.tap(find.text('Search'));
-      await tester.pumpAndSettle();
+      await _openCatalogSourceSearch(tester);
       await tester.tap(find.text('Series'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
@@ -449,18 +478,13 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          catalogProvider: _TestCatalogProvider(MediaType.manga),
           additionalSources: [FakeRemote()],
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Browse manga'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Browse manga'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'test');
-    await tester.tap(find.text('Search'));
-    await tester.pumpAndSettle();
+    await _openCatalogSourceSearch(tester);
     await tester.tap(find.text('Series'));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
@@ -496,18 +520,13 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          catalogProvider: _TestCatalogProvider(MediaType.manga),
           additionalSources: [ResumableRemote()],
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Browse manga'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Browse manga'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'test');
-    await tester.tap(find.text('Search'));
-    await tester.pumpAndSettle();
+    await _openCatalogSourceSearch(tester);
     await tester.tap(find.text('Series'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));

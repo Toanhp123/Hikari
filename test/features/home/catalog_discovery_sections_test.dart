@@ -157,13 +157,19 @@ void main() {
     );
     await tester.pumpWidget(
       _app(
-        CatalogDiscoverySections(
-          discover: DiscoverCatalog(provider),
-          openDetail: (_) {},
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discover: DiscoverCatalog(provider),
+            openDetail: (_) {},
+          ),
         ),
       ),
     );
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('catalog-loading-skeleton')),
+      findsOneWidget,
+    );
+    expect(find.byType(MediaPoster), findsNWidgets(8));
     first.complete(
       CatalogDiscovery(
         sections: {
@@ -172,23 +178,29 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('catalog-loading-skeleton')),
+      findsNothing,
+    );
     expect(find.text('Featured'), findsOneWidget);
     expect(find.text('Anime A'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(
       _app(
-        CatalogDiscoverySections(
-          discover: DiscoverCatalog(
-            _Provider(
-              onDiscover: () async => CatalogDiscovery(
-                sections: {
-                  CatalogSection.trending: [_anime],
-                },
-                warnings: ['One section failed'],
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discover: DiscoverCatalog(
+              _Provider(
+                onDiscover: () async => CatalogDiscovery(
+                  sections: {
+                    CatalogSection.trending: [_anime],
+                  },
+                  warnings: ['One section failed'],
+                ),
               ),
             ),
+            openDetail: (_) {},
           ),
-          openDetail: (_) {},
         ),
       ),
     );
@@ -216,9 +228,11 @@ void main() {
     );
     await tester.pumpWidget(
       _app(
-        CatalogDiscoverySections(
-          discover: DiscoverCatalog(provider),
-          openDetail: (_) {},
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discover: DiscoverCatalog(provider),
+            openDetail: (_) {},
+          ),
         ),
       ),
     );

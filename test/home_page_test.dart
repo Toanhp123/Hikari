@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
@@ -125,38 +127,52 @@ void main() {
     expect(selectedMedia, mangaMedia);
   });
 
-  testWidgets('empty Home offers real discovery actions', (tester) async {
-    var searchCount = 0;
-    var mangaCount = 0;
-    var novelCount = 0;
+  testWidgets('empty Library never renders the removed start-library state', (
+    tester,
+  ) async {
+    final catalog = Completer<CatalogDiscovery>();
+    final catalogItem = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'loaded'),
+      title: 'Loaded discovery',
+      type: MediaType.anime,
+    );
 
     await tester.pumpWidget(
       MaterialApp(
         theme: HikariTheme.darkTheme(),
         home: HomePage(
           openMedia: (_, _) {},
-          onNavigateToSearch: () => searchCount++,
-          openRemoteManga: () => mangaCount++,
-          openRemoteNovels: () => novelCount++,
+          library: _FakeLibraryRepository(const []),
+          discoverCatalog: DiscoverCatalog(
+            _DeferredCatalogProvider(catalog.future),
+          ),
+          openCatalogDetail: (_, _) {},
         ),
       ),
     );
+    await tester.pump();
 
-    expect(find.text('Start your library'), findsOneWidget);
-    expect(find.text('Open Local'), findsNothing);
-    expect(find.text('Local media'), findsNothing);
-    expect(find.text('Search'), findsOneWidget);
-    expect(find.text('Browse manga'), findsOneWidget);
-    expect(find.text('Browse novels'), findsOneWidget);
-    expect(find.text('Attack on Titan'), findsNothing);
+    expect(find.text('Start your library'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('catalog-loading-skeleton')),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.text('Search'));
-    await tester.tap(find.text('Browse manga'));
-    await tester.tap(find.text('Browse novels'));
+    catalog.complete(
+      CatalogDiscovery(
+        sections: {
+          CatalogSection.featured: [catalogItem],
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
 
-    expect(searchCount, 1);
-    expect(mangaCount, 1);
-    expect(novelCount, 1);
+    expect(
+      find.byKey(const ValueKey('catalog-loading-skeleton')),
+      findsNothing,
+    );
+    expect(find.text('Loaded discovery'), findsOneWidget);
+    expect(find.text('Start your library'), findsNothing);
   });
 
   testWidgets('Home exposes retry when Library loading fails', (tester) async {
@@ -251,6 +267,28 @@ final class _CatalogProvider implements CatalogProvider {
 
   @override
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
+  @override
+  Future<void> close() async {}
+}
+
+final class _DeferredCatalogProvider implements CatalogProvider {
+  _DeferredCatalogProvider(this.discovery);
+
+  final Future<CatalogDiscovery> discovery;
+
+  @override
+  String get id => 'deferred-test';
+
+  @override
+  Future<CatalogDiscovery> discover() => discovery;
+
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
+
   @override
   Future<void> close() async {}
 }
