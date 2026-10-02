@@ -11,12 +11,12 @@ class CatalogDetailHero extends StatelessWidget {
     super.key,
     required this.entry,
     required this.details,
-    required this.openSourceSearch,
+    required this.onPrimaryAction,
   });
 
   final CatalogEntry entry;
   final CatalogEntryDetails? details;
-  final ValueChanged<CatalogEntry> openSourceSearch;
+  final VoidCallback onPrimaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +163,14 @@ class CatalogDetailHero extends StatelessWidget {
                                     : Icons.menu_book_rounded,
                                 size: 19,
                               ),
-                              onPressed: () => openSourceSearch(entry),
+                              onPressed: onPrimaryAction,
                             ),
                           ),
                           const SizedBox(height: HikariSpacing.xs),
                           Text(
-                            'Choose a source to continue',
+                            entry.type == MediaType.anime
+                                ? 'Choose a source to continue'
+                                : 'Choose where to read',
                             style: HikariTypography.caption.copyWith(
                               color: Colors.white.withValues(alpha: 0.72),
                             ),

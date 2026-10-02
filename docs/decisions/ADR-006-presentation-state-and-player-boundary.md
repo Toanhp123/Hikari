@@ -54,11 +54,12 @@ two platform-oriented APIs remain allowed for adapters.
 
 ## Later evolution
 
-As of 2026-10-02, Catalog Detail opens the unified `SourceSearchPage`; the older
-source-specific remote manga/novel search presentation surfaces have been removed. This
-ADR still governs the presentation-state and player boundaries, while the current route
-ownership rules are documented in `docs/architecture/PRESENTATION.md` and
-`UI_ARCHITECTURE.md`.
+As of 2026-10-03, Catalog Detail keeps manga/light-novel source choice and automatic
+exact-match resolution in a feature-local ViewModel, while the unified `SourceSearchPage` is
+reserved for explicit search-all and source-scoped manual recovery. The older source-specific
+remote manga/novel search presentation surfaces remain removed. This ADR still governs the
+presentation-state and player boundaries, while the current route ownership rules are documented
+in `docs/architecture/PRESENTATION.md` and `UI_ARCHITECTURE.md`.
 
 ## Alternatives considered
 

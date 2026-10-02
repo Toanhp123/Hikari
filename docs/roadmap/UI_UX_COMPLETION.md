@@ -13,7 +13,7 @@ Hikari already has enough end-to-end product capability to validate the user exp
 - local video, manga/archive, text and EPUB paths;
 - remote manga through the Mihon-compatible extension runtime;
 - remote novel through the bounded LNReader-compatible runtime;
-- unified search;
+- catalog-first search plus source-backed resolution/recovery search;
 - Library and persisted progress/resume;
 - Home, Local, Library, Search and Settings destinations;
 - manga, novel/publication and video consumption surfaces;
@@ -254,20 +254,22 @@ A fresh user and a returning user both have an obvious next action from Home.
 
 ## 8. Pass 2 — Search
 
-Search should make the source system understandable without exposing implementation detail unnecessarily.
+Primary Search discovers catalog metadata. Source-backed search is a secondary resolution/recovery surface and should make provenance understandable without exposing runtime implementation detail unnecessarily.
 
 ### UX goals
 
-- one clear search entry point;
-- manga and novel results are distinguishable;
-- source selection/filtering is visible when useful;
+- one clear catalog search entry point;
+- catalog results are distinguishable by media type before source selection;
+- source selection appears in Catalog Detail only when consumption needs a real source;
+- manual source search keeps the selected source visible and scoped when used to correct a match;
 - partial source failure does not make successful results unusable;
 - loading and retry are scoped to the work that failed whenever possible.
 
 ### Required checks
 
 - Query state survives ordinary navigation expected by the current shell/state model.
-- Search does not require users to understand “Mihon” or “LNReader” as architecture concepts.
+- Catalog Search does not fan out to content extensions by default.
+- Source Search does not require users to understand “Mihon” or “LNReader” as architecture concepts.
 - Source names may be shown as content provenance where useful, not as implementation leakage.
 - Empty query, no results, source unavailable and source error are different states.
 - Result cards expose enough metadata to choose a result without becoming oversized details screens.
@@ -276,7 +278,7 @@ Search should make the source system understandable without exposing implementat
 
 ### Exit criteria
 
-A user can search across the currently supported remote content types, understand the returned result, recover from source-specific failure, and proceed to Details without ambiguity.
+A user can discover a title through catalog search, understand its media type, and use source-backed search only when explicit discovery or match recovery is needed.
 
 ---
 
@@ -301,6 +303,9 @@ current progress
 ### Required checks
 
 - The primary start/resume action is visually clear.
+- Catalog Detail asks for a compatible installed source in context rather than navigating to a generic search page.
+- A unique normalized exact title/alias match may continue directly; ambiguous or missing matches require user confirmation or manual correction.
+- Source selection uses a short adaptive modal surface; lengthy manual search remains a page-level recovery flow.
 - Add/remove Library state is visible and predictable.
 - Chapter rows communicate enough identity and progress to choose safely.
 - Long lists remain usable and do not make the header/action region hard to recover.

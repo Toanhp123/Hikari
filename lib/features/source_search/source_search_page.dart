@@ -20,7 +20,9 @@ class SourceSearchPage extends StatefulWidget {
     this.library,
     this.initialQuery = '',
     this.initialFilter = SourceSearchFilter.all,
-  });
+    this.initialSourceId,
+    this.sourceName,
+  }) : assert((initialSourceId == null) == (sourceName == null));
 
   final void Function(BuildContext, Media) openMedia;
   final SearchManga? searchManga;
@@ -29,6 +31,8 @@ class SourceSearchPage extends StatefulWidget {
   final LibraryRepository? library;
   final String initialQuery;
   final SourceSearchFilter initialFilter;
+  final SourceId? initialSourceId;
+  final String? sourceName;
 
   @override
   State<SourceSearchPage> createState() => _SourceSearchPageState();
@@ -48,6 +52,7 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
       scanLocalMedia: widget.scanLocalMedia,
       initialQuery: widget.initialQuery,
       initialFilter: widget.initialFilter,
+      sourceId: widget.initialSourceId,
     );
     if (widget.initialQuery.trim().isNotEmpty) {
       unawaited(_viewModel.search(widget.initialQuery));
@@ -67,6 +72,12 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
       listenable: _viewModel,
       builder: (context, _) => HikariScaffold(
         useSafeArea: true,
+        appBar: AppBar(
+          leading: Navigator.of(context).canPop() ? const BackButton() : null,
+          title: Text(
+            widget.sourceName == null ? 'Search sources' : 'Search source',
+          ),
+        ),
         body: SourceSearchContent(
           controller: _searchController,
           state: _viewModel.state,
@@ -76,6 +87,7 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
           onRetry: () => unawaited(_viewModel.retry()),
           openMedia: widget.openMedia,
           library: widget.library,
+          scopedSourceName: widget.sourceName,
         ),
       ),
     );

@@ -84,10 +84,14 @@ directories.
 
 Remote manga/novel series routes keep feature-local state holders for chapter loading.
 Their chapter collections support adaptive pull-to-refresh plus an explicit refresh action,
-and retain the last usable chapter list if refresh fails. Catalog Detail enters the single unified `SourceSearchPage`; the obsolete source-specific
-remote manga/novel search pages and their duplicate presentation state have been retired.
-Pagination remains a source/application capability and should be added to unified source
-search only when that production route needs it.
+and retain the last usable chapter list if refresh fails. Catalog Detail keeps manga/light-novel
+source choice in context through `CatalogSourcePickerViewModel`: a selected source is resolved
+against the catalog title/aliases and an exact unique match opens the existing series route
+directly. `SourceSearchPage` remains the unified discovery/recovery route for explicit
+search-all and source-scoped manual correction; the obsolete source-specific remote
+manga/novel search pages and their duplicate presentation state remain retired. Pagination
+remains a source/application capability and should be added to unified source search only when
+that production route needs it.
 
 ## Player boundary
 

@@ -27,6 +27,9 @@ Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
   await tester.tap(find.text('View details'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Read'));
+  await tester.pumpAndSettle();
+  expect(find.text('Read from'), findsOneWidget);
+  await tester.tap(find.text('Search all sources'));
   await tester.pump();
   for (var i = 0; i < 20 && find.text('Series').evaluate().isEmpty; i++) {
     await tester.pump(const Duration(milliseconds: 50));

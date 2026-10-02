@@ -93,14 +93,27 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         builder: (_) => CatalogDetailPage(
           initialEntry: entry,
           loadDetails: _dependencies.loadCatalogEntryDetails,
+          resolveCatalogSource: _dependencies.resolveCatalogSource,
+          openMedia: _openMedia,
           openRelated: (related) => _openCatalogDetail(context, related),
-          openSourceSearch: (item) => _openCatalogSourceSearch(context, item),
+          openSourceSearch: (item, sourceId, sourceName) =>
+              _openCatalogSourceSearch(
+                context,
+                item,
+                sourceId: sourceId,
+                sourceName: sourceName,
+              ),
         ),
       ),
     );
   }
 
-  void _openCatalogSourceSearch(BuildContext context, CatalogEntry entry) {
+  void _openCatalogSourceSearch(
+    BuildContext context,
+    CatalogEntry entry, {
+    SourceId? sourceId,
+    String? sourceName,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SourceSearchPage(
@@ -112,6 +125,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               ? _dependencies.localMediaSource.scanSelectedRoot
               : null,
           initialQuery: entry.title,
+          initialSourceId: sourceId,
+          sourceName: sourceName,
           initialFilter: switch (entry.type) {
             MediaType.anime => SourceSearchFilter.anime,
             MediaType.manga => SourceSearchFilter.manga,

@@ -1,11 +1,18 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/application/catalog/resolve_catalog_source.dart';
+import 'package:hikari/application/search/search_manga.dart';
+import 'package:hikari/application/search/search_novels.dart';
+import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
 
 void main() {
@@ -22,8 +29,10 @@ void main() {
           loadDetails: LoadCatalogEntryDetails(
             _Provider(onLoadDetails: (_) => pending.future),
           ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (entry) => searched = entry,
+          openSourceSearch: (entry, _, _) => searched = entry,
         ),
       ),
     );
@@ -80,8 +89,10 @@ void main() {
           loadDetails: LoadCatalogEntryDetails(
             _Provider(onLoadDetails: (_) async => detail),
           ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
           openRelated: (entry) => related = entry,
-          openSourceSearch: (_) {},
+          openSourceSearch: (_, _, _) {},
         ),
       ),
     );
@@ -136,8 +147,10 @@ void main() {
                   CatalogEntryDetails(entry: _anime, description: description),
             ),
           ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_) {},
+          openSourceSearch: (_, _, _) {},
         ),
       ),
     );
@@ -179,8 +192,10 @@ void main() {
         CatalogDetailPage(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (entry) => searched = entry,
+          openSourceSearch: (entry, _, _) => searched = entry,
         ),
       ),
     );
@@ -218,8 +233,10 @@ void main() {
         CatalogDetailPage(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_) {},
+          openSourceSearch: (_, _, _) {},
         ),
       ),
     );
@@ -255,8 +272,10 @@ void main() {
         CatalogDetailPage(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_) {},
+          openSourceSearch: (_, _, _) {},
         ),
       ),
     );
@@ -293,8 +312,10 @@ void main() {
               ),
             ),
           ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_) {},
+          openSourceSearch: (_, _, _) {},
         ),
       ),
     );
@@ -307,14 +328,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('manga detail exposes Read callback with CatalogEntry', (
+  testWidgets('manga Read resolves a selected source before opening media', (
     tester,
   ) async {
+    Media? opened;
     CatalogEntry? searched;
     final manga = CatalogEntry(
       id: _related.id,
       title: 'Book A',
       type: MediaType.manga,
+    );
+    final source = _MangaSource(
+      results: [
+        MangaPreview(
+          media: Media(
+            title: 'Book A',
+            type: MediaType.manga,
+            source: const SourceMediaRef(
+              sourceId: SourceId('test:manga'),
+              itemId: 'book-a',
+            ),
+          ),
+        ),
+      ],
     );
 
     await tester.pumpWidget(
@@ -326,15 +362,30 @@ void main() {
               onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
             ),
           ),
+          resolveCatalogSource: _resolver([source]),
+          openMedia: (_, media) async {
+            opened = media;
+          },
           openRelated: (_) {},
-          openSourceSearch: (entry) => searched = entry,
+          openSourceSearch: (entry, _, _) => searched = entry,
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Read'));
-    expect(searched, manga);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Read from'), findsOneWidget);
+    expect(find.text('Manga source [en]'), findsOneWidget);
+    expect(searched, isNull);
+
+    await tester.tap(find.text('Manga source [en]'));
+    await tester.pumpAndSettle();
+
+    expect(opened?.title, 'Book A');
+    expect(searched, isNull);
+    expect(find.text('Read from'), findsNothing);
   });
 }
 
@@ -366,6 +417,36 @@ final _related = CatalogEntry(
   title: 'Related series',
   type: MediaType.manga,
 );
+
+ResolveCatalogSource _resolver([Iterable<MediaSource> sources = const []]) {
+  final registry = SourceRegistry(sources);
+  return ResolveCatalogSource(
+    searchManga: SearchManga(registry),
+    searchNovels: SearchNovels(registry),
+  );
+}
+
+final class _MangaSource implements MangaSearchSource, MangaPageSource {
+  _MangaSource({this.results = const []});
+
+  final List<MangaPreview> results;
+
+  @override
+  SourceId get id => const SourceId('test:manga');
+
+  @override
+  String get name => 'Manga source [en]';
+
+  @override
+  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
+      MangaSearchPage(results: results, hasNextPage: false, page: page);
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
+}
 
 final class _Provider implements CatalogProvider {
   _Provider({

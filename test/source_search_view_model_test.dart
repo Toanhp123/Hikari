@@ -123,6 +123,35 @@ void main() {
     expect(model.state.results.single.media.title, 'Working result');
   });
 
+  test('scoped source search skips other sources and local media', () async {
+    final selected = _ResultMangaSource(
+      id: const SourceId('test:selected'),
+      title: 'Selected result',
+    );
+    final other = _ResultMangaSource(
+      id: const SourceId('test:other'),
+      title: 'Other result',
+    );
+    var scans = 0;
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([selected, other])),
+      scanLocalMedia: () async {
+        scans++;
+        return const [media];
+      },
+      initialFilter: SourceSearchFilter.manga,
+      sourceId: selected.id,
+    );
+    addTearDown(model.dispose);
+
+    await model.search('query');
+
+    expect(selected.searches, 1);
+    expect(other.searches, 0);
+    expect(scans, 0);
+    expect(model.state.results.single.media.title, 'Selected result');
+  });
+
   test(
     'selected filter limits remote fan-out and reuses local catalog',
     () async {
@@ -261,25 +290,28 @@ final class _ResultMangaSource implements MangaSearchSource, MangaPageSource {
   @override
   final SourceId id;
   final String title;
+  int searches = 0;
 
   @override
   String get name => 'Working manga';
 
   @override
-  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(
-        results: [
-          MangaPreview(
-            media: Media(
-              title: title,
-              type: MediaType.manga,
-              source: SourceMediaRef(sourceId: id, itemId: title),
-            ),
+  Future<MangaSearchPage> search(String query, {int page = 1}) async {
+    searches++;
+    return MangaSearchPage(
+      results: [
+        MangaPreview(
+          media: Media(
+            title: title,
+            type: MediaType.manga,
+            source: SourceMediaRef(sourceId: id, itemId: title),
           ),
-        ],
-        page: page,
-        hasNextPage: false,
-      );
+        ),
+      ],
+      page: page,
+      hasNextPage: false,
+    );
+  }
 
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
