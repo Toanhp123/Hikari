@@ -79,6 +79,24 @@ stable, promote the reusable part into `core/ui`.
 
 Do not build a large design-system package before the product requires one.
 
+### 2.6 Keep presentation copy localization-ready
+
+Domain and application state must stay language-neutral. Do not store user-facing
+English labels in domain enums, and do not render enum `.name` values as product
+copy.
+
+Keep single-use copy close to the feature that owns it. When the same domain value
+has proven shared presentation semantics across multiple features, centralize that
+mapping in `core/ui/patterns` rather than duplicating switches across screens.
+Visual variants that mean something different in one feature may remain local.
+
+Hikari does not add a localization framework before a second locale is an active
+requirement. When localization work starts, prefer Flutter's generated `gen_l10n`
+ARB workflow and locale-aware formatting instead of a custom string service.
+Replace English presentation mappings at the UI edge; domain contracts stay
+unchanged. App UI locale is separate from source/content language metadata; do
+not use one as the other.
+
 ---
 
 ## 3. Layer model
@@ -127,23 +145,26 @@ lib/
 │  └─ ui/
 │     ├─ components/
 │     │  ├─ hikari_button.dart
-│     │  ├─ hikari_icon_button.dart
 │     │  ├─ hikari_chip.dart
-│     │  └─ hikari_scaffold.dart
+│     │  ├─ hikari_icon_button.dart
+│     │  ├─ hikari_scaffold.dart
+│     │  └─ hikari_search_bar.dart
 │     │
 │     └─ patterns/
+│        ├─ async_state_view.dart
+│        ├─ media_metadata_view.dart
 │        ├─ media_poster.dart
-│        ├─ media_progress.dart
-│        ├─ empty_state.dart
-│        ├─ error_state.dart
-│        └─ loading_state.dart
+│        ├─ media_progress_bar.dart
+│        └─ media_type_presentation.dart
 │
 └─ features/
    ├─ library/
    │  ├─ library_page.dart
+   │  ├─ library_view_model.dart
+   │  ├─ library_button_view_model.dart
    │  └─ widgets/
-   │     ├─ continue_reading_section.dart
-   │     └─ library_media_card.dart
+   │     ├─ library_content.dart
+   │     └─ library_button.dart
    │
    ├─ remote_manga/
    ├─ novel_reader/
@@ -358,8 +379,9 @@ Examples:
 HikariButton
 HikariIconButton
 HikariChip
+HikariChipRow
 HikariScaffold
-HikariSectionHeader
+HikariSearchBar
 ```
 
 A primitive should not know about:
@@ -392,10 +414,9 @@ Examples:
 ```text
 MediaPoster
 MediaProgressBar
+MediaMetadataView
 AsyncStateView
-EmptyState
-ErrorState
-LoadingState
+media type presentation mapping
 ```
 
 Patterns should still avoid feature workflow ownership.
@@ -428,7 +449,130 @@ These widgets may combine shared tokens, primitives, patterns, and feature state
 They stay inside the feature until reuse proves that a lower-level abstraction
 is valuable.
 
-### 9.1 Promotion rule
+### 9.1 Feature anatomy and ownership
+
+Feature UI follows one structural rule regardless of screen size. Do not wait for
+a file to become long before applying the boundary.
+
+```text
+features/<feature>/
+├─ <feature>_page.dart          # route/lifecycle/composition boundary
+├─ <feature>_view_model.dart    # feature UI state + commands, when state exists
+├─ <feature>_labels.dart        # optional feature-owned presentation mapping
+└─ widgets/
+   ├─ <feature>_content.dart    # screen composition when the page would render it
+   └─ ...                       # feature-owned visual components
+```
+
+The names may vary when one feature owns several routes, but the responsibilities
+do not.
+
+**Page / route boundary**
+
+- creates and disposes view models and Flutter controllers;
+- reacts to widget lifecycle (`initState`, `didUpdateWidget`, `dispose`);
+- receives navigation callbacks and composes the route scaffold;
+- may own truly visual ephemeral state such as expansion, focus, scroll,
+  animation or text-controller state;
+- must not become the home of reusable cards, sections, grids, toolbars or
+  other non-route visual widgets. Those live under `widgets/`.
+
+**View model / state holder**
+
+Use a view model whenever a route owns asynchronous loading, filtering, retry,
+selection that changes visible data, pagination, or data-derived UI state. It
+owns state transitions and commands, not widgets. It must not depend on
+`BuildContext` or emit localized/user-facing copy when a language-neutral value
+can be exposed instead.
+
+Do not create a view model merely to move one `bool` out of a page. Pure visual
+ephemeral state stays with the view. A short one-shot UI command may also keep its
+`busy` flag and snackbar handling in the page when its result does not become displayed
+feature data; once a command participates in retryable/data-derived screen state, it
+belongs in the ViewModel. This is a semantic rule, not a line-count threshold.
+
+**Naming contract**
+
+For route-style features, use predictable names so ownership can be found without
+searching the whole tree:
+
+- route widget: `<Feature>Page`;
+- state holder: `<Feature>ViewModel`;
+- immutable snapshot: `<Feature>UiState`;
+- async phase enum when needed: `<Feature>Status`;
+- extracted screen composition: `<Feature>Content`;
+- page-owned state-holder field: `_viewModel`.
+
+Specialized reader/player controls may use semantic names such as `PlayerControls` or
+`MangaReaderTopBar`; do not rename domain-specific components to generic `Content` merely
+for symmetry.
+
+**UI state shape**
+
+A state holder exposes one immutable feature state snapshot. Do not scatter loading,
+error, results and selection across independent fields in the page. Choose the state
+representation from the actual state topology:
+
+- use a feature-local `Status` enum inside one state snapshot when controls, filters,
+  stale content or retry state must survive an async transition; this is the default for
+  browse/search/detail/library routes;
+- use sealed states only when the states are genuinely mutually exclusive and do not need
+  to preserve shared/stale payload across transitions;
+- a composite screen such as Home may carry separate status/error slices for independent
+  data regions instead of forcing unrelated requests into one global status;
+- reader/player controller state remains lifecycle state at the view boundary when it is
+  coupled to Flutter/platform controllers rather than application data.
+
+The goal is one predictable snapshot per state holder, not one universal state class for
+every feature. A different representation requires a different state topology, not file
+size or author preference.
+
+**Feature widgets**
+
+Every non-page visual component owned by a feature lives under that feature's
+`widgets/` directory, including components reused by sibling routes in the same
+feature. A component moves to `core/ui` only after cross-feature reuse proves a
+stable shared responsibility.
+
+**Reusable behavior components**
+
+A feature-owned widget reused across routes may be a small view in its own right. If it
+loads or mutates domain/application state, give that view a paired feature ViewModel and
+keep repository/use-case operations out of the widget state. The widget may own only the
+paired ViewModel lifecycle plus visual feedback such as snackbars. `LibraryButton` is the
+canonical example.
+
+Pure visual state such as carousel position, slider drag position, reader preference sheet
+selection or animation state does not require a ViewModel. Feature widgets must not call
+application workflows or repository operations directly.
+
+**Presentation mappings**
+
+Feature-specific labels/formatters may live beside the page when they are not
+widgets. Cross-feature presentation semantics belong in `core/ui/patterns`.
+Neither location changes domain identity or stores locale-specific product copy in
+domain/application models.
+
+**Reader/player session exception**
+
+Readers and the video player may keep session state in their page only when that
+state is inseparable from a Flutter/platform controller lifetime: playback,
+transform/gesture state, scroll position, HTML-anchor navigation, debounce/flush
+of the active reading session, or content bytes currently being decoded for that
+session. This is a topology exception, not a size exception.
+
+Browse/filter/source selection, reusable metadata loading, or any state that can
+be represented independently of those controllers still belongs in a ViewModel.
+If a reader accumulates enough controller-independent state that this distinction
+becomes unclear, introduce a reader-session ViewModel instead of expanding the
+exception. Reusable visual controls and surfaces always follow the `widgets/`
+rule.
+
+This structure is enforced for feature-root visual components by the architecture
+guard. Existing feature code should converge to it as touched; new code must not
+introduce another layout convention.
+
+### 9.2 Promotion rule
 
 Use this flow:
 
@@ -505,7 +649,7 @@ Settings
 ```
 
 Local restores and scans the saved folder without opening a picker. Folder
-selection is explicit in Local or Settings; Home offers an Open Local entry.
+selection is explicit in Local or Settings; Home does not own folder selection.
 Folder selection from Settings refreshes Local's external-root revision; selection
 from Local scans directly, avoiding duplicate scans. Source search is opened from
 Catalog Detail as a fresh route, so its session-local Local catalog cache starts
@@ -825,6 +969,8 @@ This architecture intentionally adopts ideas proven in larger projects while
 keeping only the parts that fit Hikari's current scale:
 
 - Flutter architecture samples: shared theme/UI outside feature-specific screens.
+- Flutter internationalization: generated ARB-based localization and locale-aware
+  formatting for user-facing copy.
 - Now in Android: clear separation between design-system primitives and reusable
   product UI.
 - Wonderous: explicit app-wide spacing, radius, typography, motion, and size

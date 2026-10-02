@@ -44,7 +44,7 @@ void main() {
       try {
         await tester.pumpWidget(HikariApp(dependencies: dependencies));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Catalog title'));
+        await tester.tap(find.text('View details'));
         await tester.pumpAndSettle();
 
         expect(find.byType(CatalogDetailPage), findsOneWidget);

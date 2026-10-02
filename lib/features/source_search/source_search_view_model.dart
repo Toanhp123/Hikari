@@ -6,13 +6,14 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 
 enum SourceSearchFilter {
-  all('All'),
-  anime('Anime'),
-  manga('Manga'),
-  novel('Light Novels');
+  all(null),
+  anime(MediaType.anime),
+  manga(MediaType.manga),
+  novel(MediaType.lightNovel);
 
-  const SourceSearchFilter(this.label);
-  final String label;
+  const SourceSearchFilter(this.mediaType);
+
+  final MediaType? mediaType;
 }
 
 enum SourceSearchStatus { idle, loading, ready, empty, error }
@@ -20,12 +21,12 @@ enum SourceSearchStatus { idle, loading, ready, empty, error }
 final class SourceSearchResult {
   const SourceSearchResult({
     required this.media,
-    required this.sourceName,
+    this.sourceName,
     this.metadata,
   });
 
   final Media media;
-  final String sourceName;
+  final String? sourceName;
   final MediaMetadata? metadata;
 }
 
@@ -37,7 +38,6 @@ final class SourceSearchUiState {
     this.status = SourceSearchStatus.idle,
     this.results = const [],
     this.failedSourceCount = 0,
-    this.errorMessage,
   });
 
   final String query;
@@ -45,7 +45,6 @@ final class SourceSearchUiState {
   final SourceSearchStatus status;
   final List<SourceSearchResult> results;
   final int failedSourceCount;
-  final String? errorMessage;
 
   SourceSearchUiState copyWith({
     String? query,
@@ -53,8 +52,6 @@ final class SourceSearchUiState {
     SourceSearchStatus? status,
     List<SourceSearchResult>? results,
     int? failedSourceCount,
-    String? errorMessage,
-    bool clearError = false,
   }) {
     return SourceSearchUiState(
       query: query ?? this.query,
@@ -62,7 +59,6 @@ final class SourceSearchUiState {
       status: status ?? this.status,
       results: results ?? this.results,
       failedSourceCount: failedSourceCount ?? this.failedSourceCount,
-      errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -118,17 +114,14 @@ final class SourceSearchViewModel extends ChangeNotifier {
         query: query,
         status: SourceSearchStatus.loading,
         failedSourceCount: 0,
-        clearError: true,
       ),
     );
 
     final filter = _state.filter;
     final tasks = <Future<_SearchBatch>>[
-      if (filter == SourceSearchFilter.all ||
-          filter == SourceSearchFilter.manga)
+      if (filter.mediaType == null || filter.mediaType == MediaType.manga)
         ..._mangaTasks(query),
-      if (filter == SourceSearchFilter.all ||
-          filter == SourceSearchFilter.novel)
+      if (filter.mediaType == null || filter.mediaType == MediaType.lightNovel)
         ..._novelTasks(query),
       if (_scanLocalMedia != null) _searchLocal(query, filter),
     ];
@@ -141,7 +134,6 @@ final class SourceSearchViewModel extends ChangeNotifier {
           results: const [],
           status: SourceSearchStatus.empty,
           failedSourceCount: 0,
-          clearError: true,
         ),
       );
       return;
@@ -160,7 +152,6 @@ final class SourceSearchViewModel extends ChangeNotifier {
           results: const [],
           status: SourceSearchStatus.error,
           failedSourceCount: failedSourceCount,
-          errorMessage: 'All configured search sources failed. Try again.',
         ),
       );
       return;
@@ -174,7 +165,6 @@ final class SourceSearchViewModel extends ChangeNotifier {
             ? SourceSearchStatus.empty
             : SourceSearchStatus.ready,
         failedSourceCount: failedSourceCount,
-        clearError: true,
       ),
     );
   }
@@ -226,10 +216,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
       return catalog
           .where((media) => _matchesFilter(media.type, filter))
           .where((media) => media.title.toLowerCase().contains(normalized))
-          .map(
-            (media) =>
-                SourceSearchResult(media: media, sourceName: 'Local media'),
-          )
+          .map((media) => SourceSearchResult(media: media))
           .toList(growable: false);
     });
   }
@@ -284,14 +271,8 @@ final class SourceSearchViewModel extends ChangeNotifier {
   }
 }
 
-bool _matchesFilter(MediaType type, SourceSearchFilter filter) {
-  return switch (filter) {
-    SourceSearchFilter.all => true,
-    SourceSearchFilter.anime => type == MediaType.anime,
-    SourceSearchFilter.manga => type == MediaType.manga,
-    SourceSearchFilter.novel => type == MediaType.lightNovel,
-  };
-}
+bool _matchesFilter(MediaType type, SourceSearchFilter filter) =>
+    filter.mediaType == null || type == filter.mediaType;
 
 final class _SearchBatch {
   const _SearchBatch(this.results, {this.failed = false});

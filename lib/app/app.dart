@@ -19,11 +19,9 @@ import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
-import 'package:hikari/features/player/video_surface.dart';
+import 'package:hikari/features/player/widgets/video_surface.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
-import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
-import 'package:hikari/features/remote_novel/remote_novel_search_page.dart';
 import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart'
     show SourceSearchFilter;
@@ -110,7 +108,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           library: _dependencies.libraryRepository,
           searchManga: _dependencies.searchManga,
           searchNovels: _dependencies.searchNovels,
-          scanLocalMedia: _dependencies.localMediaSource.scanSelectedRoot,
+          scanLocalMedia: _dependencies.localMediaSource.isAvailable
+              ? _dependencies.localMediaSource.scanSelectedRoot
+              : null,
           initialQuery: entry.title,
           initialFilter: switch (entry.type) {
             MediaType.anime => SourceSearchFilter.anime,
@@ -283,8 +283,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final localSource = _dependencies.localMediaSource;
     final libraryRepository = _dependencies.libraryRepository;
-    final canSearchManga = _dependencies.searchManga.options.isNotEmpty;
-    final canSearchNovels = _dependencies.searchNovels.options.isNotEmpty;
 
     return MaterialApp(
       title: 'Hikari',
@@ -308,28 +306,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                   _navigationController.selectTab(AppTab.search),
               onNavigateToLibrary: () =>
                   _navigationController.selectTab(AppTab.library),
-              openRemoteManga: canSearchManga
-                  ? () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => RemoteMangaSearchPage(
-                          searchManga: _dependencies.searchManga,
-                          openMedia: _openMedia,
-                          library: libraryRepository,
-                        ),
-                      ),
-                    )
-                  : null,
-              openRemoteNovels: canSearchNovels
-                  ? () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => RemoteNovelSearchPage(
-                          searchNovels: _dependencies.searchNovels,
-                          openMedia: _openMedia,
-                          library: libraryRepository,
-                        ),
-                      ),
-                    )
-                  : null,
             ),
             AppTab.search: CatalogSearchPage(
               searchCatalog: _dependencies.searchCatalog,

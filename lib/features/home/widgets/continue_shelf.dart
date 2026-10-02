@@ -1,23 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
-
-class ContinueReadingItem {
-  const ContinueReadingItem({
-    required this.media,
-    required this.progress,
-    required this.progressLabel,
-    this.badgeText,
-    this.badgeColor,
-  });
-
-  final Media media;
-  final double progress;
-  final String progressLabel;
-  final String? badgeText;
-  final Color? badgeColor;
-}
+import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/features/home/home_view_model.dart';
+import 'package:hikari/features/home/widgets/home_section_link.dart';
 
 /// High-priority shelf for resuming media with unified progress treatment.
 class ContinueShelf extends StatelessWidget {
@@ -37,7 +25,7 @@ class ContinueShelf extends StatelessWidget {
     if (items.isEmpty) return const SizedBox.shrink();
 
     final colors = context.hikariColors;
-    final cardWidth = context.isCompact ? 178.0 : 208.0;
+    final cardWidth = context.isCompact ? 164.0 : 196.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +40,7 @@ class ContinueShelf extends StatelessWidget {
                   children: [
                     Text(
                       'Continue',
-                      style: HikariTypography.titleMedium.copyWith(
+                      style: HikariTypography.titleLarge.copyWith(
                         color: colors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
@@ -67,42 +55,13 @@ class ContinueShelf extends StatelessWidget {
                 ),
               ),
               if (onSeeAll != null)
-                InkWell(
-                  onTap: onSeeAll,
-                  borderRadius: HikariRadius.borderSm,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 48),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: HikariSpacing.xs,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Library',
-                            style: HikariTypography.labelMedium.copyWith(
-                              color: colors.primaryGlow,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 19,
-                            color: colors.primaryGlow,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                HomeSectionLink(label: 'Library', onTap: onSeeAll!),
             ],
           ),
         ),
-        const SizedBox(height: HikariSpacing.sm),
+        const SizedBox(height: HikariSpacing.md),
         SizedBox(
-          height: 200,
+          height: 184,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             scrollDirection: Axis.horizontal,
@@ -132,21 +91,23 @@ class _ContinueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
-    final badgeText = item.badgeText ?? _typeLabel(item.media.type);
-    final badgeColor = item.badgeColor ?? _typeColor(colors, item.media.type);
+    final badgeText = mediaTypeBadgeLabel(item.media.type);
+    final badgeColor = mediaTypeBadgeColor(colors, item.media.type);
     final actionIcon = switch (item.media.type) {
       MediaType.anime => Icons.play_arrow_rounded,
       MediaType.manga => Icons.auto_stories_rounded,
       MediaType.lightNovel => Icons.menu_book_rounded,
     };
 
+    final progressLabel = _progressLabel(item);
+
     return Semantics(
       button: true,
-      label: 'Continue ${item.media.title}, ${item.progressLabel}',
+      label: 'Continue ${item.media.title}, $progressLabel',
       child: Material(
         color: colors.surfaceContainer,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderLg,
+          borderRadius: HikariRadius.borderMd,
           side: BorderSide(color: colors.borderSubtle),
         ),
         clipBehavior: Clip.antiAlias,
@@ -174,7 +135,7 @@ class _ContinueCard extends StatelessWidget {
                       child: Center(
                         child: Icon(
                           actionIcon,
-                          size: 34,
+                          size: 30,
                           color: badgeColor.withValues(alpha: 0.72),
                         ),
                       ),
@@ -223,7 +184,7 @@ class _ContinueCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            item.progressLabel,
+                            progressLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: HikariTypography.bodySmall.copyWith(
@@ -255,17 +216,15 @@ class _ContinueCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _typeLabel(MediaType type) => switch (type) {
-    MediaType.anime => 'ANIME',
-    MediaType.manga => 'MANGA',
-    MediaType.lightNovel => 'NOVEL',
+String _progressLabel(ContinueReadingItem item) {
+  return switch (item.position) {
+    VideoPosition() => 'Resume video',
+    PagePosition(:final pageIndex, :final pageCount) =>
+      'Page ${pageIndex + 1} of $pageCount',
+    TextPosition(:final progression) => '${(progression * 100).round()}% read',
+    DocumentPosition() => 'Resume reading',
+    _ => 'Resume',
   };
-
-  static Color _typeColor(HikariColors colors, MediaType type) =>
-      switch (type) {
-        MediaType.anime => colors.badgeVideo,
-        MediaType.manga => colors.badgeManga,
-        MediaType.lightNovel => colors.badgeNovel,
-      };
 }

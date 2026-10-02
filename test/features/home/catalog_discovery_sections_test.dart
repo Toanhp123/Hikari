@@ -1,37 +1,28 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/application/catalog/discover_catalog.dart';
+import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/widgets/catalog_discovery_sections.dart';
+import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 void main() {
   testWidgets('Home renders all six catalog sections', (tester) async {
     await tester.pumpWidget(
       _app(
         SingleChildScrollView(
-          child: CatalogDiscoverySections(
-            discover: DiscoverCatalog(
-              _Provider(
-                onDiscover: () async => CatalogDiscovery(
-                  sections: {
-                    for (final section in CatalogSection.values)
-                      section: [_anime],
-                  },
-                ),
-              ),
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                for (final section in CatalogSection.values) section: [_anime],
+              },
             ),
-            openDetail: (_) {},
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+
     for (final title in [
       'Featured',
       'Trending',
@@ -44,97 +35,217 @@ void main() {
     }
   });
 
-  testWidgets('Home discovery loads, shows partial warning and retries', (
+  testWidgets('Featured uses the catalog hero and opens catalog detail', (
     tester,
   ) async {
-    final first = Completer<CatalogDiscovery>();
-    var calls = 0;
-    final provider = _Provider(
-      onDiscover: () => ++calls == 1
-          ? first.future
-          : Future.value(
-              CatalogDiscovery(
-                sections: {
-                  CatalogSection.featured: [_anime],
-                },
-                warnings: ['Partial result'],
-              ),
-            ),
+    final featured = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'featured'),
+      title: 'Featured story',
+      type: MediaType.lightNovel,
+      bannerUrl: 'https://example/banner',
+      genres: const ['Fantasy', 'Adventure'],
     );
+    final trending = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'trending'),
+      title: 'Trending story',
+      type: MediaType.manga,
+    );
+    CatalogEntry? opened;
+
     await tester.pumpWidget(
       _app(
-        CatalogDiscoverySections(
-          discover: DiscoverCatalog(provider),
-          openDetail: (_) {},
-        ),
-      ),
-    );
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    first.complete(
-      CatalogDiscovery(
-        sections: {
-          CatalogSection.featured: [_anime],
-        },
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Featured'), findsOneWidget);
-    expect(find.text('Anime A'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(
-      _app(
-        CatalogDiscoverySections(
-          discover: DiscoverCatalog(
-            _Provider(
-              onDiscover: () async => CatalogDiscovery(
-                sections: {
-                  CatalogSection.trending: [_anime],
-                },
-                warnings: ['One section failed'],
-              ),
+        SingleChildScrollView(
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                CatalogSection.featured: [featured],
+                CatalogSection.trending: [trending],
+              },
             ),
+            openDetail: (entry) => opened = entry,
           ),
-          openDetail: (_) {},
         ),
       ),
     );
-    await tester.pumpAndSettle();
-    expect(find.text('One section failed'), findsOneWidget);
-    expect(find.text('Anime A'), findsOneWidget);
-    await tester.tap(find.text('Retry'));
-    await tester.pumpAndSettle();
-    expect(find.text('Anime A'), findsOneWidget);
+
+    expect(find.byType(HeroCarousel), findsOneWidget);
+    expect(find.text('Featured'), findsOneWidget);
+    expect(find.text('Featured story'), findsOneWidget);
+    expect(find.text('View details'), findsOneWidget);
+    expect(find.text('Watch Now'), findsNothing);
+    expect(find.text('Read Now'), findsNothing);
+
+    final posterTitles = tester
+        .widgetList<MediaPoster>(find.byType(MediaPoster))
+        .map((poster) => poster.title);
+    expect(posterTitles, contains('Trending story'));
+    expect(posterTitles, isNot(contains('Featured story')));
+
+    await tester.tap(find.text('View details'));
+    expect(opened, same(featured));
   });
 
-  testWidgets('Home discovery shows empty and retries request errors', (
+  testWidgets('Featured resets to the first item when discovery data changes', (
     tester,
   ) async {
-    var calls = 0;
-    final provider = _Provider(
-      onDiscover: () async {
-        if (++calls == 1) throw StateError('offline');
-        return CatalogDiscovery(
-          sections: {
-            for (final section in CatalogSection.values) section: const [],
-          },
-        );
-      },
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    CatalogEntry entry(String id) => CatalogEntry(
+      id: CatalogEntryId(provider: 'test', value: id),
+      title: 'Featured $id',
+      type: MediaType.anime,
     );
-    await tester.pumpWidget(
-      _app(
-        CatalogDiscoverySections(
-          discover: DiscoverCatalog(provider),
-          openDetail: (_) {},
+
+    Widget build(List<CatalogEntry> entries) => _app(
+      SingleChildScrollView(
+        child: _sections(
+          CatalogDiscovery(sections: {CatalogSection.featured: entries}),
         ),
       ),
     );
+
+    await tester.pumpWidget(build([entry('A'), entry('B'), entry('C')]));
+    final next = find.byTooltip('Next featured item');
+    await tester.tap(next);
     await tester.pumpAndSettle();
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    expect(find.text('3 / 3'), findsOneWidget);
+
+    await tester.pumpWidget(build([entry('D'), entry('E')]));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(find.text('Featured D'), findsOneWidget);
+  });
+
+  testWidgets('Catalog shelves use compact media labels and poster sizing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final novel = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'novel'),
+      title: 'Novel story',
+      type: MediaType.lightNovel,
+    );
+
+    await tester.pumpWidget(
+      _app(
+        _sections(
+          CatalogDiscovery(
+            sections: {
+              CatalogSection.popularLightNovels: [novel],
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('NOVEL'), findsOneWidget);
+    expect(find.text('LIGHTNOVEL'), findsNothing);
+    expect(
+      tester.widget<MediaPoster>(find.byType(MediaPoster)).subtitle,
+      isNull,
+    );
+    expect(tester.getSize(find.byType(MediaPoster)).width, 132);
+  });
+
+  testWidgets('Home discovery renders loading, warning, and retry action', (
+    tester,
+  ) async {
+    var retries = 0;
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discovery: null,
+            error: null,
+            onRetry: () => retries++,
+            openDetail: (_) {},
+          ),
+        ),
+      ),
+    );
+    expect(
+      find.byKey(const ValueKey('catalog-loading-skeleton')),
+      findsOneWidget,
+    );
+    expect(find.byType(MediaPoster), findsNWidgets(8));
+
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                CatalogSection.featured: [_anime],
+              },
+              warnings: ['One section failed'],
+            ),
+            onRetry: () => retries++,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('One section failed'), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    expect(retries, 1);
+  });
+
+  testWidgets('Home discovery renders request error and empty state', (
+    tester,
+  ) async {
+    var retries = 0;
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discovery: null,
+            error: StateError('offline'),
+            onRetry: () => retries++,
+            openDetail: (_) {},
+          ),
+        ),
+      ),
+    );
     expect(find.text('Catalog unavailable'), findsOneWidget);
     await tester.tap(find.text('Try Again'));
-    await tester.pumpAndSettle();
+    expect(retries, 1);
+
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                for (final section in CatalogSection.values) section: const [],
+              },
+            ),
+          ),
+        ),
+      ),
+    );
     expect(find.text('No catalog results available.'), findsOneWidget);
   });
 }
+
+CatalogDiscoverySections _sections(
+  CatalogDiscovery discovery, {
+  VoidCallback? onRetry,
+  ValueChanged<CatalogEntry>? openDetail,
+}) => CatalogDiscoverySections(
+  discovery: discovery,
+  error: null,
+  onRetry: onRetry ?? () {},
+  openDetail: openDetail ?? (_) {},
+);
 
 Widget _app(Widget child) =>
     MaterialApp(theme: HikariTheme.darkTheme(), home: child);
@@ -145,32 +256,3 @@ final _anime = CatalogEntry(
   type: MediaType.anime,
   coverUrl: 'https://example/cover',
 );
-
-final class _Provider implements CatalogProvider {
-  _Provider({
-    Future<CatalogDiscovery> Function()? onDiscover,
-    Future<CatalogEntryDetails?> Function(CatalogEntryId)? onLoadDetails,
-  }) : _onDiscover =
-           onDiscover ?? (() async => CatalogDiscovery(sections: const {})),
-       _onLoadDetails = onLoadDetails ?? ((_) async => null);
-
-  final Future<CatalogDiscovery> Function() _onDiscover;
-  final Future<CatalogEntryDetails?> Function(CatalogEntryId) _onLoadDetails;
-
-  @override
-  String get id => 'test';
-
-  @override
-  Future<CatalogDiscovery> discover() => _onDiscover();
-
-  @override
-  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
-      const [];
-
-  @override
-  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) =>
-      _onLoadDetails(id);
-
-  @override
-  Future<void> close() async {}
-}

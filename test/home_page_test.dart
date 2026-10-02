@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
@@ -6,6 +8,7 @@ import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 
@@ -30,13 +33,15 @@ void main() {
         theme: HikariTheme.darkTheme(),
         home: HomePage(
           openMedia: (_, _) {},
-          continueItems: const [
-            ContinueReadingItem(
-              media: media,
-              progress: .5,
-              progressLabel: '50% read',
+          library: _FakeLibraryRepository(const [media]),
+          progressRepository: _ProgressRepository({
+            media.source: MediaProgress(
+              media: media.source,
+              position: TextPosition(progression: .5),
+              completed: false,
+              updatedAt: DateTime.utc(2026),
             ),
-          ],
+          }),
           discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
           openCatalogDetail: (_, _) {},
         ),
@@ -80,13 +85,14 @@ void main() {
         home: HomePage(
           openMedia: (_, item) => selectedMedia = item,
           library: _FakeLibraryRepository([animeMedia, mangaMedia]),
-          continueItems: const [
-            ContinueReadingItem(
-              media: mangaMedia,
-              progress: 0.5,
-              progressLabel: 'Chapter 1050',
+          progressRepository: _ProgressRepository({
+            mangaMedia.source: MediaProgress(
+              media: mangaMedia.source,
+              position: PagePosition(pageIndex: 1049, pageCount: 1100),
+              completed: false,
+              updatedAt: DateTime.utc(2026),
             ),
-          ],
+          }),
           discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
           openCatalogDetail: (_, _) {},
         ),
@@ -96,7 +102,7 @@ void main() {
 
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Pick up where you left off'), findsOneWidget);
-    expect(find.text('Chapter 1050'), findsOneWidget);
+    expect(find.text('Page 1050 of 1100'), findsOneWidget);
     expect(find.text('Featured'), findsOneWidget);
     expect(find.text('Catalog show'), findsOneWidget);
     expect(find.text('Recently added'), findsOneWidget);
@@ -125,38 +131,88 @@ void main() {
     expect(selectedMedia, mangaMedia);
   });
 
-  testWidgets('empty Home offers real discovery actions', (tester) async {
-    var searchCount = 0;
-    var mangaCount = 0;
-    var novelCount = 0;
+  testWidgets('empty Library never renders the removed start-library state', (
+    tester,
+  ) async {
+    final catalog = Completer<CatalogDiscovery>();
+    final catalogItem = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'loaded'),
+      title: 'Loaded discovery',
+      type: MediaType.anime,
+    );
 
     await tester.pumpWidget(
       MaterialApp(
         theme: HikariTheme.darkTheme(),
         home: HomePage(
           openMedia: (_, _) {},
-          onNavigateToSearch: () => searchCount++,
-          openRemoteManga: () => mangaCount++,
-          openRemoteNovels: () => novelCount++,
+          library: _FakeLibraryRepository(const []),
+          discoverCatalog: DiscoverCatalog(
+            _DeferredCatalogProvider(catalog.future),
+          ),
+          openCatalogDetail: (_, _) {},
         ),
       ),
     );
+    await tester.pump();
 
-    expect(find.text('Start your library'), findsOneWidget);
-    expect(find.text('Open Local'), findsNothing);
-    expect(find.text('Local media'), findsNothing);
-    expect(find.text('Search'), findsOneWidget);
-    expect(find.text('Browse manga'), findsOneWidget);
-    expect(find.text('Browse novels'), findsOneWidget);
-    expect(find.text('Attack on Titan'), findsNothing);
+    expect(find.text('Start your library'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('catalog-loading-skeleton')),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.text('Search'));
-    await tester.tap(find.text('Browse manga'));
-    await tester.tap(find.text('Browse novels'));
+    catalog.complete(
+      CatalogDiscovery(
+        sections: {
+          CatalogSection.featured: [catalogItem],
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
 
-    expect(searchCount, 1);
-    expect(mangaCount, 1);
-    expect(novelCount, 1);
+    expect(
+      find.byKey(const ValueKey('catalog-loading-skeleton')),
+      findsNothing,
+    );
+    expect(find.text('Loaded discovery'), findsOneWidget);
+    expect(find.text('Start your library'), findsNothing);
+  });
+
+  testWidgets('Home keeps Library visible when resume progress fails', (
+    tester,
+  ) async {
+    const media = Media(
+      title: 'Saved manga',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: SourceId.local, itemId: 'saved'),
+    );
+    final progress = _FailingProgressRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(
+          openMedia: (_, _) {},
+          library: _FakeLibraryRepository([media]),
+          progressRepository: progress,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Some resume progress could not load. Your Library is still available.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Recently added'), findsOneWidget);
+    expect(find.text('Saved manga'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(progress.loadCount, 2);
   });
 
   testWidgets('Home exposes retry when Library loading fails', (tester) async {
@@ -253,6 +309,60 @@ final class _CatalogProvider implements CatalogProvider {
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
   @override
   Future<void> close() async {}
+}
+
+final class _DeferredCatalogProvider implements CatalogProvider {
+  _DeferredCatalogProvider(this.discovery);
+
+  final Future<CatalogDiscovery> discovery;
+
+  @override
+  String get id => 'deferred-test';
+
+  @override
+  Future<CatalogDiscovery> discover() => discovery;
+
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
+
+  @override
+  Future<void> close() async {}
+}
+
+final class _ProgressRepository implements ProgressRepository {
+  _ProgressRepository(this.progressByMedia);
+
+  final Map<SourceMediaRef, MediaProgress> progressByMedia;
+
+  @override
+  Future<MediaProgress?> load(SourceMediaRef media) async =>
+      progressByMedia[media];
+
+  @override
+  Future<void> save(MediaProgress progress) async {}
+
+  @override
+  Future<void> delete(SourceMediaRef media) async {}
+}
+
+final class _FailingProgressRepository implements ProgressRepository {
+  int loadCount = 0;
+
+  @override
+  Future<MediaProgress?> load(SourceMediaRef media) async {
+    loadCount++;
+    throw StateError('progress unavailable');
+  }
+
+  @override
+  Future<void> save(MediaProgress progress) async {}
+
+  @override
+  Future<void> delete(SourceMediaRef media) async {}
 }
 
 final class _FailingLibraryRepository implements LibraryRepository {
