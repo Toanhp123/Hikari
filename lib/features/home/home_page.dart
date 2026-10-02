@@ -135,7 +135,7 @@ class _HomePageState extends State<HomePage> {
                   state.continueItems.isNotEmpty)
                 _boundedSliverBox(
                   Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
+                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
                     child: ContinueShelf(
                       items: widget.continueItems.isNotEmpty
                           ? widget.continueItems
@@ -148,10 +148,13 @@ class _HomePageState extends State<HomePage> {
               if (widget.discoverCatalog != null &&
                   widget.openCatalogDetail != null)
                 _boundedSliverBox(
-                  CatalogDiscoverySections(
-                    discover: widget.discoverCatalog!,
-                    openDetail: (entry) =>
-                        widget.openCatalogDetail!(context, entry),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
+                    child: CatalogDiscoverySections(
+                      discover: widget.discoverCatalog!,
+                      openDetail: (entry) =>
+                          widget.openCatalogDetail!(context, entry),
+                    ),
                   ),
                 ),
               if (state.progressError != null)
@@ -216,9 +219,9 @@ class _HomePageState extends State<HomePage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         HikariSpacing.lg,
-        HikariSpacing.sm,
+        HikariSpacing.xs,
         HikariSpacing.lg,
-        HikariSpacing.md,
+        HikariSpacing.sm,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -226,8 +229,8 @@ class _HomePageState extends State<HomePage> {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [colors.primary, colors.secondary],
@@ -236,42 +239,30 @@ class _HomePageState extends State<HomePage> {
                   boxShadow: [
                     BoxShadow(
                       color: colors.primary.withValues(alpha: 0.22),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
                 child: const Icon(
                   Icons.auto_awesome,
                   color: Colors.white,
-                  size: 19,
+                  size: 18,
                 ),
               ),
               const SizedBox(width: HikariSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hikari',
-                    style: HikariTypography.titleLarge.copyWith(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                  Text(
-                    'Watch. Read. Resume.',
-                    style: HikariTypography.labelSmall.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ],
+              Text(
+                'Hikari',
+                style: HikariTypography.titleLarge.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
               ),
             ],
           ),
           HikariIconButton(
             tooltip: 'Search',
-            variant: HikariIconButtonVariant.filled,
             onPressed: widget.onNavigateToSearch,
             icon: const Icon(Icons.search_rounded),
           ),
@@ -332,7 +323,7 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: Text(
                   title,
-                  style: HikariTypography.titleMedium.copyWith(
+                  style: HikariTypography.titleLarge.copyWith(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),

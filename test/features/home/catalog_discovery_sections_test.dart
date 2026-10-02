@@ -101,6 +101,43 @@ void main() {
     expect(opened, same(featured));
   });
 
+  testWidgets('Catalog shelves use compact media labels and poster sizing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final novel = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'novel'),
+      title: 'Novel story',
+      type: MediaType.lightNovel,
+    );
+
+    await tester.pumpWidget(
+      _app(
+        CatalogDiscoverySections(
+          discover: DiscoverCatalog(
+            _Provider(
+              onDiscover: () async => CatalogDiscovery(
+                sections: {
+                  CatalogSection.popularLightNovels: [novel],
+                },
+              ),
+            ),
+          ),
+          openDetail: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('NOVEL'), findsOneWidget);
+    expect(find.text('LIGHTNOVEL'), findsNothing);
+    expect(tester.getSize(find.byType(MediaPoster)).width, 132);
+  });
+
   testWidgets('Home discovery loads, shows partial warning and retries', (
     tester,
   ) async {

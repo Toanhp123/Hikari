@@ -61,7 +61,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
         horizontal: isCompact ? 0 : HikariSpacing.lg,
       ),
       child: AspectRatio(
-        aspectRatio: isCompact ? (4 / 3) : (16 / 7),
+        aspectRatio: isCompact ? (16 / 10) : (16 / 7),
         child: ClipRRect(
           borderRadius: isCompact ? BorderRadius.zero : HikariRadius.borderLg,
           child: Stack(
@@ -153,18 +153,20 @@ class _HeroSlide extends StatelessWidget {
       MediaType.lightNovel => 'Light novel',
     };
     final metadata = [typeLabel, ...entry.genres.take(2)].join(' · ');
-    final bannerUrl = entry.bannerUrl;
+    final artworkUrl = entry.bannerUrl?.isNotEmpty == true
+        ? entry.bannerUrl
+        : entry.coverUrl;
 
     return Semantics(
       container: true,
-      label: 'Featured $position of $total',
+      label: 'Featured $position of $total: ${entry.title}',
       child: Stack(
         fit: StackFit.expand,
         children: [
           _buildFallbackArtwork(colors),
-          if (bannerUrl != null && bannerUrl.isNotEmpty)
+          if (artworkUrl != null && artworkUrl.isNotEmpty)
             Image.network(
-              bannerUrl,
+              artworkUrl,
               fit: BoxFit.cover,
               alignment: Alignment.center,
               filterQuality: FilterQuality.medium,
@@ -186,20 +188,21 @@ class _HeroSlide extends StatelessWidget {
               ),
             ),
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  colors.scrimStrong,
-                  colors.scrimMedium,
-                  Colors.transparent,
-                ],
-                stops: const [0.0, 0.46, 0.82],
+          if (!isCompact)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    colors.scrimStrong,
+                    colors.scrimMedium,
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.46, 0.82],
+                ),
               ),
             ),
-          ),
           Positioned(
             left: HikariSpacing.lg,
             right: HikariSpacing.lg,

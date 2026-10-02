@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 class CatalogDiscoverySections extends StatefulWidget {
@@ -81,53 +83,65 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
               ],
             ),
           ],
-          if (featured.isNotEmpty) ...[
-            const SizedBox(height: HikariSpacing.md),
+          if (featured.isNotEmpty)
             HeroCarousel(entries: featured, openDetail: widget.openDetail),
-            const SizedBox(height: HikariSpacing.md),
-          ],
           for (final section in CatalogSection.values)
             if (section != CatalogSection.featured &&
                 (sections[section] ?? []).isNotEmpty) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   HikariSpacing.lg,
-                  HikariSpacing.md,
+                  HikariSpacing.xl,
                   HikariSpacing.lg,
                   HikariSpacing.sm,
                 ),
                 child: Text(
                   _sectionTitle(section),
-                  style: HikariTypography.titleMedium,
+                  style: HikariTypography.titleLarge,
                 ),
               ),
-              SizedBox(
-                height: 228,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: HikariSpacing.lg,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: sections[section]!.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: HikariSpacing.md),
-                  itemBuilder: (context, index) {
-                    final entry = sections[section]![index];
-                    return SizedBox(
-                      width: 148,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: MediaPoster(
-                          title: entry.title,
-                          imageUrl: entry.coverUrl,
-                          subtitle: entry.type.name,
-                          badgeText: entry.type.name.toUpperCase(),
-                          onTap: () => widget.openDetail(entry),
-                        ),
+              Builder(
+                builder: (context) {
+                  final posterWidth = context.isCompact
+                      ? 132.0
+                      : context.isMedium
+                      ? 144.0
+                      : 156.0;
+                  return SizedBox(
+                    height: posterWidth * 1.5,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: HikariSpacing.lg,
                       ),
-                    );
-                  },
-                ),
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: sections[section]!.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(width: HikariSpacing.md),
+                      itemBuilder: (context, index) {
+                        final entry = sections[section]![index];
+                        final typeLabel = _typeLabel(entry.type);
+                        return SizedBox(
+                          width: posterWidth,
+                          child: Semantics(
+                            button: true,
+                            label: 'View details for ${entry.title}',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: MediaPoster(
+                                title: entry.title,
+                                imageUrl: entry.coverUrl,
+                                subtitle: typeLabel,
+                                badgeText: typeLabel.toUpperCase(),
+                                onTap: () => widget.openDetail(entry),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ],
           if (sections.values.every((items) => items.isEmpty))
@@ -139,6 +153,12 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
       );
     },
   );
+
+  String _typeLabel(MediaType type) => switch (type) {
+    MediaType.anime => 'Anime',
+    MediaType.manga => 'Manga',
+    MediaType.lightNovel => 'Novel',
+  };
 
   String _sectionTitle(CatalogSection section) => switch (section) {
     CatalogSection.featured => 'Featured',

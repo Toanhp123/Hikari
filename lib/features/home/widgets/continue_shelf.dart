@@ -37,7 +37,7 @@ class ContinueShelf extends StatelessWidget {
     if (items.isEmpty) return const SizedBox.shrink();
 
     final colors = context.hikariColors;
-    final cardWidth = context.isCompact ? 178.0 : 208.0;
+    final cardWidth = context.isCompact ? 164.0 : 196.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +52,7 @@ class ContinueShelf extends StatelessWidget {
                   children: [
                     Text(
                       'Continue',
-                      style: HikariTypography.titleMedium.copyWith(
+                      style: HikariTypography.titleLarge.copyWith(
                         color: colors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
@@ -100,9 +100,9 @@ class ContinueShelf extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: HikariSpacing.sm),
+        const SizedBox(height: HikariSpacing.md),
         SizedBox(
-          height: 200,
+          height: 184,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             scrollDirection: Axis.horizontal,
@@ -146,7 +146,7 @@ class _ContinueCard extends StatelessWidget {
       child: Material(
         color: colors.surfaceContainer,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderLg,
+          borderRadius: HikariRadius.borderMd,
           side: BorderSide(color: colors.borderSubtle),
         ),
         clipBehavior: Clip.antiAlias,
@@ -174,7 +174,7 @@ class _ContinueCard extends StatelessWidget {
                       child: Center(
                         child: Icon(
                           actionIcon,
-                          size: 34,
+                          size: 30,
                           color: badgeColor.withValues(alpha: 0.72),
                         ),
                       ),
