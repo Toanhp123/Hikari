@@ -34,6 +34,25 @@ class _HeroCarouselState extends State<HeroCarousel> {
   }
 
   @override
+  void didUpdateWidget(HeroCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_sameEntries(oldWidget.entries, widget.entries)) return;
+
+    _currentPage = 0;
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
+  }
+
+  bool _sameEntries(List<CatalogEntry> before, List<CatalogEntry> after) {
+    if (before.length != after.length) return false;
+    for (var index = 0; index < before.length; index++) {
+      if (before[index].id != after[index].id) return false;
+    }
+    return true;
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();

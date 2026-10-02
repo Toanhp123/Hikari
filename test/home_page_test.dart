@@ -8,6 +8,7 @@ import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 
@@ -175,6 +176,42 @@ void main() {
     expect(find.text('Start your library'), findsNothing);
   });
 
+  testWidgets('Home keeps Library visible when resume progress fails', (
+    tester,
+  ) async {
+    const media = Media(
+      title: 'Saved manga',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: SourceId.local, itemId: 'saved'),
+    );
+    final progress = _FailingProgressRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(
+          openMedia: (_, _) {},
+          library: _FakeLibraryRepository([media]),
+          progressRepository: progress,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Some resume progress could not load. Your Library is still available.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Recently added'), findsOneWidget);
+    expect(find.text('Saved manga'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(progress.loadCount, 2);
+  });
+
   testWidgets('Home exposes retry when Library loading fails', (tester) async {
     final repository = _FailingLibraryRepository();
 
@@ -291,6 +328,22 @@ final class _DeferredCatalogProvider implements CatalogProvider {
 
   @override
   Future<void> close() async {}
+}
+
+final class _FailingProgressRepository implements ProgressRepository {
+  int loadCount = 0;
+
+  @override
+  Future<MediaProgress?> load(SourceMediaRef media) async {
+    loadCount++;
+    throw StateError('progress unavailable');
+  }
+
+  @override
+  Future<void> save(MediaProgress progress) async {}
+
+  @override
+  Future<void> delete(SourceMediaRef media) async {}
 }
 
 final class _FailingLibraryRepository implements LibraryRepository {

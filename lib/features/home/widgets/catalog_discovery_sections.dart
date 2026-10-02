@@ -124,7 +124,6 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
                               child: MediaPoster(
                                 title: entry.title,
                                 imageUrl: entry.coverUrl,
-                                subtitle: typeLabel,
                                 badgeText: typeLabel.toUpperCase(),
                                 onTap: () => widget.openDetail(entry),
                               ),

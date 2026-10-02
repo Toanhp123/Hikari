@@ -155,16 +155,24 @@ class _HomePageState extends State<HomePage> {
                 ),
               if (state.progressError != null)
                 _boundedSliverBox(
-                  const Padding(
-                    padding: EdgeInsets.all(HikariSpacing.md),
-                    child: Text('Some resume progress could not load.'),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
+                    child: _buildWarningNotice(
+                      colors,
+                      icon: Icons.history_rounded,
+                      message: 'Some resume progress could not load. Your Library is still available.',
+                    ),
                   ),
                 ),
               if (state.error != null && feed.isNotEmpty)
                 _boundedSliverBox(
                   Padding(
                     padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
-                    child: _buildStaleLibraryNotice(colors),
+                    child: _buildWarningNotice(
+                      colors,
+                      icon: Icons.sync_problem_rounded,
+                      message: 'Library refresh failed. Showing the last available items.',
+                    ),
                   ),
                 ),
               if (feed.isNotEmpty) ...[
@@ -265,7 +273,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildStaleLibraryNotice(HikariColors colors) {
+  Widget _buildWarningNotice(
+    HikariColors colors, {
+    required IconData icon,
+    required String message,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       child: Material(
@@ -281,11 +293,11 @@ class _HomePageState extends State<HomePage> {
           ),
           child: Row(
             children: [
-              Icon(Icons.sync_problem_rounded, size: 20, color: colors.warning),
+              Icon(icon, size: 20, color: colors.warning),
               const SizedBox(width: HikariSpacing.sm),
               Expanded(
                 child: Text(
-                  'Library refresh failed. Showing the last available items.',
+                  message,
                   style: HikariTypography.bodySmall.copyWith(
                     color: colors.textSecondary,
                   ),

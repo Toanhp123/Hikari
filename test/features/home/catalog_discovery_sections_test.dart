@@ -101,6 +101,61 @@ void main() {
     expect(opened, same(featured));
   });
 
+  testWidgets('Featured resets to the first item when discovery data changes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var calls = 0;
+    CatalogEntry entry(String id) => CatalogEntry(
+      id: CatalogEntryId(provider: 'test', value: id),
+      title: 'Featured $id',
+      type: MediaType.anime,
+    );
+
+    final provider = _Provider(
+      onDiscover: () async {
+        calls++;
+        return CatalogDiscovery(
+          sections: {
+            CatalogSection.featured: calls == 1
+                ? [entry('A'), entry('B'), entry('C')]
+                : [entry('D'), entry('E')],
+          },
+          warnings: ['Refresh available'],
+        );
+      },
+    );
+
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discover: DiscoverCatalog(provider),
+            openDetail: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final next = find.byTooltip('Next featured item');
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+    expect(find.text('3 / 3'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(find.text('Featured D'), findsOneWidget);
+  });
+
   testWidgets('Catalog shelves use compact media labels and poster sizing', (
     tester,
   ) async {
@@ -135,6 +190,10 @@ void main() {
 
     expect(find.text('NOVEL'), findsOneWidget);
     expect(find.text('LIGHTNOVEL'), findsNothing);
+    expect(
+      tester.widget<MediaPoster>(find.byType(MediaPoster)).subtitle,
+      isNull,
+    );
     expect(tester.getSize(find.byType(MediaPoster)).width, 132);
   });
 

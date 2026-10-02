@@ -505,7 +505,7 @@ Settings
 ```
 
 Local restores and scans the saved folder without opening a picker. Folder
-selection is explicit in Local or Settings; Home offers an Open Local entry.
+selection is explicit in Local or Settings; Home does not own folder selection.
 Folder selection from Settings refreshes Local's external-root revision; selection
 from Local scans directly, avoiding duplicate scans. Source search is opened from
 Catalog Detail as a fresh route, so its session-local Local catalog cache starts
