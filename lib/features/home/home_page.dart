@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
@@ -44,6 +46,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final _refreshKey = GlobalKey<RefreshIndicatorState>();
   late final HomeViewModel _viewModel = HomeViewModel(
     widget.library,
     progressRepository: widget.progressRepository,
@@ -56,6 +59,15 @@ class _HomePageState extends State<HomePage> {
     if (oldWidget.refreshRevision != widget.refreshRevision) {
       _viewModel.reload();
     }
+  }
+
+  Future<void> _showRefreshIndicator() async {
+    final indicator = _refreshKey.currentState;
+    if (indicator != null) {
+      await indicator.show();
+      return;
+    }
+    await _viewModel.refresh();
   }
 
   @override
@@ -73,88 +85,106 @@ class _HomePageState extends State<HomePage> {
         final feed = state.libraryItems;
         final hasCatalogDiscovery =
             widget.discoverCatalog != null && widget.openCatalogDetail != null;
+        final hasRefreshableSource =
+            widget.library != null || hasCatalogDiscovery;
 
+        final scrollView = CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            HomeBoundedSliverBox(
+              child: HomeHeader(
+                onSearch: widget.onNavigateToSearch,
+                onRefresh: hasRefreshableSource
+                    ? () => unawaited(_showRefreshIndicator())
+                    : null,
+              ),
+            ),
+            if (state.continueItems.isNotEmpty)
+              HomeBoundedSliverBox(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
+                  child: ContinueShelf(
+                    items: state.continueItems,
+                    onOpenMedia: widget.openMedia,
+                    onSeeAll: widget.onNavigateToLibrary,
+                  ),
+                ),
+              ),
+            if (hasCatalogDiscovery)
+              HomeBoundedSliverBox(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
+                  child: CatalogDiscoverySections(
+                    discovery: state.catalogDiscovery,
+                    error: state.catalogError,
+                    onRetry: _viewModel.reloadCatalog,
+                    openDetail: (entry) =>
+                        widget.openCatalogDetail!(context, entry),
+                  ),
+                ),
+              ),
+            if (state.progressError != null)
+              HomeBoundedSliverBox(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
+                  child: HomeWarningNotice(
+                    icon: Icons.history_rounded,
+                    message: 'Some resume progress could not load. Your Library is still available.',
+                    onRetry: _viewModel.reload,
+                  ),
+                ),
+              ),
+            if (state.error != null && state.hasLibrarySnapshot)
+              HomeBoundedSliverBox(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
+                  child: HomeWarningNotice(
+                    icon: Icons.sync_problem_rounded,
+                    message: 'Library refresh failed. Showing the last available items.',
+                    onRetry: _viewModel.reload,
+                  ),
+                ),
+              ),
+            if (feed.isNotEmpty) ...[
+              HomeBoundedSliverBox(
+                child: HomeFeedHeader(
+                  filters: _viewModel.availableFilters,
+                  effectiveFilter: _viewModel.effectiveFilter,
+                  onSelectFilter: _viewModel.selectFilter,
+                  onOpenLibrary: widget.onNavigateToLibrary,
+                ),
+              ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: HikariSpacing.md),
+              ),
+              HomeMediaGridSliver(
+                items: _viewModel.visibleLibraryItems,
+                openMedia: widget.openMedia,
+              ),
+            ] else if (state.loading &&
+                !state.hasLibrarySnapshot &&
+                !hasCatalogDiscovery)
+              const HomeLoadingGridSliver()
+            else if (state.error != null && !state.hasLibrarySnapshot)
+              HomeBoundedSliverBox(
+                child: HomeLibraryError(onRetry: _viewModel.reload),
+              ),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: HikariSpacing.xxxl),
+            ),
+          ],
+        );
         return HikariScaffold(
           useSafeArea: true,
-          body: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              HomeBoundedSliverBox(
-                child: HomeHeader(onSearch: widget.onNavigateToSearch),
-              ),
-              if (state.continueItems.isNotEmpty)
-                HomeBoundedSliverBox(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
-                    child: ContinueShelf(
-                      items: state.continueItems,
-                      onOpenMedia: widget.openMedia,
-                      onSeeAll: widget.onNavigateToLibrary,
-                    ),
-                  ),
-                ),
-              if (hasCatalogDiscovery)
-                HomeBoundedSliverBox(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
-                    child: CatalogDiscoverySections(
-                      discovery: state.catalogDiscovery,
-                      error: state.catalogError,
-                      onRetry: _viewModel.reloadCatalog,
-                      openDetail: (entry) =>
-                          widget.openCatalogDetail!(context, entry),
-                    ),
-                  ),
-                ),
-              if (state.progressError != null)
-                HomeBoundedSliverBox(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
-                    child: HomeWarningNotice(
-                      icon: Icons.history_rounded,
-                      message: 'Some resume progress could not load. Your Library is still available.',
-                      onRetry: _viewModel.reload,
-                    ),
-                  ),
-                ),
-              if (state.error != null && feed.isNotEmpty)
-                HomeBoundedSliverBox(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
-                    child: HomeWarningNotice(
-                      icon: Icons.sync_problem_rounded,
-                      message: 'Library refresh failed. Showing the last available items.',
-                      onRetry: _viewModel.reload,
-                    ),
-                  ),
-                ),
-              if (feed.isNotEmpty) ...[
-                HomeBoundedSliverBox(
-                  child: HomeFeedHeader(
-                    filters: _viewModel.availableFilters,
-                    effectiveFilter: _viewModel.effectiveFilter,
-                    onSelectFilter: _viewModel.selectFilter,
-                    onOpenLibrary: widget.onNavigateToLibrary,
-                  ),
-                ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: HikariSpacing.md),
-                ),
-                HomeMediaGridSliver(
-                  items: _viewModel.visibleLibraryItems,
-                  openMedia: widget.openMedia,
-                ),
-              ] else if (state.loading && !hasCatalogDiscovery)
-                const HomeLoadingGridSliver()
-              else if (state.error != null)
-                HomeBoundedSliverBox(
-                  child: HomeLibraryError(onRetry: _viewModel.reload),
-                ),
-              const SliverToBoxAdapter(
-                child: SizedBox(height: HikariSpacing.xxxl),
-              ),
-            ],
-          ),
+          body: hasRefreshableSource
+              ? RefreshIndicator.adaptive(
+                  key: _refreshKey,
+                  onRefresh: _viewModel.refresh,
+                  child: scrollView,
+                )
+              : scrollView,
         );
       },
     );

@@ -57,8 +57,9 @@ data supplied by Home instead of executing `DiscoverCatalog` themselves.
 completions and exposes explicit idle/loading/ready/empty/error state.
 
 `CatalogDetailViewModel` owns metadata loading/retry and preserves the last successful
-detail when a refresh fails. Description expansion remains in the page because it is
-purely visual ephemeral state.
+detail when a refresh fails. Catalog Detail uses an explicit refresh action rather than
+pull-to-refresh because it is a metadata detail route, not a top-updating collection.
+Description expansion remains in the page because it is purely visual ephemeral state.
 
 ### Source search
 
@@ -72,21 +73,18 @@ text controller/lifecycle and route callbacks; rendering lives under
 `LibraryViewModel` owns repository-backed entries, media filtering and grid/list mode.
 `LibraryButtonViewModel` owns the reusable per-media membership load/toggle flow; the
 button widget owns only its ViewModel lifecycle and user-facing failure feedback.
-`LocalMediaViewModel` owns folder-selection and scan presentation state:
-
-```text
-initial -> loading -> ready
-                  `-> failure
-```
-
-Picker cancellation restores the prior local-media presentation state. Route pages own
+`LocalMediaViewModel` owns folder-selection and scan presentation state. A rescan keeps
+the last successful media list visible while the scan runs and if that rescan fails; a
+newly selected folder clears the old result identity before its first scan. Picker
+cancellation restores the prior local-media presentation state. Route pages own
 only lifecycle wiring; reusable grids/cards/content live in their feature `widgets/`
 directories.
 
 ### Series detail
 
 Remote manga/novel series routes keep feature-local state holders for chapter loading.
-Catalog Detail enters the single unified `SourceSearchPage`; the obsolete source-specific
+Their chapter collections support adaptive pull-to-refresh plus an explicit refresh action,
+and retain the last usable chapter list if refresh fails. Catalog Detail enters the single unified `SourceSearchPage`; the obsolete source-specific
 remote manga/novel search pages and their duplicate presentation state have been retired.
 Pagination remains a source/application capability and should be added to unified source
 search only when that production route needs it.

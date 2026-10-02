@@ -79,6 +79,34 @@ void main() {
   });
 
   test(
+    'failed catalog refresh preserves the last discovery snapshot',
+    () async {
+      var calls = 0;
+      final discovery = CatalogDiscovery(
+        sections: {CatalogSection.featured: const []},
+      );
+      final provider = _CatalogProvider(
+        onDiscover: () async {
+          if (++calls == 1) return discovery;
+          throw StateError('offline');
+        },
+      );
+      final model = HomeViewModel(
+        null,
+        discoverCatalog: DiscoverCatalog(provider),
+      );
+      addTearDown(model.dispose);
+
+      await Future<void>.delayed(Duration.zero);
+      expect(model.state.catalogDiscovery, same(discovery));
+
+      await model.reloadCatalog();
+      expect(model.state.catalogDiscovery, same(discovery));
+      expect(model.state.catalogError, isA<StateError>());
+    },
+  );
+
+  test(
     'temporarily unavailable filter is restored when media returns',
     () async {
       const anime = Media(

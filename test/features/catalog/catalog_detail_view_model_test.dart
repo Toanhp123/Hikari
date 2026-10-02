@@ -26,7 +26,9 @@ void main() {
     expect(model.state.entry.title, 'Loaded');
 
     provider.error = StateError('offline');
-    await model.load();
+    final refresh = model.load();
+    expect(model.state.refreshing, isTrue);
+    await refresh;
     expect(model.state.entry.title, 'Loaded');
     expect(model.state.refreshFailed, isTrue);
   });

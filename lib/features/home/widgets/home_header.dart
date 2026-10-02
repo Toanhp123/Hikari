@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 
 class HomeHeader extends StatelessWidget {
-  const HomeHeader({super.key, this.onSearch});
+  const HomeHeader({super.key, this.onSearch, this.onRefresh});
 
   final VoidCallback? onSearch;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -55,10 +57,19 @@ class HomeHeader extends StatelessWidget {
               ),
             ],
           ),
-          HikariIconButton(
-            tooltip: 'Search',
-            onPressed: onSearch,
-            icon: const Icon(Icons.search_rounded),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onRefresh != null) ...[
+                HikariRefreshAction(tooltip: 'Refresh', onPressed: onRefresh),
+                const SizedBox(width: HikariSpacing.xs),
+              ],
+              HikariIconButton(
+                tooltip: 'Search',
+                onPressed: onSearch,
+                icon: const Icon(Icons.search_rounded),
+              ),
+            ],
           ),
         ],
       ),

@@ -179,6 +179,21 @@ void main() {
     expect(find.text('Start your library'), findsNothing);
   });
 
+  testWidgets('Home hides refresh when no refreshable data source exists', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(openMedia: (_, _) {}, onNavigateToSearch: () {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Refresh'), findsNothing);
+    expect(find.byType(RefreshIndicator), findsNothing);
+  });
+
   testWidgets('Home keeps Library visible when resume progress fails', (
     tester,
   ) async {
@@ -238,6 +253,72 @@ void main() {
     await tester.pumpAndSettle();
     expect(repository.loadCount, 2);
     expect(find.text('Could not load your Library'), findsOneWidget);
+  });
+
+  testWidgets('failed refresh preserves a known-empty Library snapshot', (
+    tester,
+  ) async {
+    final library = _FailAfterFirstEmptyLibraryRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(openMedia: (_, _) {}, library: library),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Refresh'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Library refresh failed. Showing the last available items.'),
+      findsOneWidget,
+    );
+    expect(find.text('Could not load your Library'), findsNothing);
+    expect(library.loadCount, 2);
+  });
+
+  testWidgets('Home refresh action and pull refresh reload all Home data', (
+    tester,
+  ) async {
+    final library = _CountingLibraryRepository();
+    final item = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'refresh'),
+      title: 'Refresh item',
+      type: MediaType.anime,
+    );
+    final catalog = _CountingCatalogProvider(item);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(
+          openMedia: (_, _) {},
+          library: library,
+          discoverCatalog: DiscoverCatalog(catalog),
+          openCatalogDetail: (_, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(library.loadCount, 1);
+    expect(catalog.discoverCount, 1);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Refresh'));
+    await tester.pumpAndSettle();
+    expect(library.loadCount, 2);
+    expect(catalog.discoverCount, 2);
+
+    final pullRefresh = tester
+        .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+        .show();
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await pullRefresh;
+    expect(library.loadCount, 3);
+    expect(catalog.discoverCount, 3);
   });
 
   testWidgets('wide Home bounds poster content instead of stretching it', (
@@ -309,6 +390,43 @@ final class _CatalogProvider implements CatalogProvider {
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
   @override
   Future<void> close() async {}
+}
+
+final class _FailAfterFirstEmptyLibraryRepository
+    extends _FakeLibraryRepository {
+  _FailAfterFirstEmptyLibraryRepository() : super(const []);
+
+  int loadCount = 0;
+
+  @override
+  Future<List<LibraryEntry>> loadAll() async {
+    if (++loadCount > 1) throw StateError('offline');
+    return super.loadAll();
+  }
+}
+
+final class _CountingLibraryRepository extends _FakeLibraryRepository {
+  _CountingLibraryRepository() : super(const []);
+
+  int loadCount = 0;
+
+  @override
+  Future<List<LibraryEntry>> loadAll() async {
+    loadCount++;
+    return super.loadAll();
+  }
+}
+
+final class _CountingCatalogProvider extends _CatalogProvider {
+  _CountingCatalogProvider(super.item);
+
+  int discoverCount = 0;
+
+  @override
+  Future<CatalogDiscovery> discover() async {
+    discoverCount++;
+    return super.discover();
+  }
 }
 
 final class _DeferredCatalogProvider implements CatalogProvider {

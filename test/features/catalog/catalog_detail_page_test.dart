@@ -202,6 +202,35 @@ void main() {
     expect(find.text('More details could not load'), findsNothing);
   });
 
+  testWidgets('detail refresh action reloads metadata without navigation', (
+    tester,
+  ) async {
+    var calls = 0;
+    final provider = _Provider(
+      onLoadDetails: (_) async {
+        calls++;
+        return CatalogEntryDetails(entry: _anime);
+      },
+    );
+
+    await tester.pumpWidget(
+      _app(
+        CatalogDetailPage(
+          initialEntry: _anime,
+          loadDetails: LoadCatalogEntryDetails(provider),
+          openRelated: (_) {},
+          openSourceSearch: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+
+    await tester.tap(find.byTooltip('Refresh'));
+    await tester.pumpAndSettle();
+    expect(calls, 2);
+  });
+
   testWidgets('failed refresh keeps the last usable details visible', (
     tester,
   ) async {

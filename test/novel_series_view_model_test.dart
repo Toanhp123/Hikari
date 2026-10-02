@@ -9,18 +9,36 @@ void main() {
     final model = NovelSeriesViewModel(() async {
       attempts++;
       if (attempts == 1) throw StateError('offline');
-      return NovelDetails(
-        metadata: MediaMetadata(title: 'Novel'),
-        chapters: const [],
-      );
+      return _details('Novel');
     });
     addTearDown(model.dispose);
 
     await model.load();
-    expect(model.state, isA<NovelSeriesFailure>());
+    expect(model.state.failed, isTrue);
 
     await model.load();
-    final state = model.state as NovelSeriesReady;
-    expect(state.details.metadata.title, 'Novel');
+    expect(model.state.status, NovelSeriesStatus.ready);
+    expect(model.state.details!.metadata.title, 'Novel');
+  });
+
+  test('failed refresh preserves the last loaded chapter list', () async {
+    var attempts = 0;
+    final model = NovelSeriesViewModel(() async {
+      attempts++;
+      if (attempts == 2) throw StateError('offline');
+      return _details('Loaded');
+    });
+    addTearDown(model.dispose);
+
+    await model.load();
+    await model.load();
+
+    expect(model.state.refreshFailed, isTrue);
+    expect(model.state.details!.metadata.title, 'Loaded');
   });
 }
+
+NovelDetails _details(String title) => NovelDetails(
+  metadata: MediaMetadata(title: title),
+  chapters: const [],
+);
