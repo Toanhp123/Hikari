@@ -20,9 +20,11 @@ final class CatalogDetailUiState {
   CatalogEntry get entry => details?.entry ?? initialEntry;
   bool get initialLoading =>
       status == CatalogDetailStatus.loading && details == null;
+  bool get refreshing =>
+      status == CatalogDetailStatus.loading && details != null;
   bool get refreshFailed =>
       status == CatalogDetailStatus.error && details != null;
-  bool get failed => status == CatalogDetailStatus.error;
+  bool get failed => status == CatalogDetailStatus.error && details == null;
 }
 
 final class CatalogDetailViewModel extends ChangeNotifier {

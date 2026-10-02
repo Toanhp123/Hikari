@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -30,9 +33,91 @@ class LocalMediaContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
-    final media = state is LocalMediaReady
-        ? (state as LocalMediaReady).media
-        : const <Media>[];
+    final media = state.media;
+    final scrollView = CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        if (state.refreshFailed)
+          SliverToBoxAdapter(
+            child: MaterialBanner(
+              content: const Text(
+                'Could not rescan this folder. Showing the last scan.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => unawaited(onScan()),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        if (media.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              HikariSpacing.lg,
+              0,
+              HikariSpacing.lg,
+              100,
+            ),
+            sliver: SliverGrid.builder(
+              gridDelegate: mediaPosterGridDelegate,
+              itemCount: media.length,
+              itemBuilder: (context, index) => Stack(
+                children: [
+                  Positioned.fill(
+                    child: MediaPoster(
+                      title: media[index].title,
+                      subtitle: mediaTypeLabel(media[index].type),
+                      onTap: () => openMedia(context, media[index]),
+                    ),
+                  ),
+                  if (library != null)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: LibraryButton(
+                        repository: library!,
+                        media: media[index],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          )
+        else
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 96),
+              child: AsyncStateView(
+                status: state.hasScanResult
+                    ? AsyncViewStatus.empty
+                    : switch (state.status) {
+                        LocalMediaStatus.loading => AsyncViewStatus.loading,
+                        LocalMediaStatus.error => AsyncViewStatus.error,
+                        _ => AsyncViewStatus.empty,
+                      },
+                emptyTitle: state.hasScanResult
+                    ? 'No local media found.'
+                    : 'Your media, on this device',
+                emptyMessage: state.hasScanResult
+                    ? 'Try another folder or pull down to scan again.'
+                    : 'Choose a folder to find local media.',
+                emptyIcon: Icons.folder_open_rounded,
+                errorTitle: 'Folder unavailable',
+                errorMessage: 'Could not scan local media. Try again or choose the folder again.',
+                onRetry: () => unawaited(onScan()),
+                contentBuilder: (_) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+      ],
+    );
+    final canRescan =
+        state.hasScanResult || state.status == LocalMediaStatus.error;
+    final content = state.hasScanResult
+        ? RefreshIndicator.adaptive(onRefresh: onScan, child: scrollView)
+        : scrollView;
 
     return Column(
       children: [
@@ -50,86 +135,37 @@ class LocalMediaContent extends StatelessWidget {
                 ),
               ),
               if (supported)
-                HikariButton(
-                  label: 'Choose folder',
-                  icon: const Icon(Icons.folder_open_rounded, size: 18),
-                  variant: HikariButtonVariant.secondary,
-                  onPressed: state is LocalMediaLoading ? null : onChooseRoot,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (canRescan) ...[
+                      HikariRefreshAction(
+                        refreshing: state.refreshing,
+                        tooltip: 'Rescan folder',
+                        onPressed: state.busy
+                            ? null
+                            : () => unawaited(onScan()),
+                      ),
+                      const SizedBox(width: HikariSpacing.sm),
+                    ],
+                    Flexible(
+                      child: HikariButton(
+                        label: 'Choose folder',
+                        icon: const Icon(Icons.folder_open_rounded, size: 18),
+                        variant: HikariButtonVariant.secondary,
+                        onPressed: state.busy ? null : onChooseRoot,
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
         ),
         Expanded(
-          child: !supported
-              ? const Center(
+          child: supported
+              ? content
+              : const Center(
                   child: Text('Local media is not supported on this device.'),
-                )
-              : RefreshIndicator(
-                  onRefresh: onScan,
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      if (media.isNotEmpty)
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(
-                            HikariSpacing.lg,
-                            0,
-                            HikariSpacing.lg,
-                            100,
-                          ),
-                          sliver: SliverGrid.builder(
-                            gridDelegate: mediaPosterGridDelegate,
-                            itemCount: media.length,
-                            itemBuilder: (context, index) => Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: MediaPoster(
-                                    title: media[index].title,
-                                    subtitle: mediaTypeLabel(media[index].type),
-                                    onTap: () =>
-                                        openMedia(context, media[index]),
-                                  ),
-                                ),
-                                if (library != null)
-                                  Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    child: LibraryButton(
-                                      repository: library!,
-                                      media: media[index],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 96),
-                            child: AsyncStateView(
-                              status: switch (state) {
-                                LocalMediaLoading() => AsyncViewStatus.loading,
-                                LocalMediaFailure() => AsyncViewStatus.error,
-                                _ => AsyncViewStatus.empty,
-                              },
-                              emptyTitle: state is LocalMediaInitial
-                                  ? 'Your media, on this device'
-                                  : 'No local media found.',
-                              emptyMessage: state is LocalMediaInitial
-                                  ? 'Choose a folder to find local media.'
-                                  : 'Try another folder or pull down to scan again.',
-                              emptyIcon: Icons.folder_open_rounded,
-                              errorTitle: 'Folder unavailable',
-                              errorMessage: 'Could not scan local media. Try again or choose the folder again.',
-                              onRetry: onScan,
-                              contentBuilder: (_) => const SizedBox.shrink(),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
                 ),
         ),
       ],

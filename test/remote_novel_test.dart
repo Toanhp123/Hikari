@@ -14,6 +14,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart' as progress;
 import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
+import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
@@ -124,6 +125,19 @@ class FakeNovel
   Future<Uint8List> readResource(SourceMediaRef resource) async => Uint8List(0);
 }
 
+class _RefreshNovel extends FakeNovel {
+  int detailLoads = 0;
+
+  @override
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async {
+    if (++detailLoads == 2) throw StateError('offline');
+    return NovelDetails(
+      metadata: MediaMetadata(title: 'Novel'),
+      chapters: [NovelChapter(title: 'Chapter 1', source: ref('chapter'))],
+    );
+  }
+}
+
 class _ForeignNovel extends FakeNovel {
   @override
   Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
@@ -188,6 +202,41 @@ void main() {
       throwsStateError,
     );
   });
+  testWidgets('series refresh failure keeps the last chapter list visible', (
+    tester,
+  ) async {
+    final source = _RefreshNovel();
+    final target = NovelSeriesOpenTarget(
+      Media(
+        title: 'Novel',
+        type: MediaType.lightNovel,
+        source: source.ref('series'),
+      ),
+      source: source,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelSeriesPage(target: target, openChapter: (_, _) async {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chapter 1'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+
+    final refresh = tester
+        .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+        .show();
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await refresh;
+
+    expect(source.detailLoads, 2);
+    expect(find.text('Chapter 1'), findsOneWidget);
+    expect(find.textContaining('Could not refresh chapters.'), findsOneWidget);
+  });
+
   testWidgets('novel search details rich reader library and file restart', (
     tester,
   ) async {

@@ -199,6 +199,35 @@ void main() {
     expect(retries, 1);
   });
 
+  testWidgets('failed discovery refresh keeps stale catalog visible', (
+    tester,
+  ) async {
+    var retries = 0;
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: CatalogDiscoverySections(
+            discovery: CatalogDiscovery(
+              sections: {
+                CatalogSection.featured: [_anime],
+              },
+            ),
+            error: StateError('offline'),
+            onRetry: () => retries++,
+            openDetail: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text(_anime.title), findsOneWidget);
+    expect(find.textContaining('Could not refresh discovery.'), findsOneWidget);
+    expect(find.text('Catalog unavailable'), findsNothing);
+
+    await tester.tap(find.text('Retry'));
+    expect(retries, 1);
+  });
+
   testWidgets('Home discovery renders request error and empty state', (
     tester,
   ) async {

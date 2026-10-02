@@ -37,6 +37,7 @@ final class HomeUiState {
   const HomeUiState({
     this.loading = false,
     this.libraryItems = const [],
+    this.hasLibrarySnapshot = false,
     this.continueItems = const [],
     this.error,
     this.progressError,
@@ -47,6 +48,7 @@ final class HomeUiState {
 
   final bool loading;
   final List<Media> libraryItems;
+  final bool hasLibrarySnapshot;
   final List<ContinueReadingItem> continueItems;
   final Object? error;
   final Object? progressError;
@@ -57,6 +59,7 @@ final class HomeUiState {
   HomeUiState copyWith({
     bool? loading,
     List<Media>? libraryItems,
+    bool? hasLibrarySnapshot,
     List<ContinueReadingItem>? continueItems,
     Object? error,
     bool clearError = false,
@@ -70,6 +73,7 @@ final class HomeUiState {
     return HomeUiState(
       loading: loading ?? this.loading,
       libraryItems: libraryItems ?? this.libraryItems,
+      hasLibrarySnapshot: hasLibrarySnapshot ?? this.hasLibrarySnapshot,
       continueItems: continueItems ?? this.continueItems,
       error: clearError ? null : error ?? this.error,
       progressError: clearProgressError
@@ -175,6 +179,13 @@ final class HomeViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> refresh() async {
+    final tasks = <Future<void>>[];
+    if (_repository != null) tasks.add(reload());
+    if (_discoverCatalog != null) tasks.add(reloadCatalog());
+    await Future.wait(tasks);
+  }
+
   Future<void> reloadCatalog() async {
     final discoverCatalog = _discoverCatalog;
     if (discoverCatalog == null || _disposed) return;
@@ -248,6 +259,7 @@ final class HomeViewModel extends ChangeNotifier {
       _state.copyWith(
         loading: false,
         libraryItems: media,
+        hasLibrarySnapshot: true,
         continueItems: List.unmodifiable(
           continueItems.map((entry) => entry.item),
         ),

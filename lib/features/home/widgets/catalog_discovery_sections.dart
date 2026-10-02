@@ -24,7 +24,7 @@ class CatalogDiscoverySections extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = discovery;
-    if (error != null) {
+    if (error != null && current == null) {
       return Padding(
         padding: const EdgeInsets.all(HikariSpacing.lg),
         child: AsyncStateView(
@@ -47,6 +47,15 @@ class CatalogDiscoverySections extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (error != null)
+          MaterialBanner(
+            content: const Text(
+              'Could not refresh discovery. Showing the last available catalog.',
+            ),
+            actions: [
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
+          ),
         if (current.warnings.isNotEmpty) ...[
           MaterialBanner(
             content: Text(current.warnings.join(' ')),

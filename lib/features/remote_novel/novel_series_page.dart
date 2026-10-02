@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
@@ -68,6 +69,16 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
       appBar: AppBar(
         title: Text(widget.target.media.title),
         actions: [
+          ListenableBuilder(
+            listenable: _viewModel,
+            builder: (context, _) => HikariRefreshAction(
+              tooltip: 'Refresh',
+              refreshing: _viewModel.state.refreshing,
+              onPressed: _viewModel.state.status == NovelSeriesStatus.loading
+                  ? null
+                  : () => unawaited(_viewModel.load()),
+            ),
+          ),
           if (widget.library != null)
             LibraryButton(
               repository: widget.library!,
@@ -85,7 +96,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
             readArtwork: source is ArtworkSource
                 ? (source as ArtworkSource).readArtwork
                 : null,
-            onRetry: () => unawaited(_viewModel.load()),
+            onRefresh: _viewModel.load,
             onOpenChapter: (chapter) => unawaited(_open(chapter)),
           ),
         ),

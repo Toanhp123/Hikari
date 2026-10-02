@@ -147,6 +147,7 @@ lib/
 │     │  ├─ hikari_button.dart
 │     │  ├─ hikari_chip.dart
 │     │  ├─ hikari_icon_button.dart
+│     │  ├─ hikari_refresh_action.dart
 │     │  ├─ hikari_scaffold.dart
 │     │  └─ hikari_search_bar.dart
 │     │
@@ -694,6 +695,55 @@ Examples:
 - reload a chapter
 
 Do not reduce all failures to one generic error screen.
+
+### 12.1 Refresh policy
+
+Refresh is a content behavior, not a decoration to add to every route. A route is
+manually refreshable only when the user can reasonably expect its already displayed
+data to become stale without changing the query or navigation target.
+
+Use pull-to-refresh as a convenience on scrollable collections where new or updated
+content is naturally discovered from the top, and keep an explicit refresh action for
+keyboard/desktop use and accessibility. Use Flutter's adaptive refresh indicator rather
+than implementing a custom drag gesture.
+
+Current policy:
+
+```text
+Home discovery/resume feed       pull + explicit refresh
+Local media collection           pull + explicit rescan
+Remote manga/novel series        pull + explicit refresh
+Catalog detail metadata          explicit refresh only
+Library                          automatic via observable repository
+Catalog/source search            query submit/retry, no pull refresh
+Reader/player/settings           no generic refresh gesture
+```
+
+Initial load and refresh are distinct states:
+
+```text
+no data + load        -> blocking loading state
+content + refresh     -> keep stale content visible + refresh progress
+refresh succeeds      -> replace with fresh content
+refresh fails         -> keep stale content + recoverable refresh notice
+no data + load fails  -> blocking error state
+```
+
+Do not replace usable content with a full-screen spinner or error solely because a
+refresh is in progress or failed. A newly selected data root is different: when the
+identity of the underlying collection changes (for example choosing a different Local
+folder), stale content from the old root must not be shown as if it belonged to the new
+one.
+
+Search is deliberately excluded from pull-to-refresh because changing/submitting the
+query is the user's data request. Library is deliberately excluded while it observes its
+local source of truth and therefore updates without manual intervention.
+
+Refresh interaction references:
+
+- [Flutter `RefreshIndicator`](https://api.flutter.dev/flutter/material/RefreshIndicator-class.html)
+- [Android pull-to-refresh guidance](https://developer.android.com/develop/ui/compose/components/pull-to-refresh)
+- [Apple Human Interface Guidelines: progress and refresh indicators](https://developer.apple.com/design/human-interface-guidelines/progress-indicators)
 
 ---
 

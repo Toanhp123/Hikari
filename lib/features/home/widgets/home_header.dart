@@ -55,10 +55,15 @@ class HomeHeader extends StatelessWidget {
               ),
             ],
           ),
-          HikariIconButton(
-            tooltip: 'Search',
-            onPressed: onSearch,
-            icon: const Icon(Icons.search_rounded),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              HikariIconButton(
+                tooltip: 'Search',
+                onPressed: onSearch,
+                icon: const Icon(Icons.search_rounded),
+              ),
+            ],
           ),
         ],
       ),

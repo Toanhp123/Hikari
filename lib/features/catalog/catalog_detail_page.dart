@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/features/catalog/catalog_detail_view_model.dart';
@@ -74,6 +75,15 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                actions: [
+                  HikariRefreshAction(
+                    tooltip: 'Refresh',
+                    refreshing: state.refreshing,
+                    onPressed: state.status == CatalogDetailStatus.loading
+                        ? null
+                        : () => unawaited(_viewModel.load()),
+                  ),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   collapseMode: CollapseMode.pin,
                   background: CatalogDetailHero(

@@ -46,7 +46,7 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
   void didUpdateWidget(LocalMediaPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.supported && oldWidget.scanRevision != widget.scanRevision) {
-      unawaited(_viewModel.scan(refresh: true));
+      unawaited(_viewModel.scan(rootChanged: true));
     }
   }
 

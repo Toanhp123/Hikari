@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
@@ -16,8 +18,8 @@ import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
-import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
+import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
@@ -509,6 +511,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No readable chapters found.'), findsOneWidget);
     expect(calls, 2);
+  });
+
+  testWidgets('series refresh failure keeps the last chapter list visible', (
+    tester,
+  ) async {
+    var calls = 0;
+    const ref = SourceMediaRef(sourceId: SourceId('fake'), itemId: 'chapter');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaSeriesPage(
+          title: 'Series',
+          sourceName: 'Test source',
+          loadDetails: () async {
+            if (++calls == 2) throw StateError('offline');
+            return MangaSeriesDetails(
+              metadata: MediaMetadata(title: 'Series'),
+              chapters: [MangaChapter(title: 'Chapter 1', source: ref)],
+            );
+          },
+          openChapter: (_, _) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Chapter 1'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+
+    final refresh = tester
+        .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+        .show();
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await refresh;
+
+    expect(calls, 2);
+    expect(find.text('Chapter 1'), findsOneWidget);
+    expect(find.textContaining('Could not refresh chapters.'), findsOneWidget);
   });
 
   testWidgets('non-readable chapters stay visible but cannot open', (
