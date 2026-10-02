@@ -268,8 +268,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Refresh'));
+    final refresh = tester
+        .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+        .show();
+    await tester.pump();
     await tester.pumpAndSettle();
+    await refresh;
 
     expect(
       find.text('Library refresh failed. Showing the last available items.'),
@@ -279,9 +283,7 @@ void main() {
     expect(library.loadCount, 2);
   });
 
-  testWidgets('Home refresh action and pull refresh reload all Home data', (
-    tester,
-  ) async {
+  testWidgets('Home pull refresh reloads all Home data', (tester) async {
     final library = _CountingLibraryRepository();
     final item = CatalogEntry(
       id: const CatalogEntryId(provider: 'test', value: 'refresh'),
@@ -306,10 +308,7 @@ void main() {
     expect(catalog.discoverCount, 1);
     expect(find.byType(RefreshIndicator), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Refresh'));
-    await tester.pumpAndSettle();
-    expect(library.loadCount, 2);
-    expect(catalog.discoverCount, 2);
+    expect(find.byTooltip('Refresh'), findsNothing);
 
     final pullRefresh = tester
         .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
@@ -317,8 +316,8 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     await pullRefresh;
-    expect(library.loadCount, 3);
-    expect(catalog.discoverCount, 3);
+    expect(library.loadCount, 2);
+    expect(catalog.discoverCount, 2);
   });
 
   testWidgets('wide Home bounds poster content instead of stretching it', (

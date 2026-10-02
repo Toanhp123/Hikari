@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
@@ -46,7 +44,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _refreshKey = GlobalKey<RefreshIndicatorState>();
   late final HomeViewModel _viewModel = HomeViewModel(
     widget.library,
     progressRepository: widget.progressRepository,
@@ -59,15 +56,6 @@ class _HomePageState extends State<HomePage> {
     if (oldWidget.refreshRevision != widget.refreshRevision) {
       _viewModel.reload();
     }
-  }
-
-  Future<void> _showRefreshIndicator() async {
-    final indicator = _refreshKey.currentState;
-    if (indicator != null) {
-      await indicator.show();
-      return;
-    }
-    await _viewModel.refresh();
   }
 
   @override
@@ -94,12 +82,7 @@ class _HomePageState extends State<HomePage> {
           ),
           slivers: [
             HomeBoundedSliverBox(
-              child: HomeHeader(
-                onSearch: widget.onNavigateToSearch,
-                onRefresh: hasRefreshableSource
-                    ? () => unawaited(_showRefreshIndicator())
-                    : null,
-              ),
+              child: HomeHeader(onSearch: widget.onNavigateToSearch),
             ),
             if (state.continueItems.isNotEmpty)
               HomeBoundedSliverBox(
@@ -180,7 +163,6 @@ class _HomePageState extends State<HomePage> {
           useSafeArea: true,
           body: hasRefreshableSource
               ? RefreshIndicator.adaptive(
-                  key: _refreshKey,
                   onRefresh: _viewModel.refresh,
                   child: scrollView,
                 )
