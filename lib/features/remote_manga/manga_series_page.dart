@@ -3,10 +3,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/remote_manga/manga_series_view_model.dart';
+import 'package:hikari/features/remote_manga/widgets/manga_series_content.dart';
 
 class MangaSeriesPage extends StatefulWidget {
   const MangaSeriesPage({
@@ -77,69 +77,14 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
           Expanded(
             child: ListenableBuilder(
               listenable: _viewModel,
-              builder: (context, _) {
-                final state = _viewModel.state;
-                if (state is MangaSeriesLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (state is MangaSeriesFailure) {
-                  return Center(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Could not load chapters. Check source access or rate limits.',
-                          ),
-                          TextButton(
-                            onPressed: _viewModel.load,
-                            child: const Text('Try again'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                final ready = state as MangaSeriesReady;
-                final chapters = ready.details.chapters;
-                final details = ready.details;
-                return ListView.builder(
-                  itemCount: chapters.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return Column(
-                        children: [
-                          MediaMetadataView(
-                            metadata: details.metadata,
-                            sourceName: widget.sourceName,
-                            readArtwork: widget.readArtwork,
-                          ),
-                          if (chapters.isEmpty)
-                            const Text('No readable chapters found.'),
-                        ],
-                      );
-                    }
-                    final chapter = chapters[index - 1];
-                    final subtitle = <String>[
-                      chapter.scanlator ?? widget.sourceName,
-                      if (chapter.chapterNumber != null)
-                        'Chapter ${chapter.chapterNumber}',
-                      if (chapter.uploadedAt != null)
-                        chapter.uploadedAt!.toIso8601String().split('T').first,
-                      if (!chapter.canReadPages) 'Not readable in Hikari',
-                    ].join(' · ');
-                    return ListTile(
-                      key: ValueKey(chapter.source),
-                      title: Text(chapter.title),
-                      subtitle: Text(subtitle),
-                      enabled: !_isOpeningChapter && chapter.canReadPages,
-                      onTap: chapter.canReadPages
-                          ? () => _openChapter(chapter)
-                          : null,
-                    );
-                  },
-                );
-              },
+              builder: (context, _) => MangaSeriesContent(
+                state: _viewModel.state,
+                sourceName: widget.sourceName,
+                openingChapter: _isOpeningChapter,
+                readArtwork: widget.readArtwork,
+                onRetry: () => unawaited(_viewModel.load()),
+                onOpenChapter: (chapter) => unawaited(_openChapter(chapter)),
+              ),
             ),
           ),
         ],

@@ -4,24 +4,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
-import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
-import 'package:hikari/features/novel_reader/novel_content_view.dart';
-
-enum NovelReaderTheme {
-  oled(bg: Color(0xFF000000), fg: Color(0xFFD1D5DB)),
-  charcoal(bg: Color(0xFF161B26), fg: Color(0xFFF8FAFC)),
-  sepia(bg: Color(0xFFFBF0D9), fg: Color(0xFF452B14)),
-  white(bg: Color(0xFFFFFFFF), fg: Color(0xFF111827));
-
-  const NovelReaderTheme({required this.bg, required this.fg});
-
-  final Color bg;
-  final Color fg;
-}
+import 'package:hikari/features/novel_reader/novel_reader_theme.dart';
+import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
+import 'package:hikari/features/novel_reader/widgets/novel_reader_preferences_sheet.dart';
+import 'package:hikari/features/novel_reader/widgets/novel_reader_progress.dart';
 
 class NovelReaderPage extends StatefulWidget {
   const NovelReaderPage({
@@ -164,109 +154,12 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: context.hikariColors.surfaceElevated,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final colors = context.hikariColors;
-            return Padding(
-              padding: const EdgeInsets.all(HikariSpacing.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Reading Preferences',
-                    style: HikariTypography.titleMedium.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: HikariSpacing.md),
-
-                  // Reading Themes
-                  Text(
-                    'Color Theme',
-                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
-                  ),
-                  const SizedBox(height: HikariSpacing.xs),
-                  Row(
-                    children: NovelReaderTheme.values.map((t) {
-                      final isSelected = _readerTheme == t;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: HikariSpacing.sm),
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() => _readerTheme = t);
-                            setModalState(() {});
-                          },
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: t.bg,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected
-                                    ? colors.primaryGlow
-                                    : colors.border,
-                                width: isSelected ? 2.5 : 1.0,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Aa',
-                                style: TextStyle(
-                                  color: t.fg,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: HikariSpacing.md),
-
-                  // Font Size
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Font Size',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        '${_fontSize.toInt()}sp',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: _fontSize,
-                    min: 12,
-                    max: 26,
-                    divisions: 7,
-                    activeColor: colors.primary,
-                    inactiveColor: colors.surfaceHighlight,
-                    onChanged: (val) {
-                      setState(() => _fontSize = val);
-                      setModalState(() {});
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      builder: (context) => NovelReaderPreferencesSheet(
+        theme: _readerTheme,
+        fontSize: _fontSize,
+        onThemeChanged: (theme) => setState(() => _readerTheme = theme),
+        onFontSizeChanged: (fontSize) => setState(() => _fontSize = fontSize),
+      ),
     );
   }
 
@@ -344,32 +237,10 @@ class _NovelReaderPageState extends State<NovelReaderPage>
             if (!_loading && _error == null)
               ValueListenableBuilder<double>(
                 valueListenable: _progress,
-                builder: (context, progress, _) => Container(
-                  height: 24,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: HikariSpacing.md,
-                  ),
-                  color: _readerTheme.bg,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: MediaProgressBar(
-                          progress: progress,
-                          height: 2.5,
-                          showGlow: false,
-                        ),
-                      ),
-                      const SizedBox(width: HikariSpacing.sm),
-                      Text(
-                        '${(progress * 100).toInt()}%',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _readerTheme.fg.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                  ),
+                builder: (context, progress, _) => NovelReaderProgress(
+                  progress: progress,
+                  backgroundColor: _readerTheme.bg,
+                  foregroundColor: _readerTheme.fg,
                 ),
               ),
           ],

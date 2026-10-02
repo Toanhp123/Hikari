@@ -33,13 +33,15 @@ void main() {
         theme: HikariTheme.darkTheme(),
         home: HomePage(
           openMedia: (_, _) {},
-          continueItems: const [
-            ContinueReadingItem(
-              media: media,
-              progress: .5,
-              progressLabel: '50% read',
+          library: _FakeLibraryRepository(const [media]),
+          progressRepository: _ProgressRepository({
+            media.source: MediaProgress(
+              media: media.source,
+              position: TextPosition(progression: .5),
+              completed: false,
+              updatedAt: DateTime.utc(2026),
             ),
-          ],
+          }),
           discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
           openCatalogDetail: (_, _) {},
         ),
@@ -83,13 +85,14 @@ void main() {
         home: HomePage(
           openMedia: (_, item) => selectedMedia = item,
           library: _FakeLibraryRepository([animeMedia, mangaMedia]),
-          continueItems: const [
-            ContinueReadingItem(
-              media: mangaMedia,
-              progress: 0.5,
-              progressLabel: 'Chapter 1050',
+          progressRepository: _ProgressRepository({
+            mangaMedia.source: MediaProgress(
+              media: mangaMedia.source,
+              position: PagePosition(pageIndex: 1049, pageCount: 1100),
+              completed: false,
+              updatedAt: DateTime.utc(2026),
             ),
-          ],
+          }),
           discoverCatalog: DiscoverCatalog(_CatalogProvider(catalogItem)),
           openCatalogDetail: (_, _) {},
         ),
@@ -99,7 +102,7 @@ void main() {
 
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Pick up where you left off'), findsOneWidget);
-    expect(find.text('Chapter 1050'), findsOneWidget);
+    expect(find.text('Page 1050 of 1100'), findsOneWidget);
     expect(find.text('Featured'), findsOneWidget);
     expect(find.text('Catalog show'), findsOneWidget);
     expect(find.text('Recently added'), findsOneWidget);
@@ -328,6 +331,22 @@ final class _DeferredCatalogProvider implements CatalogProvider {
 
   @override
   Future<void> close() async {}
+}
+
+final class _ProgressRepository implements ProgressRepository {
+  _ProgressRepository(this.progressByMedia);
+
+  final Map<SourceMediaRef, MediaProgress> progressByMedia;
+
+  @override
+  Future<MediaProgress?> load(SourceMediaRef media) async =>
+      progressByMedia[media];
+
+  @override
+  Future<void> save(MediaProgress progress) async {}
+
+  @override
+  Future<void> delete(SourceMediaRef media) async {}
 }
 
 final class _FailingProgressRepository implements ProgressRepository {

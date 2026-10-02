@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -7,17 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
-import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/media/open_media.dart';
-import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart' as progress;
-import 'package:hikari/features/novel_reader/novel_content_view.dart';
+import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
-import 'package:hikari/features/remote_novel/remote_novel_search_view_model.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
@@ -191,74 +187,6 @@ void main() {
       ),
       throwsStateError,
     );
-  });
-  test(
-    'novel pagination preserves results on retry, deduplicates, stops on empty',
-    () async {
-      final source = FakeNovel();
-      var attempts = 0;
-      source.respond = (_, page) async {
-        if (page == 1) return source.page(page, next: null);
-        if (++attempts == 1) throw StateError('offline');
-        if (page == 2) return source.page(page, next: true);
-        return NovelSearchPage(results: [], page: page, hasNextPage: null);
-      };
-      final model = RemoteNovelSearchViewModel(
-        SearchNovels(SourceRegistry([source])),
-      );
-      addTearDown(model.dispose);
-      await model.search(' title ');
-      var state = model.state as RemoteNovelSearchReady;
-      expect(state.hasNextPage, isNull);
-      await model.loadMore();
-      state = model.state as RemoteNovelSearchReady;
-      expect(state.results, hasLength(1));
-      expect(state.pageFailed, isTrue);
-      expect(state.page, 1);
-      await model.loadMore();
-      state = model.state as RemoteNovelSearchReady;
-      expect(state.results, hasLength(2));
-      await model.loadMore();
-      state = model.state as RemoteNovelSearchReady;
-      expect(state.hasNextPage, false);
-      final count = source.searches;
-      await model.loadMore();
-      expect(source.searches, count);
-    },
-  );
-  test(
-    'novel query/source switches discard old completions and disposal is safe',
-    () async {
-      final source = FakeNovel();
-      final second = FakeNovel(id: const SourceId('second'));
-      final pending = Completer<NovelSearchPage>();
-      source.respond = (_, _) => pending.future;
-      final model = RemoteNovelSearchViewModel(
-        SearchNovels(SourceRegistry([source, second])),
-      );
-      final old = model.search('old');
-      model.selectSource(second.id);
-      await model.search('new');
-      pending.complete(source.page(1));
-      await old;
-      final state = model.state as RemoteNovelSearchReady;
-      expect(state.results.single.media.source.sourceId, second.id);
-      model.dispose();
-    },
-  );
-  test('empty novel query invalidates pending results', () async {
-    final source = FakeNovel();
-    final pending = Completer<NovelSearchPage>();
-    source.respond = (_, _) => pending.future;
-    final model = RemoteNovelSearchViewModel(
-      SearchNovels(SourceRegistry([source])),
-    );
-    addTearDown(model.dispose);
-    final old = model.search('old');
-    await model.search(' ');
-    pending.complete(source.page(1));
-    await old;
-    expect(model.state, isA<RemoteNovelSearchIdle>());
   });
   testWidgets('novel search details rich reader library and file restart', (
     tester,

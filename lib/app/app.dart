@@ -19,7 +19,7 @@ import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
-import 'package:hikari/features/player/video_surface.dart';
+import 'package:hikari/features/player/widgets/video_surface.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/source_search/source_search_page.dart';

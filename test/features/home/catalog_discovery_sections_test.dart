@@ -1,11 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -17,23 +12,17 @@ void main() {
     await tester.pumpWidget(
       _app(
         SingleChildScrollView(
-          child: CatalogDiscoverySections(
-            discover: DiscoverCatalog(
-              _Provider(
-                onDiscover: () async => CatalogDiscovery(
-                  sections: {
-                    for (final section in CatalogSection.values)
-                      section: [_anime],
-                  },
-                ),
-              ),
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                for (final section in CatalogSection.values) section: [_anime],
+              },
             ),
-            openDetail: (_) {},
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+
     for (final title in [
       'Featured',
       'Trending',
@@ -66,23 +55,18 @@ void main() {
     await tester.pumpWidget(
       _app(
         SingleChildScrollView(
-          child: CatalogDiscoverySections(
-            discover: DiscoverCatalog(
-              _Provider(
-                onDiscover: () async => CatalogDiscovery(
-                  sections: {
-                    CatalogSection.featured: [featured],
-                    CatalogSection.trending: [trending],
-                  },
-                ),
-              ),
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                CatalogSection.featured: [featured],
+                CatalogSection.trending: [trending],
+              },
             ),
             openDetail: (entry) => opened = entry,
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
     expect(find.byType(HeroCarousel), findsOneWidget);
     expect(find.text('Featured'), findsOneWidget);
@@ -109,39 +93,21 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    var calls = 0;
     CatalogEntry entry(String id) => CatalogEntry(
       id: CatalogEntryId(provider: 'test', value: id),
       title: 'Featured $id',
       type: MediaType.anime,
     );
 
-    final provider = _Provider(
-      onDiscover: () async {
-        calls++;
-        return CatalogDiscovery(
-          sections: {
-            CatalogSection.featured: calls == 1
-                ? [entry('A'), entry('B'), entry('C')]
-                : [entry('D'), entry('E')],
-          },
-          warnings: ['Refresh available'],
-        );
-      },
-    );
-
-    await tester.pumpWidget(
-      _app(
-        SingleChildScrollView(
-          child: CatalogDiscoverySections(
-            discover: DiscoverCatalog(provider),
-            openDetail: (_) {},
-          ),
+    Widget build(List<CatalogEntry> entries) => _app(
+      SingleChildScrollView(
+        child: _sections(
+          CatalogDiscovery(sections: {CatalogSection.featured: entries}),
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpWidget(build([entry('A'), entry('B'), entry('C')]));
     final next = find.byTooltip('Next featured item');
     await tester.tap(next);
     await tester.pumpAndSettle();
@@ -149,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('3 / 3'), findsOneWidget);
 
-    await tester.tap(find.text('Retry'));
+    await tester.pumpWidget(build([entry('D'), entry('E')]));
     await tester.pumpAndSettle();
 
     expect(find.text('1 / 2'), findsOneWidget);
@@ -172,21 +138,15 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        CatalogDiscoverySections(
-          discover: DiscoverCatalog(
-            _Provider(
-              onDiscover: () async => CatalogDiscovery(
-                sections: {
-                  CatalogSection.popularLightNovels: [novel],
-                },
-              ),
-            ),
+        _sections(
+          CatalogDiscovery(
+            sections: {
+              CatalogSection.popularLightNovels: [novel],
+            },
           ),
-          openDetail: (_) {},
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
     expect(find.text('NOVEL'), findsOneWidget);
     expect(find.text('LIGHTNOVEL'), findsNothing);
@@ -197,28 +157,17 @@ void main() {
     expect(tester.getSize(find.byType(MediaPoster)).width, 132);
   });
 
-  testWidgets('Home discovery loads, shows partial warning and retries', (
+  testWidgets('Home discovery renders loading, warning, and retry action', (
     tester,
   ) async {
-    final first = Completer<CatalogDiscovery>();
-    var calls = 0;
-    final provider = _Provider(
-      onDiscover: () => ++calls == 1
-          ? first.future
-          : Future.value(
-              CatalogDiscovery(
-                sections: {
-                  CatalogSection.featured: [_anime],
-                },
-                warnings: ['Partial result'],
-              ),
-            ),
-    );
+    var retries = 0;
     await tester.pumpWidget(
       _app(
         SingleChildScrollView(
           child: CatalogDiscoverySections(
-            discover: DiscoverCatalog(provider),
+            discovery: null,
+            error: null,
+            onRetry: () => retries++,
             openDetail: (_) {},
           ),
         ),
@@ -229,79 +178,74 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(MediaPoster), findsNWidgets(8));
-    first.complete(
-      CatalogDiscovery(
-        sections: {
-          CatalogSection.featured: [_anime],
-        },
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('catalog-loading-skeleton')),
-      findsNothing,
-    );
-    expect(find.text('Featured'), findsOneWidget);
-    expect(find.text('Anime A'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox.shrink());
+
     await tester.pumpWidget(
       _app(
         SingleChildScrollView(
-          child: CatalogDiscoverySections(
-            discover: DiscoverCatalog(
-              _Provider(
-                onDiscover: () async => CatalogDiscovery(
-                  sections: {
-                    CatalogSection.trending: [_anime],
-                  },
-                  warnings: ['One section failed'],
-                ),
-              ),
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                CatalogSection.featured: [_anime],
+              },
+              warnings: ['One section failed'],
             ),
-            openDetail: (_) {},
+            onRetry: () => retries++,
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
     expect(find.text('One section failed'), findsOneWidget);
-    expect(find.text('Anime A'), findsOneWidget);
     await tester.tap(find.text('Retry'));
-    await tester.pumpAndSettle();
-    expect(find.text('Anime A'), findsOneWidget);
+    expect(retries, 1);
   });
 
-  testWidgets('Home discovery shows empty and retries request errors', (
+  testWidgets('Home discovery renders request error and empty state', (
     tester,
   ) async {
-    var calls = 0;
-    final provider = _Provider(
-      onDiscover: () async {
-        if (++calls == 1) throw StateError('offline');
-        return CatalogDiscovery(
-          sections: {
-            for (final section in CatalogSection.values) section: const [],
-          },
-        );
-      },
-    );
+    var retries = 0;
     await tester.pumpWidget(
       _app(
         SingleChildScrollView(
           child: CatalogDiscoverySections(
-            discover: DiscoverCatalog(provider),
+            discovery: null,
+            error: StateError('offline'),
+            onRetry: () => retries++,
             openDetail: (_) {},
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
     expect(find.text('Catalog unavailable'), findsOneWidget);
     await tester.tap(find.text('Try Again'));
-    await tester.pumpAndSettle();
+    expect(retries, 1);
+
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: _sections(
+            CatalogDiscovery(
+              sections: {
+                for (final section in CatalogSection.values) section: const [],
+              },
+            ),
+          ),
+        ),
+      ),
+    );
     expect(find.text('No catalog results available.'), findsOneWidget);
   });
 }
+
+CatalogDiscoverySections _sections(
+  CatalogDiscovery discovery, {
+  VoidCallback? onRetry,
+  ValueChanged<CatalogEntry>? openDetail,
+}) => CatalogDiscoverySections(
+  discovery: discovery,
+  error: null,
+  onRetry: onRetry ?? () {},
+  openDetail: openDetail ?? (_) {},
+);
 
 Widget _app(Widget child) =>
     MaterialApp(theme: HikariTheme.darkTheme(), home: child);
@@ -312,32 +256,3 @@ final _anime = CatalogEntry(
   type: MediaType.anime,
   coverUrl: 'https://example/cover',
 );
-
-final class _Provider implements CatalogProvider {
-  _Provider({
-    Future<CatalogDiscovery> Function()? onDiscover,
-    Future<CatalogEntryDetails?> Function(CatalogEntryId)? onLoadDetails,
-  }) : _onDiscover =
-           onDiscover ?? (() async => CatalogDiscovery(sections: const {})),
-       _onLoadDetails = onLoadDetails ?? ((_) async => null);
-
-  final Future<CatalogDiscovery> Function() _onDiscover;
-  final Future<CatalogEntryDetails?> Function(CatalogEntryId) _onLoadDetails;
-
-  @override
-  String get id => 'test';
-
-  @override
-  Future<CatalogDiscovery> discover() => _onDiscover();
-
-  @override
-  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
-      const [];
-
-  @override
-  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) =>
-      _onLoadDetails(id);
-
-  @override
-  Future<void> close() async {}
-}

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/application/catalog/discover_catalog.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -51,6 +53,76 @@ void main() {
       expect(model.state.progressError, isNull);
     });
   }
+
+  test('catalog discovery and retry state live in HomeViewModel', () async {
+    var calls = 0;
+    final provider = _CatalogProvider(
+      onDiscover: () async {
+        if (++calls == 1) throw StateError('offline');
+        return CatalogDiscovery(sections: {CatalogSection.featured: const []});
+      },
+    );
+    final model = HomeViewModel(
+      null,
+      discoverCatalog: DiscoverCatalog(provider),
+    );
+    addTearDown(model.dispose);
+
+    await Future<void>.delayed(Duration.zero);
+    expect(model.state.catalogError, isA<StateError>());
+    expect(model.state.catalogDiscovery, isNull);
+
+    await model.reloadCatalog();
+    expect(model.state.catalogError, isNull);
+    expect(model.state.catalogDiscovery, isNotNull);
+    expect(calls, 2);
+  });
+
+  test(
+    'temporarily unavailable filter is restored when media returns',
+    () async {
+      const anime = Media(
+        title: 'Anime',
+        type: MediaType.anime,
+        source: SourceMediaRef(sourceId: SourceId.local, itemId: 'anime'),
+      );
+      const manga = Media(
+        title: 'Manga',
+        type: MediaType.manga,
+        source: SourceMediaRef(sourceId: SourceId.local, itemId: 'manga'),
+      );
+      final library = _ControlledLibrary();
+      final model = HomeViewModel(library);
+      addTearDown(library.controller.close);
+      addTearDown(model.dispose);
+
+      library.controller.add([
+        LibraryEntry(media: anime, addedAt: DateTime.utc(2026)),
+        LibraryEntry(media: manga, addedAt: DateTime.utc(2026)),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      model.selectFilter(HomeFilterType.manga);
+      expect(model.state.selectedFilter, HomeFilterType.manga);
+      expect(model.effectiveFilter, HomeFilterType.manga);
+      expect(model.visibleLibraryItems, [manga]);
+
+      library.controller.add([
+        LibraryEntry(media: anime, addedAt: DateTime.utc(2026)),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(model.state.selectedFilter, HomeFilterType.manga);
+      expect(model.effectiveFilter, HomeFilterType.all);
+      expect(model.visibleLibraryItems, [anime]);
+
+      library.controller.add([
+        LibraryEntry(media: anime, addedAt: DateTime.utc(2026)),
+        LibraryEntry(media: manga, addedAt: DateTime.utc(2026)),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(model.effectiveFilter, HomeFilterType.manga);
+      expect(model.visibleLibraryItems, [manga]);
+    },
+  );
 
   test('progress failures preserve Library and valid Continue items', () async {
     const valid = Media(
@@ -229,4 +301,26 @@ final class _Progress implements ProgressRepository {
   Future<void> save(MediaProgress progress) async {}
   @override
   Future<void> delete(SourceMediaRef media) async {}
+}
+
+final class _CatalogProvider implements CatalogProvider {
+  _CatalogProvider({required this.onDiscover});
+
+  final Future<CatalogDiscovery> Function() onDiscover;
+
+  @override
+  String get id => 'test';
+
+  @override
+  Future<CatalogDiscovery> discover() => onDiscover();
+
+  @override
+  Future<List<CatalogEntry>> search(String query, {MediaType? type}) async =>
+      const [];
+
+  @override
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async => null;
+
+  @override
+  Future<void> close() async {}
 }

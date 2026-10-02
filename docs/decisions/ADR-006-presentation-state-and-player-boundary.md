@@ -20,14 +20,15 @@ show results that `OpenMedia` could not complete.
 ## Decision
 
 For presentation flows with non-trivial asynchronous state, use a feature-local
-ViewModel/state holder. The current implementation introduces:
+ViewModel/state holder. The implementation introduced feature-local presentation state holders, including
+`LocalMediaViewModel` and the then-active remote manga search state. Presentation state
+remains in `features/` and may use Flutter's lightweight `ChangeNotifier`; this decision
+does not introduce a global state-management framework or DI container.
 
-- `LocalMediaViewModel` with explicit initial/loading/ready/failure states;
-- `RemoteMangaSearchViewModel` for source selection and search state.
-
-These remain in `features/` because they are presentation logic. They may use Flutter's
-lightweight `ChangeNotifier`; this decision does not introduce a global state-management
-framework or DI container.
+The source-specific remote search state was later retired when Catalog Detail adopted the
+unified `SourceSearchPage`. The decision that remains binding is the boundary itself: one
+production route owns one presentation state model instead of keeping parallel UI flows
+for individual source families.
 
 Add the pure application workflow `SearchManga`. It:
 
@@ -41,7 +42,7 @@ A search-only source remains a valid domain capability but is not surfaced in th
 current search-and-open UI until Hikari has a real workflow for non-openable search
 results.
 
-Move Flutter video rendering to `features/player/VideoSurface`. Rename the app-owned
+Move Flutter video rendering to the player presentation feature (now `features/player/widgets/VideoSurface`). Rename the app-owned
 player lifecycle objects to `MediaKitVideoSession` and `MediaKitVideoPlayback` so their
 implementation responsibility is explicit. Playback state change notification uses a
 Dart stream rather than making the infrastructure object a Flutter `ChangeNotifier`.
@@ -50,6 +51,14 @@ The app composition root bridges that session/controller into the presentation w
 Extend the architecture guard so `infrastructure/` may import only Flutter
 `foundation.dart` and `services.dart`; other Flutter libraries are rejected there. Those
 two platform-oriented APIs remain allowed for adapters.
+
+## Later evolution
+
+As of 2026-10-02, Catalog Detail opens the unified `SourceSearchPage`; the older
+source-specific remote manga/novel search presentation surfaces have been removed. This
+ADR still governs the presentation-state and player boundaries, while the current route
+ownership rules are documented in `docs/architecture/PRESENTATION.md` and
+`UI_ARCHITECTURE.md`.
 
 ## Alternatives considered
 
@@ -86,7 +95,7 @@ stream, DRM or alternate-engine requirements.
 - Infrastructure no longer owns Flutter widgets, and the guard prevents regression.
 - Player rendering still intentionally uses `media_kit_video` in the player feature;
   engine lifecycle/commands remain infrastructure.
-- Simple presentation components may still call domain repositories directly when an
-  additional use case/ViewModel would only be pass-through ceremony.
+- Reusable behavior widgets keep domain/application operations behind a feature-local
+  state holder; purely visual widgets receive state and callbacks.
 - Local folder discovery remains one concrete feature seam. A generic browse/import
   capability is deferred until a second real discovery source/platform proves its shape.

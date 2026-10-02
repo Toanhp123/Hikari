@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -54,6 +55,72 @@ void main() {
 
     expect(model.state.results, hasLength(1));
     expect(model.state.results.single.media, manga);
+  });
+
+  test(
+    'editing to an empty query invalidates pending source results',
+    () async {
+      final source = _ControlledMangaSource();
+      final registry = SourceRegistry([source]);
+      final model = SourceSearchViewModel(
+        searchManga: SearchManga(registry),
+        initialFilter: SourceSearchFilter.manga,
+      );
+      addTearDown(model.dispose);
+
+      final pending = model.search('Old');
+      await Future<void>.delayed(Duration.zero);
+      await model.search('   ');
+      source.complete('Old');
+      await pending;
+
+      expect(model.state.query, isEmpty);
+      expect(model.state.status, SourceSearchStatus.idle);
+      expect(model.state.results, isEmpty);
+    },
+  );
+
+  test('newer source search wins over stale completion', () async {
+    final source = _ControlledMangaSource();
+    final registry = SourceRegistry([source]);
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(registry),
+      initialFilter: SourceSearchFilter.manga,
+    );
+    addTearDown(model.dispose);
+
+    final first = model.search('First');
+    await Future<void>.delayed(Duration.zero);
+    final second = model.search('Second');
+    await Future<void>.delayed(Duration.zero);
+
+    source.complete('Second');
+    await second;
+    source.complete('First');
+    await first;
+
+    expect(model.state.query, 'Second');
+    expect(model.state.status, SourceSearchStatus.ready);
+    expect(model.state.results.single.media.title, 'Second');
+  });
+
+  test('partial source failures keep successful results visible', () async {
+    final working = _ResultMangaSource(
+      id: const SourceId('test:working'),
+      title: 'Working result',
+    );
+    final failing = _FailingMangaSource();
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([working, failing])),
+      initialFilter: SourceSearchFilter.manga,
+    );
+    addTearDown(model.dispose);
+
+    await model.search('query');
+
+    expect(model.state.status, SourceSearchStatus.ready);
+    expect(model.state.failedSourceCount, 1);
+    expect(model.state.results.single.media.title, 'Working result');
   });
 
   test(
@@ -147,4 +214,95 @@ final class _NovelSource
 
   @override
   Future<Uint8List> readResource(SourceMediaRef resource) async => Uint8List(0);
+}
+
+final class _ControlledMangaSource
+    implements MangaSearchSource, MangaPageSource {
+  final _pending = <String, Completer<MangaSearchPage>>{};
+
+  @override
+  SourceId get id => const SourceId('test:controlled');
+
+  @override
+  String get name => 'Controlled manga';
+
+  @override
+  Future<MangaSearchPage> search(String query, {int page = 1}) =>
+      (_pending[query] ??= Completer<MangaSearchPage>()).future;
+
+  void complete(String query) {
+    _pending[query]!.complete(
+      MangaSearchPage(
+        results: [
+          MangaPreview(
+            media: Media(
+              title: query,
+              type: MediaType.manga,
+              source: SourceMediaRef(sourceId: id, itemId: query),
+            ),
+          ),
+        ],
+        page: 1,
+        hasNextPage: false,
+      ),
+    );
+  }
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
+}
+
+final class _ResultMangaSource implements MangaSearchSource, MangaPageSource {
+  _ResultMangaSource({required this.id, required this.title});
+
+  @override
+  final SourceId id;
+  final String title;
+
+  @override
+  String get name => 'Working manga';
+
+  @override
+  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
+      MangaSearchPage(
+        results: [
+          MangaPreview(
+            media: Media(
+              title: title,
+              type: MediaType.manga,
+              source: SourceMediaRef(sourceId: id, itemId: title),
+            ),
+          ),
+        ],
+        page: page,
+        hasNextPage: false,
+      );
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
+}
+
+final class _FailingMangaSource implements MangaSearchSource, MangaPageSource {
+  @override
+  SourceId get id => const SourceId('test:failing');
+
+  @override
+  String get name => 'Failing manga';
+
+  @override
+  Future<MangaSearchPage> search(String query, {int page = 1}) async {
+    throw StateError('offline');
+  }
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
 }

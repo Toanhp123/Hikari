@@ -78,6 +78,134 @@ void main() {
     expect(violations, isEmpty, reason: violations.join('\n'));
   });
 
+  test('feature-root visual widgets are pages only', () {
+    final violations = <String>[];
+
+    for (final feature in Directory(
+      'lib/features',
+    ).listSync().whereType<Directory>()) {
+      for (final file in feature.listSync().whereType<File>()) {
+        if (!file.path.endsWith('.dart') || file.path.endsWith('_page.dart')) {
+          continue;
+        }
+        final source = file.readAsStringSync();
+        if (RegExp(r'extends\s+\w*Widget\b').hasMatch(source)) {
+          violations.add(
+            '${_libPath(file.path)}: feature visual components belong under widgets/.',
+          );
+        }
+      }
+    }
+
+    expect(violations, isEmpty, reason: violations.join('\n'));
+  });
+
+  test('feature pages declare only their route widget', () {
+    final violations = <String>[];
+    final widgetDeclaration = RegExp(r'class\s+(\w+)\s+extends\s+\w*Widget\b');
+
+    for (final file
+        in Directory('lib/features')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('_page.dart'))) {
+      final sourcePath = _libPath(file.path);
+      final declarations = widgetDeclaration
+          .allMatches(file.readAsStringSync())
+          .map((match) => match.group(1)!)
+          .toList(growable: false);
+
+      if (declarations.length != 1 || !declarations.single.endsWith('Page')) {
+        violations.add(
+          '$sourcePath: pages declare one route widget only; '
+          'move visual sub-widgets under the feature widgets/ directory '
+          '(found: ${declarations.join(', ')}).',
+        );
+      }
+    }
+
+    expect(violations, isEmpty, reason: violations.join('\n'));
+  });
+
+  test('feature widgets do not depend on application workflows', () {
+    final violations = <String>[];
+
+    for (final file
+        in Directory('lib/features')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where(
+              (file) =>
+                  file.path.endsWith('.dart') &&
+                  _libPath(file.path).contains('/widgets/'),
+            )) {
+      for (final directive in _dependencyDirectives(file.readAsStringSync())) {
+        for (final uri in directive.uris) {
+          if (uri.startsWith('package:hikari/application/') ||
+              uri.contains('/application/')) {
+            violations.add(
+              '${_libPath(file.path)}: feature widgets render state; application workflows belong in a ViewModel ($uri).',
+            );
+          }
+        }
+      }
+    }
+
+    expect(violations, isEmpty, reason: violations.join('\n'));
+  });
+
+  test('feature views do not execute application workflows directly', () {
+    final violations = <String>[];
+
+    for (final file
+        in Directory('lib/features')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) {
+              final path = _libPath(file.path);
+              return file.path.endsWith('.dart') &&
+                  (path.endsWith('_page.dart') || path.contains('/widgets/'));
+            })) {
+      if (RegExp(r'\.execute\s*\(').hasMatch(file.readAsStringSync())) {
+        violations.add(
+          '${_libPath(file.path)}: views render state and forward intent; '
+          'execute application workflows in a feature ViewModel.',
+        );
+      }
+    }
+
+    expect(violations, isEmpty, reason: violations.join('\n'));
+  });
+
+  test('feature view models do not depend on views', () {
+    final violations = <String>[];
+
+    for (final file
+        in Directory('lib/features')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('_view_model.dart'))) {
+      final source = file.readAsStringSync();
+      for (final directive in _dependencyDirectives(source)) {
+        for (final uri in directive.uris) {
+          if (uri.startsWith('package:flutter/') &&
+              uri != 'package:flutter/foundation.dart') {
+            violations.add(
+              '${_libPath(file.path)}: view models may depend on Flutter foundation.dart only ($uri).',
+            );
+          }
+          if (uri.contains('/widgets/') || uri.endsWith('_page.dart')) {
+            violations.add(
+              '${_libPath(file.path)}: view models must not import view code ($uri).',
+            );
+          }
+        }
+      }
+    }
+
+    expect(violations, isEmpty, reason: violations.join('\n'));
+  });
+
   test('guard catches representative violations', () {
     const cases = [
       (

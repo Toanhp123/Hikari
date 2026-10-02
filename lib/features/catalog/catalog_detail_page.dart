@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/features/catalog/catalog_detail_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_content.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
 
@@ -25,33 +28,22 @@ class CatalogDetailPage extends StatefulWidget {
 }
 
 class _CatalogDetailPageState extends State<CatalogDetailPage> {
-  late Future<_CatalogDetailLoadResult> _future;
-  CatalogEntryDetails? _lastDetails;
-  int _loadRevision = 0;
+  late final CatalogDetailViewModel _viewModel = CatalogDetailViewModel(
+    initialEntry: widget.initialEntry,
+    loadDetails: widget.loadDetails,
+  );
   bool _descriptionExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    _future = _loadDetails();
+    unawaited(_viewModel.load());
   }
 
-  Future<_CatalogDetailLoadResult> _loadDetails() async {
-    final revision = ++_loadRevision;
-    await Future<void>.delayed(Duration.zero);
-    try {
-      final details = await widget.loadDetails.execute(widget.initialEntry.id);
-      if (revision == _loadRevision) _lastDetails = details;
-      return _CatalogDetailLoadResult(details: details);
-    } catch (_) {
-      return const _CatalogDetailLoadResult(failed: true);
-    }
-  }
-
-  void _retry() {
-    setState(() {
-      _future = _loadDetails();
-    });
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
   }
 
   @override
@@ -61,15 +53,11 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     final heroHeight =
         (context.isCompact ? 430.0 : 390.0) +
         (textScale - 1).clamp(0.0, 1.0).toDouble() * 120;
-    return FutureBuilder<_CatalogDetailLoadResult>(
-      future: _future,
-      builder: (context, snapshot) {
-        final details = snapshot.data?.details ?? _lastDetails;
-        final entry = details?.entry ?? widget.initialEntry;
-        final loading = snapshot.connectionState == ConnectionState.waiting;
-        final failed = snapshot.data?.failed ?? false;
-        final initialLoading = loading && details == null;
 
+    return ListenableBuilder(
+      listenable: _viewModel,
+      builder: (context, _) {
+        final state = _viewModel.state;
         return HikariScaffold(
           useSafeArea: false,
           body: CustomScrollView(
@@ -82,15 +70,15 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                 backgroundColor: colors.background.withValues(alpha: 0.96),
                 surfaceTintColor: Colors.transparent,
                 title: Text(
-                  entry.title,
+                  state.entry.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 flexibleSpace: FlexibleSpaceBar(
                   collapseMode: CollapseMode.pin,
                   background: CatalogDetailHero(
-                    entry: entry,
-                    details: details,
+                    entry: state.entry,
+                    details: state.details,
                     openSourceSearch: widget.openSourceSearch,
                   ),
                 ),
@@ -108,24 +96,24 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                         HikariSpacing.lg,
                         HikariSpacing.xxxl,
                       ),
-                      child: initialLoading
-                          ? CatalogDetailLoadingBody(title: entry.title)
-                          : details != null
+                      child: state.initialLoading
+                          ? CatalogDetailLoadingBody(title: state.entry.title)
+                          : state.details != null
                           ? CatalogDetailContent(
-                              details: details,
-                              refreshFailed: failed,
+                              details: state.details!,
+                              refreshFailed: state.refreshFailed,
                               descriptionExpanded: _descriptionExpanded,
                               onToggleDescription: () => setState(
                                 () => _descriptionExpanded =
                                     !_descriptionExpanded,
                               ),
-                              onRetry: _retry,
+                              onRetry: () => unawaited(_viewModel.load()),
                               openRelated: widget.openRelated,
                             )
                           : CatalogDetailFallbackBody(
-                              entry: entry,
-                              failed: failed,
-                              onRetry: _retry,
+                              entry: state.entry,
+                              failed: state.failed,
+                              onRetry: () => unawaited(_viewModel.load()),
                             ),
                     ),
                   ),
@@ -137,11 +125,4 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
       },
     );
   }
-}
-
-final class _CatalogDetailLoadResult {
-  const _CatalogDetailLoadResult({this.details, this.failed = false});
-
-  final CatalogEntryDetails? details;
-  final bool failed;
 }

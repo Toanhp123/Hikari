@@ -8,8 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
-import 'package:hikari/application/search/search_manga.dart';
-import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -18,8 +16,6 @@ import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
-import 'package:hikari/features/remote_manga/remote_manga_search_page.dart';
-import 'package:hikari/features/remote_manga/remote_manga_search_view_model.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
@@ -155,36 +151,6 @@ class _CountingRemote extends FakeRemote {
   }
 }
 
-class _DirectSearchSource implements MangaSearchSource, MangaPageSource {
-  _DirectSearchSource({
-    required this.id,
-    required this.name,
-    required this.onSearch,
-  });
-
-  @override
-  final SourceId id;
-  @override
-  final String name;
-  final Future<List<Media>> Function(String query) onSearch;
-
-  @override
-  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(
-        results: (await onSearch(query))
-            .map((media) => MangaPreview(media: media))
-            .toList(),
-        page: page,
-        hasNextPage: false,
-      );
-
-  @override
-  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
-
-  @override
-  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
-}
-
 class _SearchOnlySource implements MangaSearchSource {
   @override
   SourceId get id => const SourceId('search-only');
@@ -231,13 +197,6 @@ class _OwnedLocal extends LocalMediaSource {
   }
 }
 
-class _PagedRemote extends FakeRemote {
-  Future<MangaSearchPage> Function(String, int)? respond;
-  @override
-  Future<MangaSearchPage> search(String query, {int page = 1}) =>
-      respond!(query, page);
-}
-
 void main() {
   test(
     'injected local source ownership and failed disposal retry are explicit',
@@ -265,70 +224,6 @@ void main() {
       expect(source.closes, 2);
     },
   );
-  test(
-    'manga pagination keeps failed page retryable and drops stale completions',
-    () async {
-      final source = _PagedRemote();
-      var attempts = 0;
-      MangaSearchPage page(int number, String item, bool next) =>
-          MangaSearchPage(
-            results: [
-              MangaPreview(
-                media: Media(
-                  title: item,
-                  type: MediaType.manga,
-                  source: SourceMediaRef(sourceId: source.id, itemId: item),
-                ),
-              ),
-            ],
-            page: number,
-            hasNextPage: next,
-          );
-      final stale = Completer<MangaSearchPage>();
-      source.respond = (query, number) async {
-        if (query == 'stale') return stale.future;
-        if (number == 1) return page(1, query, true);
-        if (++attempts == 1) throw StateError('offline');
-        return page(2, 'next', false);
-      };
-      final model = RemoteMangaSearchViewModel(
-        searchManga: SearchManga(SourceRegistry([source])),
-      );
-      addTearDown(model.dispose);
-      await model.search('first');
-      await model.loadMore();
-      expect((model.state as RemoteMangaSearchReady).pageFailed, true);
-      expect(
-        (model.state as RemoteMangaSearchReady).results.single.media.title,
-        'first',
-      );
-      await model.loadMore();
-      expect((model.state as RemoteMangaSearchReady).results, hasLength(2));
-      final old = model.search('stale');
-      await model.search('current');
-      stale.complete(page(1, 'stale', false));
-      await old;
-      expect(
-        (model.state as RemoteMangaSearchReady).results.single.media.title,
-        'current',
-      );
-    },
-  );
-
-  test('empty manga query invalidates pending results', () async {
-    final source = _PagedRemote();
-    final pending = Completer<MangaSearchPage>();
-    source.respond = (_, _) => pending.future;
-    final model = RemoteMangaSearchViewModel(
-      searchManga: SearchManga(SourceRegistry([source])),
-    );
-    addTearDown(model.dispose);
-    final old = model.search('old');
-    await model.search(' ');
-    pending.complete(MangaSearchPage(results: [], hasNextPage: false, page: 1));
-    await old;
-    expect(model.state, isA<RemoteMangaSearchIdle>());
-  });
   testWidgets('app boots without remote sources and keeps Library available', (
     tester,
   ) async {
@@ -616,80 +511,6 @@ void main() {
     expect(calls, 2);
   });
 
-  testWidgets('search result library toggle persists membership', (
-    tester,
-  ) async {
-    final db = UserDatabase(NativeDatabase.memory());
-    addTearDown(db.close);
-    final library = SqliteLibraryRepository(db);
-    final source = _DirectSearchSource(
-      id: const SourceId('fake'),
-      name: 'Test source',
-      onSearch: (_) async => [
-        const Media(
-          title: 'Series',
-          type: MediaType.manga,
-          source: SourceMediaRef(sourceId: SourceId('fake'), itemId: 'series'),
-        ),
-      ],
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: RemoteMangaSearchPage(
-          searchManga: SearchManga(SourceRegistry([source])),
-          openMedia: (_, _) {},
-          library: library,
-        ),
-      ),
-    );
-    await tester.enterText(find.byType(TextField), 'series');
-    await tester.tap(find.text('Search'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Add to library'));
-    await tester.pumpAndSettle();
-    expect(
-      await library.contains(
-        const SourceMediaRef(sourceId: SourceId('fake'), itemId: 'series'),
-      ),
-      isTrue,
-    );
-  });
-
-  testWidgets('explicit search shows loading then empty and errors', (
-    tester,
-  ) async {
-    final pending = Completer<List<Media>>();
-    var calls = 0;
-    final source = _DirectSearchSource(
-      id: const SourceId('test'),
-      name: 'Test source',
-      onSearch: (_) {
-        calls++;
-        return calls == 1
-            ? pending.future
-            : Future.error(StateError('offline'));
-      },
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: RemoteMangaSearchPage(
-          searchManga: SearchManga(SourceRegistry([source])),
-          openMedia: (_, _) {},
-        ),
-      ),
-    );
-    expect(calls, 0);
-    await tester.enterText(find.byType(TextField), 'test');
-    await tester.tap(find.text('Search'));
-    await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    pending.complete([]);
-    await tester.pumpAndSettle();
-    expect(find.text('No manga found.'), findsOneWidget);
-    await tester.tap(find.text('Search'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Could not search'), findsOneWidget);
-  });
   testWidgets('non-readable chapters stay visible but cannot open', (
     tester,
   ) async {

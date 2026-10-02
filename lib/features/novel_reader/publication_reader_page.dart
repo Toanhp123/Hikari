@@ -6,7 +6,7 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/progress/progress.dart';
-import 'package:hikari/features/novel_reader/novel_content_view.dart';
+import 'package:hikari/features/novel_reader/widgets/publication_reader_content.dart';
 
 final class PublicationReaderPage extends StatefulWidget {
   const PublicationReaderPage({
@@ -237,62 +237,27 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
           ),
         ],
       ),
-      body: SafeArea(child: _body(book)),
-      bottomNavigationBar: book == null
-          ? null
-          : SafeArea(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    tooltip: 'Previous section',
-                    onPressed: _index == 0 ? null : () => _select(_index - 1),
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  Text('${_index + 1} of ${book.spine.length}'),
-                  IconButton(
-                    tooltip: 'Next section',
-                    onPressed: _index == book.spine.length - 1
-                        ? null
-                        : () => _select(_index + 1),
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-
-  Widget _body(Publication? book) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Could not load this section.'),
-            TextButton(onPressed: _retry, child: const Text('Try again')),
-          ],
-        ),
-      );
-    }
-    final content = _content;
-    if (content == null || book == null) return const SizedBox.shrink();
-    return SingleChildScrollView(
-      controller: _scroll,
-      padding: const EdgeInsets.all(20),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: NovelContentView(
-            content: content,
-            htmlKey: _htmlKey,
-            readResource: widget.source.readResource,
-            onTapLink: _tapLink,
-          ),
+      body: SafeArea(
+        child: PublicationReaderContent(
+          loading: _loading,
+          hasError: _error != null,
+          book: book,
+          content: _content,
+          scrollController: _scroll,
+          htmlKey: _htmlKey,
+          readResource: widget.source.readResource,
+          onTapLink: _tapLink,
+          onRetry: () => unawaited(_retry()),
         ),
       ),
+      bottomNavigationBar: book == null
+          ? null
+          : PublicationReaderNavigation(
+              index: _index,
+              count: book.spine.length,
+              onPrevious: () => unawaited(_select(_index - 1)),
+              onNext: () => unawaited(_select(_index + 1)),
+            ),
     );
   }
 
@@ -308,25 +273,10 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
   void _showToc(Publication book) {
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) => SafeArea(
-        child: ListView.builder(
-          itemCount: book.toc.length,
-          itemBuilder: (context, index) {
-            final link = book.toc[index];
-            return ListTile(
-              title: Text(link.label),
-              onTap: () {
-                Navigator.pop(context);
-                final target = book.spine.indexWhere(
-                  (section) => section.resource == link.resource,
-                );
-                if (target >= 0) {
-                  unawaited(_select(target, fragment: link.fragment));
-                }
-              },
-            );
-          },
-        ),
+      builder: (context) => PublicationTocSheet(
+        book: book,
+        onSelect: (index, fragment) =>
+            unawaited(_select(index, fragment: fragment)),
       ),
     );
   }
