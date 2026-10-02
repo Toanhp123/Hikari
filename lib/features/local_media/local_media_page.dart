@@ -6,6 +6,7 @@ import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_button.dart';
@@ -148,7 +149,7 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
                                       Positioned.fill(
                                         child: MediaPoster(
                                           title: media[index].title,
-                                          subtitle: _mediaTypeLabel(
+                                          subtitle: mediaTypeLabel(
                                             media[index].type,
                                           ),
                                           onTap: () => widget.openMedia(
@@ -213,9 +214,3 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
     );
   }
 }
-
-String _mediaTypeLabel(MediaType type) => switch (type) {
-  MediaType.anime => 'Anime',
-  MediaType.manga => 'Manga',
-  MediaType.lightNovel => 'Light Novel',
-};

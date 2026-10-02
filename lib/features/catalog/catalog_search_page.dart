@@ -7,18 +7,18 @@ import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 
 enum _CatalogSearchFilter {
-  all('All', null),
-  anime('Anime', MediaType.anime),
-  manga('Manga', MediaType.manga),
-  novel('Light Novels', MediaType.lightNovel);
+  all(null),
+  anime(MediaType.anime),
+  manga(MediaType.manga),
+  novel(MediaType.lightNovel);
 
-  const _CatalogSearchFilter(this.label, this.type);
+  const _CatalogSearchFilter(this.type);
 
-  final String label;
   final MediaType? type;
 }
 
@@ -118,7 +118,9 @@ class _CatalogSearchPageState extends State<CatalogSearchPage> {
                       Padding(
                         padding: const EdgeInsets.only(right: HikariSpacing.sm),
                         child: HikariChip(
-                          label: filter.label,
+                          label: filter.type == null
+                              ? 'All'
+                              : mediaTypeFilterLabel(filter.type!),
                           isSelected: _filter == filter,
                           onTap: () => _selectFilter(filter),
                         ),
@@ -188,12 +190,8 @@ class _CatalogSearchPageState extends State<CatalogSearchPage> {
             return MediaPoster(
               title: entry.title,
               imageUrl: entry.coverUrl,
-              subtitle: entry.type.name,
-              badgeText: switch (entry.type) {
-                MediaType.anime => 'ANIME',
-                MediaType.manga => 'MANGA',
-                MediaType.lightNovel => 'NOVEL',
-              },
+              subtitle: mediaTypeLabel(entry.type),
+              badgeText: mediaTypeBadgeLabel(entry.type),
               onTap: () => widget.openDetail(context, entry),
             );
           },

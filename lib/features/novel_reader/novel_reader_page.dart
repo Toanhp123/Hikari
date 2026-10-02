@@ -12,18 +12,13 @@ import 'package:hikari/domain/progress/resume.dart';
 import 'package:hikari/features/novel_reader/novel_content_view.dart';
 
 enum NovelReaderTheme {
-  oled(label: 'OLED', bg: Color(0xFF000000), fg: Color(0xFFD1D5DB)),
-  charcoal(label: 'Charcoal', bg: Color(0xFF161B26), fg: Color(0xFFF8FAFC)),
-  sepia(label: 'Sepia', bg: Color(0xFFFBF0D9), fg: Color(0xFF452B14)),
-  white(label: 'White', bg: Color(0xFFFFFFFF), fg: Color(0xFF111827));
+  oled(bg: Color(0xFF000000), fg: Color(0xFFD1D5DB)),
+  charcoal(bg: Color(0xFF161B26), fg: Color(0xFFF8FAFC)),
+  sepia(bg: Color(0xFFFBF0D9), fg: Color(0xFF452B14)),
+  white(bg: Color(0xFFFFFFFF), fg: Color(0xFF111827));
 
-  const NovelReaderTheme({
-    required this.label,
-    required this.bg,
-    required this.fg,
-  });
+  const NovelReaderTheme({required this.bg, required this.fg});
 
-  final String label;
   final Color bg;
   final Color fg;
 }

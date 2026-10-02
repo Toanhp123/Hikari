@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
-import 'package:hikari/domain/media/media.dart';
 
 /// Manual cinematic carousel for catalog Featured entries.
 ///
@@ -166,11 +166,7 @@ class _HeroSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
     final isCompact = context.isCompact;
-    final typeLabel = switch (entry.type) {
-      MediaType.anime => 'Anime',
-      MediaType.manga => 'Manga',
-      MediaType.lightNovel => 'Light novel',
-    };
+    final typeLabel = mediaTypeLabel(entry.type);
     final metadata = [typeLabel, ...entry.genres.take(2)].join(' · ');
     final artworkUrl = entry.bannerUrl?.isNotEmpty == true
         ? entry.bannerUrl

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
 
 class ContinueReadingItem {
@@ -132,8 +133,9 @@ class _ContinueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
-    final badgeText = item.badgeText ?? _typeLabel(item.media.type);
-    final badgeColor = item.badgeColor ?? _typeColor(colors, item.media.type);
+    final badgeText = item.badgeText ?? mediaTypeBadgeLabel(item.media.type);
+    final badgeColor =
+        item.badgeColor ?? mediaTypeBadgeColor(colors, item.media.type);
     final actionIcon = switch (item.media.type) {
       MediaType.anime => Icons.play_arrow_rounded,
       MediaType.manga => Icons.auto_stories_rounded,
@@ -255,17 +257,4 @@ class _ContinueCard extends StatelessWidget {
       ),
     );
   }
-
-  static String _typeLabel(MediaType type) => switch (type) {
-    MediaType.anime => 'ANIME',
-    MediaType.manga => 'MANGA',
-    MediaType.lightNovel => 'NOVEL',
-  };
-
-  static Color _typeColor(HikariColors colors, MediaType type) =>
-      switch (type) {
-        MediaType.anime => colors.badgeVideo,
-        MediaType.manga => colors.badgeManga,
-        MediaType.lightNovel => colors.badgeNovel,
-      };
 }

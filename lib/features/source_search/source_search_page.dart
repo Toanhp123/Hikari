@@ -9,6 +9,7 @@ import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_button.dart';
@@ -102,7 +103,9 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
                               right: HikariSpacing.sm,
                             ),
                             child: HikariChip(
-                              label: filter.label,
+                              label: filter.mediaType == null
+                                  ? 'All'
+                                  : mediaTypeFilterLabel(filter.mediaType!),
                               isSelected: state.filter == filter,
                               onTap: () =>
                                   unawaited(_model.selectFilter(filter)),
@@ -156,7 +159,7 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
       emptyIcon: state.query.isEmpty
           ? Icons.search_rounded
           : Icons.search_off_rounded,
-      errorMessage: state.errorMessage,
+      errorMessage: 'All configured search sources failed. Try again.',
       onRetry: _model.retry,
       contentBuilder: (_) {
         final results = state.results;
@@ -191,19 +194,11 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
       itemBuilder: (context, index) {
         final result = results[index];
         final media = result.media;
-        final badgeColor = switch (media.type) {
-          MediaType.anime => colors.badgeVideo,
-          MediaType.manga => colors.badgeManga,
-          MediaType.lightNovel => colors.badgeNovel,
-        };
-        final badgeText = switch (media.type) {
-          MediaType.anime => 'ANIME',
-          MediaType.manga => 'MANGA',
-          MediaType.lightNovel => 'NOVEL',
-        };
+        final badgeColor = mediaTypeBadgeColor(colors, media.type);
+        final badgeText = mediaTypeBadgeLabel(media.type);
         final authors = result.metadata?.authors ?? const <String>[];
         final subtitle = [
-          result.sourceName,
+          result.sourceName ?? 'Local media',
           if (authors.isNotEmpty) authors.first,
         ].join(' · ');
 

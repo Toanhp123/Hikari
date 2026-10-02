@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_detail_labels.dart';
@@ -295,11 +296,7 @@ class _TypePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
-    final color = switch (type) {
-      MediaType.anime => colors.badgeVideo,
-      MediaType.manga => colors.badgeManga,
-      MediaType.lightNovel => colors.badgeNovel,
-    };
+    final color = mediaTypeBadgeColor(colors, type);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.18),

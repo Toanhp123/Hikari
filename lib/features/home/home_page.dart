@@ -5,6 +5,7 @@ import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/features/home/widgets/catalog_discovery_sections.dart';
@@ -15,13 +16,14 @@ import 'package:hikari/features/home/home_view_model.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 
 enum HomeFilterType {
-  all('All'),
-  anime('Anime'),
-  manga('Manga'),
-  novel('Light Novels');
+  all(null),
+  anime(MediaType.anime),
+  manga(MediaType.manga),
+  novel(MediaType.lightNovel);
 
-  const HomeFilterType(this.label);
-  final String label;
+  const HomeFilterType(this.mediaType);
+
+  final MediaType? mediaType;
 }
 
 /// Home composes only real application data.
@@ -93,16 +95,10 @@ class _HomePageState extends State<HomePage> {
     List<Media> items,
     HomeFilterType effectiveFilter,
   ) {
-    if (effectiveFilter == HomeFilterType.all) return items;
+    final mediaType = effectiveFilter.mediaType;
+    if (mediaType == null) return items;
     return items
-        .where((item) {
-          return switch (effectiveFilter) {
-            HomeFilterType.all => true,
-            HomeFilterType.anime => item.type == MediaType.anime,
-            HomeFilterType.manga => item.type == MediaType.manga,
-            HomeFilterType.novel => item.type == MediaType.lightNovel,
-          };
-        })
+        .where((item) => item.type == mediaType)
         .toList(growable: false);
   }
 
@@ -378,7 +374,9 @@ class _HomePageState extends State<HomePage> {
                       return Padding(
                         padding: const EdgeInsets.only(right: HikariSpacing.sm),
                         child: HikariChip(
-                          label: filter.label,
+                          label: filter.mediaType == null
+                              ? 'All'
+                              : mediaTypeFilterLabel(filter.mediaType!),
                           isSelected: effectiveFilter == filter,
                           onTap: () => setState(() => _selectedFilter = filter),
                         ),
@@ -417,16 +415,8 @@ class _HomePageState extends State<HomePage> {
       childCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final badgeColor = switch (item.type) {
-          MediaType.anime => colors.badgeVideo,
-          MediaType.manga => colors.badgeManga,
-          MediaType.lightNovel => colors.badgeNovel,
-        };
-        final badgeText = switch (item.type) {
-          MediaType.anime => 'ANIME',
-          MediaType.manga => 'MANGA',
-          MediaType.lightNovel => 'NOVEL',
-        };
+        final badgeColor = mediaTypeBadgeColor(colors, item.type);
+        final badgeText = mediaTypeBadgeLabel(item.type);
 
         return MediaPoster(
           title: item.title,

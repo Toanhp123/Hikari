@@ -4,6 +4,7 @@ import 'package:hikari/core/ui/components/hikari_chip.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_button.dart';
@@ -174,16 +175,8 @@ class _LibraryPageState extends State<LibraryPage> {
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final media = entries[index].media;
-        final badgeColor = switch (media.type) {
-          MediaType.anime => colors.badgeVideo,
-          MediaType.manga => colors.badgeManga,
-          MediaType.lightNovel => colors.badgeNovel,
-        };
-        final badgeText = switch (media.type) {
-          MediaType.anime => 'ANIME',
-          MediaType.manga => 'MANGA',
-          MediaType.lightNovel => 'NOVEL',
-        };
+        final badgeColor = mediaTypeBadgeColor(colors, media.type);
+        final badgeText = mediaTypeBadgeLabel(media.type);
 
         return Stack(
           children: [
@@ -234,11 +227,10 @@ class _LibraryPageState extends State<LibraryPage> {
                 color: colors.textPrimary,
               ),
             ),
-            subtitle: Text(switch (media.type) {
-              MediaType.anime => 'Anime',
-              MediaType.manga => 'Manga',
-              MediaType.lightNovel => 'Light Novel',
-            }, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+            subtitle: Text(
+              mediaTypeLabel(media.type),
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
             onTap: () => widget.openMedia(context, media),
             trailing: LibraryButton(
               repository: widget.repository,

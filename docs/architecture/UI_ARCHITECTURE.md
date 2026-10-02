@@ -79,6 +79,24 @@ stable, promote the reusable part into `core/ui`.
 
 Do not build a large design-system package before the product requires one.
 
+### 2.6 Keep presentation copy localization-ready
+
+Domain and application state must stay language-neutral. Do not store user-facing
+English labels in domain enums, and do not render enum `.name` values as product
+copy.
+
+Keep single-use copy close to the feature that owns it. When the same domain value
+has proven shared presentation semantics across multiple features, centralize that
+mapping in `core/ui/patterns` rather than duplicating switches across screens.
+Visual variants that mean something different in one feature may remain local.
+
+Hikari does not add a localization framework before a second locale is an active
+requirement. When localization work starts, prefer Flutter's generated `gen_l10n`
+ARB workflow and locale-aware formatting instead of a custom string service.
+Replace English presentation mappings at the UI edge; domain contracts stay
+unchanged. App UI locale is separate from source/content language metadata; do
+not use one as the other.
+
 ---
 
 ## 3. Layer model
@@ -825,6 +843,8 @@ This architecture intentionally adopts ideas proven in larger projects while
 keeping only the parts that fit Hikari's current scale:
 
 - Flutter architecture samples: shared theme/UI outside feature-specific screens.
+- Flutter internationalization: generated ARB-based localization and locale-aware
+  formatting for user-facing copy.
 - Now in Android: clear separation between design-system primitives and reusable
   product UI.
 - Wonderous: explicit app-wide spacing, radius, typography, motion, and size

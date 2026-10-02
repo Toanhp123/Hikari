@@ -4,8 +4,8 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
-import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
 
 class CatalogDiscoverySections extends StatefulWidget {
@@ -113,7 +113,6 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
                           const SizedBox(width: HikariSpacing.md),
                       itemBuilder: (context, index) {
                         final entry = sections[section]![index];
-                        final typeLabel = _typeLabel(entry.type);
                         return SizedBox(
                           width: posterWidth,
                           child: Semantics(
@@ -124,7 +123,7 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
                               child: MediaPoster(
                                 title: entry.title,
                                 imageUrl: entry.coverUrl,
-                                badgeText: typeLabel.toUpperCase(),
+                                badgeText: mediaTypeBadgeLabel(entry.type),
                                 onTap: () => widget.openDetail(entry),
                               ),
                             ),
@@ -145,12 +144,6 @@ class _CatalogDiscoverySectionsState extends State<CatalogDiscoverySections> {
       );
     },
   );
-
-  String _typeLabel(MediaType type) => switch (type) {
-    MediaType.anime => 'Anime',
-    MediaType.manga => 'Manga',
-    MediaType.lightNovel => 'Novel',
-  };
 
   String _sectionTitle(CatalogSection section) => switch (section) {
     CatalogSection.featured => 'Featured',
