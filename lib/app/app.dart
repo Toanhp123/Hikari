@@ -94,6 +94,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           initialEntry: entry,
           loadDetails: _dependencies.loadCatalogEntryDetails,
           resolveCatalogSource: _dependencies.resolveCatalogSource,
+          readArtwork: _dependencies.readSourceArtwork.execute,
           openMedia: _openMedia,
           openRelated: (related) => _openCatalogDetail(context, related),
           openSourceSearch: (item, sourceId, sourceName, sourceIds, language) =>
@@ -133,6 +134,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         builder: (_) => SourceSearchPage(
           openMedia: _openMedia,
           library: _dependencies.libraryRepository,
+          readArtwork: _dependencies.readSourceArtwork.execute,
           searchManga: _dependencies.searchManga,
           searchNovels: _dependencies.searchNovels,
           scanLocalMedia: _dependencies.localMediaSource.isAvailable

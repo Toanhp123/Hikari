@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
@@ -222,6 +223,55 @@ void main() {
     }
   });
 
+  testWidgets(
+    'ambiguous source candidates render source-owned cover metadata',
+    (tester) async {
+      final entry = _entry(MediaType.manga);
+      final database = UserDatabase(NativeDatabase.memory());
+      final local = _LocalCatalog();
+      final source = _MangaCatalogSource(
+        resultTitle: 'Catalog title side story',
+        withCover: true,
+      );
+      final dependencies = _dependencies(
+        database: database,
+        local: local,
+        entry: entry,
+        additionalSources: [source],
+      );
+      addTearDown(() async {
+        await dependencies.dispose();
+        await database.close();
+      });
+
+      try {
+        await tester.pumpWidget(HikariApp(dependencies: dependencies));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('View details'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Read'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(source.displayName));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Is this the right title?'), findsOneWidget);
+        expect(find.text('Source Author'), findsOneWidget);
+        expect(source.artworkReads, 1);
+        expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is Image &&
+                widget.image is ResizeImage &&
+                (widget.image as ResizeImage).imageProvider is MemoryImage,
+          ),
+          findsOneWidget,
+        );
+      } finally {
+        await _unmount(tester);
+      }
+    },
+  );
+
   testWidgets('manual correction stays scoped to the selected manga source', (
     tester,
   ) async {
@@ -371,20 +421,24 @@ final class _MangaCatalogSource
         MangaSearchSource,
         MangaSeriesSource,
         MangaPageSource,
-        MediaSourcePresentation {
+        MediaSourcePresentation,
+        ArtworkSource {
   _MangaCatalogSource({
     this.resultTitle = 'Catalog title',
     this.id = const SourceId('test:manga'),
     this.languageCode = 'en',
     this.fail = false,
     this.empty = false,
+    this.withCover = false,
   });
 
   final bool fail;
   final bool empty;
+  final bool withCover;
 
   final String resultTitle;
   int searches = 0;
+  int artworkReads = 0;
 
   @override
   final SourceId id;
@@ -412,10 +466,27 @@ final class _MangaCatalogSource
                   type: MediaType.manga,
                   source: SourceMediaRef(sourceId: id, itemId: 'catalog-title'),
                 ),
+                metadata: withCover
+                    ? MediaMetadata(
+                        title: resultTitle,
+                        cover: SourceMediaRef(sourceId: id, itemId: 'cover'),
+                        authors: const ['Source Author'],
+                      )
+                    : null,
               ),
             ],
       hasNextPage: false,
       page: page,
+    );
+  }
+
+  @override
+  Future<Uint8List> readArtwork(SourceMediaRef artwork) async {
+    artworkReads++;
+    return Uint8List.fromList(
+      base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      ),
     );
   }
 

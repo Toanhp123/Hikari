@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/patterns/source_artwork_loader.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 
@@ -12,12 +14,14 @@ class CatalogSourcePicker extends StatelessWidget {
     required this.viewModel,
     required this.onOpenMedia,
     required this.onManualSearch,
+    this.readArtwork,
   });
 
   final CatalogSourcePickerViewModel viewModel;
   final ValueChanged<Media> onOpenMedia;
   final void Function(CatalogSourcePickerSource?, Set<SourceId>?)
   onManualSearch;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +94,7 @@ class CatalogSourcePicker extends StatelessWidget {
         onSelect: (candidate) => onOpenMedia(candidate.media),
         onChooseAnother: viewModel.chooseAnotherSource,
         onManualSearch: () => onManualSearch(state.selectedSource, null),
+        readArtwork: readArtwork,
       ),
       CatalogSourcePickerStatus.empty => _MessageState(
         icon: Icons.search_off_rounded,
@@ -424,6 +429,7 @@ class _CandidateList extends StatelessWidget {
     required this.onSelect,
     required this.onChooseAnother,
     required this.onManualSearch,
+    required this.readArtwork,
   });
 
   final CatalogSourcePickerSource source;
@@ -431,6 +437,7 @@ class _CandidateList extends StatelessWidget {
   final ValueChanged<CatalogSourcePickerCandidate> onSelect;
   final VoidCallback onChooseAnother;
   final VoidCallback onManualSearch;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -462,6 +469,7 @@ class _CandidateList extends StatelessWidget {
                 for (var index = 0; index < candidates.length; index++) ...[
                   _CandidateTile(
                     candidate: candidates[index],
+                    readArtwork: readArtwork,
                     onTap: () => onSelect(candidates[index]),
                   ),
                   if (index != candidates.length - 1)
@@ -491,10 +499,15 @@ class _CandidateList extends StatelessWidget {
 }
 
 class _CandidateTile extends StatelessWidget {
-  const _CandidateTile({required this.candidate, required this.onTap});
+  const _CandidateTile({
+    required this.candidate,
+    required this.onTap,
+    required this.readArtwork,
+  });
 
   final CatalogSourcePickerCandidate candidate;
   final VoidCallback onTap;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -505,11 +518,9 @@ class _CandidateTile extends StatelessWidget {
         horizontal: HikariSpacing.md,
         vertical: HikariSpacing.xs,
       ),
-      leading: Icon(
-        candidate.media.type == MediaType.lightNovel
-            ? Icons.auto_stories_outlined
-            : Icons.menu_book_outlined,
-        color: colors.primaryGlow,
+      leading: _CandidateArtwork(
+        candidate: candidate,
+        readArtwork: readArtwork,
       ),
       title: Text(
         candidate.media.title,
@@ -529,6 +540,65 @@ class _CandidateTile extends StatelessWidget {
             ),
       trailing: Icon(Icons.arrow_forward_rounded, color: colors.textMuted),
       onTap: onTap,
+    );
+  }
+}
+
+class _CandidateArtwork extends StatelessWidget {
+  const _CandidateArtwork({required this.candidate, required this.readArtwork});
+
+  final CatalogSourcePickerCandidate candidate;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.hikariColors;
+    final artwork = candidate.metadata?.cover;
+    return SizedBox(
+      width: 44,
+      height: 58,
+      child: SourceArtworkLoader(
+        key: ValueKey(artwork ?? candidate.media.source),
+        artwork: artwork,
+        readArtwork: readArtwork,
+        builder: (context, bytes, loading) {
+          if (bytes != null) {
+            return ClipRRect(
+              borderRadius: HikariRadius.borderXs,
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                cacheWidth: 132,
+                errorBuilder: (_, _, _) => _placeholder(colors),
+              ),
+            );
+          }
+          return _placeholder(colors, loading: loading);
+        },
+      ),
+    );
+  }
+
+  Widget _placeholder(HikariColors colors, {bool loading = false}) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surfaceElevated,
+        borderRadius: HikariRadius.borderXs,
+        border: Border.all(color: colors.border),
+      ),
+      child: Center(
+        child: loading
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                candidate.media.type == MediaType.lightNovel
+                    ? Icons.auto_stories_outlined
+                    : Icons.menu_book_outlined,
+                color: colors.primaryGlow,
+              ),
+      ),
     );
   }
 }

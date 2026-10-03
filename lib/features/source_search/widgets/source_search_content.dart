@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
@@ -5,6 +7,7 @@ import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
+import 'package:hikari/core/ui/patterns/source_artwork_loader.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/widgets/library_button.dart';
@@ -20,6 +23,7 @@ class SourceSearchContent extends StatelessWidget {
     required this.onRetry,
     required this.openMedia,
     this.library,
+    this.readArtwork,
     this.scopedSourceName,
     this.catalogScopeLabel,
     this.fixedMediaType,
@@ -32,6 +36,7 @@ class SourceSearchContent extends StatelessWidget {
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String? scopedSourceName;
   final String? catalogScopeLabel;
   final MediaType? fixedMediaType;
@@ -95,6 +100,7 @@ class SourceSearchContent extends StatelessWidget {
             onRetry: onRetry,
             openMedia: openMedia,
             library: library,
+            readArtwork: readArtwork,
             scopedSourceName: scopedSourceName,
             catalogScopeLabel: catalogScopeLabel,
           ),
@@ -141,6 +147,7 @@ class _SourceSearchResults extends StatelessWidget {
     required this.onRetry,
     required this.openMedia,
     required this.library,
+    required this.readArtwork,
     required this.scopedSourceName,
     required this.catalogScopeLabel,
   });
@@ -149,6 +156,7 @@ class _SourceSearchResults extends StatelessWidget {
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String? scopedSourceName;
   final String? catalogScopeLabel;
 
@@ -192,6 +200,7 @@ class _SourceSearchResults extends StatelessWidget {
           results: state.results,
           openMedia: openMedia,
           library: library,
+          readArtwork: readArtwork,
         );
       },
     );
@@ -203,11 +212,13 @@ class _SourceSearchGrid extends StatelessWidget {
     required this.results,
     required this.openMedia,
     required this.library,
+    required this.readArtwork,
   });
 
   final List<SourceSearchResult> results;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -229,12 +240,19 @@ class _SourceSearchGrid extends StatelessWidget {
         return Stack(
           fit: StackFit.expand,
           children: [
-            MediaPoster(
-              title: media.title,
-              subtitle: subtitle,
-              badgeText: mediaTypeBadgeLabel(media.type),
-              badgeColor: mediaTypeBadgeColor(colors, media.type),
-              onTap: () => openMedia(context, media),
+            SourceArtworkLoader(
+              key: ValueKey(result.metadata?.cover ?? media.source),
+              artwork: result.metadata?.cover,
+              readArtwork: readArtwork,
+              builder: (context, imageBytes, loading) => MediaPoster(
+                title: media.title,
+                imageBytes: imageBytes,
+                isLoading: loading,
+                subtitle: subtitle,
+                badgeText: mediaTypeBadgeLabel(media.type),
+                badgeColor: mediaTypeBadgeColor(colors, media.type),
+                onTap: () => openMedia(context, media),
+              ),
             ),
             if (library != null)
               Positioned(

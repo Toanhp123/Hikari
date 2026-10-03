@@ -7,6 +7,7 @@ import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/search/search_manga.dart';
+import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -38,6 +39,7 @@ final class AppDependencies {
     required this.openMangaChapter,
     required this.searchManga,
     required this.searchNovels,
+    required this.readSourceArtwork,
     required this.openNovelChapter,
     required this.videoSession,
   });
@@ -83,6 +85,7 @@ final class AppDependencies {
       openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
       searchManga: searchManga,
       searchNovels: searchNovels,
+      readSourceArtwork: ReadSourceArtwork(sourceRegistry),
       openNovelChapter: OpenNovelChapter(sourceRegistry, progressRepository),
       videoSession: MediaKitVideoSession(),
     );
@@ -100,6 +103,7 @@ final class AppDependencies {
   final OpenMangaChapter openMangaChapter;
   final SearchManga searchManga;
   final SearchNovels searchNovels;
+  final ReadSourceArtwork readSourceArtwork;
   final OpenNovelChapter openNovelChapter;
   final MediaKitVideoSession videoSession;
 

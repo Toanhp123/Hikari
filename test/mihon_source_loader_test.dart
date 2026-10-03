@@ -56,6 +56,7 @@ final class _FakeGateway implements MihonExtensionGateway {
         MihonMangaItem(
           title: revision == '1' ? 'Example' : 'Renamed $revision',
           url: '/manga/$_mangaId',
+          thumbnailUrl: 'https://cdn.example.test/cover.jpg',
           memo: '{"seriesId":"123"}',
         ),
       ],
@@ -455,6 +456,13 @@ void main() {
       expect(details.metadata.summary, 'Summary');
       expect(result.metadata, isNotNull);
       expect(result.metadata!.title, 'Example');
+      expect(result.metadata!.cover, isNotNull);
+      expect(source, isA<ArtworkSource>());
+      expect(
+        await (source as ArtworkSource).readArtwork(result.metadata!.cover!),
+        [4, 5, 6],
+      );
+      expect(gateway.artworkUrl, 'https://cdn.example.test/cover.jpg');
       expect(result.media.source.itemId, startsWith('mihon-v2:'));
       expect(result.media.source.sourceId, source.id);
       expect(result.media.title, 'Example');

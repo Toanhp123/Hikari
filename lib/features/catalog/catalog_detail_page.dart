@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
@@ -30,6 +31,7 @@ class CatalogDetailPage extends StatefulWidget {
     required this.openMedia,
     required this.openRelated,
     required this.openSourceSearch,
+    this.readArtwork,
   });
 
   final CatalogEntry initialEntry;
@@ -37,6 +39,7 @@ class CatalogDetailPage extends StatefulWidget {
   final ResolveCatalogSource resolveCatalogSource;
   final Future<void> Function(BuildContext context, Media media) openMedia;
   final void Function(CatalogEntry entry) openRelated;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final void Function(
     CatalogEntry entry,
     SourceId? sourceId,
@@ -127,6 +130,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
             sourceIds: null,
             sourceLanguage: null,
           )),
+          readArtwork: widget.readArtwork,
           onManualSearch: (source, sourceIds) =>
               Navigator.of(sheetContext).pop((
                 media: null,
@@ -157,6 +161,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
             sourceIds: null,
             sourceLanguage: null,
           )),
+          readArtwork: widget.readArtwork,
           onManualSearch: (source, sourceIds) =>
               Navigator.of(dialogContext).pop((
                 media: null,

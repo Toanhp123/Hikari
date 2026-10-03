@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/application/search/search_manga.dart';
@@ -18,6 +19,7 @@ class SourceSearchPage extends StatefulWidget {
     this.searchNovels,
     this.scanLocalMedia,
     this.library,
+    this.readArtwork,
     this.initialQuery = '',
     this.initialFilter = SourceSearchFilter.all,
     this.initialSourceId,
@@ -32,6 +34,7 @@ class SourceSearchPage extends StatefulWidget {
   final SearchNovels? searchNovels;
   final Future<List<Media>?> Function()? scanLocalMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String initialQuery;
   final SourceSearchFilter initialFilter;
   final SourceId? initialSourceId;
@@ -103,6 +106,7 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
           onRetry: () => unawaited(_viewModel.retry()),
           openMedia: widget.openMedia,
           library: widget.library,
+          readArtwork: widget.readArtwork,
           scopedSourceName: widget.sourceName,
           catalogScopeLabel: widget.catalogScopeLabel,
           fixedMediaType: widget.fixedMediaType,
