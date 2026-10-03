@@ -1,4 +1,8 @@
 {
+  "model": "opus",
+  "worktree": {
+    "baseRef": "head"
+  },
   "hooks": {
     "PreToolUse": [
       {

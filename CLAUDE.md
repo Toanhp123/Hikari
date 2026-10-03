@@ -76,6 +76,22 @@ When multiple skills apply, use this order:
 4. **Superpowers execution/TDD** carries out the self-reviewed change without an approval pause.
 5. **Review + verification** close the task; Ponytail may run again as a simplification pass after correctness is established.
 
+### Model and subagent routing
+
+Hikari uses explicit role routing so the strongest model spends tokens on decisions and review instead of routine implementation or repository search. Model names here are Claude Code routing aliases; an external compatible router may map them to different backend models.
+
+- the main project session defaults to **Opus** via `.claude/settings.json` and acts as architect, orchestrator, difficult root-cause analyst, and final reviewer. It owns task decomposition, acceptance criteria, architectural decisions, integration decisions, and the completion claim; the user may still override the session model explicitly;
+- the project-level `Explore` subagent in `.claude/agents/Explore.md` is **Haiku** with low effort for read-only repository exploration. It does not need worktree isolation;
+- the `implementer` subagent is **Sonnet** with high effort and `isolation: worktree`. Its temporary Claude-managed worktree is the normal execution environment for bounded non-trivial code changes, not an orchestration error;
+- `.claude/settings.json` sets `worktree.baseRef` to `"head"` so implementer worktrees branch from the current local feature-branch `HEAD` instead of the remote default branch. Uncommitted parent-checkout edits are not part of that baseline;
+- before the first writing delegation, capture the active branch/`HEAD` and inspect `git status`. Do not make relevant main-thread edits and then assume an isolated implementer can see them;
+- keep **one writer for the task by default**. While an implementer is running, the main thread may continue read-only analysis but must not edit the same task-owned files in the integration checkout. For corrections, resume the same custom implementer when an agent ID is available instead of spawning a replacement worktree;
+- do not cancel or recreate an implementer merely because Claude Code supplied worktree isolation. If worktree creation or baseline verification fails, stop the retry loop, inspect once, and report the concrete blocker;
+- final integration, diff review, project-wide verification, and the completion claim remain the main Opus agent's responsibility;
+- do not set `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` for normal Hikari work because per-agent model pins are intentional.
+
+Manual/persistent branches or worktrees are still governed by `docs/GIT_WORKFLOW.md`. The temporary worktree created by the declared `implementer` agent is execution isolation already authorized by this project workflow; it does **not** authorize commits, pushes, merges, rebases, or automatic cleanup of work that has not been safely integrated.
+
 ### Evidence routing gates
 
 Use the specialized evidence route before generic fallback tools when its trigger is met:
@@ -85,7 +101,7 @@ Use the specialized evidence route before generic fallback tools when its trigge
 - direct targeted `Read`/`Grep` is preferred when the exact owning file/symbol is already known and the task is localized;
 - native web search/fetch is a fallback when Firecrawl is unavailable, fails, or a trivial known-page read is materially simpler. Do not duplicate retrieval when Firecrawl already returned sufficient evidence.
 
-Project/user constraints override optional skill advice. In particular, Hikari's autonomous E2E policy overrides Superpowers approval/checkpoint pauses, while Git and destructive-action restrictions remain binding. Do not let a skill silently create branches, worktrees, commits, pushes, merges, or persistent skill-generated artifacts that are not part of the requested deliverable. A new dependency may be added autonomously only when a verified requirement needs it, Ponytail finds no simpler existing option, and the change is documented and verified.
+Project/user constraints override optional skill advice. In particular, Hikari's autonomous E2E policy overrides Superpowers approval/checkpoint pauses, while Git and destructive-action restrictions remain binding. Do not let a skill silently create persistent/manual branches or worktrees, commits, pushes, merges, or persistent skill-generated artifacts that are not part of the requested deliverable. The declared `implementer` agent's temporary `isolation: worktree` is the intentional exception for execution isolation. A new dependency may be added autonomously only when a verified requirement needs it, Ponytail finds no simpler existing option, and the change is documented and verified.
 
 ## Context loading
 
@@ -159,7 +175,7 @@ Follow `docs/GIT_WORKFLOW.md`.
 
 Do not commit directly to `main` or `dev` for normal feature work.
 
-Do not create/switch/delete branches, create worktrees, commit, push, merge, or rewrite history unless the user has asked for that action.
+Do not create/switch/delete project branches, create manual/persistent worktrees, commit, push, merge, or rewrite history unless the user has asked for that action. Claude Code temporary worktrees created automatically for the project `implementer` subagent are allowed execution isolation under the workflow above; do not treat them as permission for any other Git-history mutation.
 
 Every code/file modification must be reviewable as a diff/patch.
 

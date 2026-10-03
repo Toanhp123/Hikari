@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
-import 'package:hikari/features/novel_reader/novel_content_view.dart';
+import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
 
 void main() {
   testWidgets('renders prose without fetching unregistered image URLs', (

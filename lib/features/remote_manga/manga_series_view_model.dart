@@ -1,22 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:hikari/domain/media/manga.dart';
 
-sealed class MangaSeriesUiState {
-  const MangaSeriesUiState();
-}
+enum MangaSeriesStatus { loading, ready, error }
 
-final class MangaSeriesLoading extends MangaSeriesUiState {
-  const MangaSeriesLoading();
-}
+@immutable
+final class MangaSeriesUiState {
+  const MangaSeriesUiState({
+    this.status = MangaSeriesStatus.loading,
+    this.details,
+  });
 
-final class MangaSeriesReady extends MangaSeriesUiState {
-  const MangaSeriesReady(this.details);
-
-  final MangaSeriesDetails details;
-}
-
-final class MangaSeriesFailure extends MangaSeriesUiState {
-  const MangaSeriesFailure();
+  final MangaSeriesStatus status;
+  final MangaSeriesDetails? details;
+  bool get initialLoading =>
+      status == MangaSeriesStatus.loading && details == null;
+  bool get refreshing => status == MangaSeriesStatus.loading && details != null;
+  bool get failed => status == MangaSeriesStatus.error && details == null;
+  bool get refreshFailed =>
+      status == MangaSeriesStatus.error && details != null;
 }
 
 final class MangaSeriesViewModel extends ChangeNotifier {
@@ -24,7 +25,7 @@ final class MangaSeriesViewModel extends ChangeNotifier {
 
   final Future<MangaSeriesDetails> Function() _loadDetails;
 
-  MangaSeriesUiState _state = const MangaSeriesLoading();
+  MangaSeriesUiState _state = const MangaSeriesUiState();
   MangaSeriesUiState get state => _state;
 
   int _generation = 0;
@@ -32,14 +33,26 @@ final class MangaSeriesViewModel extends ChangeNotifier {
 
   Future<void> load() async {
     final generation = ++_generation;
-    _publish(const MangaSeriesLoading());
+    _publish(
+      MangaSeriesUiState(
+        status: MangaSeriesStatus.loading,
+        details: _state.details,
+      ),
+    );
     try {
       final details = await Future.sync(_loadDetails);
       if (_disposed || generation != _generation) return;
-      _publish(MangaSeriesReady(details));
+      _publish(
+        MangaSeriesUiState(status: MangaSeriesStatus.ready, details: details),
+      );
     } catch (_) {
       if (_disposed || generation != _generation) return;
-      _publish(const MangaSeriesFailure());
+      _publish(
+        MangaSeriesUiState(
+          status: MangaSeriesStatus.error,
+          details: _state.details,
+        ),
+      );
     }
   }
 

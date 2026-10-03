@@ -9,18 +9,36 @@ void main() {
     final model = MangaSeriesViewModel(() async {
       attempts++;
       if (attempts == 1) throw StateError('offline');
-      return MangaSeriesDetails(
-        metadata: MediaMetadata(title: 'Series'),
-        chapters: const [],
-      );
+      return _details('Series');
     });
     addTearDown(model.dispose);
 
     await model.load();
-    expect(model.state, isA<MangaSeriesFailure>());
+    expect(model.state.failed, isTrue);
 
     await model.load();
-    final state = model.state as MangaSeriesReady;
-    expect(state.details.metadata.title, 'Series');
+    expect(model.state.status, MangaSeriesStatus.ready);
+    expect(model.state.details!.metadata.title, 'Series');
+  });
+
+  test('failed refresh preserves the last loaded chapter list', () async {
+    var attempts = 0;
+    final model = MangaSeriesViewModel(() async {
+      attempts++;
+      if (attempts == 2) throw StateError('offline');
+      return _details('Loaded');
+    });
+    addTearDown(model.dispose);
+
+    await model.load();
+    await model.load();
+
+    expect(model.state.refreshFailed, isTrue);
+    expect(model.state.details!.metadata.title, 'Loaded');
   });
 }
+
+MangaSeriesDetails _details(String title) => MangaSeriesDetails(
+  metadata: MediaMetadata(title: title),
+  chapters: const [],
+);

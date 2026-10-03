@@ -24,7 +24,7 @@ void main() {
     required Future<bool> Function() chooseRoot,
     required void Function(BuildContext, Media) openMedia,
     bool supported = true,
-    int catalogRevision = 0,
+    int scanRevision = 0,
   }) {
     return MaterialApp(
       home: LocalMediaPage(
@@ -32,7 +32,7 @@ void main() {
         chooseRoot: chooseRoot,
         openMedia: openMedia,
         supported: supported,
-        catalogRevision: catalogRevision,
+        scanRevision: scanRevision,
       ),
     );
   }
@@ -56,6 +56,8 @@ void main() {
     expect(scans, 1);
     expect(find.text('Choose a folder to find local media.'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsNothing);
+    expect(find.byTooltip('Rescan folder'), findsNothing);
 
     await tester.pumpWidget(
       host(
@@ -82,7 +84,7 @@ void main() {
       scanSelectedRoot: scan,
       chooseRoot: () async => false,
       openMedia: (_, _) {},
-      catalogRevision: revision,
+      scanRevision: revision,
     );
     await tester.pumpWidget(page(0));
     await tester.pumpWidget(page(1));
@@ -157,6 +159,8 @@ void main() {
     expect(find.text('Spirited Away'), findsOneWidget);
     expect(find.text('Anime'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    expect(find.byTooltip('Rescan folder'), findsOneWidget);
   });
 
   testWidgets('explicit reselection replaces current results', (tester) async {
@@ -196,7 +200,7 @@ void main() {
     expect(find.textContaining('Could not scan local media.'), findsNothing);
   });
 
-  testWidgets('cancelling reselection keeps an existing scan error', (
+  testWidgets('failed rescan keeps stale results through picker cancellation', (
     tester,
   ) async {
     var scans = 0;
@@ -222,13 +226,54 @@ void main() {
     await refresh;
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Could not scan local media.'), findsOneWidget);
+    expect(
+      find.textContaining('Could not rescan this folder.'),
+      findsOneWidget,
+    );
+    expect(find.text('Spirited Away'), findsOneWidget);
 
     await tester.tap(find.text('Choose folder'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Could not scan local media.'), findsOneWidget);
-    expect(find.text('Spirited Away'), findsNothing);
+    expect(
+      find.textContaining('Could not rescan this folder.'),
+      findsOneWidget,
+    );
+    expect(find.text('Spirited Away'), findsOneWidget);
+  });
+
+  testWidgets('failed rescan preserves a known-empty folder snapshot', (
+    tester,
+  ) async {
+    var scans = 0;
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async {
+          if (scans++ == 0) return <Media>[];
+          throw StateError('permission revoked');
+        },
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No local media found.'), findsOneWidget);
+
+    final refresh = tester
+        .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+        .show();
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await refresh;
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Could not rescan this folder.'),
+      findsOneWidget,
+    );
+    expect(find.text('No local media found.'), findsOneWidget);
+    expect(find.text('Folder unavailable'), findsNothing);
   });
 
   testWidgets('restore failure is recoverable and does not auto retry', (
@@ -252,6 +297,8 @@ void main() {
     expect(find.textContaining('Could not scan local media.'), findsOneWidget);
     expect(find.text('Try Again'), findsOneWidget);
     expect(find.text('Choose folder'), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsNothing);
+    expect(find.byTooltip('Rescan folder'), findsOneWidget);
 
     await tester.pump();
     await tester.pump();
@@ -324,6 +371,28 @@ void main() {
 
     expect(scans, 3);
     expect(selections, 1);
+    expect(find.text('Chapter one'), findsOneWidget);
+  });
+
+  testWidgets('explicit rescan action refreshes the selected root', (
+    tester,
+  ) async {
+    var scans = 0;
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async =>
+            scans++ == 0 ? <Media>[media] : <Media>[replacement],
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Rescan folder'));
+    await tester.pumpAndSettle();
+
+    expect(scans, 2);
+    expect(find.text('Spirited Away'), findsNothing);
     expect(find.text('Chapter one'), findsOneWidget);
   });
 
