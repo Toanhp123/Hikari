@@ -16,7 +16,8 @@ class CatalogSourcePicker extends StatelessWidget {
 
   final CatalogSourcePickerViewModel viewModel;
   final ValueChanged<Media> onOpenMedia;
-  final ValueChanged<CatalogSourcePickerSource?> onManualSearch;
+  final void Function(CatalogSourcePickerSource?, Set<SourceId>?)
+  onManualSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,10 @@ class CatalogSourcePicker extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Header(title: viewModel.entry.title),
+                _Header(
+                  title: viewModel.entry.title,
+                  onClose: () => Navigator.of(context).maybePop(),
+                ),
                 const SizedBox(height: HikariSpacing.lg),
                 Flexible(child: _buildBody(context, state)),
               ],
@@ -49,31 +53,39 @@ class CatalogSourcePicker extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, CatalogSourcePickerUiState state) {
-    return switch (state.status) {
+    final body = switch (state.status) {
       CatalogSourcePickerStatus.choosing => _SourceList(
-        sources: state.sources,
+        sources: state.visibleSources,
+        languageCodes: state.languageCodes,
+        selectedLanguage: state.selectedLanguage,
+        showLanguageFilter: state.showLanguageFilter,
+        onSelectLanguage: viewModel.selectLanguage,
         onSelect: (source) => unawaited(_selectSource(source)),
-        onSearchAll: () => onManualSearch(null),
+        onSearchAll: () => onManualSearch(
+          null,
+          state.selectedLanguage == null
+              ? null
+              : state.visibleSources.map((source) => source.id).toSet(),
+        ),
       ),
-      CatalogSourcePickerStatus.resolving ||
-      CatalogSourcePickerStatus.resolved => _ResolvingState(
+      CatalogSourcePickerStatus.resolving => _ResolvingState(
         title: viewModel.entry.title,
-        sourceName: state.selectedSource!.name,
+        sourceName: state.selectedSource!.displayName,
       ),
       CatalogSourcePickerStatus.candidates => _CandidateList(
         source: state.selectedSource!,
         candidates: state.candidates,
         onSelect: (candidate) => onOpenMedia(candidate.media),
         onChooseAnother: viewModel.chooseAnotherSource,
-        onManualSearch: () => onManualSearch(state.selectedSource),
+        onManualSearch: () => onManualSearch(state.selectedSource, null),
       ),
       CatalogSourcePickerStatus.empty => _MessageState(
         icon: Icons.search_off_rounded,
         title: 'No match found',
         message:
-            'Nothing on ${state.selectedSource!.name} matched the catalog title safely.',
+            'Nothing on ${state.selectedSource!.displayName} matched the catalog title safely.',
         primaryLabel: 'Search manually',
-        onPrimary: () => onManualSearch(state.selectedSource),
+        onPrimary: () => onManualSearch(state.selectedSource, null),
         secondaryLabel: 'Choose another source',
         onSecondary: viewModel.chooseAnotherSource,
       ),
@@ -81,13 +93,32 @@ class CatalogSourcePicker extends StatelessWidget {
         icon: Icons.cloud_off_rounded,
         title: 'Could not search this source',
         message:
-            '${state.selectedSource!.name} did not respond. Retry it or choose another source.',
+            '${state.selectedSource!.displayName} did not respond. Retry it or choose another source.',
         primaryLabel: 'Retry',
         onPrimary: () => unawaited(_retry()),
         secondaryLabel: 'Choose another source',
         onSecondary: viewModel.chooseAnotherSource,
       ),
     };
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : HikariMotion.fast;
+    return AnimatedSwitcher(
+      duration: duration,
+      switchInCurve: HikariMotion.curveStandard,
+      switchOutCurve: HikariMotion.curveExit,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          for (final child in previousChildren)
+            IgnorePointer(
+              child: ExcludeFocus(child: ExcludeSemantics(child: child)),
+            ),
+          ?currentChild,
+        ],
+      ),
+      child: KeyedSubtree(key: ValueKey(state.status), child: body),
+    );
   }
 
   Future<void> _selectSource(CatalogSourcePickerSource source) async {
@@ -102,9 +133,10 @@ class CatalogSourcePicker extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.title});
+  const _Header({required this.title, required this.onClose});
 
   final String title;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +144,18 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Read from', style: HikariTypography.titleLarge),
+        Row(
+          children: [
+            Expanded(
+              child: Text('Read from', style: HikariTypography.titleLarge),
+            ),
+            IconButton(
+              tooltip: 'Close',
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
         const SizedBox(height: HikariSpacing.xs),
         Text(
           title,
@@ -130,11 +173,19 @@ class _Header extends StatelessWidget {
 class _SourceList extends StatelessWidget {
   const _SourceList({
     required this.sources,
+    required this.languageCodes,
+    required this.selectedLanguage,
+    required this.showLanguageFilter,
+    required this.onSelectLanguage,
     required this.onSelect,
     required this.onSearchAll,
   });
 
   final List<CatalogSourcePickerSource> sources;
+  final List<String> languageCodes;
+  final String? selectedLanguage;
+  final bool showLanguageFilter;
+  final ValueChanged<String?> onSelectLanguage;
   final ValueChanged<CatalogSourcePickerSource> onSelect;
   final VoidCallback onSearchAll;
 
@@ -165,6 +216,25 @@ class _SourceList extends StatelessWidget {
             ),
           ),
           const SizedBox(height: HikariSpacing.md),
+          if (showLanguageFilter) ...[
+            Wrap(
+              spacing: HikariSpacing.xs,
+              children: [
+                ChoiceChip(
+                  label: const Text('All'),
+                  selected: selectedLanguage == null,
+                  onSelected: (_) => onSelectLanguage(null),
+                ),
+                for (final language in languageCodes)
+                  ChoiceChip(
+                    label: Text(language.toUpperCase()),
+                    selected: selectedLanguage == language,
+                    onSelected: (_) => onSelectLanguage(language),
+                  ),
+              ],
+            ),
+            const SizedBox(height: HikariSpacing.md),
+          ],
           Material(
             color: colors.surfaceContainer,
             shape: RoundedRectangleBorder(
@@ -209,14 +279,24 @@ class _SourceTile extends StatelessWidget {
     final colors = context.hikariColors;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: HikariSpacing.md),
-      leading: Icon(Icons.language_rounded, color: colors.primaryGlow),
+      leading: const Icon(Icons.extension_outlined),
       title: Text(
-        source.name,
+        source.displayName,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: HikariTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
       ),
-      trailing: Icon(Icons.chevron_right_rounded, color: colors.textMuted),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (source.languageCode != null)
+            Text(
+              source.languageCode!.toUpperCase(),
+              style: HikariTypography.caption,
+            ),
+          Icon(Icons.chevron_right_rounded, color: colors.textMuted),
+        ],
+      ),
       onTap: onTap,
     );
   }
@@ -285,7 +365,7 @@ class _CandidateList extends StatelessWidget {
           Text('Is this the right title?', style: HikariTypography.titleMedium),
           const SizedBox(height: HikariSpacing.xs),
           Text(
-            'Hikari found possible matches on ${source.name}, but none was safe '
+            'Hikari found possible matches on ${source.displayName}, but none was safe '
             'to open automatically.',
             style: HikariTypography.bodyMedium.copyWith(
               color: colors.textSecondary,
@@ -293,17 +373,29 @@ class _CandidateList extends StatelessWidget {
             ),
           ),
           const SizedBox(height: HikariSpacing.md),
-          for (final candidate in candidates)
-            Padding(
-              padding: const EdgeInsets.only(bottom: HikariSpacing.sm),
-              child: _CandidateTile(
-                candidate: candidate,
-                onTap: () => onSelect(candidate),
-              ),
+          Material(
+            color: colors.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: colors.border),
+              borderRadius: HikariRadius.borderLg,
             ),
-          const SizedBox(height: HikariSpacing.xs),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var index = 0; index < candidates.length; index++) ...[
+                  _CandidateTile(
+                    candidate: candidates[index],
+                    onTap: () => onSelect(candidates[index]),
+                  ),
+                  if (index != candidates.length - 1)
+                    Divider(height: 1, color: colors.border),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: HikariSpacing.md),
           HikariButton(
-            label: 'Search manually in ${source.name}',
+            label: 'Search manually in ${source.displayName}',
             variant: HikariButtonVariant.secondary,
             isFullWidth: true,
             onPressed: onManualSearch,
@@ -331,42 +423,35 @@ class _CandidateTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
     final authors = candidate.metadata?.authors ?? const <String>[];
-    return Material(
-      color: colors.surfaceContainer,
-      borderRadius: HikariRadius.borderMd,
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: HikariSpacing.md,
-          vertical: HikariSpacing.xs,
-        ),
-        leading: Icon(
-          candidate.media.type == MediaType.lightNovel
-              ? Icons.auto_stories_outlined
-              : Icons.menu_book_outlined,
-          color: colors.primaryGlow,
-        ),
-        title: Text(
-          candidate.media.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: HikariTypography.bodyLarge.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: authors.isEmpty
-            ? null
-            : Text(
-                authors.first,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: HikariTypography.caption.copyWith(
-                  color: colors.textSecondary,
-                ),
-              ),
-        trailing: Icon(Icons.arrow_forward_rounded, color: colors.textMuted),
-        onTap: onTap,
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: HikariSpacing.md,
+        vertical: HikariSpacing.xs,
       ),
+      leading: Icon(
+        candidate.media.type == MediaType.lightNovel
+            ? Icons.auto_stories_outlined
+            : Icons.menu_book_outlined,
+        color: colors.primaryGlow,
+      ),
+      title: Text(
+        candidate.media.title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: HikariTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+      ),
+      subtitle: authors.isEmpty
+          ? null
+          : Text(
+              authors.first,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HikariTypography.caption.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
+      trailing: Icon(Icons.arrow_forward_rounded, color: colors.textMuted),
+      onTap: onTap,
     );
   }
 }

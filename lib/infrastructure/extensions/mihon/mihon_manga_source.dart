@@ -14,7 +14,8 @@ final class MihonMangaSource
         MangaSearchSource,
         MangaSeriesSource,
         MangaPageSource,
-        ArtworkSource {
+        ArtworkSource,
+        MediaSourcePresentation {
   MihonMangaSource({
     required MihonSourceDescriptor descriptor,
     required this._gateway,
@@ -78,6 +79,12 @@ final class MihonMangaSource
         ? _descriptor.name
         : '${_descriptor.name} [$language]';
   }
+
+  @override
+  String get displayName => _descriptor.name;
+
+  @override
+  String? get languageCode => normalizeSourceLanguageCode(_descriptor.language);
 
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async {

@@ -4,10 +4,17 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/source.dart';
 
 final class MangaSearchOption {
-  const MangaSearchOption({required this.id, required this.name});
+  const MangaSearchOption({
+    required this.id,
+    required this.name,
+    required this.displayName,
+    this.languageCode,
+  });
 
   final SourceId id;
   final String name;
+  final String displayName;
+  final String? languageCode;
 }
 
 /// Searches registered manga sources that can also open their search results.
@@ -25,7 +32,20 @@ final class SearchManga {
         .withCapability<MangaSearchSource>()
         .where(_canOpenSearchResults)
         .where(_isAvailable)
-        .map((source) => MangaSearchOption(id: source.id, name: source.name)),
+        .map(
+          (source) => MangaSearchOption(
+            id: source.id,
+            name: source.name,
+            displayName: source is MediaSourcePresentation
+                ? (source as MediaSourcePresentation).displayName
+                : source.name,
+            languageCode: source is MediaSourcePresentation
+                ? normalizeSourceLanguageCode(
+                    (source as MediaSourcePresentation).languageCode,
+                  )
+                : null,
+          ),
+        ),
   );
 
   Future<MangaSearchPage> execute({

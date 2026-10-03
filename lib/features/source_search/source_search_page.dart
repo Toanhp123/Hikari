@@ -22,6 +22,7 @@ class SourceSearchPage extends StatefulWidget {
     this.initialFilter = SourceSearchFilter.all,
     this.initialSourceId,
     this.sourceName,
+    this.sourceIds,
   }) : assert((initialSourceId == null) == (sourceName == null));
 
   final void Function(BuildContext, Media) openMedia;
@@ -33,6 +34,7 @@ class SourceSearchPage extends StatefulWidget {
   final SourceSearchFilter initialFilter;
   final SourceId? initialSourceId;
   final String? sourceName;
+  final Set<SourceId>? sourceIds;
 
   @override
   State<SourceSearchPage> createState() => _SourceSearchPageState();
@@ -53,6 +55,7 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
       initialQuery: widget.initialQuery,
       initialFilter: widget.initialFilter,
       sourceId: widget.initialSourceId,
+      sourceIds: widget.sourceIds,
     );
     if (widget.initialQuery.trim().isNotEmpty) {
       unawaited(_viewModel.search(widget.initialQuery));

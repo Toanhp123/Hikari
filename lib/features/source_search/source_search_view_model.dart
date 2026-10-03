@@ -72,6 +72,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
     String initialQuery = '',
     SourceSearchFilter initialFilter = SourceSearchFilter.all,
     this._sourceId,
+    this._sourceIds,
   }) : _state = SourceSearchUiState(
          query: initialQuery.trim(),
          filter: initialFilter,
@@ -81,6 +82,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
   final SearchNovels? _searchNovels;
   final Future<List<Media>?> Function()? _scanLocalMedia;
   final SourceId? _sourceId;
+  final Set<SourceId>? _sourceIds;
 
   SourceSearchUiState _state;
   SourceSearchUiState get state => _state;
@@ -125,7 +127,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
         ..._mangaTasks(query),
       if (filter.mediaType == null || filter.mediaType == MediaType.lightNovel)
         ..._novelTasks(query),
-      if (_sourceId == null && _scanLocalMedia != null)
+      if (_sourceId == null && _sourceIds == null && _scanLocalMedia != null)
         _searchLocal(query, filter),
     ];
 
@@ -180,7 +182,9 @@ final class SourceSearchViewModel extends ChangeNotifier {
     final search = _searchManga;
     if (search == null) return;
     for (final source in search.options.where(
-      (source) => _sourceId == null || source.id == _sourceId,
+      (source) =>
+          (_sourceId == null || source.id == _sourceId) &&
+          (_sourceIds == null || _sourceIds.contains(source.id)),
     )) {
       yield _guardSource(() async {
         final page = await search.execute(sourceId: source.id, query: query);
@@ -201,7 +205,9 @@ final class SourceSearchViewModel extends ChangeNotifier {
     final search = _searchNovels;
     if (search == null) return;
     for (final source in search.options.where(
-      (source) => _sourceId == null || source.id == _sourceId,
+      (source) =>
+          (_sourceId == null || source.id == _sourceId) &&
+          (_sourceIds == null || _sourceIds.contains(source.id)),
     )) {
       yield _guardSource(() async {
         final page = await search.execute(sourceId: source.id, query: query);

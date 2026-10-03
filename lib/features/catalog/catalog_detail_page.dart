@@ -17,6 +17,7 @@ import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 typedef _CatalogSourcePickerResult = ({
   Media? media,
   CatalogSourcePickerSource? source,
+  Set<SourceId>? sourceIds,
 });
 
 class CatalogDetailPage extends StatefulWidget {
@@ -39,6 +40,7 @@ class CatalogDetailPage extends StatefulWidget {
     CatalogEntry entry,
     SourceId? sourceId,
     String? sourceName,
+    Set<SourceId>? sourceIds,
   )
   openSourceSearch;
 
@@ -69,7 +71,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     final state = _viewModel.state;
     final entry = state.entry;
     if (entry.type == MediaType.anime) {
-      widget.openSourceSearch(entry, null, null);
+      widget.openSourceSearch(entry, null, null, null);
       return;
     }
 
@@ -93,7 +95,12 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
       await widget.openMedia(context, media);
       return;
     }
-    widget.openSourceSearch(entry, result.source?.id, result.source?.name);
+    widget.openSourceSearch(
+      entry,
+      result.source?.id,
+      result.source?.name,
+      result.sourceIds,
+    );
   }
 
   Future<_CatalogSourcePickerResult?> _showSourceSheet(
@@ -112,9 +119,11 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         child: CatalogSourcePicker(
           viewModel: picker,
           onOpenMedia: (media) =>
-              Navigator.of(sheetContext).pop((media: media, source: null)),
-          onManualSearch: (source) =>
-              Navigator.of(sheetContext).pop((media: null, source: source)),
+              Navigator.of(sheetContext)
+                  .pop((media: media, source: null, sourceIds: null)),
+          onManualSearch: (source, sourceIds) =>
+              Navigator.of(sheetContext)
+                  .pop((media: null, source: source, sourceIds: sourceIds)),
         ),
       ),
     );
@@ -131,9 +140,11 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         child: CatalogSourcePicker(
           viewModel: picker,
           onOpenMedia: (media) =>
-              Navigator.of(dialogContext).pop((media: media, source: null)),
-          onManualSearch: (source) =>
-              Navigator.of(dialogContext).pop((media: null, source: source)),
+              Navigator.of(dialogContext)
+                  .pop((media: media, source: null, sourceIds: null)),
+          onManualSearch: (source, sourceIds) =>
+              Navigator.of(dialogContext)
+                  .pop((media: null, source: source, sourceIds: sourceIds)),
         ),
       ),
     );

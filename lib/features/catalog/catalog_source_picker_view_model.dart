@@ -4,22 +4,23 @@ import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
+import 'package:hikari/domain/media/source.dart';
 
-enum CatalogSourcePickerStatus {
-  choosing,
-  resolving,
-  resolved,
-  candidates,
-  empty,
-  error,
-}
+enum CatalogSourcePickerStatus { choosing, resolving, candidates, empty, error }
 
 @immutable
 final class CatalogSourcePickerSource {
-  const CatalogSourcePickerSource({required this.id, required this.name});
+  const CatalogSourcePickerSource({
+    required this.id,
+    required this.name,
+    required this.displayName,
+    this.languageCode,
+  });
 
   final SourceId id;
   final String name;
+  final String displayName;
+  final String? languageCode;
 }
 
 @immutable
@@ -35,14 +36,31 @@ final class CatalogSourcePickerUiState {
   const CatalogSourcePickerUiState({
     required this.sources,
     this.selectedSource,
+    this.selectedLanguage,
     this.status = CatalogSourcePickerStatus.choosing,
     this.candidates = const [],
   });
 
   final List<CatalogSourcePickerSource> sources;
   final CatalogSourcePickerSource? selectedSource;
+  final String? selectedLanguage;
+  List<String> get languageCodes =>
+      sources
+          .map((source) => source.languageCode)
+          .whereType<String>()
+          .toSet()
+          .toList()
+        ..sort();
   final CatalogSourcePickerStatus status;
   final List<CatalogSourcePickerCandidate> candidates;
+
+  List<CatalogSourcePickerSource> get visibleSources => selectedLanguage == null
+      ? sources
+      : sources
+            .where((source) => source.languageCode == selectedLanguage)
+            .toList();
+
+  bool get showLanguageFilter => languageCodes.length > 1;
 }
 
 final class CatalogSourcePickerViewModel extends ChangeNotifier {
@@ -59,6 +77,8 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
                  (source) => CatalogSourcePickerSource(
                    id: source.id,
                    name: source.name,
+                   displayName: source.displayName,
+                   languageCode: source.languageCode,
                  ),
                ),
          ),
@@ -74,12 +94,32 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
   int _revision = 0;
   bool _disposed = false;
 
+  void selectLanguage(String? language) {
+    if (_disposed) return;
+    final normalized = normalizeSourceLanguageCode(language);
+    if (normalized != null && !_state.languageCodes.contains(normalized)) {
+      return;
+    }
+    _revision++;
+    _publish(
+      CatalogSourcePickerUiState(
+        sources: _state.sources,
+        selectedLanguage: normalized,
+      ),
+    );
+  }
+
   Future<Media?> selectSource(CatalogSourcePickerSource source) async {
+    if (!_state.visibleSources.any((visible) => visible.id == source.id)) {
+      return null;
+    }
     final revision = ++_revision;
+    final selectedLanguage = _state.selectedLanguage;
     _publish(
       CatalogSourcePickerUiState(
         sources: _state.sources,
         selectedSource: source,
+        selectedLanguage: selectedLanguage,
         status: CatalogSourcePickerStatus.resolving,
       ),
     );
@@ -93,21 +133,13 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
       if (_disposed || revision != _revision) return null;
 
       final match = resolution.match;
-      if (match != null) {
-        _publish(
-          CatalogSourcePickerUiState(
-            sources: _state.sources,
-            selectedSource: source,
-            status: CatalogSourcePickerStatus.resolved,
-          ),
-        );
-        return match.media;
-      }
+      if (match != null) return match.media;
 
       _publish(
         CatalogSourcePickerUiState(
           sources: _state.sources,
           selectedSource: source,
+          selectedLanguage: selectedLanguage,
           status: resolution.candidates.isEmpty
               ? CatalogSourcePickerStatus.empty
               : CatalogSourcePickerStatus.candidates,
@@ -127,6 +159,7 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
         CatalogSourcePickerUiState(
           sources: _state.sources,
           selectedSource: source,
+          selectedLanguage: selectedLanguage,
           status: CatalogSourcePickerStatus.error,
         ),
       );
@@ -142,7 +175,12 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
 
   void chooseAnotherSource() {
     _revision++;
-    _publish(CatalogSourcePickerUiState(sources: _state.sources));
+    _publish(
+      CatalogSourcePickerUiState(
+        sources: _state.sources,
+        selectedLanguage: _state.selectedLanguage,
+      ),
+    );
   }
 
   void _publish(CatalogSourcePickerUiState state) {

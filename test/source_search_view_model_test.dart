@@ -152,6 +152,53 @@ void main() {
     expect(model.state.results.single.media.title, 'Selected result');
   });
 
+  test('source ID allowlist restricts remote searches', () async {
+    final selected = _ResultMangaSource(
+      id: const SourceId('test:selected'),
+      title: 'Selected result',
+    );
+    final other = _ResultMangaSource(
+      id: const SourceId('test:other'),
+      title: 'Other result',
+    );
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([selected, other])),
+      initialFilter: SourceSearchFilter.manga,
+      sourceIds: {selected.id},
+    );
+    addTearDown(model.dispose);
+
+    await model.search('query');
+
+    expect(selected.searches, 1);
+    expect(other.searches, 0);
+    expect(model.state.results.single.media.title, 'Selected result');
+  });
+
+  test('source ID allowlist disables local media scan', () async {
+    final source = _ResultMangaSource(
+      id: const SourceId('test:selected'),
+      title: 'Selected result',
+    );
+    var scans = 0;
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([source])),
+      scanLocalMedia: () async {
+        scans++;
+        return const [media];
+      },
+      initialFilter: SourceSearchFilter.manga,
+      sourceIds: {source.id},
+    );
+    addTearDown(model.dispose);
+
+    await model.search('query');
+
+    expect(source.searches, 1);
+    expect(scans, 0);
+    expect(model.state.results.single.media.title, 'Selected result');
+  });
+
   test(
     'selected filter limits remote fan-out and reuses local catalog',
     () async {

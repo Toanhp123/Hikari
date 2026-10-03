@@ -10,6 +10,7 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_extension_gateway.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_source_loader.dart';
@@ -160,6 +161,20 @@ void main() {
   tearDown(() async {
     await database.close();
   });
+
+  test(
+    'source presentation exposes provider name and normalized language',
+    () async {
+      final sources = await MihonSourceLoader(
+        gateway: _FakeGateway(const [_mangaDex]),
+        database: database,
+      ).loadSources();
+      final source = sources.single as MediaSourcePresentation;
+
+      expect(source.displayName, 'MangaDex');
+      expect(source.languageCode, 'en');
+    },
+  );
 
   test('file restart retains updated continuation without search', () async {
     await database.close();

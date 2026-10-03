@@ -9,6 +9,7 @@ import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 
 void main() {
@@ -28,10 +29,136 @@ void main() {
       final resolved = await model.selectSource(model.state.sources.single);
 
       expect(resolved?.title, 'Frieren');
-      expect(model.state.status, CatalogSourcePickerStatus.resolved);
+      expect(model.state.status, CatalogSourcePickerStatus.resolving);
       expect(model.state.candidates, isEmpty);
     },
   );
+
+  test('filters sources by normalized provider language', () {
+    final model = _modelWithSources([
+      _MangaSource(
+        id: const SourceId('test:en'),
+        name: 'English',
+        languageCode: 'EN_us',
+      ),
+      _MangaSource(
+        id: const SourceId('test:fr'),
+        name: 'French',
+        languageCode: 'fr',
+      ),
+      _MangaSource(id: const SourceId('test:unknown'), name: 'Unknown'),
+    ], title: 'Title');
+    addTearDown(model.dispose);
+
+    expect(model.state.languageCodes, ['en-us', 'fr']);
+    expect(model.state.visibleSources, hasLength(3));
+    model.selectLanguage('en_us');
+    expect(model.state.selectedLanguage, 'en-us');
+    expect(model.state.visibleSources.map((source) => source.id), [
+      const SourceId('test:en'),
+    ]);
+    model.selectLanguage(null);
+    expect(model.state.visibleSources, hasLength(3));
+  });
+
+  test('language chips hidden when fewer than two languages are known', () {
+    final model = _modelWithSources([
+      _MangaSource(
+        id: const SourceId('test:en'),
+        name: 'English',
+        languageCode: 'en',
+      ),
+      _MangaSource(id: const SourceId('test:unknown'), name: 'Unknown'),
+    ], title: 'Title');
+    addTearDown(model.dispose);
+
+    expect(model.state.showLanguageFilter, isFalse);
+    expect(model.state.visibleSources, hasLength(2));
+    expect(model.state.languageCodes, ['en']);
+  });
+
+  test('language filter invalidates pending source resolution', () async {
+    final pending = Completer<MangaSearchPage>();
+    final english = _MangaSource(
+      id: const SourceId('test:en'),
+      name: 'English',
+      languageCode: 'en',
+      onSearch: (_) => pending.future,
+    );
+    final french = _MangaSource(
+      id: const SourceId('test:fr'),
+      name: 'French',
+      languageCode: 'fr',
+    );
+    final model = _modelWithSources([english, french], title: 'Title');
+    addTearDown(model.dispose);
+
+    final resolution = model.selectSource(model.state.sources.first);
+    await Future<void>.delayed(Duration.zero);
+    model.selectLanguage('fr');
+    pending.complete(
+      MangaSearchPage(
+        results: [_preview('Title', sourceId: english.id)],
+        hasNextPage: false,
+        page: 1,
+      ),
+    );
+    await resolution;
+
+    expect(model.state.status, CatalogSourcePickerStatus.choosing);
+    expect(model.state.selectedLanguage, 'fr');
+    expect(model.state.visibleSources.single.id, french.id);
+  });
+
+  test(
+    'empty result and failed search have distinct recovery states',
+    () async {
+      var fail = true;
+      final model = _model(
+        _MangaSource(
+          onSearch: (_) async {
+            if (fail) throw StateError('offline');
+            return _emptySearch('Title');
+          },
+        ),
+        title: 'Title',
+      );
+      addTearDown(model.dispose);
+      await model.selectSource(model.state.sources.single);
+      expect(model.state.status, CatalogSourcePickerStatus.error);
+      fail = false;
+      await model.retry();
+      expect(model.state.status, CatalogSourcePickerStatus.empty);
+      model.chooseAnotherSource();
+      expect(model.state.status, CatalogSourcePickerStatus.choosing);
+    },
+  );
+
+  test('no compatible sources stays distinct from an empty match', () {
+    final model = _modelWithSources([], title: 'Title');
+    addTearDown(model.dispose);
+    expect(model.state.sources, isEmpty);
+    expect(model.state.status, CatalogSourcePickerStatus.choosing);
+    expect(model.state.showLanguageFilter, isFalse);
+  });
+
+  test('disposing picker prevents pending exact match from opening', () async {
+    final pending = Completer<MangaSearchPage>();
+    final model = _model(
+      _MangaSource(onSearch: (_) => pending.future),
+      title: 'Title',
+    );
+    final result = model.selectSource(model.state.sources.single);
+    model.dispose();
+    pending.complete(
+      MangaSearchPage(
+        results: [_preview('Title')],
+        hasNextPage: false,
+        page: 1,
+      ),
+    );
+    expect(await result, isNull);
+  });
 
   test('ambiguous results remain visible for user confirmation', () async {
     final source = _MangaSource(
@@ -95,9 +222,26 @@ void main() {
 
     expect(fastResolved?.source.sourceId, const SourceId('test:fast'));
     expect(model.state.selectedSource?.id, const SourceId('test:fast'));
-    expect(model.state.status, CatalogSourcePickerStatus.resolved);
+    expect(model.state.status, CatalogSourcePickerStatus.resolving);
   });
 }
+
+CatalogSourcePickerViewModel _modelWithSources(
+  List<_MangaSource> sources, {
+  required String title,
+}) {
+  final registry = SourceRegistry(sources);
+  return CatalogSourcePickerViewModel(
+    entry: _entry(title),
+    resolver: ResolveCatalogSource(
+      searchManga: SearchManga(registry),
+      searchNovels: SearchNovels(registry),
+    ),
+  );
+}
+
+Future<MangaSearchPage> _emptySearch(String query) async =>
+    MangaSearchPage(results: const [], hasNextPage: false, page: 1);
 
 CatalogSourcePickerViewModel _model(
   _MangaSource source, {
@@ -131,18 +275,26 @@ MangaPreview _preview(
   ),
 );
 
-final class _MangaSource implements MangaSearchSource, MangaPageSource {
+final class _MangaSource
+    implements MangaSearchSource, MangaPageSource, MediaSourcePresentation {
   _MangaSource({
     this.id = const SourceId('test:manga'),
     this.name = 'Manga source',
-    required this.onSearch,
-  });
+    this.languageCode,
+    Future<MangaSearchPage> Function(String query)? onSearch,
+  }) : onSearch = onSearch ?? _emptySearch;
 
   @override
   final SourceId id;
 
   @override
   final String name;
+
+  @override
+  final String? languageCode;
+
+  @override
+  String get displayName => name;
 
   final Future<MangaSearchPage> Function(String query) onSearch;
 
