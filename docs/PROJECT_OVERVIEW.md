@@ -1021,7 +1021,7 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
   [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
 - remote novel có search phân trang, details/chapter list, rich HTML/resources và Library/progress qua capability riêng; không ép remote chapter thành plain text;
-- AniList catalog discovery/search/details đã có boundary riêng ngoài `SourceRegistry`; catalog identity không phải `SourceMediaRef`, không được lưu trực tiếp vào Library/Progress, và Watch/Read đi qua title-seeded source search. Xem [CATALOG](architecture/CATALOG.md) và [ADR-011](decisions/ADR-011-catalog-content-boundary.md);
+- AniList catalog discovery/search/details đã có boundary riêng ngoài `SourceRegistry`; catalog identity không phải `SourceMediaRef`, không được lưu trực tiếp vào Library/Progress. Manga/light novel chọn source ngay trong Catalog Detail rồi tự resolve title/alias an toàn; chỉ ambiguous/missing match mới rơi xuống manual Source Search. Anime tạm giữ title-seeded source search cho tới khi có remote anime capability. Xem [CATALOG](architecture/CATALOG.md) và [ADR-011](decisions/ADR-011-catalog-content-boundary.md);
 - application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
   `OpenNovelChapter`, `SearchNovels`, `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
   thể đăng ký mà không thêm provider-specific branch vào open workflow; Android

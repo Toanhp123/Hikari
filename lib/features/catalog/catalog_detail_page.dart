@@ -3,26 +3,44 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_detail_view_model.dart';
+import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_content.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
+import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
+
+typedef _CatalogSourcePickerResult = ({
+  Media? media,
+  CatalogSourcePickerSource? source,
+});
 
 class CatalogDetailPage extends StatefulWidget {
   const CatalogDetailPage({
     super.key,
     required this.initialEntry,
     required this.loadDetails,
+    required this.resolveCatalogSource,
+    required this.openMedia,
     required this.openRelated,
     required this.openSourceSearch,
   });
 
   final CatalogEntry initialEntry;
   final LoadCatalogEntryDetails loadDetails;
+  final ResolveCatalogSource resolveCatalogSource;
+  final Future<void> Function(BuildContext context, Media media) openMedia;
   final void Function(CatalogEntry entry) openRelated;
-  final void Function(CatalogEntry entry) openSourceSearch;
+  final void Function(
+    CatalogEntry entry,
+    SourceId? sourceId,
+    String? sourceName,
+  )
+  openSourceSearch;
 
   @override
   State<CatalogDetailPage> createState() => _CatalogDetailPageState();
@@ -45,6 +63,80 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
   void dispose() {
     _viewModel.dispose();
     super.dispose();
+  }
+
+  Future<void> _handlePrimaryAction() async {
+    final state = _viewModel.state;
+    final entry = state.entry;
+    if (entry.type == MediaType.anime) {
+      widget.openSourceSearch(entry, null, null);
+      return;
+    }
+
+    final picker = CatalogSourcePickerViewModel(
+      entry: entry,
+      details: state.details,
+      resolver: widget.resolveCatalogSource,
+    );
+    late final _CatalogSourcePickerResult? result;
+    try {
+      result = context.isExpanded
+          ? await _showSourceDialog(picker)
+          : await _showSourceSheet(picker);
+    } finally {
+      picker.dispose();
+    }
+    if (!mounted || result == null) return;
+
+    final media = result.media;
+    if (media != null) {
+      await widget.openMedia(context, media);
+      return;
+    }
+    widget.openSourceSearch(entry, result.source?.id, result.source?.name);
+  }
+
+  Future<_CatalogSourcePickerResult?> _showSourceSheet(
+    CatalogSourcePickerViewModel picker,
+  ) {
+    return showModalBottomSheet<_CatalogSourcePickerResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: context.hikariColors.surfaceElevated,
+      builder: (sheetContext) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.78,
+        ),
+        child: CatalogSourcePicker(
+          viewModel: picker,
+          onOpenMedia: (media) =>
+              Navigator.of(sheetContext).pop((media: media, source: null)),
+          onManualSearch: (source) =>
+              Navigator.of(sheetContext).pop((media: null, source: source)),
+        ),
+      ),
+    );
+  }
+
+  Future<_CatalogSourcePickerResult?> _showSourceDialog(
+    CatalogSourcePickerViewModel picker,
+  ) {
+    return showDialog<_CatalogSourcePickerResult>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: context.hikariColors.surfaceElevated,
+        clipBehavior: Clip.antiAlias,
+        child: CatalogSourcePicker(
+          viewModel: picker,
+          onOpenMedia: (media) =>
+              Navigator.of(dialogContext).pop((media: media, source: null)),
+          onManualSearch: (source) =>
+              Navigator.of(dialogContext).pop((media: null, source: source)),
+        ),
+      ),
+    );
   }
 
   @override
@@ -89,7 +181,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                   background: CatalogDetailHero(
                     entry: state.entry,
                     details: state.details,
-                    openSourceSearch: widget.openSourceSearch,
+                    onPrimaryAction: () => unawaited(_handlePrimaryAction()),
                   ),
                 ),
               ),

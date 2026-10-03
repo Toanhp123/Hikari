@@ -71,6 +71,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
     this._scanLocalMedia,
     String initialQuery = '',
     SourceSearchFilter initialFilter = SourceSearchFilter.all,
+    this._sourceId,
   }) : _state = SourceSearchUiState(
          query: initialQuery.trim(),
          filter: initialFilter,
@@ -79,6 +80,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
   final SearchManga? _searchManga;
   final SearchNovels? _searchNovels;
   final Future<List<Media>?> Function()? _scanLocalMedia;
+  final SourceId? _sourceId;
 
   SourceSearchUiState _state;
   SourceSearchUiState get state => _state;
@@ -123,7 +125,8 @@ final class SourceSearchViewModel extends ChangeNotifier {
         ..._mangaTasks(query),
       if (filter.mediaType == null || filter.mediaType == MediaType.lightNovel)
         ..._novelTasks(query),
-      if (_scanLocalMedia != null) _searchLocal(query, filter),
+      if (_sourceId == null && _scanLocalMedia != null)
+        _searchLocal(query, filter),
     ];
 
     if (tasks.isEmpty) {
@@ -132,8 +135,10 @@ final class SourceSearchViewModel extends ChangeNotifier {
         _state.copyWith(
           query: query,
           results: const [],
-          status: SourceSearchStatus.empty,
-          failedSourceCount: 0,
+          status: _sourceId == null
+              ? SourceSearchStatus.empty
+              : SourceSearchStatus.error,
+          failedSourceCount: _sourceId == null ? 0 : 1,
         ),
       );
       return;
@@ -174,7 +179,9 @@ final class SourceSearchViewModel extends ChangeNotifier {
   Iterable<Future<_SearchBatch>> _mangaTasks(String query) sync* {
     final search = _searchManga;
     if (search == null) return;
-    for (final source in search.options) {
+    for (final source in search.options.where(
+      (source) => _sourceId == null || source.id == _sourceId,
+    )) {
       yield _guardSource(() async {
         final page = await search.execute(sourceId: source.id, query: query);
         return page.results
@@ -193,7 +200,9 @@ final class SourceSearchViewModel extends ChangeNotifier {
   Iterable<Future<_SearchBatch>> _novelTasks(String query) sync* {
     final search = _searchNovels;
     if (search == null) return;
-    for (final source in search.options) {
+    for (final source in search.options.where(
+      (source) => _sourceId == null || source.id == _sourceId,
+    )) {
       yield _guardSource(() async {
         final page = await search.execute(sourceId: source.id, query: query);
         return page.results

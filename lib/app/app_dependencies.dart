@@ -1,5 +1,6 @@
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_media.dart';
@@ -32,6 +33,7 @@ final class AppDependencies {
     required this.discoverCatalog,
     required this.loadCatalogEntryDetails,
     required this.searchCatalog,
+    required this.resolveCatalogSource,
     required this.openMedia,
     required this.openMangaChapter,
     required this.searchManga,
@@ -58,6 +60,8 @@ final class AppDependencies {
     final resolvedDatabase = database ?? UserDatabase();
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
     final progressRepository = SqliteProgressRepository(resolvedDatabase);
+    final searchManga = SearchManga(sourceRegistry);
+    final searchNovels = SearchNovels(sourceRegistry);
 
     return AppDependencies._(
       resolvedDatabase,
@@ -71,10 +75,14 @@ final class AppDependencies {
       discoverCatalog: DiscoverCatalog(resolvedCatalogProvider),
       loadCatalogEntryDetails: LoadCatalogEntryDetails(resolvedCatalogProvider),
       searchCatalog: SearchCatalog(resolvedCatalogProvider),
+      resolveCatalogSource: ResolveCatalogSource(
+        searchManga: searchManga,
+        searchNovels: searchNovels,
+      ),
       openMedia: OpenMedia(sourceRegistry, progressRepository),
       openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
-      searchManga: SearchManga(sourceRegistry),
-      searchNovels: SearchNovels(sourceRegistry),
+      searchManga: searchManga,
+      searchNovels: searchNovels,
       openNovelChapter: OpenNovelChapter(sourceRegistry, progressRepository),
       videoSession: MediaKitVideoSession(),
     );
@@ -87,6 +95,7 @@ final class AppDependencies {
   final DiscoverCatalog discoverCatalog;
   final LoadCatalogEntryDetails loadCatalogEntryDetails;
   final SearchCatalog searchCatalog;
+  final ResolveCatalogSource resolveCatalogSource;
   final OpenMedia openMedia;
   final OpenMangaChapter openMangaChapter;
   final SearchManga searchManga;

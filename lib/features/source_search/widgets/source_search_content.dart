@@ -20,6 +20,7 @@ class SourceSearchContent extends StatelessWidget {
     required this.onRetry,
     required this.openMedia,
     this.library,
+    this.scopedSourceName,
   });
 
   final TextEditingController controller;
@@ -29,6 +30,7 @@ class SourceSearchContent extends StatelessWidget {
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final String? scopedSourceName;
 
   @override
   Widget build(BuildContext context) {
@@ -50,18 +52,21 @@ class SourceSearchContent extends StatelessWidget {
                 onChanged: onQueryChanged,
               ),
               const SizedBox(height: HikariSpacing.sm),
-              HikariChipRow(
-                children: [
-                  for (final filter in SourceSearchFilter.values)
-                    HikariChip(
-                      label: filter.mediaType == null
-                          ? 'All'
-                          : mediaTypeFilterLabel(filter.mediaType!),
-                      isSelected: state.filter == filter,
-                      onTap: () => onSelectFilter(filter),
-                    ),
-                ],
-              ),
+              if (scopedSourceName != null)
+                _ScopedSourceLabel(sourceName: scopedSourceName!)
+              else
+                HikariChipRow(
+                  children: [
+                    for (final filter in SourceSearchFilter.values)
+                      HikariChip(
+                        label: filter.mediaType == null
+                            ? 'All'
+                            : mediaTypeFilterLabel(filter.mediaType!),
+                        isSelected: state.filter == filter,
+                        onTap: () => onSelectFilter(filter),
+                      ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -83,9 +88,41 @@ class SourceSearchContent extends StatelessWidget {
             onRetry: onRetry,
             openMedia: openMedia,
             library: library,
+            scopedSourceName: scopedSourceName,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ScopedSourceLabel extends StatelessWidget {
+  const _ScopedSourceLabel({required this.sourceName});
+
+  final String sourceName;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.hikariColors;
+    return Semantics(
+      label: 'Searching in $sourceName',
+      child: Row(
+        children: [
+          Icon(Icons.language_rounded, size: 16, color: colors.textMuted),
+          const SizedBox(width: HikariSpacing.xs),
+          Expanded(
+            child: Text(
+              'Searching in $sourceName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HikariTypography.caption.copyWith(
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -96,12 +133,14 @@ class _SourceSearchResults extends StatelessWidget {
     required this.onRetry,
     required this.openMedia,
     required this.library,
+    required this.scopedSourceName,
   });
 
   final SourceSearchUiState state;
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final String? scopedSourceName;
 
   @override
   Widget build(BuildContext context) {
@@ -119,11 +158,15 @@ class _SourceSearchResults extends StatelessWidget {
       emptyTitle: state.query.isEmpty ? 'Find a source' : 'No results found',
       emptyMessage: state.query.isEmpty
           ? 'Type a title above to search your configured media sources.'
-          : 'No matches found for "${state.query}".',
+          : scopedSourceName == null
+          ? 'No matches found for "${state.query}".'
+          : 'No matches found for "${state.query}" in $scopedSourceName.',
       emptyIcon: state.query.isEmpty
           ? Icons.search_rounded
           : Icons.search_off_rounded,
-      errorMessage: 'All configured search sources failed. Try again.',
+      errorMessage: scopedSourceName == null
+          ? 'All configured search sources failed. Try again.'
+          : '$scopedSourceName could not be searched. Try again.',
       onRetry: onRetry,
       contentBuilder: (_) {
         if (state.results.isEmpty) {

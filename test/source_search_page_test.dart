@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/source_search/source_search_page.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
 
 void main() {
   testWidgets(
@@ -39,4 +40,24 @@ void main() {
       expect(tappedMedia, item1);
     },
   );
+
+  testWidgets('scoped manual search keeps the selected source visible', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SourceSearchPage(
+          openMedia: (_, _) {},
+          initialSourceId: const SourceId('test:manga'),
+          sourceName: 'Manga source [en]',
+          initialFilter: SourceSearchFilter.manga,
+        ),
+      ),
+    );
+
+    expect(find.text('Searching in Manga source [en]'), findsOneWidget);
+    expect(find.text('All'), findsNothing);
+    expect(find.text('Manga'), findsNothing);
+  });
 }
