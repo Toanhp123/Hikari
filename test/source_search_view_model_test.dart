@@ -12,6 +12,30 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart';
 
 void main() {
+  test(
+    'partial failure with empty successes stays empty; all failures error',
+    () async {
+      final partial = SourceSearchViewModel(
+        searchManga: SearchManga(
+          SourceRegistry([_MangaSource(), _FailingMangaSource()]),
+        ),
+        initialFilter: SourceSearchFilter.manga,
+      );
+      final failed = SourceSearchViewModel(
+        searchManga: SearchManga(SourceRegistry([_FailingMangaSource()])),
+        initialFilter: SourceSearchFilter.manga,
+      );
+      addTearDown(partial.dispose);
+      addTearDown(failed.dispose);
+      await partial.search('missing');
+      expect(partial.state.status, SourceSearchStatus.empty);
+      expect(partial.state.failedSourceCount, 1);
+      await failed.search('missing');
+      expect(failed.state.status, SourceSearchStatus.error);
+      expect(failed.state.failedSourceCount, 1);
+    },
+  );
+
   const media = Media(
     title: 'Solo Leveling',
     type: MediaType.anime,

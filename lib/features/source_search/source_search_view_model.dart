@@ -193,7 +193,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
               (preview) => SourceSearchResult(
                 media: preview.media,
                 metadata: preview.metadata,
-                sourceName: source.name,
+                sourceName: source.displayName,
               ),
             )
             .toList(growable: false);
@@ -216,7 +216,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
               (preview) => SourceSearchResult(
                 media: preview.media,
                 metadata: preview.metadata,
-                sourceName: source.name,
+                sourceName: source.displayName,
               ),
             )
             .toList(growable: false);

@@ -6,21 +6,35 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 
-enum CatalogSourcePickerStatus { choosing, resolving, candidates, empty, error }
+enum CatalogSourcePickerStatus {
+  choosing,
+  choosingLanguage,
+  resolving,
+  candidates,
+  empty,
+  error,
+}
 
 @immutable
 final class CatalogSourcePickerSource {
   const CatalogSourcePickerSource({
     required this.id,
-    required this.name,
     required this.displayName,
     this.languageCode,
+    this.presentationGroupId,
   });
 
   final SourceId id;
-  final String name;
   final String displayName;
   final String? languageCode;
+  final String? presentationGroupId;
+
+  String get contextLabel => switch (languageCode) {
+    final language? when language != 'all' =>
+      '$displayName · ${language.toUpperCase()}',
+    'all' => '$displayName (Multiple languages)',
+    _ => '$displayName (language unspecified)',
+  };
 }
 
 @immutable
@@ -35,6 +49,7 @@ final class CatalogSourcePickerCandidate {
 final class CatalogSourcePickerUiState {
   const CatalogSourcePickerUiState({
     required this.sources,
+    this.selectedGroup,
     this.selectedSource,
     this.selectedLanguage,
     this.status = CatalogSourcePickerStatus.choosing,
@@ -42,12 +57,14 @@ final class CatalogSourcePickerUiState {
   });
 
   final List<CatalogSourcePickerSource> sources;
+  final CatalogSourcePickerSource? selectedGroup;
   final CatalogSourcePickerSource? selectedSource;
   final String? selectedLanguage;
   List<String> get languageCodes =>
       sources
           .map((source) => source.languageCode)
           .whereType<String>()
+          .where((language) => language != 'all')
           .toSet()
           .toList()
         ..sort();
@@ -59,6 +76,43 @@ final class CatalogSourcePickerUiState {
       : sources
             .where((source) => source.languageCode == selectedLanguage)
             .toList();
+
+  List<List<CatalogSourcePickerSource>> get sourceGroups {
+    if (selectedLanguage != null) {
+      return visibleSources.map((source) => [source]).toList();
+    }
+    final groups = <String, List<CatalogSourcePickerSource>>{};
+    for (final source in sources) {
+      final identity = source.presentationGroupId;
+      if (identity != null &&
+          identity.isNotEmpty &&
+          source.displayName.trim().isNotEmpty &&
+          source.languageCode != null &&
+          source.languageCode != 'all') {
+        groups
+            .putIfAbsent(
+              '$identity\u0000${source.displayName.trim()}',
+              () => [],
+            )
+            .add(source);
+      }
+    }
+    final grouped = <CatalogSourcePickerSource>{};
+    final rows = <List<CatalogSourcePickerSource>>[];
+    for (final group in groups.values) {
+      final languages = group.map((source) => source.languageCode).toSet();
+      if (group.length > 1 && languages.length == group.length) {
+        rows.add(group);
+        grouped.addAll(group);
+      }
+    }
+    rows.addAll(
+      sources
+          .where((source) => !grouped.contains(source))
+          .map((source) => [source]),
+    );
+    return rows;
+  }
 
   bool get showLanguageFilter => languageCodes.length > 1;
 }
@@ -76,9 +130,9 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
                .map(
                  (source) => CatalogSourcePickerSource(
                    id: source.id,
-                   name: source.name,
                    displayName: source.displayName,
                    languageCode: source.languageCode,
+                   presentationGroupId: source.presentationGroupId,
                  ),
                ),
          ),
@@ -93,6 +147,50 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
 
   int _revision = 0;
   bool _disposed = false;
+
+  List<CatalogSourcePickerSource> get variantsForSelectedGroup {
+    final selected = _state.selectedGroup;
+    if (selected == null) return const [];
+    return _state.sources
+        .where(
+          (item) =>
+              item.presentationGroupId == selected.presentationGroupId &&
+              item.displayName.trim() == selected.displayName.trim() &&
+              item.languageCode != null &&
+              item.languageCode != 'all',
+        )
+        .toList();
+  }
+
+  void chooseGroup(CatalogSourcePickerSource source) {
+    _revision++;
+    _publish(
+      CatalogSourcePickerUiState(
+        sources: _state.sources,
+        selectedLanguage: _state.selectedLanguage,
+        selectedGroup: source,
+        status: CatalogSourcePickerStatus.choosingLanguage,
+      ),
+    );
+  }
+
+  void leaveGroup() {
+    _revision++;
+    _publish(
+      CatalogSourcePickerUiState(
+        sources: _state.sources,
+        selectedLanguage: _state.selectedLanguage,
+      ),
+    );
+  }
+
+  bool handleSystemBack() {
+    if (_state.status != CatalogSourcePickerStatus.choosingLanguage) {
+      return false;
+    }
+    leaveGroup();
+    return true;
+  }
 
   void selectLanguage(String? language) {
     if (_disposed) return;
@@ -118,6 +216,7 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
     _publish(
       CatalogSourcePickerUiState(
         sources: _state.sources,
+        selectedGroup: _state.selectedGroup,
         selectedSource: source,
         selectedLanguage: selectedLanguage,
         status: CatalogSourcePickerStatus.resolving,

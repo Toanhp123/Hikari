@@ -23,6 +23,8 @@ class SourceSearchPage extends StatefulWidget {
     this.initialSourceId,
     this.sourceName,
     this.sourceIds,
+    this.fixedMediaType,
+    this.catalogScopeLabel,
   }) : assert((initialSourceId == null) == (sourceName == null));
 
   final void Function(BuildContext, Media) openMedia;
@@ -35,6 +37,8 @@ class SourceSearchPage extends StatefulWidget {
   final SourceId? initialSourceId;
   final String? sourceName;
   final Set<SourceId>? sourceIds;
+  final MediaType? fixedMediaType;
+  final String? catalogScopeLabel;
 
   @override
   State<SourceSearchPage> createState() => _SourceSearchPageState();
@@ -53,7 +57,13 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
       searchNovels: widget.searchNovels,
       scanLocalMedia: widget.scanLocalMedia,
       initialQuery: widget.initialQuery,
-      initialFilter: widget.initialFilter,
+      initialFilter: widget.fixedMediaType == null
+          ? widget.initialFilter
+          : switch (widget.fixedMediaType!) {
+              MediaType.anime => SourceSearchFilter.anime,
+              MediaType.manga => SourceSearchFilter.manga,
+              MediaType.lightNovel => SourceSearchFilter.novel,
+            },
       sourceId: widget.initialSourceId,
       sourceIds: widget.sourceIds,
     );
@@ -78,7 +88,10 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
         appBar: AppBar(
           leading: Navigator.of(context).canPop() ? const BackButton() : null,
           title: Text(
-            widget.sourceName == null ? 'Search sources' : 'Search source',
+            widget.catalogScopeLabel ??
+                (widget.sourceName == null
+                    ? 'Search sources'
+                    : 'Search source'),
           ),
         ),
         body: SourceSearchContent(
@@ -91,6 +104,8 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
           openMedia: widget.openMedia,
           library: widget.library,
           scopedSourceName: widget.sourceName,
+          catalogScopeLabel: widget.catalogScopeLabel,
+          fixedMediaType: widget.fixedMediaType,
         ),
       ),
     );

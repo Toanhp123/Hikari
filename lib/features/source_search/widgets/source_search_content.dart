@@ -21,6 +21,8 @@ class SourceSearchContent extends StatelessWidget {
     required this.openMedia,
     this.library,
     this.scopedSourceName,
+    this.catalogScopeLabel,
+    this.fixedMediaType,
   });
 
   final TextEditingController controller;
@@ -31,6 +33,8 @@ class SourceSearchContent extends StatelessWidget {
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
   final String? scopedSourceName;
+  final String? catalogScopeLabel;
+  final MediaType? fixedMediaType;
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +56,11 @@ class SourceSearchContent extends StatelessWidget {
                 onChanged: onQueryChanged,
               ),
               const SizedBox(height: HikariSpacing.sm),
-              if (scopedSourceName != null)
+              if (catalogScopeLabel != null)
+                _ScopedSourceLabel(sourceName: catalogScopeLabel!)
+              else if (scopedSourceName != null)
                 _ScopedSourceLabel(sourceName: scopedSourceName!)
-              else
+              else if (fixedMediaType == null)
                 HikariChipRow(
                   children: [
                     for (final filter in SourceSearchFilter.values)
@@ -71,7 +77,8 @@ class SourceSearchContent extends StatelessWidget {
           ),
         ),
         if (state.failedSourceCount > 0 &&
-            state.status == SourceSearchStatus.ready)
+            (state.status == SourceSearchStatus.ready ||
+                state.status == SourceSearchStatus.empty))
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: HikariSpacing.lg,
@@ -89,6 +96,7 @@ class SourceSearchContent extends StatelessWidget {
             openMedia: openMedia,
             library: library,
             scopedSourceName: scopedSourceName,
+            catalogScopeLabel: catalogScopeLabel,
           ),
         ),
       ],
@@ -134,6 +142,7 @@ class _SourceSearchResults extends StatelessWidget {
     required this.openMedia,
     required this.library,
     required this.scopedSourceName,
+    required this.catalogScopeLabel,
   });
 
   final SourceSearchUiState state;
@@ -141,10 +150,12 @@ class _SourceSearchResults extends StatelessWidget {
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
   final String? scopedSourceName;
+  final String? catalogScopeLabel;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
+    final scope = catalogScopeLabel ?? scopedSourceName;
     final status = switch (state.status) {
       SourceSearchStatus.idle => AsyncViewStatus.empty,
       SourceSearchStatus.loading => AsyncViewStatus.loading,
@@ -158,15 +169,15 @@ class _SourceSearchResults extends StatelessWidget {
       emptyTitle: state.query.isEmpty ? 'Find a source' : 'No results found',
       emptyMessage: state.query.isEmpty
           ? 'Type a title above to search your configured media sources.'
-          : scopedSourceName == null
+          : scope == null
           ? 'No matches found for "${state.query}".'
-          : 'No matches found for "${state.query}" in $scopedSourceName.',
+          : 'No matches found for "${state.query}" in $scope.',
       emptyIcon: state.query.isEmpty
           ? Icons.search_rounded
           : Icons.search_off_rounded,
-      errorMessage: scopedSourceName == null
+      errorMessage: scope == null
           ? 'All configured search sources failed. Try again.'
-          : '$scopedSourceName could not be searched. Try again.',
+          : 'All search sources in $scope failed. Try again.',
       onRetry: onRetry,
       contentBuilder: (_) {
         if (state.results.isEmpty) {

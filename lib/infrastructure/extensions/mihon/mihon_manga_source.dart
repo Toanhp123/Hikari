@@ -87,6 +87,9 @@ final class MihonMangaSource
   String? get languageCode => normalizeSourceLanguageCode(_descriptor.language);
 
   @override
+  String? get presentationGroupId => _descriptor.packageName;
+
+  @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async {
     final result = await _gateway.search(
       sourceKey: _descriptor.sourceKey,

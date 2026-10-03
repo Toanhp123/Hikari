@@ -21,6 +21,120 @@ import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
 void main() {
+  for (final partialFailure in [false, true]) {
+    testWidgets(
+      'filtered global search fixes scope and allowlist; partial failure $partialFailure',
+      (tester) async {
+        final database = UserDatabase(NativeDatabase.memory());
+        final local = _LocalCatalog();
+        final english = _MangaCatalogSource(empty: partialFailure);
+        final french = _MangaCatalogSource(
+          id: const SourceId('test:fr'),
+          languageCode: 'fr',
+        );
+        final failed = _MangaCatalogSource(
+          id: const SourceId('test:failed'),
+          fail: true,
+        );
+        final dependencies = _dependencies(
+          database: database,
+          local: local,
+          entry: _entry(MediaType.manga),
+          additionalSources: [english, french, if (partialFailure) failed],
+        );
+        addTearDown(() async {
+          await dependencies.dispose();
+          await database.close();
+        });
+        try {
+          await tester.pumpWidget(HikariApp(dependencies: dependencies));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('View details'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Read'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Language: All'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.widgetWithText(MenuItemButton, 'EN'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Search EN sources'));
+          await tester.pumpAndSettle();
+          final page = tester.widget<SourceSearchPage>(
+            find.byType(SourceSearchPage),
+          );
+          expect(page.fixedMediaType, MediaType.manga);
+          expect(page.catalogScopeLabel, 'Manga · EN');
+          expect(page.sourceIds, {english.id, if (partialFailure) failed.id});
+          expect(find.text('Searching in Manga · EN'), findsOneWidget);
+          expect(find.byType(ChoiceChip), findsNothing);
+          expect(local.scans, 0);
+          expect(english.searches, 1);
+          expect(french.searches, 0);
+          if (partialFailure) {
+            expect(failed.searches, 1);
+            expect(find.text('No results found'), findsOneWidget);
+            expect(
+              find.text('Some configured sources could not be searched.'),
+              findsOneWidget,
+            );
+            expect(
+              find.text('All search sources in Manga · EN failed. Try again.'),
+              findsNothing,
+            );
+          } else {
+            expect(find.text('Manga source'), findsOneWidget);
+            expect(find.text('Manga source [en]'), findsNothing);
+          }
+        } finally {
+          await _unmount(tester);
+        }
+      },
+    );
+  }
+
+  for (final type in [MediaType.manga, MediaType.lightNovel]) {
+    testWidgets(
+      '$type all-source search fixes media type and keeps local scan',
+      (tester) async {
+        final database = UserDatabase(NativeDatabase.memory());
+        final local = _LocalCatalog();
+        final dependencies = _dependencies(
+          database: database,
+          local: local,
+          entry: _entry(type),
+        );
+        addTearDown(() async {
+          await dependencies.dispose();
+          await database.close();
+        });
+        try {
+          await tester.pumpWidget(HikariApp(dependencies: dependencies));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('View details'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Read'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Search all sources'));
+          await tester.pumpAndSettle();
+          final page = tester.widget<SourceSearchPage>(
+            find.byType(SourceSearchPage),
+          );
+          expect(page.fixedMediaType, type);
+          expect(
+            page.catalogScopeLabel,
+            '${type == MediaType.manga ? 'Manga' : 'Novel'} · All languages',
+          );
+          expect(page.sourceIds, isNull);
+          expect(find.byType(ChoiceChip), findsNothing);
+          expect(local.scans, 1);
+          expect(find.text('Catalog title ${type.name}'), findsOneWidget);
+        } finally {
+          await _unmount(tester);
+        }
+      },
+    );
+  }
+
   testWidgets('anime Watch keeps title-seeded source search', (tester) async {
     final entry = _entry(MediaType.anime);
     final database = UserDatabase(NativeDatabase.memory());
@@ -52,6 +166,9 @@ void main() {
       );
       expect(page.initialQuery, 'Catalog title');
       expect(page.initialFilter, SourceSearchFilter.anime);
+      expect(page.fixedMediaType, MediaType.anime);
+      expect(page.catalogScopeLabel, 'Anime · All languages');
+      expect(find.byType(ChoiceChip), findsNothing);
       expect(page.initialSourceId, isNull);
       expect(local.scans, 1);
       expect(find.text('Catalog title anime'), findsOneWidget);
@@ -88,11 +205,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Read from'), findsOneWidget);
-      expect(find.text(source.name), findsOneWidget);
+      expect(find.text(source.displayName), findsOneWidget);
       expect(find.byType(SourceSearchPage), findsNothing);
       expect(local.scans, 0);
 
-      await tester.tap(find.text(source.name));
+      await tester.tap(find.text(source.displayName));
       await tester.pumpAndSettle();
 
       expect(find.byType(MangaSeriesPage), findsOneWidget);
@@ -130,21 +247,25 @@ void main() {
 
       await tester.tap(find.text('Read'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(source.name));
+      await tester.tap(find.text(source.displayName));
       await tester.pumpAndSettle();
 
       expect(find.text('Is this the right title?'), findsOneWidget);
-      await tester.tap(find.text('Search manually in ${source.name}'));
+      await tester.tap(find.text('Search manually in Manga source · EN'));
       await tester.pumpAndSettle();
 
       final page = tester.widget<SourceSearchPage>(
         find.byType(SourceSearchPage),
       );
       expect(page.initialSourceId, source.id);
-      expect(page.sourceName, source.name);
+      expect(page.sourceName, source.displayName);
+      expect(page.fixedMediaType, MediaType.manga);
+      expect(page.catalogScopeLabel, 'Manga source · EN');
+      expect(find.byType(ChoiceChip), findsNothing);
+      expect(find.text(source.name), findsNothing);
       expect(page.initialFilter, SourceSearchFilter.manga);
       expect(local.scans, 0);
-      expect(find.text('Searching in ${source.name}'), findsOneWidget);
+      expect(find.text('Searching in Manga source · EN'), findsOneWidget);
     } finally {
       await _unmount(tester);
     }
@@ -245,31 +366,53 @@ final class _LocalCatalog extends LocalMediaSource {
 }
 
 final class _MangaCatalogSource
-    implements MangaSearchSource, MangaSeriesSource, MangaPageSource {
-  _MangaCatalogSource({this.resultTitle = 'Catalog title'});
+    implements
+        MangaSearchSource,
+        MangaSeriesSource,
+        MangaPageSource,
+        MediaSourcePresentation {
+  _MangaCatalogSource({
+    this.resultTitle = 'Catalog title',
+    this.id = const SourceId('test:manga'),
+    this.languageCode = 'en',
+    this.fail = false,
+    this.empty = false,
+  });
+
+  final bool fail;
+  final bool empty;
 
   final String resultTitle;
   int searches = 0;
 
   @override
-  SourceId get id => const SourceId('test:manga');
+  final SourceId id;
 
   @override
   String get name => 'Manga source [en]';
+  @override
+  String get displayName => 'Manga source';
+  @override
+  final String languageCode;
+  @override
+  String? get presentationGroupId => 'test:manga';
 
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async {
     searches++;
+    if (fail) throw StateError('offline');
     return MangaSearchPage(
-      results: [
-        MangaPreview(
-          media: Media(
-            title: resultTitle,
-            type: MediaType.manga,
-            source: SourceMediaRef(sourceId: id, itemId: 'catalog-title'),
-          ),
-        ),
-      ],
+      results: empty
+          ? []
+          : [
+              MangaPreview(
+                media: Media(
+                  title: resultTitle,
+                  type: MediaType.manga,
+                  source: SourceMediaRef(sourceId: id, itemId: 'catalog-title'),
+                ),
+              ),
+            ],
       hasNextPage: false,
       page: page,
     );

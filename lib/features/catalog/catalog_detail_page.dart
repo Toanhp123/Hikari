@@ -18,6 +18,7 @@ typedef _CatalogSourcePickerResult = ({
   Media? media,
   CatalogSourcePickerSource? source,
   Set<SourceId>? sourceIds,
+  String? sourceLanguage,
 });
 
 class CatalogDetailPage extends StatefulWidget {
@@ -41,6 +42,7 @@ class CatalogDetailPage extends StatefulWidget {
     SourceId? sourceId,
     String? sourceName,
     Set<SourceId>? sourceIds,
+    String? sourceLanguage,
   )
   openSourceSearch;
 
@@ -71,7 +73,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     final state = _viewModel.state;
     final entry = state.entry;
     if (entry.type == MediaType.anime) {
-      widget.openSourceSearch(entry, null, null, null);
+      widget.openSourceSearch(entry, null, null, null, null);
       return;
     }
 
@@ -98,8 +100,9 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     widget.openSourceSearch(
       entry,
       result.source?.id,
-      result.source?.name,
+      result.source?.displayName,
       result.sourceIds,
+      result.sourceLanguage,
     );
   }
 
@@ -118,12 +121,21 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         ),
         child: CatalogSourcePicker(
           viewModel: picker,
-          onOpenMedia: (media) =>
-              Navigator.of(sheetContext)
-                  .pop((media: media, source: null, sourceIds: null)),
+          onOpenMedia: (media) => Navigator.of(sheetContext).pop((
+            media: media,
+            source: null,
+            sourceIds: null,
+            sourceLanguage: null,
+          )),
           onManualSearch: (source, sourceIds) =>
-              Navigator.of(sheetContext)
-                  .pop((media: null, source: source, sourceIds: sourceIds)),
+              Navigator.of(sheetContext).pop((
+                media: null,
+                source: source,
+                sourceIds: sourceIds,
+                sourceLanguage: source == null
+                    ? picker.state.selectedLanguage
+                    : source.languageCode,
+              )),
         ),
       ),
     );
@@ -139,12 +151,21 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         clipBehavior: Clip.antiAlias,
         child: CatalogSourcePicker(
           viewModel: picker,
-          onOpenMedia: (media) =>
-              Navigator.of(dialogContext)
-                  .pop((media: media, source: null, sourceIds: null)),
+          onOpenMedia: (media) => Navigator.of(dialogContext).pop((
+            media: media,
+            source: null,
+            sourceIds: null,
+            sourceLanguage: null,
+          )),
           onManualSearch: (source, sourceIds) =>
-              Navigator.of(dialogContext)
-                  .pop((media: null, source: source, sourceIds: sourceIds)),
+              Navigator.of(dialogContext).pop((
+                media: null,
+                source: source,
+                sourceIds: sourceIds,
+                sourceLanguage: source == null
+                    ? picker.state.selectedLanguage
+                    : source.languageCode,
+              )),
         ),
       ),
     );

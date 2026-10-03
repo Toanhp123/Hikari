@@ -14,6 +14,7 @@ abstract interface class MediaSourceAvailability implements MediaSource {
 abstract interface class MediaSourcePresentation implements MediaSource {
   String get displayName;
   String? get languageCode;
+  String? get presentationGroupId;
 }
 
 String? normalizeSourceLanguageCode(String? value) {

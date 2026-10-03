@@ -14,6 +14,108 @@ import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 
 void main() {
   test(
+    'thirty concrete variants collapse; global language restores exact IDs',
+    () {
+      final model = _modelWithSources([
+        for (var i = 0; i < 30; i++)
+          _MangaSource(
+            id: SourceId('test:$i'),
+            name: 'MangaDex',
+            languageCode: 'l$i',
+            presentationGroupId: 'package:dex',
+          ),
+      ], title: 'Title');
+      addTearDown(model.dispose);
+      expect(model.state.sourceGroups, hasLength(1));
+      expect(model.state.sourceGroups.single, hasLength(30));
+      model.chooseGroup(model.state.sources.first);
+      expect(model.variantsForSelectedGroup, hasLength(30));
+      expect(model.handleSystemBack(), isTrue);
+      expect(model.state.status, CatalogSourcePickerStatus.choosing);
+      model.selectLanguage('L29');
+      expect(model.state.visibleSources.single.id, const SourceId('test:29'));
+      expect(model.state.sourceGroups.single, hasLength(1));
+    },
+  );
+
+  test(
+    'group identity and name must agree; unknown and all remain separate',
+    () {
+      final model = _modelWithSources([
+        _MangaSource(
+          id: const SourceId('a'),
+          name: 'Same',
+          languageCode: 'en',
+          presentationGroupId: 'one',
+        ),
+        _MangaSource(
+          id: const SourceId('b'),
+          name: 'Same',
+          languageCode: 'fr',
+          presentationGroupId: 'one',
+        ),
+        _MangaSource(
+          id: const SourceId('c'),
+          name: 'Other',
+          languageCode: 'ja',
+          presentationGroupId: 'one',
+        ),
+        _MangaSource(
+          id: const SourceId('d'),
+          name: 'Same',
+          languageCode: 'de',
+          presentationGroupId: 'two',
+        ),
+        _MangaSource(
+          id: const SourceId('e'),
+          name: 'Same',
+          languageCode: 'all',
+          presentationGroupId: 'one',
+        ),
+        _MangaSource(
+          id: const SourceId('f'),
+          name: 'Same',
+          presentationGroupId: 'one',
+        ),
+        _MangaSource(id: const SourceId('g'), name: 'Same', languageCode: 'es'),
+      ], title: 'Title');
+      addTearDown(model.dispose);
+      expect(model.state.sourceGroups.map((group) => group.length), [
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+      ]);
+      model.chooseGroup(model.state.sources.first);
+      expect(model.variantsForSelectedGroup.map((source) => source.id), [
+        const SourceId('a'),
+        const SourceId('b'),
+      ]);
+    },
+  );
+
+  test('duplicate concrete languages never collapse ambiguous variants', () {
+    final model = _modelWithSources([
+      for (var i = 0; i < 3; i++)
+        _MangaSource(
+          id: SourceId('test:$i'),
+          name: 'Same',
+          languageCode: i == 2 ? 'fr' : 'en',
+          presentationGroupId: 'one',
+        ),
+    ], title: 'Title');
+    addTearDown(model.dispose);
+    expect(model.state.sourceGroups, hasLength(3));
+    model.selectLanguage('en');
+    expect(model.state.visibleSources.map((source) => source.id).toSet(), {
+      const SourceId('test:0'),
+      const SourceId('test:1'),
+    });
+  });
+
+  test(
     'exact resolution returns media without exposing candidate choice',
     () async {
       final source = _MangaSource(
@@ -59,6 +161,27 @@ void main() {
     ]);
     model.selectLanguage(null);
     expect(model.state.visibleSources, hasLength(3));
+  });
+
+  test('language codes exclude unknown and all-language sources', () {
+    final model = _modelWithSources([
+      _MangaSource(
+        id: const SourceId('test:all'),
+        name: 'All',
+        languageCode: 'all',
+      ),
+      _MangaSource(id: const SourceId('test:unknown'), name: 'Unknown'),
+      _MangaSource(
+        id: const SourceId('test:en'),
+        name: 'English',
+        languageCode: 'en',
+      ),
+    ], title: 'Title');
+    addTearDown(model.dispose);
+
+    expect(model.state.languageCodes, ['en']);
+    model.selectLanguage('all');
+    expect(model.state.selectedLanguage, isNull);
   });
 
   test('language chips hidden when fewer than two languages are known', () {
@@ -281,6 +404,7 @@ final class _MangaSource
     this.id = const SourceId('test:manga'),
     this.name = 'Manga source',
     this.languageCode,
+    this.presentationGroupId,
     Future<MangaSearchPage> Function(String query)? onSearch,
   }) : onSearch = onSearch ?? _emptySearch;
 
@@ -295,6 +419,9 @@ final class _MangaSource
 
   @override
   String get displayName => name;
+
+  @override
+  final String? presentationGroupId;
 
   final Future<MangaSearchPage> Function(String query) onSearch;
 

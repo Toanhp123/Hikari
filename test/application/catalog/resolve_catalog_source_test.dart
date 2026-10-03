@@ -32,12 +32,10 @@ void main() {
   test('source options carry provider metadata or legacy fallback', () {
     final manga = _resolver(_MangaSource(), _NovelSource());
     final presented = manga.optionsFor(MediaType.manga).single;
-    expect(presented.name, 'Manga source [EN_us]');
     expect(presented.displayName, 'Manga source');
     expect(presented.languageCode, 'en-us');
 
     final novel = manga.optionsFor(MediaType.lightNovel).single;
-    expect(novel.name, 'Novel source');
     expect(novel.displayName, 'Novel source');
     expect(novel.languageCode, isNull);
   });
@@ -186,6 +184,9 @@ final class _MangaSource
 
   @override
   String get languageCode => ' EN_us ';
+
+  @override
+  String? get presentationGroupId => null;
 
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async {
