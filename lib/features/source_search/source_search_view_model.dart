@@ -193,7 +193,10 @@ final class SourceSearchViewModel extends ChangeNotifier {
               (preview) => SourceSearchResult(
                 media: preview.media,
                 metadata: preview.metadata,
-                sourceName: source.displayName,
+                sourceName: _sourcePresentationLabel(
+                  source.displayName,
+                  source.languageCode,
+                ),
               ),
             )
             .toList(growable: false);
@@ -216,7 +219,10 @@ final class SourceSearchViewModel extends ChangeNotifier {
               (preview) => SourceSearchResult(
                 media: preview.media,
                 metadata: preview.metadata,
-                sourceName: source.displayName,
+                sourceName: _sourcePresentationLabel(
+                  source.displayName,
+                  source.languageCode,
+                ),
               ),
             )
             .toList(growable: false);
@@ -285,6 +291,13 @@ final class SourceSearchViewModel extends ChangeNotifier {
     super.dispose();
   }
 }
+
+String _sourcePresentationLabel(String displayName, String? languageCode) =>
+    switch (languageCode) {
+      'all' => '$displayName · Multiple languages',
+      final language? => '$displayName · ${language.toUpperCase()}',
+      null => displayName,
+    };
 
 bool _matchesFilter(MediaType type, SourceSearchFilter filter) =>
     filter.mediaType == null || type == filter.mediaType;

@@ -203,20 +203,6 @@ class _SourceList extends StatelessWidget {
   final ValueChanged<CatalogSourcePickerSource> onSelect;
   final VoidCallback onSearchAll;
 
-  bool _needsIdentity(CatalogSourcePickerSource source) {
-    final row = groups.firstWhere((group) => group.first.id == source.id);
-    return groups
-            .where(
-              (other) =>
-                  other.first.displayName == source.displayName &&
-                  other.length == row.length &&
-                  (row.length > 1 ||
-                      other.first.languageCode == source.languageCode),
-            )
-            .length >
-        1;
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
@@ -238,8 +224,6 @@ class _SourceList extends StatelessWidget {
           ),
           Text('Choose language', style: HikariTypography.titleMedium),
           Text(viewModel.state.selectedGroup!.displayName),
-          if (_needsIdentity(viewModel.state.selectedGroup!))
-            Text(viewModel.state.selectedGroup!.id.value),
           Expanded(
             child: ListView(
               children: [
@@ -318,7 +302,6 @@ class _SourceList extends StatelessWidget {
                 for (var index = 0; index < groups.length; index++) ...[
                   _SourceTile(
                     source: groups[index].first,
-                    showIdentity: _needsIdentity(groups[index].first),
                     groupedCount: groups[index].length > 1
                         ? groups[index].length
                         : null,
@@ -359,13 +342,11 @@ class _SourceTile extends StatelessWidget {
     required this.source,
     required this.onTap,
     this.groupedCount,
-    this.showIdentity = false,
   });
 
   final CatalogSourcePickerSource source;
   final VoidCallback onTap;
   final int? groupedCount;
-  final bool showIdentity;
 
   @override
   Widget build(BuildContext context) {
@@ -379,15 +360,7 @@ class _SourceTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: HikariTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
       ),
-      subtitle: groupedCount != null || showIdentity
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (groupedCount != null) Text('$groupedCount languages'),
-                if (showIdentity) Text(source.id.value),
-              ],
-            )
-          : null,
+      subtitle: groupedCount != null ? Text('$groupedCount languages') : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

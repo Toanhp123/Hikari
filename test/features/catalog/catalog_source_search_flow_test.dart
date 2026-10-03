@@ -82,7 +82,8 @@ void main() {
               findsNothing,
             );
           } else {
-            expect(find.text('Manga source'), findsOneWidget);
+            expect(find.text('Manga source · EN'), findsOneWidget);
+            expect(find.text('Manga source'), findsNothing);
             expect(find.text('Manga source [en]'), findsNothing);
           }
         } finally {

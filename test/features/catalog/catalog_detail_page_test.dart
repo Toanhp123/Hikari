@@ -14,10 +14,11 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 
 void main() {
   testWidgets(
-    'same-name grouped sources retain distinct identity in nested choice',
+    'same-name grouped sources stay separate without exposing opaque IDs',
     (tester) async {
       await tester.pumpWidget(
         _app(
@@ -44,19 +45,26 @@ void main() {
       await tester.tap(find.text('Read'));
       await tester.pumpAndSettle();
       expect(find.text('MangaDex'), findsNWidgets(2));
-      expect(find.text('package:a:en', findRichText: true), findsOneWidget);
-      expect(find.text('package:b:en', findRichText: true), findsOneWidget);
-      await tester.tap(find.text('package:b:en', findRichText: true));
+      expect(find.textContaining('package:a'), findsNothing);
+      expect(find.textContaining('package:b'), findsNothing);
+      final sourceTiles = find.descendant(
+        of: find.byType(CatalogSourcePicker),
+        matching: find.byType(ListTile),
+      );
+      expect(sourceTiles, findsNWidgets(2));
+      await tester.tap(sourceTiles.at(1));
       await tester.pumpAndSettle();
       expect(find.text('Choose language'), findsOneWidget);
-      expect(find.text('MangaDex'), findsWidgets);
-      expect(find.text('package:b:en'), findsOneWidget);
-      expect(find.text('package:a:en'), findsNothing);
+      expect(find.text('MangaDex'), findsNWidgets(3));
+      expect(find.text('EN'), findsOneWidget);
+      expect(find.text('FR'), findsOneWidget);
+      expect(find.textContaining('package:a'), findsNothing);
+      expect(find.textContaining('package:b'), findsNothing);
     },
   );
 
   testWidgets(
-    'duplicate languages, all and unspecified remain distinguishable',
+    'ambiguous languages remain separate without exposing opaque IDs',
     (tester) async {
       final manga = CatalogEntry(
         id: _related.id,
@@ -96,8 +104,7 @@ void main() {
       await tester.tap(find.text('Read'));
       await tester.pumpAndSettle();
       expect(find.text('Same'), findsNWidgets(4));
-      expect(find.text('a'), findsOneWidget);
-      expect(find.text('b'), findsOneWidget);
+      expect(find.text('EN'), findsNWidgets(2));
       expect(find.text('Multiple languages'), findsOneWidget);
       expect(find.text('Unspecified'), findsOneWidget);
       expect(find.byType(MenuAnchor), findsNothing);

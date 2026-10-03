@@ -116,7 +116,7 @@ class _ScopedSourceLabel extends StatelessWidget {
       label: 'Searching in $sourceName',
       child: Row(
         children: [
-          Icon(Icons.language_rounded, size: 16, color: colors.textMuted),
+          Icon(Icons.extension_outlined, size: 16, color: colors.textMuted),
           const SizedBox(width: HikariSpacing.xs),
           Expanded(
             child: Text(
