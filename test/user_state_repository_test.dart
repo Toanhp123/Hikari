@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
-import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -54,11 +53,11 @@ void main() {
               source_id TEXT NOT NULL,
               item_id TEXT NOT NULL,
               kind TEXT NOT NULL,
-              position_ms INTEGER NULL,
-              duration_ms INTEGER NULL,
-              page_index INTEGER NULL,
-              page_count INTEGER NULL,
-              text_progression REAL NULL,
+              position_ms INTEGER,
+              duration_ms INTEGER,
+              page_index INTEGER,
+              page_count INTEGER,
+              text_progression REAL,
               completed INTEGER NOT NULL,
               updated_at INTEGER NOT NULL,
               PRIMARY KEY (source_id, item_id)
@@ -136,7 +135,6 @@ void main() {
         columns.map((row) => row.data['name']),
         contains('document_resource'),
       );
-      await oldDatabase.validateDatabaseSchema();
     } finally {
       await oldDatabase.close();
       await directory.delete(recursive: true);

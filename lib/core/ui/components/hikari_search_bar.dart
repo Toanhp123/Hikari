@@ -84,9 +84,6 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
             child: TextField(
               controller: _controller,
               autofocus: widget.autofocus,
-              textInputAction: widget.onSubmitted == null
-                  ? null
-                  : TextInputAction.search,
               onChanged: _onTextChange,
               onSubmitted: widget.onSubmitted,
               style: TextStyle(fontSize: 14, color: colors.textPrimary),

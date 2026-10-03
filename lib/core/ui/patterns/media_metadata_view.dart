@@ -40,9 +40,7 @@ class MediaMetadataView extends StatelessWidget {
           Text('Publisher: ${metadata.publisher}'),
         if (metadata.rawStatus != null ||
             metadata.status != PublicationStatus.unknown)
-          Text(
-            'Status: ${metadata.rawStatus ?? _publicationStatusLabel(metadata.status)}',
-          ),
+          Text('Status: ${metadata.rawStatus ?? metadata.status.name}'),
         if (metadata.rating != null)
           Text(
             'Rating: ${metadata.rating}${metadata.ratingMax == null ? '' : ' / ${metadata.ratingMax}'}',
@@ -98,13 +96,3 @@ class _SourceArtworkState extends State<SourceArtwork> {
     ),
   );
 }
-
-String _publicationStatusLabel(PublicationStatus status) => switch (status) {
-  PublicationStatus.unknown => 'Unknown',
-  PublicationStatus.ongoing => 'Ongoing',
-  PublicationStatus.completed => 'Completed',
-  PublicationStatus.licensed => 'Licensed',
-  PublicationStatus.publishingFinished => 'Publishing finished',
-  PublicationStatus.cancelled => 'Cancelled',
-  PublicationStatus.onHiatus => 'On hiatus',
-};

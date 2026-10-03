@@ -14,13 +14,11 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
 | `architecture/PRESENTATION.md` | View/ViewModel state ownership, UI dependency rules and player surface boundary | Working on feature UI/state or player presentation |
 | `architecture/SOURCES.md` | Capability contracts, SourceRegistry, application open workflows and source extension seam | Adding/refactoring a source or application workflow |
-| `architecture/CATALOG.md` | External catalog metadata, discovery and catalog/content boundary | Working on AniList discovery or catalog details |
 | `architecture/REMOTE_MANGA.md` | Remote manga flow, external-source selection and generic source references | Working on search, chapter selection or remote page delivery |
 | `architecture/EXTENSIONS.md` | Android manga extension discovery, trust, ABI bridge and bounded LNReader runtime | Working on installed manga extensions, packaged novel plugins or native compatibility |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
-| `roadmap/UI_UX_COMPLETION.md` | Active UI/UX completion sequence, pass-level acceptance criteria, scope and phase exit gate | Polishing current product UX before adding the next major feature set |
-| `roadmap/*.md` | Other detailed execution status, milestones, and implementation sequencing while active tracking needs its own document | Planning or tracking active implementation |
+| `roadmap/*.md` | Detailed execution status, milestones, and implementation sequencing while active tracking needs its own document | Planning or tracking active implementation |
 
 Architecture and roadmap documents are created only when real content requires them. Accepted cross-cutting decisions already live under `decisions/`.
 
@@ -86,13 +84,11 @@ It should not become an API reference or implementation plan.
 
 ```text
 architecture/
-├── CATALOG.md
 ├── EXTENSIONS.md
 ├── LOCAL_MEDIA.md
 ├── PRESENTATION.md
 ├── REMOTE_MANGA.md
 ├── SOURCES.md
-├── UI_ARCHITECTURE.md
 └── USER_STATE.md
 ```
 
@@ -161,16 +157,12 @@ Hikari/
     ├── AGENT_WORKFLOW.md
     ├── GIT_WORKFLOW.md
     ├── architecture/
-    │   ├── CATALOG.md
     │   ├── EXTENSIONS.md
     │   ├── LOCAL_MEDIA.md
     │   ├── PRESENTATION.md
     │   ├── REMOTE_MANGA.md
     │   ├── SOURCES.md
-    │   ├── UI_ARCHITECTURE.md
     │   └── USER_STATE.md
-    ├── roadmap/
-    │   └── UI_UX_COMPLETION.md
     └── decisions/
         ├── ADR-001-hybrid-layered-architecture.md
         ├── ADR-002-foundation-v1.md
@@ -181,8 +173,7 @@ Hikari/
         ├── ADR-007-android-manga-extension-runtime.md
         ├── ADR-008-external-remote-provider-ownership.md
         ├── ADR-009-stable-source-identities.md
-        ├── ADR-010-bounded-lnreader-runtime.md
-        └── ADR-011-catalog-content-boundary.md
+        └── ADR-010-bounded-lnreader-runtime.md
 ```
 
 Future `architecture/` and `roadmap/` documents are created incrementally only when the project has real knowledge or active execution state to store. Completed one-off plans should be removed after durable facts move to canonical architecture/product docs.

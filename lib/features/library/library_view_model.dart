@@ -6,19 +6,17 @@ import 'package:hikari/domain/media/media.dart';
 
 enum LibraryViewMode { grid, list }
 
-enum LibraryStatus { loading, ready, error }
-
 @immutable
 final class LibraryUiState {
   const LibraryUiState({
-    this.status = LibraryStatus.loading,
+    this.loading = true,
     this.entries = const [],
     this.mediaType,
     this.viewMode = LibraryViewMode.grid,
     this.error,
   });
 
-  final LibraryStatus status;
+  final bool loading;
   final List<LibraryEntry> entries;
   final MediaType? mediaType;
   final LibraryViewMode viewMode;
@@ -33,7 +31,7 @@ final class LibraryUiState {
   }
 
   LibraryUiState copyWith({
-    LibraryStatus? status,
+    bool? loading,
     List<LibraryEntry>? entries,
     MediaType? mediaType,
     bool clearMediaType = false,
@@ -42,7 +40,7 @@ final class LibraryUiState {
     bool clearError = false,
   }) {
     return LibraryUiState(
-      status: status ?? this.status,
+      loading: loading ?? this.loading,
       entries: entries ?? this.entries,
       mediaType: clearMediaType ? null : mediaType ?? this.mediaType,
       viewMode: viewMode ?? this.viewMode,
@@ -87,14 +85,10 @@ final class LibraryViewModel extends ChangeNotifier {
 
   Future<void> reload() async {
     if (_disposed) return;
-    final revision = ++_streamRevision;
-    _publish(_state.copyWith(status: LibraryStatus.loading, clearError: true));
+    _publish(_state.copyWith(loading: true, clearError: true));
     try {
-      final entries = await _repository.loadAll();
-      if (_disposed || revision != _streamRevision) return;
-      _acceptEntries(entries);
+      _acceptEntries(await _repository.loadAll());
     } catch (error) {
-      if (_disposed || revision != _streamRevision) return;
       _acceptError(error);
     }
   }
@@ -141,7 +135,7 @@ final class LibraryViewModel extends ChangeNotifier {
   void _acceptEntries(List<LibraryEntry> entries) {
     _publish(
       _state.copyWith(
-        status: LibraryStatus.ready,
+        loading: false,
         entries: List.unmodifiable(entries),
         clearError: true,
       ),
@@ -149,7 +143,7 @@ final class LibraryViewModel extends ChangeNotifier {
   }
 
   void _acceptError(Object error) {
-    _publish(_state.copyWith(status: LibraryStatus.error, error: error));
+    _publish(_state.copyWith(loading: false, error: error));
   }
 
   void _publish(LibraryUiState state) {

@@ -1,23 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:hikari/domain/media/novel.dart';
 
-enum NovelSeriesStatus { loading, ready, error }
+sealed class NovelSeriesUiState {
+  const NovelSeriesUiState();
+}
 
-@immutable
-final class NovelSeriesUiState {
-  const NovelSeriesUiState({
-    this.status = NovelSeriesStatus.loading,
-    this.details,
-  });
+final class NovelSeriesLoading extends NovelSeriesUiState {
+  const NovelSeriesLoading();
+}
 
-  final NovelSeriesStatus status;
-  final NovelDetails? details;
-  bool get initialLoading =>
-      status == NovelSeriesStatus.loading && details == null;
-  bool get refreshing => status == NovelSeriesStatus.loading && details != null;
-  bool get failed => status == NovelSeriesStatus.error && details == null;
-  bool get refreshFailed =>
-      status == NovelSeriesStatus.error && details != null;
+final class NovelSeriesReady extends NovelSeriesUiState {
+  const NovelSeriesReady(this.details);
+
+  final NovelDetails details;
+}
+
+final class NovelSeriesFailure extends NovelSeriesUiState {
+  const NovelSeriesFailure();
 }
 
 final class NovelSeriesViewModel extends ChangeNotifier {
@@ -25,7 +24,7 @@ final class NovelSeriesViewModel extends ChangeNotifier {
 
   final Future<NovelDetails> Function() _loadDetails;
 
-  NovelSeriesUiState _state = const NovelSeriesUiState();
+  NovelSeriesUiState _state = const NovelSeriesLoading();
   NovelSeriesUiState get state => _state;
 
   int _generation = 0;
@@ -33,26 +32,14 @@ final class NovelSeriesViewModel extends ChangeNotifier {
 
   Future<void> load() async {
     final generation = ++_generation;
-    _publish(
-      NovelSeriesUiState(
-        status: NovelSeriesStatus.loading,
-        details: _state.details,
-      ),
-    );
+    _publish(const NovelSeriesLoading());
     try {
       final details = await Future.sync(_loadDetails);
       if (_disposed || generation != _generation) return;
-      _publish(
-        NovelSeriesUiState(status: NovelSeriesStatus.ready, details: details),
-      );
+      _publish(NovelSeriesReady(details));
     } catch (_) {
       if (_disposed || generation != _generation) return;
-      _publish(
-        NovelSeriesUiState(
-          status: NovelSeriesStatus.error,
-          details: _state.details,
-        ),
-      );
+      _publish(const NovelSeriesFailure());
     }
   }
 

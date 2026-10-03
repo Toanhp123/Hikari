@@ -4,14 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 
-/// Shared poster-grid geometry; features still own scroll and padding.
-const mediaPosterGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
-  maxCrossAxisExtent: HikariBreakpoints.posterGridMaxExtent,
-  crossAxisSpacing: HikariSpacing.md,
-  mainAxisSpacing: HikariSpacing.md,
-  childAspectRatio: 2 / 3,
-);
-
 /// Shared 2:3 media artwork pattern.
 ///
 /// Feature-owned cards decide which product metadata belongs around this visual

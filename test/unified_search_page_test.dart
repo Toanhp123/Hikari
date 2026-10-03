@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/features/source_search/source_search_page.dart';
-import 'package:hikari/features/source_search/source_search_view_model.dart';
+import 'package:hikari/features/search/unified_search_page.dart';
 
 void main() {
   testWidgets(
-    'SourceSearchPage shows initial empty state and renders query results',
+    'UnifiedSearchPage shows initial empty state and renders query results',
     (tester) async {
       const item1 = Media(
         title: 'Solo Leveling',
@@ -19,14 +18,14 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: HikariTheme.darkTheme(),
-          home: SourceSearchPage(
+          home: UnifiedSearchPage(
             scanLocalMedia: () async => [item1],
             openMedia: (_, item) => tappedMedia = item,
           ),
         ),
       );
 
-      expect(find.text('Find a source'), findsOneWidget);
+      expect(find.text('Explore & Search'), findsOneWidget);
 
       // Enter search query
       await tester.enterText(find.byType(TextField), 'Solo');
@@ -40,24 +39,4 @@ void main() {
       expect(tappedMedia, item1);
     },
   );
-
-  testWidgets('scoped manual search keeps the selected source visible', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: HikariTheme.darkTheme(),
-        home: SourceSearchPage(
-          openMedia: (_, _) {},
-          initialSourceId: const SourceId('test:manga'),
-          sourceName: 'Manga source [en]',
-          initialFilter: SourceSearchFilter.manga,
-        ),
-      ),
-    );
-
-    expect(find.text('Searching in Manga source [en]'), findsOneWidget);
-    expect(find.text('All'), findsNothing);
-    expect(find.text('Manga'), findsNothing);
-  });
 }

@@ -236,24 +236,6 @@ git commit -m "feat: ..."
 
 Ưu tiên `git add <file>` thay vì `git add .` khi thay đổi đang lẫn nhiều việc chưa hoàn tất.
 
-### Claude Code implementer worktrees
-
-Feature branch hiện tại vẫn là **integration checkout** và là nơi chạy final review/gates. Tuy nhiên Hikari cho phép custom `implementer` subagent dùng Claude Code `isolation: worktree` như một chi tiết thực thi tạm thời. Đây không phải một feature branch mới do agent tự quản lý.
-
-Quy tắc:
-
-- `.claude/settings.json` đặt `worktree.baseRef: "head"`, vì vậy worktree của implementer phải fork từ local `HEAD` hiện tại thay vì `origin/HEAD`;
-- trước lần delegation ghi file đầu tiên, kiểm tra branch, `HEAD` và `git status`; local commits có trong baseline `head`, còn thay đổi chưa commit trong working tree chính không được coi là đã có trong worktree;
-- mặc định chỉ có **một writer cho task tại một thời điểm**; khi implementer đang chạy, main agent không sửa cùng các file thuộc task trên integration checkout và không tạo thêm worktree writer chỉ để tăng parallelism;
-- implementer không commit, push, merge, rebase, switch branch, tạo nested worktree hoặc ghi ngược vào parent checkout;
-- nếu cần sửa sau review, ưu tiên resume đúng implementer hiện có thay vì tạo agent/worktree mới;
-- main agent review diff trong worktree trước; nếu task tạo file mới, implementer có thể dùng `git add -N` cho đúng các file mới đó để `git diff --binary HEAD` bao gồm chúng, nhưng không commit;
-- chuyển diff đã chấp nhận về working tree của feature branch bằng patch/diff đã kiểm tra (`git apply --check` trước khi apply), giữ thay đổi ở trạng thái chưa commit; không cherry-pick/merge/commit chỉ để vận chuyển output của worker;
-- nếu baseline sai hoặc worktree creation lỗi, không spawn/cancel lặp lại. Kiểm kê một lần và xử lý nguyên nhân;
-- worktree có thay đổi có thể được Claude Code giữ lại để tránh mất dữ liệu. Không tự `remove`, `prune`, `reset` hay xóa thư mục worktree trong cùng task nếu chưa có chấp thuận cleanup rõ ràng.
-
-Các worktree tạm này là exception đã được project workflow cho phép đối với lệnh implement/fix/refactor. Mọi **manual/persistent worktree**, branch mới, commit, push, merge hoặc rewrite history vẫn cần tuân theo các quy tắc Git bình thường ở tài liệu này.
-
 ## 7. Đồng bộ branch với `dev`
 
 Trước khi merge feature, cập nhật `dev`:

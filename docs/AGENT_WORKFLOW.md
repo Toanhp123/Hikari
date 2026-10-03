@@ -114,74 +114,11 @@ Typical routing:
 | Before completion claim | `verification-before-completion` |
 | Branch/integration decision explicitly requested by the user | `finishing-a-development-branch` |
 
-### Model and subagent routing
-
-Model choice follows the work role, not the tool name. The names below are Claude Code routing aliases; a compatible external router may map an alias to another backend model without changing Hikari's workflow.
-
-| Role | Default model | Boundary | Execution location |
-| --- | --- | --- | --- |
-| Main Hikari session | **Opus** | architecture, task decomposition, acceptance criteria, difficult root-cause analysis, final diff review, integration decisions, completion claim | active feature-branch checkout |
-| `Explore` | **Haiku**, low effort | read-only repository exploration when ownership is unclear, search output would be noisy, or cross-cutting investigation is useful | current checkout; no isolation needed |
-| `implementer` | **Sonnet**, high effort | bounded implementation, focused tests, localized refactors/fixes, and local implementation checks after scope is defined | Claude-managed `isolation: worktree` |
-
-The project pins these roles in `.claude/settings.json` and `.claude/agents/`. `worktree.baseRef: "head"` makes Claude-managed worktrees start from the current local `HEAD`, which is required when the active feature branch contains commits not present on the remote default branch.
-
-Routing rules:
-
-- exact known file/symbol lookup → direct `Read`/targeted `Grep` in the main thread;
-- noisy or cross-cutting read-only exploration → `Explore` (Haiku), with Graphify-first routing when section 5 applies;
-- trivial mechanical edit whose delegation overhead exceeds the work → main thread (Opus);
-- non-trivial implementation → main Opus defines scope and acceptance criteria, captures the current branch/`HEAD`, then delegates one bounded task to `implementer` (Sonnet);
-- do not make task-relevant uncommitted edits in the parent checkout before delegation and assume the worktree will inherit them. `baseRef: "head"` carries local commits/feature-branch state, not dirty working-tree content;
-- the implementer's worktree is expected. Do not cancel or recreate the agent merely because isolation is present;
-- keep one writer for the task by default. While the implementer is running, main Opus may continue read-only analysis/review but must not edit the same task-owned files in the integration checkout. Parallel writers are an explicit exception for genuinely file-disjoint work with an integration plan, not the normal path;
-- implementation handoff → main Opus inspects the worker's actual diff and test evidence, imports the reviewed change into the active feature branch as ordinary uncommitted file edits, then performs final review/verification there;
-- when a correction is needed, resume the same custom implementer by agent ID when available so its context/worktree are reused. Do not create a new worktree for every review comment;
-- if worktree creation fails or the implementer reports a baseline-HEAD mismatch, do not enter a spawn/cancel/retry loop. Inspect the state once, identify the blocker, and either use a safe single recovery path or report the block;
-- final project-wide verification and the completion claim remain the main Opus agent's responsibility.
-
-Do not launch a subagent simply because one exists. Do not use `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` during normal Hikari work because it defeats the project-level per-role model routing. Keep agent teams disabled for the normal Hikari path: focused subagents are cheaper and fit this lead → worker → review workflow better. Add another persistent subagent only when a repeated role has a clear context-isolation or specialization benefit.
-
-#### Worktree-backed implementation handoff
-
-For a bounded implementation task, use this lifecycle:
-
-```text
-main Opus on feature branch
-        ↓
-preflight: branch + clean/relevant status + baseline HEAD
-        ↓
-spawn implementer once
-(Claude-managed worktree from local HEAD)
-        ↓
-Sonnet implements + focused tests
-        ↓
-main reviews worker diff
-        ├─ correction needed → resume same implementer
-        └─ accepted
-                ↓
-import reviewed diff into feature-branch working tree
-        ↓
-main runs final review + project gates + patch
-```
-
-Rules:
-
-1. **Baseline first.** Record `git branch --show-current`, `git rev-parse HEAD`, and `git status --short` before the first writing delegation. The delegated task should include the expected baseline HEAD when correctness depends on it.
-2. **One writer by default.** Do not dispatch several worktree implementers merely because parallelism is available, and do not have main Opus edit the same task-owned files while the implementer is running. Sequential writes avoid same-file conflicts, duplicated setup/build churn, and unnecessary worktree accumulation.
-3. **Stay inside the assigned tree.** The implementer must not target the parent checkout by absolute path, create nested worktrees, or mutate Git history.
-4. **Review before import.** Treat the worker result as a candidate patch. Main Opus owns architecture/scope review before bringing it into the feature branch. The worker may use `git add -N` only for exact task-owned new files so `git diff --binary HEAD` includes them; it must not commit.
-5. **Patch handoff, not history handoff.** Transfer the accepted worktree diff back to the feature-branch checkout as ordinary uncommitted file changes (for example, generate a binary-safe diff from the worktree, run `git apply --check` in the integration checkout, then apply it). Do not cherry-pick, merge, or commit merely to move worker output.
-6. **Reuse for corrections.** Resume the same custom agent when possible. A review comment is not a reason to spawn a fresh worktree.
-7. **Verify after import.** Focused worker tests are evidence, not the completion gate. Run the relevant project-wide checks from the active feature branch after the reviewed diff is present there.
-8. **Cleanup is separate.** A changed Claude-created worktree can remain on disk. Do not delete, prune, reset, or discard it merely to make the task look clean. Report leftover worktrees when relevant; cleanup remains an explicit housekeeping action.
-
 ### Hikari constraints on Superpowers
 
 - **Approval gates are autonomous in Hikari.** Do not wait for the user after brainstorming design, written spec, implementation plan, or execution-choice handoff unless a pause condition from section 2 applies. Self-review and continue.
-- When Superpowers asks the user to choose between execution modes, choose automatically. For a non-trivial bounded code change, prefer Hikari's project `implementer` after the main Opus agent defines scope and acceptance criteria; its configured worktree isolation is expected and must not be treated as a mismatch. Use inline main-thread editing only for trivial changes where delegation would cost more than the work.
-- Do not create a manual/persistent branch or worktree, commit, push, merge, rebase, or otherwise mutate Git history unless the user asked for it. The temporary Claude-managed worktree created by the declared `implementer` agent is the project-approved execution-isolation exception; it does not authorize other Git mutations. `docs/GIT_WORKFLOW.md` remains authoritative.
-- If delegation enters a create/cancel/retry loop, or a worktree starts from the wrong baseline despite `worktree.baseRef: "head"`, stop orchestration before launching another writer. Inventory `git status --short --branch` and `git worktree list --porcelain`, report the state, and do not delete/prune worktrees without explicit approval.
+- When Superpowers asks the user to choose between execution modes, choose automatically. **Default to native/inline execution** in the current working tree because it preserves one coherent context and does not require extra Git lifecycle. Use subagent-driven implementation only when its isolation materially improves quality **and** it can obey Hikari's Git restrictions; read-only exploration/review subagents remain fine when useful.
+- Do not create a branch, worktree, commit, push, merge, or other Git mutation unless the user asked for it. `docs/GIT_WORKFLOW.md` remains authoritative. If a Superpowers path assumes such a mutation, preserve its planning/TDD/review intent but execute without that mutation.
 - Do not create a second plan merely because another planning surface exists. One current implementation plan is enough.
 - Treat Superpowers design/spec/plan files as **working artifacts**, not automatically as Hikari documentation. Do not commit them automatically. Before finalizing, remove transient planning artifacts from the requested patch unless they have durable project value; durable architecture rationale belongs in the relevant canonical doc/ADR.
 - Do not stop just because hidden complexity upgrades a Superpowers path. Reclassify, update the design/plan, self-review the new artifact, and keep going unless the new information triggers a real pause condition.

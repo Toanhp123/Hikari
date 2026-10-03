@@ -90,31 +90,3 @@ class HikariChip extends StatelessWidget {
     );
   }
 }
-
-/// Horizontal row for feature-owned filter chips.
-///
-/// The row owns only scrolling and spacing; features still own chip labels,
-/// selection semantics and actions.
-class HikariChipRow extends StatelessWidget {
-  const HikariChipRow({
-    super.key,
-    required this.children,
-    this.spacing = HikariSpacing.sm,
-  });
-
-  final List<Widget> children;
-  final double spacing;
-
-  @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      children: [
-        for (var index = 0; index < children.length; index++) ...[
-          if (index > 0) SizedBox(width: spacing),
-          children[index],
-        ],
-      ],
-    ),
-  );
-}

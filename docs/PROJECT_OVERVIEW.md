@@ -169,19 +169,25 @@ Novels
 
 ## 5.2 Search
 
-Search chính của app là catalog search: người dùng tìm metadata trung tính trước, mở Catalog Detail, rồi mới chọn source thật khi Watch/Read.
+Search cần có khả năng phát triển từ:
 
 ```text
-Search tab
-  → Catalog search
-  → Catalog Detail
-  → source search
-  → Media + SourceMediaRef
+search trong một source
 ```
 
-Source search vẫn hợp nhất local, manga extensions và novel plugins theo capability hiện có; kết quả source dùng domain `Media` chung thay vì để UI phụ thuộc trực tiếp vào dữ liệu provider.
+đến:
 
-Catalog là metadata flow riêng, không phải content source. AniList hiện cung cấp discovery/search/details; Catalog identity không được chuyển trực tiếp thành source identity. Khi người dùng chọn Watch/Read, Hikari seed title vào source search và chỉ mở nội dung sau khi người dùng chọn một source result thật. Chi tiết boundary nằm tại [CATALOG](architecture/CATALOG.md).
+```text
+search nhiều source
+```
+
+và cuối cùng:
+
+```text
+unified search
+```
+
+Search result phải sử dụng domain model chung thay vì để UI phụ thuộc trực tiếp vào dữ liệu riêng của từng provider.
 
 ---
 
@@ -1021,7 +1027,6 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Source-scoped identity vẫn chưa cần canonical `MediaId`; xem
   [REMOTE_MANGA](architecture/REMOTE_MANGA.md) và [EXTENSIONS](architecture/EXTENSIONS.md).
 - remote novel có search phân trang, details/chapter list, rich HTML/resources và Library/progress qua capability riêng; không ép remote chapter thành plain text;
-- AniList catalog discovery/search/details đã có boundary riêng ngoài `SourceRegistry`; catalog identity không phải `SourceMediaRef`, không được lưu trực tiếp vào Library/Progress. Manga/light novel chọn source ngay trong Catalog Detail rồi tự resolve title/alias an toàn; chỉ ambiguous/missing match mới rơi xuống manual Source Search. Anime tạm giữ title-seeded source search cho tới khi có remote anime capability. Xem [CATALOG](architecture/CATALOG.md) và [ADR-011](decisions/ADR-011-catalog-content-boundary.md);
 - application foundation đã có `SourceRegistry`, `OpenMedia`, `OpenMangaChapter`,
   `OpenNovelChapter`, `SearchNovels`, `ProgressSession` và composition root `AppDependencies`. Source cùng capability có
   thể đăng ký mà không thêm provider-specific branch vào open workflow; Android
@@ -1084,12 +1089,13 @@ Hikari/
     ├── README.md             # documentation index/routing
     ├── PROJECT_OVERVIEW.md   # product source of truth
     ├── GIT_WORKFLOW.md       # Git/process source of truth
-    ├── architecture/         # stable subsystem design
-    ├── decisions/            # accepted architectural decisions
-    └── roadmap/              # active implementation sequencing
+    └── decisions/
+        ├── ADR-001-hybrid-layered-architecture.md
+        ├── ADR-002-foundation-v1.md
+        └── ADR-003-architecture-guardrails.md
 ```
 
-Danh sách tài liệu và chiến lược đọc hiện hành nằm tại [`docs/README.md`](README.md). Chỉ tạo thêm architecture/roadmap document khi dự án có knowledge hoặc execution state thực sự cần một canonical home.
+Trong tương lai có thể bổ sung `docs/architecture/` cho thiết kế subsystem và `docs/roadmap/` khi cần theo dõi execution chi tiết. Không tạo trước tài liệu chưa có nội dung thực tế chỉ để đủ cấu trúc.
 
 ---
 

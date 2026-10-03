@@ -7,7 +7,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/progress/progress.dart';
-import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
+import 'package:hikari/features/novel_reader/novel_content_view.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 
 void main() {

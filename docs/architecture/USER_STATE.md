@@ -144,9 +144,7 @@ User confirmed the prior Android local-media scan/open walking skeleton on a rea
 device. That evidence does not verify this new persistence/resume slice. Automated
 coverage exercises domain invariants, independent repository CRUD, file close/reopen,
 malformed storage, Library actions, manga decode-aware saves and text restoration/
-debounce/final flush, plus video calculations. The version-one migration path also runs
-Drift's native schema verifier so the migrated SQLite schema must semantically match a
-fresh database at the current schema version. Native player/SAF lifecycle and new
+debounce/final flush, plus video calculations. Native player/SAF lifecycle and new
 restart/resume behavior still require device verification.
 
 Device follow-up: add each type; read/watch partway; background and close/restart;

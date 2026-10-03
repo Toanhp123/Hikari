@@ -1,11 +1,13 @@
 import 'dart:async';
+import 'dart:ui';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/resume.dart';
-import 'package:hikari/features/manga_reader/widgets/manga_reader_chrome.dart';
 
 /// Immersive Manga Reader with floating chrome and real page navigation.
 class MangaReaderPage extends StatefulWidget {
@@ -41,6 +43,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   ImageProvider? _savedImage;
   bool _hasNavigated = false;
   bool _showControls = true;
+  double? _dragPage;
   int _loadGeneration = 0;
 
   void _displayed(ImageProvider image, int index) {
@@ -160,8 +163,30 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     setState(() => _showControls = !_showControls);
   }
 
+  Widget _failure(String message) => Center(
+    child: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            style: TextStyle(color: context.hikariColors.textPrimary),
+          ),
+          const SizedBox(height: HikariSpacing.sm),
+          TextButton(
+            onPressed: _loading
+                ? null
+                : (_pages == null ? _loadPages : _loadCurrent),
+            child: const Text('Try again'),
+          ),
+        ],
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    final colors = context.hikariColors;
     final pages = _pages;
 
     return Scaffold(
@@ -176,12 +201,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _failed
-                  ? MangaReaderFailure(
-                      message: 'Could not load this page.',
-                      onRetry: _loading
-                          ? null
-                          : (_pages == null ? _loadPages : _loadCurrent),
-                    )
+                  ? _failure('Could not load this page.')
                   : _image == null
                   ? const Center(child: Text('No pages found.'))
                   : InteractiveViewer(
@@ -199,42 +219,176 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                             return child;
                           },
                           semanticLabel: 'Page ${_index + 1}',
-                          errorBuilder: (_, _, _) => MangaReaderFailure(
-                            message: 'Could not decode this page.',
-                            onRetry: _loading
-                                ? null
-                                : (_pages == null ? _loadPages : _loadCurrent),
-                          ),
+                          errorBuilder: (_, _, _) =>
+                              _failure('Could not decode this page.'),
                         ),
                       ),
                     ),
             ),
           ),
 
+          // Top Floating Glassmorphism Toolbar
           if (_showControls)
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              child: MangaReaderTopBar(
-                title: widget.title,
-                credit: widget.credit,
-                onBack: () => Navigator.of(context).pop(),
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.paddingOf(context).top + 4,
+                      bottom: 8,
+                      left: HikariSpacing.sm,
+                      right: HikariSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.background.withValues(alpha: 0.85),
+                      border: Border(
+                        bottom: BorderSide(color: colors.borderSubtle),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        HikariIconButton(
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          tooltip: 'Back',
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        const SizedBox(width: HikariSpacing.xs),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                widget.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.textPrimary,
+                                ),
+                              ),
+                              if (widget.credit != null)
+                                Text(
+                                  widget.credit!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: colors.textSecondary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
 
+          // Bottom Floating Glassmorphism Page Control Bar
           if (_showControls && pages != null && pages.isNotEmpty)
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: MangaReaderPageControls(
-                pageIndex: _index,
-                pageCount: pages.length,
-                loading: _loading,
-                onPrevious: () => _move(-1),
-                onNext: () => _move(1),
-                onJumpToPage: _jumpToPage,
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.paddingOf(context).bottom + 4,
+                      top: 4,
+                      left: HikariSpacing.md,
+                      right: HikariSpacing.md,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.background.withValues(alpha: 0.85),
+                      border: Border(
+                        top: BorderSide(color: colors.borderSubtle),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            IconButton(
+                              tooltip: 'Previous page',
+                              onPressed: _loading || _index == 0
+                                  ? null
+                                  : () => _move(-1),
+                              icon: const Icon(Icons.chevron_left_rounded),
+                            ),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Page ${_index + 1} of ${pages.length}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.textPrimary,
+                                    ),
+                                  ),
+                                  SliderTheme(
+                                    data: SliderThemeData(
+                                      activeTrackColor: colors.primary,
+                                      inactiveTrackColor:
+                                          colors.surfaceHighlight,
+                                      thumbColor: colors.primaryGlow,
+                                      overlayColor: colors.primary.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      trackHeight: 3,
+                                      thumbShape: const RoundSliderThumbShape(
+                                        enabledThumbRadius: 6,
+                                      ),
+                                    ),
+                                    child: Slider(
+                                      value:
+                                          _dragPage ?? (_index + 1).toDouble(),
+                                      min: 1,
+                                      max: pages.length.toDouble(),
+                                      divisions: pages.length > 1
+                                          ? pages.length - 1
+                                          : 1,
+                                      onChanged: _loading
+                                          ? null
+                                          : (value) {
+                                              setState(() => _dragPage = value);
+                                            },
+                                      onChangeEnd: _loading
+                                          ? null
+                                          : (value) {
+                                              setState(() => _dragPage = null);
+                                              _jumpToPage(value.round() - 1);
+                                            },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Next page',
+                              onPressed: _loading || _index == pages.length - 1
+                                  ? null
+                                  : () => _move(1),
+                              icon: const Icon(Icons.chevron_right_rounded),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
         ],

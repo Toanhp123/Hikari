@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
+import 'package:hikari/features/novel_reader/novel_content_view.dart';
 
 import 'dart:typed_data';
 
