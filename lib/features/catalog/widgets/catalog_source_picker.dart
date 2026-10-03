@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
-import 'package:hikari/core/ui/patterns/source_artwork_loader.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 
@@ -554,29 +554,32 @@ class _CandidateArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
     final artwork = candidate.metadata?.cover;
-    return SizedBox(
-      width: 44,
-      height: 58,
-      child: SourceArtworkLoader(
-        key: ValueKey(artwork ?? candidate.media.source),
-        artwork: artwork,
-        readArtwork: readArtwork,
-        builder: (context, bytes, loading) {
-          if (bytes != null) {
-            return ClipRRect(
-              borderRadius: HikariRadius.borderXs,
-              child: Image.memory(
-                bytes,
-                fit: BoxFit.cover,
-                cacheWidth: 132,
-                errorBuilder: (_, _, _) => _placeholder(colors),
-              ),
-            );
-          }
-          return _placeholder(colors, loading: loading);
-        },
-      ),
-    );
+    Widget content(Uint8List? bytes, {bool loading = false}) {
+      if (bytes != null) {
+        return ClipRRect(
+          borderRadius: HikariRadius.borderXs,
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            cacheWidth: 132,
+            errorBuilder: (_, _, _) => _placeholder(colors),
+          ),
+        );
+      }
+      return _placeholder(colors, loading: loading);
+    }
+
+    final image = artwork != null && readArtwork != null
+        ? SourceArtwork(
+            key: ValueKey(artwork),
+            resource: artwork,
+            read: readArtwork!,
+            builder: (context, bytes, loading) =>
+                content(bytes, loading: loading),
+          )
+        : content(null);
+
+    return SizedBox(width: 44, height: 58, child: image);
   }
 
   Widget _placeholder(HikariColors colors, {bool loading = false}) {

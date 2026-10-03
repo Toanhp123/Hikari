@@ -90,6 +90,37 @@ void main() {
     );
   });
 
+  testWidgets('artwork failure keeps remote search result usable', (
+    tester,
+  ) async {
+    final source = _ArtworkMangaSource(failArtwork: true);
+    final registry = SourceRegistry([source]);
+    final artwork = ReadSourceArtwork(registry);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SourceSearchPage(
+          searchManga: SearchManga(registry),
+          readArtwork: artwork.execute,
+          initialQuery: 'Covered title',
+          fixedMediaType: MediaType.manga,
+          openMedia: (_, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is Text && widget.data == 'Covered title',
+      ),
+      findsOneWidget,
+    );
+    expect(source.artworkReads, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('scoped manual search keeps the selected source visible', (
     tester,
   ) async {
@@ -113,6 +144,9 @@ void main() {
 
 final class _ArtworkMangaSource
     implements MangaSearchSource, MangaPageSource, ArtworkSource {
+  _ArtworkMangaSource({this.failArtwork = false});
+
+  final bool failArtwork;
   static const _cover = SourceMediaRef(
     sourceId: SourceId('test:artwork-manga'),
     itemId: 'cover',
@@ -151,6 +185,7 @@ final class _ArtworkMangaSource
   @override
   Future<Uint8List> readArtwork(SourceMediaRef artwork) async {
     artworkReads++;
+    if (failArtwork) throw StateError('offline');
     return Uint8List.fromList(
       base64Decode(
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',

@@ -7,7 +7,7 @@ import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
-import 'package:hikari/core/ui/patterns/source_artwork_loader.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/widgets/library_button.dart';
@@ -237,23 +237,32 @@ class _SourceSearchGrid extends StatelessWidget {
           if (authors.isNotEmpty) authors.first,
         ].join(' · ');
 
+        Widget poster(Uint8List? imageBytes, {bool loading = false}) =>
+            MediaPoster(
+              title: media.title,
+              imageBytes: imageBytes,
+              isLoading: loading,
+              subtitle: subtitle,
+              badgeText: mediaTypeBadgeLabel(media.type),
+              badgeColor: mediaTypeBadgeColor(colors, media.type),
+              onTap: () => openMedia(context, media),
+            );
+
+        final cover = result.metadata?.cover;
+        final artwork = cover != null && readArtwork != null
+            ? SourceArtwork(
+                key: ValueKey(cover),
+                resource: cover,
+                read: readArtwork!,
+                builder: (context, bytes, loading) =>
+                    poster(bytes, loading: loading),
+              )
+            : poster(null);
+
         return Stack(
           fit: StackFit.expand,
           children: [
-            SourceArtworkLoader(
-              key: ValueKey(result.metadata?.cover ?? media.source),
-              artwork: result.metadata?.cover,
-              readArtwork: readArtwork,
-              builder: (context, imageBytes, loading) => MediaPoster(
-                title: media.title,
-                imageBytes: imageBytes,
-                isLoading: loading,
-                subtitle: subtitle,
-                badgeText: mediaTypeBadgeLabel(media.type),
-                badgeColor: mediaTypeBadgeColor(colors, media.type),
-                onTap: () => openMedia(context, media),
-              ),
-            ),
+            artwork,
             if (library != null)
               Positioned(
                 top: HikariSpacing.xs,
