@@ -1,21 +1,20 @@
 import 'dart:async';
-import 'dart:typed_data';
-
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/sources/read_source_artwork.dart';
+import 'package:hikari/application/sources/source_registry.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
-import 'package:hikari/application/sources/source_registry.dart';
-import 'package:hikari/core/cache/byte_cache.dart';
-import 'package:hikari/domain/media/media.dart';
-import 'package:hikari/domain/media/source.dart';
 
 void main() {
   test('routes artwork to registered source capability', () async {
@@ -136,7 +135,7 @@ void main() {
       addTearDown(() => root.delete(recursive: true));
       var opens = 0;
       final cache = DiskByteCache(
-        cacheDirectory: () async => root,
+        cacheBaseDirectory: () async => root,
         openDatabase: (path) async {
           opens++;
           return CacheDatabase(NativeDatabase(File('$path/index.sqlite')));
@@ -173,7 +172,8 @@ void main() {
       CacheDatabase openIndex(String path) =>
           CacheDatabase(NativeDatabase(File('$path/index.sqlite')));
       DiskByteCache newCache() => DiskByteCache(
-        cacheDirectory: () async => root,
+        cacheBaseDirectory: () async => root,
+        namespaceByteBudgets: const {ReadSourceArtwork.cacheNamespace: 64},
         openDatabase: (path) async => openIndex(path),
       );
       final artwork = _art('test:artwork', 'restart');
@@ -222,7 +222,8 @@ void main() {
     final root = Directory.systemTemp.createTempSync('hikari-widget-');
     addTearDown(() => root.delete(recursive: true));
     final cache = DiskByteCache(
-      cacheDirectory: () async => root,
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: const {ReadSourceArtwork.cacheNamespace: 64},
       openDatabase: (path) async =>
           CacheDatabase(NativeDatabase(File('$path/index.sqlite'))),
     );

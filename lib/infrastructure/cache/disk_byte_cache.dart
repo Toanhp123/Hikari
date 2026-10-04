@@ -5,30 +5,26 @@ import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';
 
-const sourceArtworkNamespace = 'source-artwork-v1';
-const sourceArtworkBudgetBytes = 64 * 1024 * 1024;
-
 final class DiskByteCache implements ByteCache {
   DiskByteCache({
-    Future<Directory> Function()? cacheDirectory,
-    Map<String, int> namespaceBudgets = const {
-      sourceArtworkNamespace: sourceArtworkBudgetBytes,
-    },
+    Future<Directory> Function()? cacheBaseDirectory,
+    Map<String, int> namespaceByteBudgets = const {},
     Future<CacheDatabase> Function(String rootPath)? openDatabase,
     int Function()? clock,
     this._beforePublish,
     this._beforeIndexPublish,
     this._beforeReplacementCleanup,
-  }) : _cacheDirectory = cacheDirectory ?? getApplicationCacheDirectory,
-       _budgets = Map.unmodifiable(namespaceBudgets),
+  }) : _cacheBaseDirectory = cacheBaseDirectory ?? getApplicationCacheDirectory,
+       _byteBudgets = Map.unmodifiable(namespaceByteBudgets),
        _openDatabase = openDatabase ?? _defaultDatabase,
        _clock = clock ?? _now;
 
-  final Future<Directory> Function() _cacheDirectory;
-  final Map<String, int> _budgets;
+  final Future<Directory> Function() _cacheBaseDirectory;
+  final Map<String, int> _byteBudgets;
   final Future<CacheDatabase> Function(String rootPath) _openDatabase;
   final int Function() _clock;
   final Future<void> Function()? _beforePublish;
@@ -59,36 +55,74 @@ final class DiskByteCache implements ByteCache {
   Future<void> _initialize() async {
     if (_closed) throw StateError('Cache is closed');
     final root = Directory(
-      p.join((await _cacheDirectory()).path, 'hikari', 'cache-v1'),
+      p.join((await _cacheBaseDirectory()).path, 'hikari', 'cache-v1'),
     );
     await root.create(recursive: true);
-    final database = await _openDatabase(root.path);
     _root = root;
-    _database = database;
+
     try {
-      await database.customSelect('SELECT 1').get();
-      final entries = await database.select(database.cacheEntries).get();
-      final indexed = <String>{};
-      final namespaces = <String>{};
-      for (final entry in entries) {
-        indexed.add(_blobName(entry.keyHash, entry.digest));
-        namespaces.add(entry.namespace);
-      }
+      final database = await _openDatabaseWithRecovery(root);
+      _database = database;
+      final namespaces = await _reconcile(database, root);
       for (final namespace in namespaces) {
-        await _trim(database, namespace, _budgets[namespace] ?? 0);
-      }
-      await for (final entity in root.list(followLinks: false)) {
-        if (entity is File &&
-            (entity.path.endsWith('.tmp') ||
-                (entity.path.endsWith('.blob') &&
-                    !indexed.contains(p.basename(entity.path))))) {
-          await entity.delete();
-        }
+        await _trim(database, namespace, _byteBudgets[namespace] ?? 0);
       }
     } catch (_) {
       _acceptWrites = false;
       rethrow;
     }
+  }
+
+  Future<CacheDatabase> _openDatabaseWithRecovery(Directory root) async {
+    try {
+      return await _openValidatedDatabase(root);
+    } catch (_) {
+      if (await root.exists()) {
+        await root.delete(recursive: true);
+      }
+      await root.create(recursive: true);
+      return _openValidatedDatabase(root);
+    }
+  }
+
+  Future<CacheDatabase> _openValidatedDatabase(Directory root) async {
+    final database = await _openDatabase(root.path);
+    try {
+      await (database.select(database.cacheEntries)..limit(1)).get();
+      return database;
+    } catch (_) {
+      try {
+        await database.close();
+      } catch (_) {
+        // Initialization recovery is best effort; the original failure wins.
+      }
+      rethrow;
+    }
+  }
+
+  Future<Set<String>> _reconcile(CacheDatabase database, Directory root) async {
+    final indexedBlobs = <String>{};
+    final namespaces = <String>{};
+    final entries = await database.select(database.cacheEntries).get();
+    for (final entry in entries) {
+      final blobName = _blobName(entry.keyHash, entry.digest);
+      if (await File(p.join(root.path, blobName)).exists()) {
+        indexedBlobs.add(blobName);
+        namespaces.add(entry.namespace);
+      } else {
+        await _deleteMetadataEntry(database, entry);
+      }
+    }
+
+    await for (final entity in root.list(followLinks: false)) {
+      if (entity is! File) continue;
+      final name = p.basename(entity.path);
+      if (entity.path.endsWith('.tmp') ||
+          (entity.path.endsWith('.blob') && !indexedBlobs.contains(name))) {
+        await entity.delete();
+      }
+    }
+    return namespaces;
   }
 
   String _keyHash(String namespace, String key) =>
@@ -97,12 +131,10 @@ final class DiskByteCache implements ByteCache {
   String _blobPath(String keyHash, String digest) =>
       p.join(_root!.path, _blobName(keyHash, digest));
 
-  Future<void> _deleteEntry(CacheDatabase database, CacheEntry row) async {
-    try {
-      await File(_blobPath(row.keyHash, row.digest)).delete();
-    } on FileSystemException catch (error) {
-      if (error.osError?.errorCode != 2) rethrow;
-    }
+  Future<void> _deleteMetadataEntry(
+    CacheDatabase database,
+    CacheEntry row,
+  ) async {
     await (database.delete(database.cacheEntries)..where(
           (entry) =>
               entry.namespace.equals(row.namespace) &
@@ -110,6 +142,15 @@ final class DiskByteCache implements ByteCache {
         ))
         .go();
     _dirtyTouches.remove(row.keyHash);
+  }
+
+  Future<void> _deleteEntry(CacheDatabase database, CacheEntry row) async {
+    try {
+      await File(_blobPath(row.keyHash, row.digest)).delete();
+    } on FileSystemException catch (error) {
+      if (error.osError?.errorCode != 2) rethrow;
+    }
+    await _deleteMetadataEntry(database, row);
   }
 
   @override
@@ -130,7 +171,7 @@ final class DiskByteCache implements ByteCache {
           if (row == null) return null;
           final file = File(_blobPath(row.keyHash, row.digest));
           if (!await file.exists()) {
-            await _deleteEntry(database, row);
+            await _deleteMetadataEntry(database, row);
             return null;
           }
           final bytes = await file.readAsBytes();
@@ -150,12 +191,12 @@ final class DiskByteCache implements ByteCache {
   @override
   Future<void> write(String namespace, String key, Uint8List bytes) =>
       _serialized(() async {
-        final budget = _budgets[namespace] ?? 0;
+        final byteBudget = _byteBudgets[namespace] ?? 0;
         if (_closed ||
             !_acceptWrites ||
             bytes.isEmpty ||
-            budget <= 0 ||
-            bytes.length > budget) {
+            byteBudget <= 0 ||
+            bytes.length > byteBudget) {
           return;
         }
         try {
@@ -208,7 +249,7 @@ final class DiskByteCache implements ByteCache {
             }
           }
           _dirtyTouches[hash] = _clock();
-          await _trim(database, namespace, budget);
+          await _trim(database, namespace, byteBudget);
         } catch (_) {
           _acceptWrites = false;
         }
@@ -224,7 +265,10 @@ final class DiskByteCache implements ByteCache {
     }
   }
 
-  Future<int> _namespaceSize(CacheDatabase database, String namespace) async {
+  Future<int> _namespaceSizeBytes(
+    CacheDatabase database,
+    String namespace,
+  ) async {
     final result = await database
         .customSelect(
           'SELECT COALESCE(SUM(size), 0) AS total FROM cache_entries WHERE namespace = ?',
@@ -237,10 +281,10 @@ final class DiskByteCache implements ByteCache {
   Future<void> _trim(
     CacheDatabase database,
     String namespace,
-    int budget,
+    int byteBudget,
   ) async {
-    var total = await _namespaceSize(database, namespace);
-    while (total > budget) {
+    var total = await _namespaceSizeBytes(database, namespace);
+    while (total > byteBudget) {
       final rows =
           await (database.select(database.cacheEntries)
                 ..where((row) => row.namespace.equals(namespace))
@@ -249,7 +293,7 @@ final class DiskByteCache implements ByteCache {
               .get();
       if (rows.isEmpty) return;
       for (final row in rows) {
-        if (total <= budget) break;
+        if (total <= byteBudget) break;
         await _deleteEntry(database, row);
         total -= row.size;
       }
@@ -295,10 +339,15 @@ final class DiskByteCache implements ByteCache {
     }
   });
 
-  Future<int> size(String namespace) => _serialized(() async {
+  Future<int> sizeBytes(String namespace) => _serialized(() async {
     if (_closed) return 0;
-    await _ensureReady();
-    return _namespaceSize(_database!, namespace);
+    try {
+      await _ensureReady();
+      return await _namespaceSizeBytes(_database!, namespace);
+    } catch (_) {
+      _acceptWrites = false;
+      return 0;
+    }
   });
 
   @override

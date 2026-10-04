@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
-import 'package:crypto/crypto.dart';
-
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   late Directory root;
@@ -19,14 +18,20 @@ void main() {
   tearDown(() async => root.delete(recursive: true));
 
   test('production database opener persists across cache recreation', () async {
-    final cache = DiskByteCache(cacheDirectory: () async => root);
+    final cache = DiskByteCache(
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: const {'art': 64},
+    );
     addTearDown(cache.close);
-    await cache.write(sourceArtworkNamespace, 'cover', Uint8List.fromList([7]));
-    expect(await cache.read(sourceArtworkNamespace, 'cover'), [7]);
+    await cache.write('art', 'cover', Uint8List.fromList([7]));
+    expect(await cache.read('art', 'cover'), [7]);
     await cache.close();
-    final reopened = DiskByteCache(cacheDirectory: () async => root);
+    final reopened = DiskByteCache(
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: const {'art': 64},
+    );
     addTearDown(reopened.close);
-    expect(await reopened.read(sourceArtworkNamespace, 'cover'), [7]);
+    expect(await reopened.read('art', 'cover'), [7]);
   });
 
   test('persists opaque keys across reopen and isolates namespaces', () async {
@@ -35,7 +40,7 @@ void main() {
     await cache.write('art', 'private/title', Uint8List.fromList([1, 2, 3]));
     await cache.write('other', 'private/title', Uint8List.fromList([4]));
     expect(await cache.read('art', 'private/title'), [1, 2, 3]);
-    expect(await cache.size('art'), 3);
+    expect(await cache.sizeBytes('art'), 3);
     await cache.close();
 
     final reopened = _cache(root, {'art': 64, 'other': 64});
@@ -59,11 +64,37 @@ void main() {
     await cache.write('small', 'two', Uint8List.fromList([3, 4, 5]));
     expect(await cache.read('small', 'one'), isNull);
     expect(await cache.read('small', 'two'), [3, 4, 5]);
-    expect(await cache.size('small'), 3);
-    expect(await cache.size('other'), 4);
+    expect(await cache.sizeBytes('small'), 3);
+    expect(await cache.sizeBytes('other'), 4);
     await cache.write('small', 'oversize', Uint8List.fromList([1, 2, 3, 4, 5]));
     expect(await cache.read('small', 'oversize'), isNull);
     await cache.close();
+  });
+
+  test('startup drops missing metadata before applying byte LRU', () async {
+    final initial = _cache(root, {'art': 128});
+    addTearDown(initial.close);
+    await initial.write('art', 'old-valid', Uint8List(40));
+    await initial.write('art', 'new-missing', Uint8List(40));
+    await initial.close();
+
+    final dir = Directory('${root.path}/hikari/cache-v1');
+    final missingHash = _keyHash('art', 'new-missing');
+    final missingBlob =
+        (await dir
+                .list()
+                .where(
+                  (entity) => p.basename(entity.path).startsWith(missingHash),
+                )
+                .first)
+            as File;
+    await missingBlob.delete();
+
+    final reopened = _cache(root, {'art': 40});
+    addTearDown(reopened.close);
+    expect(await reopened.read('art', 'old-valid'), Uint8List(40));
+    expect(await reopened.read('art', 'new-missing'), isNull);
+    expect(await reopened.sizeBytes('art'), 40);
   });
 
   test('startup removes abandoned temp and orphan files', () async {
@@ -179,7 +210,7 @@ void main() {
     expect(await cache.read('art', 'one'), isNull);
     await cache.remove('art', 'two');
     await cache.clear('art');
-    expect(await cache.size('art'), 0);
+    expect(await cache.sizeBytes('art'), 0);
     expect(await cache.read('other', 'one'), [3]);
     await cache.close();
   });
@@ -189,8 +220,8 @@ void main() {
     () async {
       var tick = 0;
       final cache = DiskByteCache(
-        cacheDirectory: () async => root,
-        namespaceBudgets: {'art': 2},
+        cacheBaseDirectory: () async => root,
+        namespaceByteBudgets: {'art': 2},
         clock: () => ++tick,
         openDatabase: (path) async =>
             CacheDatabase(NativeDatabase(File('$path/index.sqlite'))),
@@ -235,25 +266,29 @@ void main() {
     expect(await reopened.read('art', 'key'), [1]);
   });
 
-  test('corrupt index fails open without publishing blobs', () async {
+  test('corrupt index resets once and becomes writable again', () async {
     final dir = await Directory('${root.path}/hikari/cache-v1')
         .create(recursive: true);
     await File('${dir.path}/index.sqlite')
         .writeAsString('not a SQLite database');
     final cache = _cache(root, {'art': 64});
     addTearDown(cache.close);
+
     expect(await cache.read('art', 'key'), isNull);
     await cache.write('art', 'key', Uint8List.fromList([1]));
-    expect(
-      await dir.list().where((file) => file.path.endsWith('.blob')).length,
-      0,
-    );
+    expect(await cache.read('art', 'key'), [1]);
+    expect(await cache.sizeBytes('art'), 1);
+
+    await cache.close();
+    final reopened = _cache(root, {'art': 64});
+    addTearDown(reopened.close);
+    expect(await reopened.read('art', 'key'), [1]);
   });
 
   test('temporary file write failure refuses further admissions', () async {
     final cache = DiskByteCache(
-      cacheDirectory: () async => root,
-      namespaceBudgets: {'art': 64},
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: {'art': 64},
       clock: () => 1,
       openDatabase: (path) async =>
           CacheDatabase(NativeDatabase(File('$path/index.sqlite'))),
@@ -269,14 +304,14 @@ void main() {
     await collision.delete();
     await cache.write('art', 'next', bytes);
     expect(await cache.read('art', 'next'), isNull);
-    expect(await cache.size('art'), 0);
+    expect(await cache.sizeBytes('art'), 0);
   });
 
   test('metadata query failure latches writes after query recovers', () async {
     late CacheDatabase database;
     final cache = DiskByteCache(
-      cacheDirectory: () async => root,
-      namespaceBudgets: {'art': 64},
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: {'art': 64},
       openDatabase: (path) async =>
           database = CacheDatabase(NativeDatabase(File('$path/index.sqlite'))),
     );
@@ -292,7 +327,7 @@ void main() {
     await cache.clear('unrelated');
     await cache.write('art', 'key', Uint8List.fromList([1]));
     expect(await cache.read('art', 'key'), isNull);
-    expect(await cache.size('art'), 0);
+    expect(await cache.sizeBytes('art'), 0);
   });
 
   test('corrupt blob becomes miss', () async {
@@ -323,8 +358,8 @@ DiskByteCache _cache(
   Future<void> Function()? beforeIndexPublish,
   Future<void> Function()? beforeReplacementCleanup,
 }) => DiskByteCache(
-  cacheDirectory: () async => root,
-  namespaceBudgets: budgets,
+  cacheBaseDirectory: () async => root,
+  namespaceByteBudgets: budgets,
   openDatabase: (path) async =>
       CacheDatabase(NativeDatabase(File('$path/index.sqlite'))),
   beforePublish: beforePublish,

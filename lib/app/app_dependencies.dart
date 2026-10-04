@@ -24,6 +24,8 @@ import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.da
 
 /// Composition root for application workflows and replaceable infrastructure.
 final class AppDependencies {
+  static const _sourceArtworkCacheBudgetBytes = 64 * 1024 * 1024;
+
   AppDependencies._(
     this._database,
     this._ownsDatabase, {
@@ -66,7 +68,13 @@ final class AppDependencies {
       ...additionalSources,
     ]);
     final resolvedDatabase = database ?? UserDatabase();
-    final resolvedCache = cache ?? DiskByteCache();
+    final resolvedCache =
+        cache ??
+        DiskByteCache(
+          namespaceByteBudgets: const {
+            ReadSourceArtwork.cacheNamespace: _sourceArtworkCacheBudgetBytes,
+          },
+        );
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
     final progressRepository = SqliteProgressRepository(resolvedDatabase);
     final searchManga = SearchManga(sourceRegistry);
@@ -154,8 +162,8 @@ final class AppDependencies {
               }
             } finally {
               if (ownsCache && !_cacheClosed) {
-                _cacheClosed = true;
                 await cache.close();
+                _cacheClosed = true;
               }
             }
           }

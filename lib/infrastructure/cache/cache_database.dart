@@ -20,6 +20,7 @@ class CacheEntries extends Table {
   Set<Column<Object>> get primaryKey => {namespace, keyHash};
 }
 
+/// Metadata index for reconstructible cache entries. Blob bytes live on disk.
 @DriftDatabase(tables: [CacheEntries])
 class CacheDatabase extends _$CacheDatabase {
   CacheDatabase(super.executor);

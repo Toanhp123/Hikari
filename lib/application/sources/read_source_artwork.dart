@@ -12,6 +12,8 @@ import 'package:hikari/domain/media/source.dart';
 /// keeps search and picker UI agnostic to the extension runtime (Mihon,
 /// LNReader, or future anime providers).
 final class ReadSourceArtwork {
+  static const cacheNamespace = 'source-artwork-v1';
+
   ReadSourceArtwork(this._sources, {this._cache});
 
   final SourceRegistry _sources;
@@ -36,7 +38,7 @@ final class ReadSourceArtwork {
     final cache = _cache;
     if (cache != null) {
       try {
-        final cached = await cache.read('source-artwork-v1', cacheKey(artwork));
+        final cached = await cache.read(cacheNamespace, cacheKey(artwork));
         if (cached != null && cached.isNotEmpty) return cached;
       } catch (_) {
         // Cache failures never prevent source reads.
@@ -46,7 +48,7 @@ final class ReadSourceArtwork {
     final bytes = await source.readArtwork(artwork);
     if (bytes.isEmpty || cache == null) return bytes.isEmpty ? null : bytes;
     try {
-      await cache.write('source-artwork-v1', cacheKey(artwork), bytes);
+      await cache.write(cacheNamespace, cacheKey(artwork), bytes);
     } catch (_) {
       // Cache failures never hide successfully loaded source bytes.
     }

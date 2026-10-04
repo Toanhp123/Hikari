@@ -4,12 +4,12 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
-import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
 void main() {
-  test('owned cache close is not retried when disposal retries', () async {
+  test('owned cache close retries when disposal retries', () async {
     final db = UserDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final cache = _TrackedCache()..failClose = true;
@@ -19,8 +19,9 @@ void main() {
       ownsCache: true,
     );
     await expectLater(dependencies.dispose(), throwsStateError);
+    cache.failClose = false;
     await dependencies.dispose();
-    expect(cache.closeCalls, 1);
+    expect(cache.closeCalls, 2);
   });
 
   test(
