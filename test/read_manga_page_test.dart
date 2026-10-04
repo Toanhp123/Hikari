@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
+import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -24,7 +25,10 @@ void main() {
     expect(await reader.execute(source, page), [1, 2, 3]);
     expect(source.reads, 1);
     expect(cache.reads, 2);
-    expect(cache.values.keys.single, 'manga-page-v1/["remote","opaque/page"]');
+    expect(
+      cache.values.keys.single,
+      '${ReadMangaPage.cacheNamespace}/["remote","opaque/page"]',
+    );
   });
 
   test('keys isolate source and opaque item tuples and namespaces', () async {
@@ -35,7 +39,7 @@ void main() {
     await reader.execute(sourceA, _page('a:b', 'c'));
     await reader.execute(sourceB, _page('a', 'b:c'));
     await cache.write(
-      'source-artwork-v1',
+      ReadSourceArtwork.cacheNamespace,
       '["a:b","c"]',
       Uint8List.fromList([9]),
     );
@@ -52,7 +56,7 @@ void main() {
       final one = reader.execute(source, _page('remote', 'one'));
       final same = reader.execute(source, _page('remote', 'one'));
       final other = reader.execute(source, _page('remote', 'two'));
-      await source.started.future;
+      await source.waitForReads(2);
       expect(source.reads, 2);
       source.gates['one']!.complete(Uint8List.fromList([1]));
       source.gates['two']!.complete(Uint8List.fromList([2]));
@@ -105,7 +109,8 @@ void main() {
 
   test('fresh reload skips stale cache and replaces cached bytes', () async {
     final cache = _MemoryCache()
-      ..values['manga-page-v1/["remote","page"]'] = Uint8List.fromList([1]);
+      ..values['${ReadMangaPage.cacheNamespace}/["remote","page"]'] =
+          Uint8List.fromList([1]);
     final source = _PageSource()..bytes = Uint8List.fromList([2]);
     final reader = ReadMangaPage(cache);
     final page = _page('remote', 'page');
@@ -122,11 +127,11 @@ void main() {
       final reader = ReadMangaPage(cache);
       final page = _page('remote', 'race');
       final stale = reader.execute(source, page);
-      await source.started.future;
+      await source.waitForReads(1);
       final fresh = reader.reload(source, page);
       source.gates['race']!.complete(Uint8List.fromList([1]));
       expect(await stale, [1]);
-      await Future<void>.delayed(Duration.zero);
+      await source.waitForReads(2);
       source.gates['race']!.complete(Uint8List.fromList([1, 1]));
       expect(await fresh, [1, 1]);
       expect(await reader.execute(source, page), [1, 1]);
@@ -141,11 +146,11 @@ void main() {
       final reader = ReadMangaPage(_MemoryCache());
       final page = _page('remote', 'failed-refresh');
       final old = reader.execute(source, page);
-      await source.started.future;
+      await source.waitForReads(1);
       final fresh = reader.reload(source, page);
       source.gates['failed-refresh']!.completeError(StateError('offline'));
       await expectLater(old, throwsStateError);
-      await Future<void>.delayed(Duration.zero);
+      await source.waitForReads(2);
       source.gates['failed-refresh']!.completeError(StateError('offline'));
       await expectLater(fresh, throwsStateError);
       source.holdPages = false;
@@ -168,7 +173,7 @@ void main() {
       final source = _PageSource()..holdPages = true;
       final reader = ReadMangaPage(cache);
       final pending = reader.execute(source, _page('remote', 'late'));
-      await source.started.future;
+      await source.waitForReads(1);
       await cache.close();
       source.gates['late']!.complete(Uint8List.fromList([8]));
       expect(await pending, [8]);
@@ -211,7 +216,7 @@ void main() {
       cacheBaseDirectory: () async => root,
       namespaceByteBudgets: const {
         ReadMangaPage.cacheNamespace: 3,
-        'source-artwork-v1': 3,
+        ReadSourceArtwork.cacheNamespace: 3,
       },
       openDatabase: (path) async =>
           CacheDatabase(NativeDatabase(File('$path/index.sqlite'))),
@@ -220,7 +225,7 @@ void main() {
     final reader = ReadMangaPage(cache);
     await reader.execute(_PageSource(), _page('remote', 'one'));
     await cache.write(
-      'source-artwork-v1',
+      ReadSourceArtwork.cacheNamespace,
       'cover',
       Uint8List.fromList([9, 9, 9]),
     );
@@ -228,7 +233,11 @@ void main() {
       _PageSource(bytes: Uint8List.fromList([4, 5, 6])),
       _page('remote', 'two'),
     );
-    expect(await cache.read('source-artwork-v1', 'cover'), [9, 9, 9]);
+    expect(await cache.read(ReadSourceArtwork.cacheNamespace, 'cover'), [
+      9,
+      9,
+      9,
+    ]);
     expect(await cache.sizeBytes(ReadMangaPage.cacheNamespace), 3);
   });
 }
@@ -249,8 +258,13 @@ final class _PageSource implements MangaPageSource {
   int reads = 0;
   bool failNext = false;
   bool holdPages = false;
-  final started = Completer<void>();
   final gates = <String, Completer<Uint8List>>{};
+  final _readWaiters = <int, Completer<void>>{};
+
+  Future<void> waitForReads(int count) {
+    if (reads >= count) return Future.value();
+    return (_readWaiters[count] ??= Completer<void>()).future;
+  }
 
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => [];
@@ -258,7 +272,12 @@ final class _PageSource implements MangaPageSource {
   @override
   Future<Uint8List> readPage(SourceMediaRef page) async {
     reads++;
-    if (!started.isCompleted) started.complete();
+    for (final entry in _readWaiters.entries.toList()) {
+      if (reads >= entry.key && !entry.value.isCompleted) {
+        entry.value.complete();
+        _readWaiters.remove(entry.key);
+      }
+    }
     if (failNext) {
       failNext = false;
       throw StateError('source read failed');

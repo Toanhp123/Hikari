@@ -44,7 +44,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   bool _hasNavigated = false;
   bool _showControls = true;
   int _loadGeneration = 0;
-  bool _retryFresh = false;
+  bool _retryRequiresReload = false;
 
   void _displayed(ImageProvider image, int index) {
     if (widget.initialProgress?.completed == true && !_hasNavigated) return;
@@ -107,9 +107,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     }
   }
 
-  Future<void> _loadCurrent({bool fresh = false}) async {
+  Future<void> _loadCurrent({bool reloadFromSource = false}) async {
     final generation = ++_loadGeneration;
-    _retryFresh = fresh;
+    _retryRequiresReload = reloadFromSource;
     _releaseImage();
     _transform.value = Matrix4.identity();
     setState(() {
@@ -119,7 +119,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     try {
       ImageProvider? image;
       if (_pages!.isNotEmpty) {
-        final read = fresh
+        final read = reloadFromSource
             ? widget.reloadPage ?? widget.readPage
             : widget.readPage;
         final bytes = await read(_pages![_index]);
@@ -133,7 +133,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
         );
       }
       if (!mounted || generation != _loadGeneration) return;
-      _retryFresh = false;
+      _retryRequiresReload = false;
       setState(() {
         _image = image;
         _loading = false;
@@ -190,7 +190,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                           ? null
                           : (_pages == null
                                 ? _loadPages
-                                : () => _loadCurrent(fresh: _retryFresh)),
+                                : () => _loadCurrent(
+                                    reloadFromSource: _retryRequiresReload,
+                                  )),
                     )
                   : _image == null
                   ? const Center(child: Text('No pages found.'))
@@ -215,7 +217,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                                 ? null
                                 : (_pages == null
                                       ? _loadPages
-                                      : () => _loadCurrent(fresh: true)),
+                                      : () => _loadCurrent(
+                                          reloadFromSource: true,
+                                        )),
                           ),
                         ),
                       ),

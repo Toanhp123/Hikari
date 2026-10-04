@@ -22,7 +22,7 @@ final class ReadMangaPage {
     }
     final current = _inFlight[page];
     if (current != null) return current.future;
-    return _start(source, page, fresh: false);
+    return _start(source, page, reload: false);
   }
 
   Future<Uint8List> reload(MangaPageSource source, SourceMediaRef page) {
@@ -32,21 +32,26 @@ final class ReadMangaPage {
       );
     }
     final current = _inFlight[page];
-    if (current?.fresh == true) return current!.future;
+    if (current?.reload == true) return current!.future;
     final predecessor = current?.future;
-    return _start(source, page, fresh: true, predecessor: predecessor);
+    return _start(source, page, reload: true, predecessor: predecessor);
   }
 
   Future<Uint8List> _start(
     MangaPageSource source,
     SourceMediaRef page, {
-    required bool fresh,
+    required bool reload,
     Future<Uint8List>? predecessor,
   }) {
-    final flight = _PageFlight(fresh: fresh);
+    final flight = _PageFlight(reload: reload);
     _inFlight[page] = flight;
-    flight.future = _load(source, page, fresh: fresh, predecessor: predecessor)
-        .whenComplete(() {
+    flight.future =
+        _load(
+          source,
+          page,
+          reload: reload,
+          predecessor: predecessor,
+        ).whenComplete(() {
           if (identical(_inFlight[page], flight)) _inFlight.remove(page);
         });
     return flight.future;
@@ -55,17 +60,17 @@ final class ReadMangaPage {
   Future<Uint8List> _load(
     MangaPageSource source,
     SourceMediaRef page, {
-    required bool fresh,
+    required bool reload,
     Future<Uint8List>? predecessor,
   }) async {
     if (predecessor != null) {
       try {
         await predecessor;
       } catch (_) {
-        // Refresh must run even after an earlier read failed.
+        // Reload must run even after an earlier read failed.
       }
     }
-    if (!fresh) {
+    if (!reload) {
       try {
         final cached = await _cache.read(cacheNamespace, cacheKey(page));
         if (cached != null && cached.isNotEmpty) return cached;
@@ -88,8 +93,8 @@ final class ReadMangaPage {
 }
 
 final class _PageFlight {
-  _PageFlight({required this.fresh});
+  _PageFlight({required this.reload});
 
-  final bool fresh;
+  final bool reload;
   late final Future<Uint8List> future;
 }
