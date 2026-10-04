@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
@@ -17,6 +18,8 @@ import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 typedef _CatalogSourcePickerResult = ({
   Media? media,
   CatalogSourcePickerSource? source,
+  Set<SourceId>? sourceIds,
+  String? sourceLanguage,
 });
 
 class CatalogDetailPage extends StatefulWidget {
@@ -28,6 +31,7 @@ class CatalogDetailPage extends StatefulWidget {
     required this.openMedia,
     required this.openRelated,
     required this.openSourceSearch,
+    this.readArtwork,
   });
 
   final CatalogEntry initialEntry;
@@ -35,10 +39,13 @@ class CatalogDetailPage extends StatefulWidget {
   final ResolveCatalogSource resolveCatalogSource;
   final Future<void> Function(BuildContext context, Media media) openMedia;
   final void Function(CatalogEntry entry) openRelated;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final void Function(
     CatalogEntry entry,
     SourceId? sourceId,
     String? sourceName,
+    Set<SourceId>? sourceIds,
+    String? sourceLanguage,
   )
   openSourceSearch;
 
@@ -69,7 +76,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     final state = _viewModel.state;
     final entry = state.entry;
     if (entry.type == MediaType.anime) {
-      widget.openSourceSearch(entry, null, null);
+      widget.openSourceSearch(entry, null, null, null, null);
       return;
     }
 
@@ -93,7 +100,13 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
       await widget.openMedia(context, media);
       return;
     }
-    widget.openSourceSearch(entry, result.source?.id, result.source?.name);
+    widget.openSourceSearch(
+      entry,
+      result.source?.id,
+      result.source?.displayName,
+      result.sourceIds,
+      result.sourceLanguage,
+    );
   }
 
   Future<_CatalogSourcePickerResult?> _showSourceSheet(
@@ -111,10 +124,22 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         ),
         child: CatalogSourcePicker(
           viewModel: picker,
-          onOpenMedia: (media) =>
-              Navigator.of(sheetContext).pop((media: media, source: null)),
-          onManualSearch: (source) =>
-              Navigator.of(sheetContext).pop((media: null, source: source)),
+          onOpenMedia: (media) => Navigator.of(sheetContext).pop((
+            media: media,
+            source: null,
+            sourceIds: null,
+            sourceLanguage: null,
+          )),
+          readArtwork: widget.readArtwork,
+          onManualSearch: (source, sourceIds) =>
+              Navigator.of(sheetContext).pop((
+                media: null,
+                source: source,
+                sourceIds: sourceIds,
+                sourceLanguage: source == null
+                    ? picker.state.selectedLanguage
+                    : source.languageCode,
+              )),
         ),
       ),
     );
@@ -130,10 +155,22 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         clipBehavior: Clip.antiAlias,
         child: CatalogSourcePicker(
           viewModel: picker,
-          onOpenMedia: (media) =>
-              Navigator.of(dialogContext).pop((media: media, source: null)),
-          onManualSearch: (source) =>
-              Navigator.of(dialogContext).pop((media: null, source: source)),
+          onOpenMedia: (media) => Navigator.of(dialogContext).pop((
+            media: media,
+            source: null,
+            sourceIds: null,
+            sourceLanguage: null,
+          )),
+          readArtwork: widget.readArtwork,
+          onManualSearch: (source, sourceIds) =>
+              Navigator.of(dialogContext).pop((
+                media: null,
+                source: source,
+                sourceIds: sourceIds,
+                sourceLanguage: source == null
+                    ? picker.state.selectedLanguage
+                    : source.languageCode,
+              )),
         ),
       ),
     );

@@ -13,7 +13,7 @@ class MediaMetadataView extends StatelessWidget {
   });
   final MediaMetadata metadata;
   final String sourceName;
-  final Future<Uint8List> Function(SourceMediaRef)? readArtwork;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(16),
@@ -52,51 +52,79 @@ class MediaMetadataView extends StatelessWidget {
   );
 }
 
+/// Loads optional source-owned artwork without exposing provider details to UI.
+///
+/// The future is retained while [resource] is unchanged. Missing, empty, or
+/// failed artwork resolves to null so presentation can fall back gracefully.
 class SourceArtwork extends StatefulWidget {
-  const SourceArtwork({super.key, required this.resource, required this.read});
+  const SourceArtwork({
+    super.key,
+    required this.resource,
+    required this.read,
+    this.builder,
+  });
+
   final SourceMediaRef resource;
-  final Future<Uint8List> Function(SourceMediaRef) read;
+  final Future<Uint8List?> Function(SourceMediaRef) read;
+  final Widget Function(BuildContext, Uint8List?, bool)? builder;
+
   @override
   State<SourceArtwork> createState() => _SourceArtworkState();
 }
 
 class _SourceArtworkState extends State<SourceArtwork> {
-  late Future<Uint8List> _bytes = widget.read(widget.resource);
-  @override
-  void didUpdateWidget(SourceArtwork oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.resource != widget.resource) {
-      _bytes = widget.read(widget.resource);
+  late Future<Uint8List?> _bytes = _read();
+
+  Future<Uint8List?> _read() async {
+    try {
+      final bytes = await widget.read(widget.resource);
+      return bytes == null || bytes.isEmpty ? null : bytes;
+    } catch (_) {
+      return null;
     }
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 120,
-    height: 160,
-    child: FutureBuilder<Uint8List>(
-      future: _bytes,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(
-            child: Icon(Icons.broken_image, semanticLabel: 'Cover unavailable'),
-          );
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return Image.memory(
-          snapshot.data!,
-          fit: BoxFit.contain,
-          semanticLabel: 'Cover',
-          errorBuilder: (_, _, _) => const Icon(
-            Icons.broken_image,
-            semanticLabel: 'Cover unavailable',
-          ),
-        );
-      },
-    ),
+  void didUpdateWidget(SourceArtwork oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.resource != widget.resource) {
+      _bytes = _read();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Uint8List?>(
+    future: _bytes,
+    builder: (context, snapshot) {
+      final loading = snapshot.connectionState != ConnectionState.done;
+      final builder = widget.builder;
+      if (builder != null) return builder(context, snapshot.data, loading);
+
+      return SizedBox(
+        width: 120,
+        height: 160,
+        child: _defaultArtwork(snapshot.data, loading),
+      );
+    },
   );
+
+  Widget _defaultArtwork(Uint8List? bytes, bool loading) {
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (bytes == null) {
+      return const Center(
+        child: Icon(Icons.broken_image, semanticLabel: 'Cover unavailable'),
+      );
+    }
+    return Image.memory(
+      bytes,
+      fit: BoxFit.contain,
+      semanticLabel: 'Cover',
+      errorBuilder: (_, _, _) =>
+          const Icon(Icons.broken_image, semanticLabel: 'Cover unavailable'),
+    );
+  }
 }
 
 String _publicationStatusLabel(PublicationStatus status) => switch (status) {

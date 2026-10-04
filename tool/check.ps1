@@ -34,7 +34,32 @@ Invoke-Step 'Check formatting' {
         return
     }
 
-    fvm dart format -o none --set-exit-if-changed -- $dartFiles
+    # FVM uses a Windows command wrapper. Passing every Dart path at once can
+    # exceed the Windows command-line length limit as the workspace grows.
+    # Keep the same workspace-file semantics, but format-check in bounded batches.
+    $maxBatchChars = 6000
+    $batch = @()
+    $batchChars = 0
+
+    foreach ($dartFile in $dartFiles) {
+        # Include a small allowance for quoting/separators around each argument.
+        $argumentChars = $dartFile.Length + 3
+        if ($batch.Count -gt 0 -and ($batchChars + $argumentChars) -gt $maxBatchChars) {
+            fvm dart format -o none --set-exit-if-changed -- $batch
+            if ($LASTEXITCODE -ne 0) {
+                return
+            }
+            $batch = @()
+            $batchChars = 0
+        }
+
+        $batch += $dartFile
+        $batchChars += $argumentChars
+    }
+
+    if ($batch.Count -gt 0) {
+        fvm dart format -o none --set-exit-if-changed -- $batch
+    }
 }
 Invoke-Step 'Analyze' { fvm flutter analyze }
 Invoke-Step 'Run tests and architecture guard' { fvm flutter test }

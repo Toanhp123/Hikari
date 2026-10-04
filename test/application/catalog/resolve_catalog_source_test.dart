@@ -11,6 +11,7 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/domain/media/source.dart';
 
 void main() {
   test('lists only compatible sources for the catalog media type', () {
@@ -26,6 +27,35 @@ void main() {
       [novel.id],
     );
     expect(resolver.optionsFor(MediaType.anime), isEmpty);
+  });
+
+  test('source options carry provider metadata or legacy fallback', () {
+    final manga = _resolver(_MangaSource(), _NovelSource());
+    final presented = manga.optionsFor(MediaType.manga).single;
+    expect(presented.displayName, 'Manga source');
+    expect(presented.languageCode, 'en-us');
+
+    final novel = manga.optionsFor(MediaType.lightNovel).single;
+    expect(novel.displayName, 'Novel source');
+    expect(novel.languageCode, isNull);
+  });
+
+  test(
+    'untyped source presentation falls back to name and unknown language',
+    () {
+      final resolver = _resolver(_LegacyMangaSource());
+      final option = resolver.optionsFor(MediaType.manga).single;
+      expect(option.displayName, 'Legacy source');
+      expect(option.languageCode, isNull);
+    },
+  );
+
+  test('source search options preserve presentation metadata', () {
+    final registry = SourceRegistry([_MangaSource(), _NovelSource()]);
+    final manga = SearchManga(registry).options.single;
+    final novel = SearchNovels(registry).options.single;
+    expect((manga.displayName, manga.languageCode), ('Manga source', 'en-us'));
+    expect((novel.displayName, novel.languageCode), ('Novel source', null));
   });
 
   test('auto resolves one normalized exact title match', () async {
@@ -111,7 +141,7 @@ void main() {
   });
 }
 
-ResolveCatalogSource _resolver(_MangaSource manga, [_NovelSource? novel]) {
+ResolveCatalogSource _resolver(MediaSource manga, [_NovelSource? novel]) {
   final sources = SourceRegistry([manga, ?novel]);
   return ResolveCatalogSource(
     searchManga: SearchManga(sources),
@@ -136,7 +166,8 @@ MangaPreview _manga(String title, {String? itemId}) => MangaPreview(
   ),
 );
 
-final class _MangaSource implements MangaSearchSource, MangaPageSource {
+final class _MangaSource
+    implements MangaSearchSource, MangaPageSource, MediaSourcePresentation {
   _MangaSource({this._responses = const {}});
 
   final Map<String, List<MangaPreview>> _responses;
@@ -146,7 +177,16 @@ final class _MangaSource implements MangaSearchSource, MangaPageSource {
   SourceId get id => const SourceId('test:manga');
 
   @override
-  String get name => 'Manga source [en]';
+  String get name => 'Manga source [EN_us]';
+
+  @override
+  String get displayName => 'Manga source';
+
+  @override
+  String get languageCode => ' EN_us ';
+
+  @override
+  String? get presentationGroupId => null;
 
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async {
@@ -157,6 +197,24 @@ final class _MangaSource implements MangaSearchSource, MangaPageSource {
       page: page,
     );
   }
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
+}
+
+final class _LegacyMangaSource implements MangaSearchSource, MangaPageSource {
+  @override
+  SourceId get id => const SourceId('test:legacy');
+
+  @override
+  String get name => 'Legacy source';
+
+  @override
+  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
+      MangaSearchPage(results: const [], page: page, hasNextPage: false);
 
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];

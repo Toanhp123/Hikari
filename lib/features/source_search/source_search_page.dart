@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/application/search/search_manga.dart';
@@ -18,10 +19,14 @@ class SourceSearchPage extends StatefulWidget {
     this.searchNovels,
     this.scanLocalMedia,
     this.library,
+    this.readArtwork,
     this.initialQuery = '',
     this.initialFilter = SourceSearchFilter.all,
     this.initialSourceId,
     this.sourceName,
+    this.sourceIds,
+    this.fixedMediaType,
+    this.catalogScopeLabel,
   }) : assert((initialSourceId == null) == (sourceName == null));
 
   final void Function(BuildContext, Media) openMedia;
@@ -29,10 +34,14 @@ class SourceSearchPage extends StatefulWidget {
   final SearchNovels? searchNovels;
   final Future<List<Media>?> Function()? scanLocalMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String initialQuery;
   final SourceSearchFilter initialFilter;
   final SourceId? initialSourceId;
   final String? sourceName;
+  final Set<SourceId>? sourceIds;
+  final MediaType? fixedMediaType;
+  final String? catalogScopeLabel;
 
   @override
   State<SourceSearchPage> createState() => _SourceSearchPageState();
@@ -51,8 +60,15 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
       searchNovels: widget.searchNovels,
       scanLocalMedia: widget.scanLocalMedia,
       initialQuery: widget.initialQuery,
-      initialFilter: widget.initialFilter,
+      initialFilter: widget.fixedMediaType == null
+          ? widget.initialFilter
+          : switch (widget.fixedMediaType!) {
+              MediaType.anime => SourceSearchFilter.anime,
+              MediaType.manga => SourceSearchFilter.manga,
+              MediaType.lightNovel => SourceSearchFilter.novel,
+            },
       sourceId: widget.initialSourceId,
+      sourceIds: widget.sourceIds,
     );
     if (widget.initialQuery.trim().isNotEmpty) {
       unawaited(_viewModel.search(widget.initialQuery));
@@ -75,7 +91,10 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
         appBar: AppBar(
           leading: Navigator.of(context).canPop() ? const BackButton() : null,
           title: Text(
-            widget.sourceName == null ? 'Search sources' : 'Search source',
+            widget.catalogScopeLabel ??
+                (widget.sourceName == null
+                    ? 'Search sources'
+                    : 'Search source'),
           ),
         ),
         body: SourceSearchContent(
@@ -87,7 +106,10 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
           onRetry: () => unawaited(_viewModel.retry()),
           openMedia: widget.openMedia,
           library: widget.library,
+          readArtwork: widget.readArtwork,
           scopedSourceName: widget.sourceName,
+          catalogScopeLabel: widget.catalogScopeLabel,
+          fixedMediaType: widget.fixedMediaType,
         ),
       ),
     );

@@ -10,6 +10,7 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_extension_gateway.dart';
 import 'package:hikari/infrastructure/extensions/mihon/mihon_source_loader.dart';
@@ -55,6 +56,7 @@ final class _FakeGateway implements MihonExtensionGateway {
         MihonMangaItem(
           title: revision == '1' ? 'Example' : 'Renamed $revision',
           url: '/manga/$_mangaId',
+          thumbnailUrl: 'https://cdn.example.test/cover.jpg',
           memo: '{"seriesId":"123"}',
         ),
       ],
@@ -160,6 +162,20 @@ void main() {
   tearDown(() async {
     await database.close();
   });
+
+  test(
+    'source presentation exposes provider name and normalized language',
+    () async {
+      final sources = await MihonSourceLoader(
+        gateway: _FakeGateway(const [_mangaDex]),
+        database: database,
+      ).loadSources();
+      final source = sources.single as MediaSourcePresentation;
+
+      expect(source.displayName, 'MangaDex');
+      expect(source.languageCode, 'en');
+    },
+  );
 
   test('file restart retains updated continuation without search', () async {
     await database.close();
@@ -440,6 +456,13 @@ void main() {
       expect(details.metadata.summary, 'Summary');
       expect(result.metadata, isNotNull);
       expect(result.metadata!.title, 'Example');
+      expect(result.metadata!.cover, isNotNull);
+      expect(source, isA<ArtworkSource>());
+      expect(
+        await (source as ArtworkSource).readArtwork(result.metadata!.cover!),
+        [4, 5, 6],
+      );
+      expect(gateway.artworkUrl, 'https://cdn.example.test/cover.jpg');
       expect(result.media.source.itemId, startsWith('mihon-v2:'));
       expect(result.media.source.sourceId, source.id);
       expect(result.media.title, 'Example');

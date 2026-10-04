@@ -94,14 +94,17 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           initialEntry: entry,
           loadDetails: _dependencies.loadCatalogEntryDetails,
           resolveCatalogSource: _dependencies.resolveCatalogSource,
+          readArtwork: _dependencies.readSourceArtwork.execute,
           openMedia: _openMedia,
           openRelated: (related) => _openCatalogDetail(context, related),
-          openSourceSearch: (item, sourceId, sourceName) =>
+          openSourceSearch: (item, sourceId, sourceName, sourceIds, language) =>
               _openCatalogSourceSearch(
                 context,
                 item,
                 sourceId: sourceId,
                 sourceName: sourceName,
+                sourceIds: sourceIds,
+                sourceLanguage: language,
               ),
         ),
       ),
@@ -113,12 +116,25 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     CatalogEntry entry, {
     SourceId? sourceId,
     String? sourceName,
+    Set<SourceId>? sourceIds,
+    String? sourceLanguage,
   }) {
+    final mediaLabel = switch (entry.type) {
+      MediaType.anime => 'Anime',
+      MediaType.manga => 'Manga',
+      MediaType.lightNovel => 'Novel',
+    };
+    final languageLabel = switch (sourceLanguage) {
+      'all' => 'Multiple languages',
+      final language? => language.toUpperCase(),
+      null => sourceName == null ? 'All languages' : 'Language unspecified',
+    };
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SourceSearchPage(
           openMedia: _openMedia,
           library: _dependencies.libraryRepository,
+          readArtwork: _dependencies.readSourceArtwork.execute,
           searchManga: _dependencies.searchManga,
           searchNovels: _dependencies.searchNovels,
           scanLocalMedia: _dependencies.localMediaSource.isAvailable
@@ -127,6 +143,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           initialQuery: entry.title,
           initialSourceId: sourceId,
           sourceName: sourceName,
+          sourceIds: sourceIds,
+          fixedMediaType: entry.type,
+          catalogScopeLabel: '${sourceName ?? mediaLabel} · $languageLabel',
           initialFilter: switch (entry.type) {
             MediaType.anime => SourceSearchFilter.anime,
             MediaType.manga => SourceSearchFilter.manga,

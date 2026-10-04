@@ -5,10 +5,17 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 
 final class CatalogSourceOption {
-  const CatalogSourceOption({required this.id, required this.name});
+  const CatalogSourceOption({
+    required this.id,
+    required this.displayName,
+    this.languageCode,
+    this.presentationGroupId,
+  });
 
   final SourceId id;
-  final String name;
+  final String displayName;
+  final String? languageCode;
+  final String? presentationGroupId;
 }
 
 final class CatalogSourceCandidate {
@@ -48,13 +55,23 @@ final class ResolveCatalogSource {
     MediaType.manga =>
       _searchManga.options
           .map(
-            (option) => CatalogSourceOption(id: option.id, name: option.name),
+            (option) => CatalogSourceOption(
+              id: option.id,
+              displayName: option.displayName,
+              languageCode: option.languageCode,
+              presentationGroupId: option.presentationGroupId,
+            ),
           )
           .toList(growable: false),
     MediaType.lightNovel =>
       _searchNovels.options
           .map(
-            (option) => CatalogSourceOption(id: option.id, name: option.name),
+            (option) => CatalogSourceOption(
+              id: option.id,
+              displayName: option.displayName,
+              languageCode: option.languageCode,
+              presentationGroupId: option.presentationGroupId,
+            ),
           )
           .toList(growable: false),
     MediaType.anime => const [],

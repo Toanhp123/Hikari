@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/extensions/lnreader/lnreader_novel_source.dart';
 
 void main() {
@@ -12,8 +15,13 @@ void main() {
     () async {
       var duplicate = false;
       var images = false;
+      String? artworkUrl;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
+            if (call.method == 'readResource') {
+              artworkUrl = (call.arguments as Map)['url'] as String;
+              return Uint8List.fromList([7, 8, 9]);
+            }
             final args = call.arguments as Map;
             return jsonEncode(switch (args['method']) {
               'searchNovels' => [
@@ -64,6 +72,14 @@ void main() {
       );
       final search = await source.search('query');
       expect(search.hasNextPage, isNull);
+      expect(search.results.single.metadata.cover, isNotNull);
+      expect(source, isA<ArtworkSource>());
+      expect(await source.readArtwork(search.results.single.metadata.cover!), [
+        7,
+        8,
+        9,
+      ]);
+      expect(artworkUrl, 'https://example.org/cover');
       final details = await source.loadDetails(
         search.results.single.media.source,
       );

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 
@@ -12,11 +14,14 @@ class CatalogSourcePicker extends StatelessWidget {
     required this.viewModel,
     required this.onOpenMedia,
     required this.onManualSearch,
+    this.readArtwork,
   });
 
   final CatalogSourcePickerViewModel viewModel;
   final ValueChanged<Media> onOpenMedia;
-  final ValueChanged<CatalogSourcePickerSource?> onManualSearch;
+  final void Function(CatalogSourcePickerSource?, Set<SourceId>?)
+  onManualSearch;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +42,22 @@ class CatalogSourcePicker extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Header(title: viewModel.entry.title),
+                _Header(
+                  title: viewModel.entry.title,
+                  onClose: () => Navigator.of(context).pop(),
+                ),
                 const SizedBox(height: HikariSpacing.lg),
-                Flexible(child: _buildBody(context, state)),
+                Flexible(
+                  child: PopScope<Object?>(
+                    canPop:
+                        state.status !=
+                        CatalogSourcePickerStatus.choosingLanguage,
+                    onPopInvokedWithResult: (didPop, _) {
+                      if (!didPop) viewModel.handleSystemBack();
+                    },
+                    child: _buildBody(context, state),
+                  ),
+                ),
               ],
             ),
           ),
@@ -49,31 +67,42 @@ class CatalogSourcePicker extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, CatalogSourcePickerUiState state) {
-    return switch (state.status) {
-      CatalogSourcePickerStatus.choosing => _SourceList(
-        sources: state.sources,
+    final body = switch (state.status) {
+      CatalogSourcePickerStatus.choosing ||
+      CatalogSourcePickerStatus.choosingLanguage => _SourceList(
+        viewModel: viewModel,
+        groups: state.sourceGroups,
+        languageCodes: state.languageCodes,
+        selectedLanguage: state.selectedLanguage,
+        showLanguageFilter: state.showLanguageFilter,
+        onSelectLanguage: viewModel.selectLanguage,
         onSelect: (source) => unawaited(_selectSource(source)),
-        onSearchAll: () => onManualSearch(null),
+        onSearchAll: () => onManualSearch(
+          null,
+          state.selectedLanguage == null
+              ? null
+              : state.visibleSources.map((source) => source.id).toSet(),
+        ),
       ),
-      CatalogSourcePickerStatus.resolving ||
-      CatalogSourcePickerStatus.resolved => _ResolvingState(
+      CatalogSourcePickerStatus.resolving => _ResolvingState(
         title: viewModel.entry.title,
-        sourceName: state.selectedSource!.name,
+        sourceName: state.selectedSource!.contextLabel,
       ),
       CatalogSourcePickerStatus.candidates => _CandidateList(
         source: state.selectedSource!,
         candidates: state.candidates,
         onSelect: (candidate) => onOpenMedia(candidate.media),
         onChooseAnother: viewModel.chooseAnotherSource,
-        onManualSearch: () => onManualSearch(state.selectedSource),
+        onManualSearch: () => onManualSearch(state.selectedSource, null),
+        readArtwork: readArtwork,
       ),
       CatalogSourcePickerStatus.empty => _MessageState(
         icon: Icons.search_off_rounded,
         title: 'No match found',
         message:
-            'Nothing on ${state.selectedSource!.name} matched the catalog title safely.',
+            'Nothing on ${state.selectedSource!.contextLabel} matched the catalog title safely.',
         primaryLabel: 'Search manually',
-        onPrimary: () => onManualSearch(state.selectedSource),
+        onPrimary: () => onManualSearch(state.selectedSource, null),
         secondaryLabel: 'Choose another source',
         onSecondary: viewModel.chooseAnotherSource,
       ),
@@ -81,13 +110,32 @@ class CatalogSourcePicker extends StatelessWidget {
         icon: Icons.cloud_off_rounded,
         title: 'Could not search this source',
         message:
-            '${state.selectedSource!.name} did not respond. Retry it or choose another source.',
+            '${state.selectedSource!.contextLabel} did not respond. Retry it or choose another source.',
         primaryLabel: 'Retry',
         onPrimary: () => unawaited(_retry()),
         secondaryLabel: 'Choose another source',
         onSecondary: viewModel.chooseAnotherSource,
       ),
     };
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : HikariMotion.fast;
+    return AnimatedSwitcher(
+      duration: duration,
+      switchInCurve: HikariMotion.curveStandard,
+      switchOutCurve: HikariMotion.curveExit,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          for (final child in previousChildren)
+            IgnorePointer(
+              child: ExcludeFocus(child: ExcludeSemantics(child: child)),
+            ),
+          ?currentChild,
+        ],
+      ),
+      child: KeyedSubtree(key: ValueKey(state.status), child: body),
+    );
   }
 
   Future<void> _selectSource(CatalogSourcePickerSource source) async {
@@ -102,9 +150,10 @@ class CatalogSourcePicker extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.title});
+  const _Header({required this.title, required this.onClose});
 
   final String title;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +161,18 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Read from', style: HikariTypography.titleLarge),
+        Row(
+          children: [
+            Expanded(
+              child: Text('Read from', style: HikariTypography.titleLarge),
+            ),
+            IconButton(
+              tooltip: 'Close',
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
         const SizedBox(height: HikariSpacing.xs),
         Text(
           title,
@@ -129,19 +189,58 @@ class _Header extends StatelessWidget {
 
 class _SourceList extends StatelessWidget {
   const _SourceList({
-    required this.sources,
+    required this.viewModel,
+    required this.groups,
+    required this.languageCodes,
+    required this.selectedLanguage,
+    required this.showLanguageFilter,
+    required this.onSelectLanguage,
     required this.onSelect,
     required this.onSearchAll,
   });
 
-  final List<CatalogSourcePickerSource> sources;
+  final CatalogSourcePickerViewModel viewModel;
+  final List<List<CatalogSourcePickerSource>> groups;
+  final List<String> languageCodes;
+  final String? selectedLanguage;
+  final bool showLanguageFilter;
+  final ValueChanged<String?> onSelectLanguage;
   final ValueChanged<CatalogSourcePickerSource> onSelect;
   final VoidCallback onSearchAll;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
-    if (sources.isEmpty) {
+    final groups = this.groups;
+    final languageCodes = this.languageCodes;
+    final showLanguageFilter = this.showLanguageFilter;
+    final selectedLanguage = this.selectedLanguage;
+    final onSelectLanguage = this.onSelectLanguage;
+    final onSelect = this.onSelect;
+    final onSearchAll = this.onSearchAll;
+    if (viewModel.state.status == CatalogSourcePickerStatus.choosingLanguage) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextButton.icon(
+            onPressed: viewModel.leaveGroup,
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Back'),
+          ),
+          Text('Choose language', style: HikariTypography.titleMedium),
+          Text(viewModel.state.selectedGroup!.displayName),
+          Expanded(
+            child: ListView(
+              children: [
+                for (final variant in viewModel.variantsForSelectedGroup)
+                  _SourceTile(source: variant, onTap: () => onSelect(variant)),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    if (groups.isEmpty) {
       return _MessageState(
         icon: Icons.extension_off_outlined,
         title: 'No compatible reading sources',
@@ -165,6 +264,46 @@ class _SourceList extends StatelessWidget {
             ),
           ),
           const SizedBox(height: HikariSpacing.md),
+          if (showLanguageFilter) ...[
+            MenuAnchor(
+              style: const MenuStyle(
+                maximumSize: WidgetStatePropertyAll(Size(double.infinity, 320)),
+              ),
+              builder: (context, controller, child) => OutlinedButton.icon(
+                onPressed: () =>
+                    controller.isOpen ? controller.close() : controller.open(),
+                icon: const Icon(Icons.language_rounded),
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Language: ${selectedLanguage?.toUpperCase() ?? 'All'}',
+                    ),
+                    const SizedBox(width: HikariSpacing.xs),
+                    const Icon(Icons.arrow_drop_down_rounded),
+                  ],
+                ),
+              ),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: () => onSelectLanguage(null),
+                  trailingIcon: selectedLanguage == null
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  child: const Text('All languages'),
+                ),
+                for (final language in languageCodes)
+                  MenuItemButton(
+                    onPressed: () => onSelectLanguage(language),
+                    trailingIcon: selectedLanguage == language
+                        ? const Icon(Icons.check_rounded)
+                        : null,
+                    child: Text(language.toUpperCase()),
+                  ),
+              ],
+            ),
+            const SizedBox(height: HikariSpacing.md),
+          ],
           Material(
             color: colors.surfaceContainer,
             shape: RoundedRectangleBorder(
@@ -174,12 +313,17 @@ class _SourceList extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                for (var index = 0; index < sources.length; index++) ...[
+                for (var index = 0; index < groups.length; index++) ...[
                   _SourceTile(
-                    source: sources[index],
-                    onTap: () => onSelect(sources[index]),
+                    source: groups[index].first,
+                    groupedCount: groups[index].length > 1
+                        ? groups[index].length
+                        : null,
+                    onTap: groups[index].length > 1
+                        ? () => viewModel.chooseGroup(groups[index].first)
+                        : () => onSelect(groups[index].single),
                   ),
-                  if (index != sources.length - 1)
+                  if (index != groups.length - 1)
                     Divider(height: 1, color: colors.border),
                 ],
               ],
@@ -187,11 +331,20 @@ class _SourceList extends StatelessWidget {
           ),
           const SizedBox(height: HikariSpacing.md),
           HikariButton(
-            label: 'Search all sources',
+            label: selectedLanguage == null
+                ? 'Search all sources'
+                : 'Search ${selectedLanguage.toUpperCase()} sources',
             variant: HikariButtonVariant.ghost,
             isFullWidth: true,
             onPressed: onSearchAll,
           ),
+          if (selectedLanguage != null) ...[
+            const SizedBox(height: HikariSpacing.xs),
+            TextButton(
+              onPressed: () => onSelectLanguage(null),
+              child: const Text('Show all languages'),
+            ),
+          ],
         ],
       ),
     );
@@ -199,24 +352,42 @@ class _SourceList extends StatelessWidget {
 }
 
 class _SourceTile extends StatelessWidget {
-  const _SourceTile({required this.source, required this.onTap});
+  const _SourceTile({
+    required this.source,
+    required this.onTap,
+    this.groupedCount,
+  });
 
   final CatalogSourcePickerSource source;
   final VoidCallback onTap;
+  final int? groupedCount;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: HikariSpacing.md),
-      leading: Icon(Icons.language_rounded, color: colors.primaryGlow),
+      leading: const Icon(Icons.extension_outlined),
       title: Text(
-        source.name,
+        source.displayName,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: HikariTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
       ),
-      trailing: Icon(Icons.chevron_right_rounded, color: colors.textMuted),
+      subtitle: groupedCount != null ? Text('$groupedCount languages') : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (groupedCount == null)
+            Text(
+              source.languageCode == 'all'
+                  ? 'Multiple languages'
+                  : source.languageCode?.toUpperCase() ?? 'Unspecified',
+              style: HikariTypography.caption,
+            ),
+          Icon(Icons.chevron_right_rounded, color: colors.textMuted),
+        ],
+      ),
       onTap: onTap,
     );
   }
@@ -267,6 +438,7 @@ class _CandidateList extends StatelessWidget {
     required this.onSelect,
     required this.onChooseAnother,
     required this.onManualSearch,
+    required this.readArtwork,
   });
 
   final CatalogSourcePickerSource source;
@@ -274,6 +446,7 @@ class _CandidateList extends StatelessWidget {
   final ValueChanged<CatalogSourcePickerCandidate> onSelect;
   final VoidCallback onChooseAnother;
   final VoidCallback onManualSearch;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +458,7 @@ class _CandidateList extends StatelessWidget {
           Text('Is this the right title?', style: HikariTypography.titleMedium),
           const SizedBox(height: HikariSpacing.xs),
           Text(
-            'Hikari found possible matches on ${source.name}, but none was safe '
+            'Hikari found possible matches on ${source.contextLabel}, but none was safe '
             'to open automatically.',
             style: HikariTypography.bodyMedium.copyWith(
               color: colors.textSecondary,
@@ -293,17 +466,30 @@ class _CandidateList extends StatelessWidget {
             ),
           ),
           const SizedBox(height: HikariSpacing.md),
-          for (final candidate in candidates)
-            Padding(
-              padding: const EdgeInsets.only(bottom: HikariSpacing.sm),
-              child: _CandidateTile(
-                candidate: candidate,
-                onTap: () => onSelect(candidate),
-              ),
+          Material(
+            color: colors.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: colors.border),
+              borderRadius: HikariRadius.borderLg,
             ),
-          const SizedBox(height: HikariSpacing.xs),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var index = 0; index < candidates.length; index++) ...[
+                  _CandidateTile(
+                    candidate: candidates[index],
+                    readArtwork: readArtwork,
+                    onTap: () => onSelect(candidates[index]),
+                  ),
+                  if (index != candidates.length - 1)
+                    Divider(height: 1, color: colors.border),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: HikariSpacing.md),
           HikariButton(
-            label: 'Search manually in ${source.name}',
+            label: 'Search manually in ${source.contextLabel}',
             variant: HikariButtonVariant.secondary,
             isFullWidth: true,
             onPressed: onManualSearch,
@@ -322,50 +508,108 @@ class _CandidateList extends StatelessWidget {
 }
 
 class _CandidateTile extends StatelessWidget {
-  const _CandidateTile({required this.candidate, required this.onTap});
+  const _CandidateTile({
+    required this.candidate,
+    required this.onTap,
+    required this.readArtwork,
+  });
 
   final CatalogSourcePickerCandidate candidate;
   final VoidCallback onTap;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
     final authors = candidate.metadata?.authors ?? const <String>[];
-    return Material(
-      color: colors.surfaceContainer,
-      borderRadius: HikariRadius.borderMd,
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: HikariSpacing.md,
-          vertical: HikariSpacing.xs,
-        ),
-        leading: Icon(
-          candidate.media.type == MediaType.lightNovel
-              ? Icons.auto_stories_outlined
-              : Icons.menu_book_outlined,
-          color: colors.primaryGlow,
-        ),
-        title: Text(
-          candidate.media.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: HikariTypography.bodyLarge.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: authors.isEmpty
-            ? null
-            : Text(
-                authors.first,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: HikariTypography.caption.copyWith(
-                  color: colors.textSecondary,
-                ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: HikariSpacing.md,
+        vertical: HikariSpacing.xs,
+      ),
+      leading: _CandidateArtwork(
+        candidate: candidate,
+        readArtwork: readArtwork,
+      ),
+      title: Text(
+        candidate.media.title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: HikariTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+      ),
+      subtitle: authors.isEmpty
+          ? null
+          : Text(
+              authors.first,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HikariTypography.caption.copyWith(
+                color: colors.textSecondary,
               ),
-        trailing: Icon(Icons.arrow_forward_rounded, color: colors.textMuted),
-        onTap: onTap,
+            ),
+      trailing: Icon(Icons.arrow_forward_rounded, color: colors.textMuted),
+      onTap: onTap,
+    );
+  }
+}
+
+class _CandidateArtwork extends StatelessWidget {
+  const _CandidateArtwork({required this.candidate, required this.readArtwork});
+
+  final CatalogSourcePickerCandidate candidate;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.hikariColors;
+    final artwork = candidate.metadata?.cover;
+    Widget content(Uint8List? bytes, {bool loading = false}) {
+      if (bytes != null) {
+        return ClipRRect(
+          borderRadius: HikariRadius.borderXs,
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            cacheWidth: 132,
+            errorBuilder: (_, _, _) => _placeholder(colors),
+          ),
+        );
+      }
+      return _placeholder(colors, loading: loading);
+    }
+
+    final image = artwork != null && readArtwork != null
+        ? SourceArtwork(
+            key: ValueKey(artwork),
+            resource: artwork,
+            read: readArtwork!,
+            builder: (context, bytes, loading) =>
+                content(bytes, loading: loading),
+          )
+        : content(null);
+
+    return SizedBox(width: 44, height: 58, child: image);
+  }
+
+  Widget _placeholder(HikariColors colors, {bool loading = false}) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surfaceElevated,
+        borderRadius: HikariRadius.borderXs,
+        border: Border.all(color: colors.border),
+      ),
+      child: Center(
+        child: loading
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                candidate.media.type == MediaType.lightNovel
+                    ? Icons.auto_stories_outlined
+                    : Icons.menu_book_outlined,
+                color: colors.primaryGlow,
+              ),
       ),
     );
   }

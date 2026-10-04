@@ -4,10 +4,17 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 
 final class NovelSearchOption {
-  const NovelSearchOption({required this.id, required this.name});
+  const NovelSearchOption({
+    required this.id,
+    required this.displayName,
+    this.languageCode,
+    this.presentationGroupId,
+  });
 
   final SourceId id;
-  final String name;
+  final String displayName;
+  final String? languageCode;
+  final String? presentationGroupId;
 }
 
 final class SearchNovels {
@@ -20,7 +27,19 @@ final class SearchNovels {
         .withCapability<NovelSearchSource>()
         .where(_canOpen)
         .where(_isAvailable)
-        .map((source) => NovelSearchOption(id: source.id, name: source.name)),
+        .map((source) {
+          final presentation = source is MediaSourcePresentation
+              ? source as MediaSourcePresentation
+              : null;
+          return NovelSearchOption(
+            id: source.id,
+            displayName: presentation?.displayName ?? source.name,
+            languageCode: normalizeSourceLanguageCode(
+              presentation?.languageCode,
+            ),
+            presentationGroupId: presentation?.presentationGroupId,
+          );
+        }),
   );
 
   Future<NovelSearchPage> execute({

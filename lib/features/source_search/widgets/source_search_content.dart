@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
@@ -5,6 +7,7 @@ import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/widgets/library_button.dart';
@@ -20,7 +23,10 @@ class SourceSearchContent extends StatelessWidget {
     required this.onRetry,
     required this.openMedia,
     this.library,
+    this.readArtwork,
     this.scopedSourceName,
+    this.catalogScopeLabel,
+    this.fixedMediaType,
   });
 
   final TextEditingController controller;
@@ -30,7 +36,10 @@ class SourceSearchContent extends StatelessWidget {
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String? scopedSourceName;
+  final String? catalogScopeLabel;
+  final MediaType? fixedMediaType;
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +61,11 @@ class SourceSearchContent extends StatelessWidget {
                 onChanged: onQueryChanged,
               ),
               const SizedBox(height: HikariSpacing.sm),
-              if (scopedSourceName != null)
+              if (catalogScopeLabel != null)
+                _ScopedSourceLabel(sourceName: catalogScopeLabel!)
+              else if (scopedSourceName != null)
                 _ScopedSourceLabel(sourceName: scopedSourceName!)
-              else
+              else if (fixedMediaType == null)
                 HikariChipRow(
                   children: [
                     for (final filter in SourceSearchFilter.values)
@@ -71,7 +82,8 @@ class SourceSearchContent extends StatelessWidget {
           ),
         ),
         if (state.failedSourceCount > 0 &&
-            state.status == SourceSearchStatus.ready)
+            (state.status == SourceSearchStatus.ready ||
+                state.status == SourceSearchStatus.empty))
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: HikariSpacing.lg,
@@ -88,7 +100,9 @@ class SourceSearchContent extends StatelessWidget {
             onRetry: onRetry,
             openMedia: openMedia,
             library: library,
+            readArtwork: readArtwork,
             scopedSourceName: scopedSourceName,
+            catalogScopeLabel: catalogScopeLabel,
           ),
         ),
       ],
@@ -108,7 +122,7 @@ class _ScopedSourceLabel extends StatelessWidget {
       label: 'Searching in $sourceName',
       child: Row(
         children: [
-          Icon(Icons.language_rounded, size: 16, color: colors.textMuted),
+          Icon(Icons.extension_outlined, size: 16, color: colors.textMuted),
           const SizedBox(width: HikariSpacing.xs),
           Expanded(
             child: Text(
@@ -133,18 +147,23 @@ class _SourceSearchResults extends StatelessWidget {
     required this.onRetry,
     required this.openMedia,
     required this.library,
+    required this.readArtwork,
     required this.scopedSourceName,
+    required this.catalogScopeLabel,
   });
 
   final SourceSearchUiState state;
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String? scopedSourceName;
+  final String? catalogScopeLabel;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
+    final scope = catalogScopeLabel ?? scopedSourceName;
     final status = switch (state.status) {
       SourceSearchStatus.idle => AsyncViewStatus.empty,
       SourceSearchStatus.loading => AsyncViewStatus.loading,
@@ -158,15 +177,15 @@ class _SourceSearchResults extends StatelessWidget {
       emptyTitle: state.query.isEmpty ? 'Find a source' : 'No results found',
       emptyMessage: state.query.isEmpty
           ? 'Type a title above to search your configured media sources.'
-          : scopedSourceName == null
+          : scope == null
           ? 'No matches found for "${state.query}".'
-          : 'No matches found for "${state.query}" in $scopedSourceName.',
+          : 'No matches found for "${state.query}" in $scope.',
       emptyIcon: state.query.isEmpty
           ? Icons.search_rounded
           : Icons.search_off_rounded,
-      errorMessage: scopedSourceName == null
+      errorMessage: scope == null
           ? 'All configured search sources failed. Try again.'
-          : '$scopedSourceName could not be searched. Try again.',
+          : 'All search sources in $scope failed. Try again.',
       onRetry: onRetry,
       contentBuilder: (_) {
         if (state.results.isEmpty) {
@@ -181,6 +200,7 @@ class _SourceSearchResults extends StatelessWidget {
           results: state.results,
           openMedia: openMedia,
           library: library,
+          readArtwork: readArtwork,
         );
       },
     );
@@ -192,11 +212,13 @@ class _SourceSearchGrid extends StatelessWidget {
     required this.results,
     required this.openMedia,
     required this.library,
+    required this.readArtwork,
   });
 
   final List<SourceSearchResult> results;
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
+  final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -215,16 +237,32 @@ class _SourceSearchGrid extends StatelessWidget {
           if (authors.isNotEmpty) authors.first,
         ].join(' · ');
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
+        Widget poster(Uint8List? imageBytes, {bool loading = false}) =>
             MediaPoster(
               title: media.title,
+              imageBytes: imageBytes,
+              isLoading: loading,
               subtitle: subtitle,
               badgeText: mediaTypeBadgeLabel(media.type),
               badgeColor: mediaTypeBadgeColor(colors, media.type),
               onTap: () => openMedia(context, media),
-            ),
+            );
+
+        final cover = result.metadata?.cover;
+        final artwork = cover != null && readArtwork != null
+            ? SourceArtwork(
+                key: ValueKey(cover),
+                resource: cover,
+                read: readArtwork!,
+                builder: (context, bytes, loading) =>
+                    poster(bytes, loading: loading),
+              )
+            : poster(null);
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            artwork,
             if (library != null)
               Positioned(
                 top: HikariSpacing.xs,

@@ -9,9 +9,34 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart';
 
 void main() {
+  test(
+    'partial failure with empty successes stays empty; all failures error',
+    () async {
+      final partial = SourceSearchViewModel(
+        searchManga: SearchManga(
+          SourceRegistry([_MangaSource(), _FailingMangaSource()]),
+        ),
+        initialFilter: SourceSearchFilter.manga,
+      );
+      final failed = SourceSearchViewModel(
+        searchManga: SearchManga(SourceRegistry([_FailingMangaSource()])),
+        initialFilter: SourceSearchFilter.manga,
+      );
+      addTearDown(partial.dispose);
+      addTearDown(failed.dispose);
+      await partial.search('missing');
+      expect(partial.state.status, SourceSearchStatus.empty);
+      expect(partial.state.failedSourceCount, 1);
+      await failed.search('missing');
+      expect(failed.state.status, SourceSearchStatus.error);
+      expect(failed.state.failedSourceCount, 1);
+    },
+  );
+
   const media = Media(
     title: 'Solo Leveling',
     type: MediaType.anime,
@@ -152,6 +177,96 @@ void main() {
     expect(model.state.results.single.media.title, 'Selected result');
   });
 
+  test('source ID allowlist restricts remote searches', () async {
+    final selected = _ResultMangaSource(
+      id: const SourceId('test:selected'),
+      title: 'Selected result',
+    );
+    final other = _ResultMangaSource(
+      id: const SourceId('test:other'),
+      title: 'Other result',
+    );
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([selected, other])),
+      initialFilter: SourceSearchFilter.manga,
+      sourceIds: {selected.id},
+    );
+    addTearDown(model.dispose);
+
+    await model.search('query');
+
+    expect(selected.searches, 1);
+    expect(other.searches, 0);
+    expect(model.state.results.single.media.title, 'Selected result');
+  });
+
+  test('source result labels use clean multilingual presentation', () async {
+    final english = _ResultMangaSource(
+      id: const SourceId('mihon:dex:en'),
+      title: 'English result',
+      displayName: 'MangaDex',
+      languageCode: 'EN',
+    );
+    final vietnamese = _ResultMangaSource(
+      id: const SourceId('mihon:dex:vi'),
+      title: 'Vietnamese result',
+      displayName: 'MangaDex',
+      languageCode: 'vi',
+    );
+    final multilingual = _ResultMangaSource(
+      id: const SourceId('mihon:dex:all'),
+      title: 'Multilingual result',
+      displayName: 'MangaDex',
+      languageCode: 'all',
+    );
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(
+        SourceRegistry([english, vietnamese, multilingual]),
+      ),
+      initialFilter: SourceSearchFilter.manga,
+    );
+    addTearDown(model.dispose);
+
+    await model.search('query');
+
+    expect(
+      model.state.results.map((result) => result.sourceName),
+      containsAll([
+        'MangaDex · EN',
+        'MangaDex · VI',
+        'MangaDex · Multiple languages',
+      ]),
+    );
+    expect(
+      model.state.results.map((result) => result.sourceName),
+      isNot(contains('MangaDex [en]')),
+    );
+  });
+
+  test('source ID allowlist disables local media scan', () async {
+    final source = _ResultMangaSource(
+      id: const SourceId('test:selected'),
+      title: 'Selected result',
+    );
+    var scans = 0;
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([source])),
+      scanLocalMedia: () async {
+        scans++;
+        return const [media];
+      },
+      initialFilter: SourceSearchFilter.manga,
+      sourceIds: {source.id},
+    );
+    addTearDown(model.dispose);
+
+    await model.search('query');
+
+    expect(source.searches, 1);
+    expect(scans, 0);
+    expect(model.state.results.single.media.title, 'Selected result');
+  });
+
   test(
     'selected filter limits remote fan-out and reuses local catalog',
     () async {
@@ -284,16 +399,30 @@ final class _ControlledMangaSource
   Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
 }
 
-final class _ResultMangaSource implements MangaSearchSource, MangaPageSource {
-  _ResultMangaSource({required this.id, required this.title});
+final class _ResultMangaSource
+    implements MangaSearchSource, MangaPageSource, MediaSourcePresentation {
+  _ResultMangaSource({
+    required this.id,
+    required this.title,
+    this.displayName = 'Working manga',
+    this.languageCode,
+  });
 
   @override
   final SourceId id;
   final String title;
+  @override
+  final String displayName;
+  @override
+  final String? languageCode;
+  @override
+  String? get presentationGroupId => null;
   int searches = 0;
 
   @override
-  String get name => 'Working manga';
+  String get name => languageCode == null
+      ? displayName
+      : '$displayName [${languageCode!.toLowerCase()}]';
 
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async {

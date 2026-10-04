@@ -11,6 +11,17 @@ abstract interface class MediaSourceAvailability implements MediaSource {
   bool get isAvailable;
 }
 
+abstract interface class MediaSourcePresentation implements MediaSource {
+  String get displayName;
+  String? get languageCode;
+  String? get presentationGroupId;
+}
+
+String? normalizeSourceLanguageCode(String? value) {
+  final normalized = value?.trim().toLowerCase().replaceAll('_', '-');
+  return normalized == null || normalized.isEmpty ? null : normalized;
+}
+
 /// A source-owned resource kept alive while opened media is in use.
 abstract interface class MediaOpenLease {
   Future<void> release();

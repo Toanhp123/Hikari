@@ -14,8 +14,203 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 
 void main() {
+  testWidgets(
+    'same-name grouped sources stay separate without exposing opaque IDs',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          CatalogDetailPage(
+            initialEntry: _related,
+            loadDetails: LoadCatalogEntryDetails(_Provider()),
+            resolveCatalogSource: _resolver([
+              for (final package in ['package:a', 'package:b'])
+                for (final language in ['en', 'fr'])
+                  _PickerMangaSource(
+                    id: SourceId('$package:$language'),
+                    displayName: 'MangaDex',
+                    languageCode: language,
+                    presentationGroupId: package,
+                  ),
+            ]),
+            openMedia: (_, _) async {},
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Read'));
+      await tester.pumpAndSettle();
+      expect(find.text('MangaDex'), findsNWidgets(2));
+      expect(find.textContaining('package:a'), findsNothing);
+      expect(find.textContaining('package:b'), findsNothing);
+      final sourceTiles = find.descendant(
+        of: find.byType(CatalogSourcePicker),
+        matching: find.byType(ListTile),
+      );
+      expect(sourceTiles, findsNWidgets(2));
+      await tester.tap(sourceTiles.at(1));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose language'), findsOneWidget);
+      expect(find.text('MangaDex'), findsNWidgets(3));
+      expect(find.text('EN'), findsOneWidget);
+      expect(find.text('FR'), findsOneWidget);
+      expect(find.textContaining('package:a'), findsNothing);
+      expect(find.textContaining('package:b'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'ambiguous languages remain separate without exposing opaque IDs',
+    (tester) async {
+      final manga = CatalogEntry(
+        id: _related.id,
+        title: 'Book A',
+        type: MediaType.manga,
+      );
+      await tester.pumpWidget(
+        _app(
+          CatalogDetailPage(
+            initialEntry: manga,
+            loadDetails: LoadCatalogEntryDetails(
+              _Provider(
+                onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
+              ),
+            ),
+            resolveCatalogSource: _resolver([
+              for (final (id, language) in [
+                ('a', 'en'),
+                ('b', 'en'),
+                ('c', 'all'),
+                ('d', null),
+              ])
+                _PickerMangaSource(
+                  id: SourceId(id),
+                  displayName: 'Same',
+                  languageCode: language,
+                  presentationGroupId: 'one',
+                ),
+            ]),
+            openMedia: (_, _) async {},
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Read'));
+      await tester.pumpAndSettle();
+      expect(find.text('Same'), findsNWidgets(4));
+      expect(find.text('EN'), findsNWidgets(2));
+      expect(find.text('Multiple languages'), findsOneWidget);
+      expect(find.text('Unspecified'), findsOneWidget);
+      expect(find.byType(MenuAnchor), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'thirty languages stay in a bounded scrollable menu with selection state',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final manga = CatalogEntry(
+        id: _related.id,
+        title: 'Book A',
+        type: MediaType.manga,
+      );
+      await tester.pumpWidget(
+        _app(
+          CatalogDetailPage(
+            initialEntry: manga,
+            loadDetails: LoadCatalogEntryDetails(
+              _Provider(
+                onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
+              ),
+            ),
+            resolveCatalogSource: _resolver([
+              for (var i = 0; i < 30; i++)
+                _PickerMangaSource(
+                  id: SourceId('test:$i'),
+                  displayName: 'MangaDex',
+                  languageCode: 'l${i.toString().padLeft(2, '0')}',
+                  presentationGroupId: 'package:dex',
+                ),
+            ]),
+            openMedia: (_, _) async {},
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Read'));
+      await tester.pumpAndSettle();
+      expect(find.text('MangaDex'), findsOneWidget);
+      expect(find.byType(MenuAnchor), findsOneWidget);
+      final languageMenu = tester.widget<MenuAnchor>(find.byType(MenuAnchor));
+      final maximumSize = languageMenu.style?.maximumSize?.resolve({});
+      expect(maximumSize?.height, 320);
+
+      await tester.tap(find.text('Language: All'));
+      await tester.pumpAndSettle();
+      final allLanguagesItem = find.ancestor(
+        of: find.text('All languages'),
+        matching: find.byType(MenuItemButton),
+      );
+      expect(
+        find.descendant(
+          of: allLanguagesItem,
+          matching: find.byIcon(Icons.check_rounded),
+        ),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.widgetWithText(MenuItemButton, 'L29'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(MenuItemButton, 'L29'));
+      await tester.pumpAndSettle();
+      expect(find.text('Language: L29'), findsOneWidget);
+
+      await tester.tap(find.text('Language: L29'));
+      await tester.pumpAndSettle();
+      final selectedLanguageItem = find.widgetWithText(MenuItemButton, 'L29');
+      expect(
+        find.descendant(
+          of: selectedLanguageItem,
+          matching: find.byIcon(Icons.check_rounded),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Language: L29'));
+      await tester.pumpAndSettle();
+      expect(find.text('Language: L29'), findsOneWidget);
+      expect(find.text('Search L29 sources'), findsOneWidget);
+      await tester.tap(find.text('Show all languages'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('MangaDex'));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose language'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Choose language'), findsNothing);
+      expect(find.text('Read from'), findsOneWidget);
+      await tester.tap(find.text('MangaDex'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('MangaDex'), findsOneWidget);
+      await tester.tap(find.text('MangaDex'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Read from'), findsNothing);
+    },
+  );
+
   testWidgets('detail keeps identity and source action while loading', (
     tester,
   ) async {
@@ -32,7 +227,7 @@ void main() {
           resolveCatalogSource: _resolver(),
           openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (entry, _, _) => searched = entry,
+          openSourceSearch: (entry, _, _, _, _) => searched = entry,
         ),
       ),
     );
@@ -92,7 +287,7 @@ void main() {
           resolveCatalogSource: _resolver(),
           openMedia: (_, _) async {},
           openRelated: (entry) => related = entry,
-          openSourceSearch: (_, _, _) {},
+          openSourceSearch: (_, _, _, _, _) {},
         ),
       ),
     );
@@ -150,7 +345,7 @@ void main() {
           resolveCatalogSource: _resolver(),
           openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_, _, _) {},
+          openSourceSearch: (_, _, _, _, _) {},
         ),
       ),
     );
@@ -195,7 +390,7 @@ void main() {
           resolveCatalogSource: _resolver(),
           openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (entry, _, _) => searched = entry,
+          openSourceSearch: (entry, _, _, _, _) => searched = entry,
         ),
       ),
     );
@@ -236,7 +431,7 @@ void main() {
           resolveCatalogSource: _resolver(),
           openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_, _, _) {},
+          openSourceSearch: (_, _, _, _, _) {},
         ),
       ),
     );
@@ -275,7 +470,7 @@ void main() {
           resolveCatalogSource: _resolver(),
           openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_, _, _) {},
+          openSourceSearch: (_, _, _, _, _) {},
         ),
       ),
     );
@@ -315,7 +510,7 @@ void main() {
           resolveCatalogSource: _resolver(),
           openMedia: (_, _) async {},
           openRelated: (_) {},
-          openSourceSearch: (_, _, _) {},
+          openSourceSearch: (_, _, _, _, _) {},
         ),
       ),
     );
@@ -326,6 +521,141 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact source picker can be dismissed with visible Close', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final manga = CatalogEntry(
+      id: _related.id,
+      title: 'Book A',
+      type: MediaType.manga,
+    );
+    await tester.pumpWidget(
+      _app(
+        CatalogDetailPage(
+          initialEntry: manga,
+          loadDetails: LoadCatalogEntryDetails(
+            _Provider(
+              onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
+            ),
+          ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Close'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Read from'), findsNothing);
+  });
+
+  testWidgets('expanded source picker can be dismissed with visible Close', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final manga = CatalogEntry(
+      id: _related.id,
+      title: 'Book A',
+      type: MediaType.manga,
+    );
+    await tester.pumpWidget(
+      _app(
+        CatalogDetailPage(
+          initialEntry: manga,
+          loadDetails: LoadCatalogEntryDetails(
+            _Provider(
+              onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
+            ),
+          ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Close'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Read from'), findsNothing);
+  });
+
+  testWidgets('filtered Search all passes only visible source IDs', (
+    tester,
+  ) async {
+    Set<SourceId>? searchedIds;
+    final manga = CatalogEntry(
+      id: _related.id,
+      title: 'Book A',
+      type: MediaType.manga,
+    );
+    final sources = [
+      _PickerMangaSource(
+        id: const SourceId('test:en'),
+        displayName: 'English source',
+        languageCode: 'en',
+      ),
+      _PickerMangaSource(
+        id: const SourceId('test:fr'),
+        displayName: 'French source',
+        languageCode: 'fr',
+      ),
+    ];
+    await tester.pumpWidget(
+      _app(
+        CatalogDetailPage(
+          initialEntry: manga,
+          loadDetails: LoadCatalogEntryDetails(
+            _Provider(
+              onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
+            ),
+          ),
+          resolveCatalogSource: _resolver(sources),
+          openMedia: (_, _) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, ids, _) => searchedIds = ids,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Language: All'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(MenuItemButton, 'EN'));
+    await tester.pumpAndSettle();
+    expect(find.text('English source'), findsOneWidget);
+    expect(find.text('French source'), findsNothing);
+    await tester.tap(find.text('Search EN sources'));
+
+    expect(searchedIds, {const SourceId('test:en')});
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    expect(find.text('Language: All'), findsOneWidget);
+    await tester.tap(find.text('Search all sources'));
+    await tester.pumpAndSettle();
+    expect(searchedIds, isNull);
   });
 
   testWidgets('manga Read resolves a selected source before opening media', (
@@ -367,7 +697,7 @@ void main() {
             opened = media;
           },
           openRelated: (_) {},
-          openSourceSearch: (entry, _, _) => searched = entry,
+          openSourceSearch: (entry, _, _, _, _) => searched = entry,
         ),
       ),
     );
@@ -440,6 +770,39 @@ final class _MangaSource implements MangaSearchSource, MangaPageSource {
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async =>
       MangaSearchPage(results: results, hasNextPage: false, page: page);
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
+}
+
+final class _PickerMangaSource
+    implements MangaSearchSource, MangaPageSource, MediaSourcePresentation {
+  _PickerMangaSource({
+    required this.id,
+    required this.displayName,
+    required this.languageCode,
+    this.presentationGroupId,
+  });
+
+  @override
+  final SourceId id;
+  @override
+  final String displayName;
+  @override
+  final String? languageCode;
+
+  @override
+  final String? presentationGroupId;
+
+  @override
+  String get name => '$displayName [$languageCode]';
+
+  @override
+  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
+      MangaSearchPage(results: const [], hasNextPage: false, page: page);
 
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
