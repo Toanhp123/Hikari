@@ -149,8 +149,9 @@ MediaKitVideoSession ------------------------> presentation composition
 Platform bootstrap discovers compatible external sources before composition. `additionalSources` is the single generic registration seam beyond the local source. No remote provider is constructed by `AppDependencies`; an empty discovery result is valid and hides remote search through existing capability checks.
 
 Default resources created there are disposed there. Injected resources remain owned by
-the caller where ownership is externally supplied. No service locator or runtime DI
-container is required for the current graph.
+the caller where ownership is externally supplied. The default artwork byte cache is
+reconstructible and isolated from `UserDatabase`; see [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md).
+No service locator or runtime DI container is required for the current graph.
 
 ## Adding a source
 

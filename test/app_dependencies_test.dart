@@ -1,11 +1,28 @@
+import 'dart:typed_data';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app_dependencies.dart';
-import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
 void main() {
+  test('owned cache close is not retried when disposal retries', () async {
+    final db = UserDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final cache = _TrackedCache()..failClose = true;
+    final dependencies = AppDependencies.create(
+      database: db,
+      cache: cache,
+      ownsCache: true,
+    );
+    await expectLater(dependencies.dispose(), throwsStateError);
+    await dependencies.dispose();
+    expect(cache.closeCalls, 1);
+  });
+
   test(
     'AppDependencies manages catalog provider ownership and dispose semantics',
     () async {
@@ -33,11 +50,44 @@ void main() {
       await appOwned.dispose();
       expect(ownedProvider.closeCalls, 1);
 
-      // Subsequent dispose is idempotent
-      await appOwned.dispose();
-      expect(ownedProvider.closeCalls, 1);
+      // Injected cache stays caller-owned unless ownership transferred.
+      final callerCache = _TrackedCache();
+      final cacheCallerOwned = AppDependencies.create(
+        database: db,
+        cache: callerCache,
+      );
+      expect(cacheCallerOwned.ownsCache, isFalse);
+      await cacheCallerOwned.dispose();
+      expect(callerCache.closeCalls, 0);
+
+      final ownedCache = _TrackedCache();
+      final cacheAppOwned = AppDependencies.create(
+        database: db,
+        cache: ownedCache,
+        ownsCache: true,
+      );
+      expect(cacheAppOwned.ownsCache, isTrue);
+      await cacheAppOwned.dispose();
+      expect(ownedCache.closeCalls, 1);
+      await cacheAppOwned.dispose();
+      expect(ownedCache.closeCalls, 1);
     },
   );
+}
+
+final class _TrackedCache implements ByteCache {
+  int closeCalls = 0;
+  @override
+  Future<Uint8List?> read(String namespace, String key) async => null;
+  @override
+  Future<void> write(String namespace, String key, Uint8List bytes) async {}
+  @override
+  Future<void> close() async {
+    closeCalls++;
+    if (failClose) throw StateError('close failed');
+  }
+
+  bool failClose = false;
 }
 
 final class _TrackedCatalogProvider implements CatalogProvider {
