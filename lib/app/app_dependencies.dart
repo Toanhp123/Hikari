@@ -3,6 +3,7 @@ import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/search/search_novels.dart';
@@ -25,6 +26,7 @@ import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.da
 /// Composition root for application workflows and replaceable infrastructure.
 final class AppDependencies {
   static const _sourceArtworkCacheBudgetBytes = 64 * 1024 * 1024;
+  static const _mangaPageCacheBudgetBytes = 128 * 1024 * 1024;
 
   AppDependencies._(
     this._database,
@@ -44,6 +46,7 @@ final class AppDependencies {
     required this.searchManga,
     required this.searchNovels,
     required this.readSourceArtwork,
+    required this.readMangaPage,
     required this.openNovelChapter,
     required this.videoSession,
     required this.cache,
@@ -73,6 +76,7 @@ final class AppDependencies {
         DiskByteCache(
           namespaceByteBudgets: const {
             ReadSourceArtwork.cacheNamespace: _sourceArtworkCacheBudgetBytes,
+            ReadMangaPage.cacheNamespace: _mangaPageCacheBudgetBytes,
           },
         );
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
@@ -104,6 +108,7 @@ final class AppDependencies {
         sourceRegistry,
         cache: resolvedCache,
       ),
+      readMangaPage: ReadMangaPage(resolvedCache),
       openNovelChapter: OpenNovelChapter(sourceRegistry, progressRepository),
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
@@ -124,6 +129,7 @@ final class AppDependencies {
   final SearchManga searchManga;
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;
+  final ReadMangaPage readMangaPage;
   final OpenNovelChapter openNovelChapter;
   final MediaKitVideoSession videoSession;
   final ByteCache cache;

@@ -266,6 +266,81 @@ void main() {
     expect(await reopened.read('art', 'key'), [1]);
   });
 
+  test('close admits synchronous pre-microtask write', () async {
+    final cache = _cache(root, {'art': 64});
+    final write = cache.write('art', 'sync', Uint8List.fromList([7]));
+    final closing = cache.close();
+    await Future.wait([write, closing]);
+    final reopened = _cache(root, {'art': 64});
+    addTearDown(reopened.close);
+    expect(await reopened.read('art', 'sync'), [7]);
+  });
+
+  test('close drains admitted queued writes and rejects later calls', () async {
+    final started = Completer<void>();
+    final release = Completer<void>();
+    final cache = _cache(
+      root,
+      {'art': 64},
+      beforePublish: () async {
+        if (!started.isCompleted) {
+          started.complete();
+          await release.future;
+        }
+      },
+    );
+    final first = cache.write('art', 'first', Uint8List.fromList([1]));
+    await started.future;
+    final second = cache.write('art', 'second', Uint8List.fromList([2]));
+    final closing = cache.close();
+    final later = cache.write('art', 'later', Uint8List.fromList([3]));
+    release.complete();
+    await Future.wait([first, second, closing, later]);
+
+    final reopened = _cache(root, {'art': 64});
+    addTearDown(reopened.close);
+    expect(await reopened.read('art', 'first'), [1]);
+    expect(await reopened.read('art', 'second'), [2]);
+    expect(await reopened.read('art', 'later'), isNull);
+  });
+
+  test('close succeeds when dirty-touch flush fails', () async {
+    late CacheDatabase database;
+    final cache = DiskByteCache(
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: const {'art': 64},
+      openDatabase: (path) async =>
+          database = CacheDatabase(NativeDatabase(File('$path/index.sqlite'))),
+    );
+    await cache.write('art', 'key', Uint8List.fromList([1]));
+    expect(await cache.read('art', 'key'), [1]);
+    await database.customStatement('''
+      CREATE TRIGGER reject_touch BEFORE UPDATE ON cache_entries
+      BEGIN SELECT RAISE(FAIL, 'touch unavailable'); END
+    ''');
+    await expectLater(cache.close(), completes);
+    await expectLater(cache.close(), completes);
+  });
+
+  test('failed database close can be retried', () async {
+    var failClose = true;
+    late _CloseFailsOnceDatabase database;
+    final cache = DiskByteCache(
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: const {'art': 64},
+      openDatabase: (path) async => database = _CloseFailsOnceDatabase(
+        File('$path/index.sqlite'),
+        shouldFail: () => failClose,
+      ),
+    );
+    await cache.write('art', 'key', Uint8List.fromList([1]));
+
+    await expectLater(cache.close(), throwsStateError);
+    failClose = false;
+    await cache.close();
+    expect(database.closeCount, 2);
+  });
+
   test('corrupt index resets once and becomes writable again', () async {
     final dir = await Directory('${root.path}/hikari/cache-v1')
         .create(recursive: true);
@@ -350,6 +425,21 @@ void main() {
 
 String _keyHash(String namespace, String key) =>
     sha256.convert(utf8.encode(jsonEncode([1, namespace, key]))).toString();
+
+final class _CloseFailsOnceDatabase extends CacheDatabase {
+  _CloseFailsOnceDatabase(File file, {required this.shouldFail})
+    : super(NativeDatabase(file));
+
+  final bool Function() shouldFail;
+  int closeCount = 0;
+
+  @override
+  Future<void> close() async {
+    closeCount++;
+    if (shouldFail()) throw StateError('close failed');
+    await super.close();
+  }
+}
 
 DiskByteCache _cache(
   Directory root,

@@ -35,7 +35,7 @@ Schema version 3 migrates valid prior generic `mihon-v1:` user references and th
 
 Without an extension, saved references encounter the existing missing-source error. Rows and continuation are not deleted. Reinstalling the compatible extension and restarting Hikari makes those references resolvable again.
 
-Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Series-level “resume last chapter” remains deferred.
+Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Remote page-byte caching, its initial budget and exclusions are recorded in [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md). Decode retry refetches bytes instead of repeating cached corrupt data. Series-level “resume last chapter” remains deferred.
 
 ## Verification boundary
 

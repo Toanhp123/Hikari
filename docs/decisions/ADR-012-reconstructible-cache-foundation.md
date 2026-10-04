@@ -16,6 +16,10 @@ This cache is not durable user state (Library, Progress, or Mihon continuation),
 
 Catalog, manga pages/prefetch, LNReader resources, downloads, UI/settings, generic freshness, and automatic background maintenance remain out of scope. The settings placeholder stays hidden.
 
+Remote manga page-byte caching is a separate consumer and namespace, documented in [REMOTE_MANGA](../architecture/REMOTE_MANGA.md). Its initial budget and boundaries are not permanent policy. Local folder/CBZ page bytes stay outside the cache.
+
+Cache writes currently remain awaited on the read path, providing deterministic immediate-repeat reuse and same-page request coalescing; profiling must establish serialization/throughput impact before adding prefetch. Awaiting writes is not required for index/blob consistency, which is handled by publishing the blob before its index entry.
+
 ## Alternatives
 
 - `flutter_cache_manager` provides HTTP-aware cache machinery and cross-platform filesystem/storage behavior, but its object-count/stale policies do not enforce Hikari's namespace byte budgets and duplicate policy not needed by source-owned byte reads.

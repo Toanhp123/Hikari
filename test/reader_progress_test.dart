@@ -171,6 +171,47 @@ void main() {
     },
   );
   testWidgets(
+    'manga decode retry reloads fresh bytes and saves only decoded frame',
+    (tester) async {
+      var reads = 0;
+      var reloads = 0;
+      var writes = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MangaReaderPage(
+            title: 'Retry',
+            loadPages: () async => [ref],
+            readPage: (_) async {
+              reads++;
+              return Uint8List.fromList([1, 2]);
+            },
+            reloadPage: (_) async {
+              reloads++;
+              return png;
+            },
+            saveProgress: (_, _) async {
+              writes++;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Could not decode this page.'), findsOneWidget);
+      expect(writes, 0);
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      expect(reads, 1);
+      expect(reloads, 1);
+      expect(find.text('Could not decode this page.'), findsNothing);
+      expect(writes, 1);
+    },
+  );
+
+  testWidgets(
     'novel restores after layout, debounces and flushes final position',
     (tester) async {
       final writes = <(ProgressPosition, bool)>[];

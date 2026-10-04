@@ -17,6 +17,7 @@ class MangaReaderPage extends StatefulWidget {
     this.credit,
     this.initialProgress,
     this.saveProgress,
+    this.reloadPage,
   });
 
   final MediaProgress? initialProgress;
@@ -26,6 +27,7 @@ class MangaReaderPage extends StatefulWidget {
   final String? credit;
   final Future<List<SourceMediaRef>> Function() loadPages;
   final Future<Uint8List> Function(SourceMediaRef) readPage;
+  final Future<Uint8List> Function(SourceMediaRef)? reloadPage;
 
   @override
   State<MangaReaderPage> createState() => _MangaReaderPageState();
@@ -42,6 +44,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   bool _hasNavigated = false;
   bool _showControls = true;
   int _loadGeneration = 0;
+  bool _retryFresh = false;
 
   void _displayed(ImageProvider image, int index) {
     if (widget.initialProgress?.completed == true && !_hasNavigated) return;
@@ -104,8 +107,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     }
   }
 
-  Future<void> _loadCurrent() async {
+  Future<void> _loadCurrent({bool fresh = false}) async {
     final generation = ++_loadGeneration;
+    _retryFresh = fresh;
     _releaseImage();
     _transform.value = Matrix4.identity();
     setState(() {
@@ -115,7 +119,10 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     try {
       ImageProvider? image;
       if (_pages!.isNotEmpty) {
-        final bytes = await widget.readPage(_pages![_index]);
+        final read = fresh
+            ? widget.reloadPage ?? widget.readPage
+            : widget.readPage;
+        final bytes = await read(_pages![_index]);
         if (!mounted || generation != _loadGeneration) return;
         image = ResizeImage(
           MemoryImage(bytes),
@@ -126,6 +133,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
         );
       }
       if (!mounted || generation != _loadGeneration) return;
+      _retryFresh = false;
       setState(() {
         _image = image;
         _loading = false;
@@ -180,7 +188,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                       message: 'Could not load this page.',
                       onRetry: _loading
                           ? null
-                          : (_pages == null ? _loadPages : _loadCurrent),
+                          : (_pages == null
+                                ? _loadPages
+                                : () => _loadCurrent(fresh: _retryFresh)),
                     )
                   : _image == null
                   ? const Center(child: Text('No pages found.'))
@@ -203,7 +213,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                             message: 'Could not decode this page.',
                             onRetry: _loading
                                 ? null
-                                : (_pages == null ? _loadPages : _loadCurrent),
+                                : (_pages == null
+                                      ? _loadPages
+                                      : () => _loadCurrent(fresh: true)),
                           ),
                         ),
                       ),

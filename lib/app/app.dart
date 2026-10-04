@@ -306,7 +306,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             if (target.chapter.scanlator != null) target.chapter.scanlator!,
           ].join(' · '),
           loadPages: () async => target.pages,
-          readPage: target.source.readPage,
+          readPage: (page) =>
+              _dependencies.readMangaPage.execute(target.source, page),
+          reloadPage: (page) =>
+              _dependencies.readMangaPage.reload(target.source, page),
           initialProgress: target.progress.initialProgress,
           saveProgress: target.progress.save,
         ),
