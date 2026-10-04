@@ -266,6 +266,9 @@ class _SourceList extends StatelessWidget {
           const SizedBox(height: HikariSpacing.md),
           if (showLanguageFilter) ...[
             MenuAnchor(
+              style: const MenuStyle(
+                maximumSize: WidgetStatePropertyAll(Size(double.infinity, 320)),
+              ),
               builder: (context, controller, child) => OutlinedButton.icon(
                 onPressed: () =>
                     controller.isOpen ? controller.close() : controller.open(),
@@ -284,11 +287,17 @@ class _SourceList extends StatelessWidget {
               menuChildren: [
                 MenuItemButton(
                   onPressed: () => onSelectLanguage(null),
+                  trailingIcon: selectedLanguage == null
+                      ? const Icon(Icons.check_rounded)
+                      : null,
                   child: const Text('All languages'),
                 ),
                 for (final language in languageCodes)
                   MenuItemButton(
                     onPressed: () => onSelectLanguage(language),
+                    trailingIcon: selectedLanguage == language
+                        ? const Icon(Icons.check_rounded)
+                        : null,
                     child: Text(language.toUpperCase()),
                   ),
               ],

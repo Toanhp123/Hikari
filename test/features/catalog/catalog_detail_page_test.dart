@@ -112,7 +112,7 @@ void main() {
   );
 
   testWidgets(
-    'thirty languages use one scrollable menu and nested Back/Close',
+    'thirty languages stay in a bounded scrollable menu with selection state',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -152,11 +152,40 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('MangaDex'), findsOneWidget);
       expect(find.byType(MenuAnchor), findsOneWidget);
+      final languageMenu = tester.widget<MenuAnchor>(find.byType(MenuAnchor));
+      final maximumSize = languageMenu.style?.maximumSize?.resolve({});
+      expect(maximumSize?.height, 320);
+
       await tester.tap(find.text('Language: All'));
       await tester.pumpAndSettle();
+      final allLanguagesItem = find.ancestor(
+        of: find.text('All languages'),
+        matching: find.byType(MenuItemButton),
+      );
+      expect(
+        find.descendant(
+          of: allLanguagesItem,
+          matching: find.byIcon(Icons.check_rounded),
+        ),
+        findsOneWidget,
+      );
       await tester.ensureVisible(find.widgetWithText(MenuItemButton, 'L29'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(MenuItemButton, 'L29'));
+      await tester.pumpAndSettle();
+      expect(find.text('Language: L29'), findsOneWidget);
+
+      await tester.tap(find.text('Language: L29'));
+      await tester.pumpAndSettle();
+      final selectedLanguageItem = find.widgetWithText(MenuItemButton, 'L29');
+      expect(
+        find.descendant(
+          of: selectedLanguageItem,
+          matching: find.byIcon(Icons.check_rounded),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Language: L29'));
       await tester.pumpAndSettle();
       expect(find.text('Language: L29'), findsOneWidget);
       expect(find.text('Search L29 sources'), findsOneWidget);
