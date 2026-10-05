@@ -16,6 +16,8 @@ import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
@@ -163,6 +165,13 @@ final class AppDependencies {
 
   PrefetchMangaPages createMangaPagePrefetch() =>
       PrefetchMangaPages(readMangaPage);
+
+  Future<void> prefetchMangaPages(
+    PrefetchMangaPages prefetch,
+    MangaPageSource source,
+    List<SourceMediaRef> pages,
+    int index,
+  ) => prefetch.execute(source, pages, index);
 
   bool _disposed = false;
   Future<void>? _disposing;

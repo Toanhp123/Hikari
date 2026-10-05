@@ -84,7 +84,14 @@ directories.
 
 Remote manga/novel series routes keep feature-local state holders for chapter loading.
 Their chapter collections support adaptive pull-to-refresh plus an explicit refresh action,
-and retain the last usable chapter list if refresh fails. Catalog Detail keeps manga/light-novel
+and retain the last usable chapter list if refresh fails. Chapter selection passes an immutable
+snapshot in declared reading order; each reader route keeps that sequence fixed for its lifetime.
+Feature-local chapter reader routes own adjacent-navigation ViewModels; those ViewModels use injected
+open workflows and stable source references, publish a new chapter only after a successful open,
+and ignore stale completions after route close. Each successful open supplies a fresh
+`ProgressSession` for its chapter. Manga routes own one prefetch instance per current chapter target
+and cancel stale pending work on navigation or foreground reads. Low-level reader pages remain
+single-chapter readers and reserve progress saves before chapter handoff. Catalog Detail keeps manga/light-novel
 source choice in context through `CatalogSourcePickerViewModel`: a selected source is resolved
 against the catalog title/aliases and an exact unique match opens the existing series route
 directly. `SourceSearchPage` remains the unified discovery/recovery route for explicit

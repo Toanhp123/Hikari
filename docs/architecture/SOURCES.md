@@ -65,7 +65,7 @@ Mihon declares reverse reading order because its chapter contract supplies desce
 
 Mihon collapses exact stable chapter identities (derived from URLs) before saving continuation state, retaining the first occurrence and its metadata. Different URLs remain distinct even when chapter numbers match. Chapter numbers, titles, dates and scanlators are metadata, never sequence authority.
 
-Remote chapter-list UI continues to render `chapters` in structural source order and passes selected chapter through unchanged. This contract adds no navigation or reader lifecycle behavior.
+Remote chapter-list UI continues to render `chapters` in structural source order and passes selected chapter with immutable `chaptersInReadingOrder` snapshot. Feature-local manga and novel reader sessions validate unique stable chapter references, filter unreadable manga targets, and publish adjacent targets only after successful open. See [Presentation architecture](PRESENTATION.md) for reader route lifetime, fresh progress sessions and handoff behavior. Direct/local readers remain single-chapter sessions.
 
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
 an operation that cannot be expressed by the current contracts.

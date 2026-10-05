@@ -16,12 +16,16 @@ import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
+import 'package:hikari/features/remote_manga/manga_chapter_reader_page.dart';
+import 'package:hikari/features/remote_novel/novel_chapter_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
 import 'package:hikari/features/player/player_page.dart';
 import 'package:hikari/features/player/widgets/video_surface.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
+import 'package:hikari/features/remote_manga/manga_chapter_reader_view_model.dart';
+import 'package:hikari/features/remote_novel/novel_chapter_reader_view_model.dart';
 import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart'
     show SourceSearchFilter;
@@ -275,77 +279,61 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Future<void> _openNovelChapter(
     BuildContext context,
     NovelChapter chapter,
+    List<NovelChapter> chaptersInReadingOrder,
   ) async {
-    final target = await _dependencies.openNovelChapter.execute(chapter);
+    final initialTarget = await _dependencies.openNovelChapter.execute(chapter);
     if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => NovelReaderPage(
-          title: chapter.title,
-          loadContent: () async => target.content,
-          reloadContent: () => _dependencies.readNovelChapterContent.reload(
-            target.source,
-            chapter.source,
-          ),
-          readResource: (resource) =>
-              _dependencies.readNovelResource.execute(target.source, resource),
-          reloadResource: (resource) =>
-              _dependencies.readNovelResource.reload(target.source, resource),
-          initialProgress: target.progress.initialProgress,
-          saveProgress: target.progress.save,
-        ),
-      ),
+    final viewModel = NovelChapterReaderViewModel(
+      initialTarget: initialTarget,
+      chaptersInReadingOrder: chaptersInReadingOrder,
+      openChapter: _dependencies.openNovelChapter,
     );
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => NovelChapterReaderPage(
+            viewModel: viewModel,
+            reloadContent: _dependencies.readNovelChapterContent.reload,
+            readResource: _dependencies.readNovelResource.execute,
+            reloadResource: _dependencies.readNovelResource.reload,
+          ),
+        ),
+      );
+    } catch (_) {
+      viewModel.close();
+      viewModel.dispose();
+      rethrow;
+    }
   }
 
   Future<void> _openMangaChapter(
     BuildContext context,
     MangaChapter chapter,
+    List<MangaChapter> chaptersInReadingOrder,
   ) async {
-    final target = await _dependencies.openMangaChapter.execute(chapter);
+    final initialTarget = await _dependencies.openMangaChapter.execute(chapter);
     if (!context.mounted) return;
-    final prefetch = _dependencies.createMangaPagePrefetch();
-    var routeClosed = false;
-    void stopPrefetch() {
-      if (routeClosed) return;
-      routeClosed = true;
-      prefetch.cancelPending();
-    }
-
+    final viewModel = MangaChapterReaderViewModel(
+      initialTarget: initialTarget,
+      chaptersInReadingOrder: chaptersInReadingOrder,
+      openChapter: _dependencies.openMangaChapter,
+    );
     try {
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => PopScope(
-            onPopInvokedWithResult: (didPop, _) {
-              if (didPop) stopPrefetch();
-            },
-            child: MangaReaderPage(
-              title: target.chapter.title,
-              credit: [
-                target.source.name,
-                if (target.chapter.scanlator != null) target.chapter.scanlator!,
-              ].join(' · '),
-              loadPages: () async => target.pages,
-              readPage: (page) {
-                prefetch.cancelPending();
-                return _dependencies.readMangaPage.execute(target.source, page);
-              },
-              reloadPage: (page) {
-                prefetch.cancelPending();
-                return _dependencies.readMangaPage.reload(target.source, page);
-              },
-              onPageDisplayed: (index) {
-                if (routeClosed) return;
-                unawaited(prefetch.execute(target.source, target.pages, index));
-              },
-              initialProgress: target.progress.initialProgress,
-              saveProgress: target.progress.save,
-            ),
+          builder: (_) => MangaChapterReaderPage(
+            viewModel: viewModel,
+            readPage: _dependencies.readMangaPage.execute,
+            reloadPage: _dependencies.readMangaPage.reload,
+            createPrefetch: _dependencies.createMangaPagePrefetch,
+            prefetchPages: _dependencies.prefetchMangaPages,
           ),
         ),
       );
-    } finally {
-      stopPrefetch();
+    } catch (_) {
+      viewModel.close();
+      viewModel.dispose();
+      rethrow;
     }
   }
 

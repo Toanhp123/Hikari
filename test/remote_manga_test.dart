@@ -215,6 +215,65 @@ class _JumpRacePageRemote extends ResumableRemote {
   void releasePage5() => _page5Gate.complete(_png);
 }
 
+class _AdjacentChapterRemote extends ResumableRemote {
+  static const chapterA = SourceMediaRef(
+    sourceId: SourceId('fake'),
+    itemId: 'a',
+  );
+  static const chapterB = SourceMediaRef(
+    sourceId: SourceId('fake'),
+    itemId: 'b',
+  );
+  static const chapterC = SourceMediaRef(
+    sourceId: SourceId('fake'),
+    itemId: 'c',
+  );
+  final reads = <String>[];
+  final aPage1 = Completer<void>();
+  final cPage1 = Completer<void>();
+  final aPage1Gate = Completer<Uint8List>();
+  final cPage1Gate = Completer<Uint8List>();
+
+  @override
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
+      MangaSeriesDetails(
+        metadata: MediaMetadata(title: 'Series'),
+        chapterListOrder: ChapterListOrder.reverseReadingOrder,
+        chapters: [
+          MangaChapter(title: 'Chapter C', source: chapterC, chapterNumber: 7),
+          MangaChapter(
+            title: 'Unreadable B',
+            source: chapterB,
+            chapterNumber: 7,
+            canReadPages: false,
+          ),
+          MangaChapter(title: 'Chapter A', source: chapterA, chapterNumber: 7),
+        ],
+      );
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async =>
+      List.generate(
+        3,
+        (index) =>
+            SourceMediaRef(sourceId: id, itemId: '${readable.itemId}-$index'),
+      );
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async {
+    reads.add(page.itemId);
+    if (page.itemId == 'a-1') {
+      if (!aPage1.isCompleted) aPage1.complete();
+      return aPage1Gate.future;
+    }
+    if (page.itemId == 'c-1') {
+      if (!cPage1.isCompleted) cPage1.complete();
+      return cPage1Gate.future;
+    }
+    return super.readPage(page);
+  }
+}
+
 class _RetryingPageRemote extends ResumableRemote {
   int pageReads = 0;
   bool failFirst = false;
@@ -508,6 +567,259 @@ void main() {
     await db.close();
     debugDefaultTargetPlatformOverride = null;
   });
+  testWidgets(
+    'remote adjacent chapters follow reading order and stable progress refs',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final db = UserDatabase(NativeDatabase.memory());
+      final remote = _AdjacentChapterRemote();
+      final dependencies = AppDependencies.create(
+        database: db,
+        cache: _TestByteCache(),
+        additionalSources: [remote],
+      );
+      const series = SourceMediaRef(
+        sourceId: SourceId('fake'),
+        itemId: 'series',
+      );
+      await SqliteLibraryRepository(db).upsert(
+        LibraryEntry(
+          media: const Media(
+            title: 'Series',
+            type: MediaType.manga,
+            source: series,
+          ),
+          addedAt: DateTime.utc(2026),
+        ),
+      );
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Series'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text('Chapter C')).dy,
+        lessThan(tester.getTopLeft(find.text('Chapter A')).dy),
+      );
+      await tester.tap(find.text('Chapter A'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Chapter A'), findsOneWidget);
+      expect(find.byTooltip('Previous chapter'), findsNothing);
+      await tester.runAsync(() async {
+        final image = tester.widget<Image>(find.byType(Image).last);
+        final decoded = Completer<void>();
+        final stream = image.image.resolve(ImageConfiguration.empty);
+        final listener = ImageStreamListener((_, _) => decoded.complete());
+        stream.addListener(listener);
+        await decoded.future;
+        stream.removeListener(listener);
+      });
+      await tester.pump();
+      await tester.tap(find.byTooltip('Next chapter'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Chapter C'), findsOneWidget);
+      expect(find.text('Unreadable B'), findsNothing);
+      await tester.tap(find.byTooltip('Previous chapter'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Chapter A'), findsOneWidget);
+      expect(
+        remote.reads.map((value) => value.split('-').first),
+        everyElement(anyOf('a', 'c')),
+      );
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(Duration.zero);
+      await dependencies.dispose();
+      await db.close();
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
+
+  testWidgets('manga A-C-A handoff flushes latest page progress', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    final db = UserDatabase(NativeDatabase.memory());
+    final remote = _AdjacentChapterRemote();
+    final dependencies = AppDependencies.create(
+      database: db,
+      catalogProvider: _TestCatalogProvider(MediaType.manga),
+      cache: _TestByteCache(),
+      additionalSources: [remote],
+    );
+    const series = SourceMediaRef(sourceId: SourceId('fake'), itemId: 'series');
+    await SqliteLibraryRepository(db).upsert(
+      LibraryEntry(
+        media: const Media(
+          title: 'Series',
+          type: MediaType.manga,
+          source: series,
+        ),
+        addedAt: DateTime.utc(2026),
+      ),
+    );
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Series'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapter A'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      final image = tester.widget<Image>(find.byType(Image).last);
+      final decoded = Completer<void>();
+      final stream = image.image.resolve(ImageConfiguration.empty);
+      final listener = ImageStreamListener((_, _) => decoded.complete());
+      stream.addListener(listener);
+      await decoded.future;
+      stream.removeListener(listener);
+    });
+    await tester.pump();
+    remote.aPage1Gate.complete(remote._png);
+    await tester.tap(find.byTooltip('Next page'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      final image = tester.widget<Image>(find.byType(Image).last);
+      final decoded = Completer<void>();
+      final stream = image.image.resolve(ImageConfiguration.empty);
+      final listener = ImageStreamListener((_, _) => decoded.complete());
+      stream.addListener(listener);
+      await decoded.future;
+      stream.removeListener(listener);
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Page 2 of 3'), findsOneWidget);
+    await tester.tap(find.byTooltip('Next chapter'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Chapter C'), findsOneWidget);
+    await tester.tap(find.byTooltip('Previous chapter'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Chapter A'), findsOneWidget);
+    expect(find.text('Page 2 of 3'), findsOneWidget);
+    final saved = await SqliteProgressRepository(db)
+        .load(_AdjacentChapterRemote.chapterA);
+    expect(saved, isNotNull);
+    expect((saved!.position as PagePosition).pageIndex, 1);
+    if (!remote.aPage1Gate.isCompleted) remote.aPage1Gate.complete(remote._png);
+    if (!remote.cPage1Gate.isCompleted) remote.cPage1Gate.complete(remote._png);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
+    await db.close();
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets(
+    'adjacent manga target prefetch starts before stale tail drains',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final db = UserDatabase(NativeDatabase.memory());
+      final remote = _AdjacentChapterRemote();
+      final cache = _TestByteCache();
+      final dependencies = AppDependencies.create(
+        database: db,
+        catalogProvider: _TestCatalogProvider(MediaType.manga),
+        cache: cache,
+        additionalSources: [remote],
+      );
+      const series = SourceMediaRef(
+        sourceId: SourceId('fake'),
+        itemId: 'series',
+      );
+      await SqliteLibraryRepository(db).upsert(
+        LibraryEntry(
+          media: const Media(
+            title: 'Series',
+            type: MediaType.manga,
+            source: series,
+          ),
+          addedAt: DateTime.utc(2026),
+        ),
+      );
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Series'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chapter A'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.runAsync(() async {
+        final image = tester.widget<Image>(find.byType(Image).last);
+        final decoded = Completer<void>();
+        final stream = image.image.resolve(ImageConfiguration.empty);
+        final listener = ImageStreamListener((_, _) => decoded.complete());
+        stream.addListener(listener);
+        await decoded.future;
+        stream.removeListener(listener);
+      });
+      await tester.pump();
+      expect(remote.aPage1.isCompleted, isTrue);
+      await tester.tap(find.byTooltip('Next chapter'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Chapter C'), findsOneWidget);
+      await tester.runAsync(() async {
+        final image = tester.widget<Image>(find.byType(Image).last);
+        final decoded = Completer<void>();
+        final stream = image.image.resolve(ImageConfiguration.empty);
+        final listener = ImageStreamListener((_, _) => decoded.complete());
+        stream.addListener(listener);
+        await decoded.future;
+        stream.removeListener(listener);
+      });
+      await tester.pump();
+      expect(remote.cPage1.isCompleted, isTrue);
+      expect(remote.reads, containsAll(['a-1', 'c-1']));
+      addTearDown(() {
+        if (!remote.aPage1Gate.isCompleted) {
+          remote.aPage1Gate.complete(Uint8List(0));
+        }
+        if (!remote.cPage1Gate.isCompleted) {
+          remote.cPage1Gate.complete(Uint8List(0));
+        }
+      });
+      remote.aPage1Gate.complete(
+        base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
+        ),
+      );
+      await tester.runAsync(() async {
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+      });
+      await tester.pump();
+      expect(remote.reads.where((page) => page.startsWith('a-')), [
+        'a-0',
+        'a-1',
+      ]);
+      remote.cPage1Gate.complete(
+        base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
+        ),
+      );
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(Duration.zero);
+      await dependencies.dispose();
+      await db.close();
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
+
   testWidgets(
     'remote reader reuses page bytes navigating and reopening chapter',
     (tester) async {
@@ -943,7 +1255,7 @@ void main() {
                     ),
                   );
           },
-          openChapter: (_, _) async {},
+          openChapter: (_, _, _) async {},
         ),
       ),
     );
@@ -976,7 +1288,7 @@ void main() {
               chapters: [MangaChapter(title: 'Chapter 1', source: ref)],
             );
           },
-          openChapter: (_, _) async {},
+          openChapter: (_, _, _) async {},
         ),
       ),
     );
@@ -1020,7 +1332,7 @@ void main() {
               ),
             ],
           ),
-          openChapter: (_, _) async {
+          openChapter: (_, _, _) async {
             opens++;
           },
         ),
@@ -1065,7 +1377,7 @@ void main() {
               ),
             ],
           ),
-          openChapter: (_, chapter) async {
+          openChapter: (_, chapter, _) async {
             selected = chapter;
           },
         ),

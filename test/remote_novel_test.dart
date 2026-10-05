@@ -153,6 +153,39 @@ class FakeNovel
   }
 }
 
+class _AdjacentNovel extends FakeNovel {
+  final chapterRefs = <String>[];
+  final resourceRefs = <String>[];
+
+  @override
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
+    metadata: MediaMetadata(title: 'Novel'),
+    chapterListOrder: ChapterListOrder.reverseReadingOrder,
+    chapters: [
+      NovelChapter(title: 'Chapter C', source: ref('c'), chapterNumber: 4),
+      NovelChapter(title: 'Chapter B', source: ref('b'), chapterNumber: 4),
+      NovelChapter(title: 'Chapter A', source: ref('a'), chapterNumber: 4),
+    ],
+  );
+
+  @override
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async {
+    chapterRefs.add(chapter.itemId);
+    return RichReadingContent(
+      html:
+          '<h2>Content ${chapter.itemId}</h2>${List.generate(80, (i) => '<p>${chapter.itemId} paragraph $i with readable content.</p>').join()}<img src="image">',
+      resources: {'image': ref('image-${chapter.itemId}')},
+    );
+  }
+
+  @override
+  Future<Uint8List> readResource(SourceMediaRef resource) async {
+    resourceReads++;
+    resourceRefs.add(resource.itemId);
+    return Uint8List.fromList([resource.itemId.codeUnits.length]);
+  }
+}
+
 class _RefreshNovel extends FakeNovel {
   int detailLoads = 0;
 
@@ -244,7 +277,7 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
-        home: NovelSeriesPage(target: target, openChapter: (_, _) async {}),
+        home: NovelSeriesPage(target: target, openChapter: (_, _, _) async {}),
       ),
     );
     await tester.pumpAndSettle();
@@ -253,6 +286,87 @@ void main() {
       lessThan(tester.getTopLeft(find.text('Earliest')).dy),
     );
   });
+
+  testWidgets(
+    'adjacent novel chapters follow order and bind content resources',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      final db = UserDatabase(NativeDatabase.memory());
+      final source = _AdjacentNovel();
+      final cache = _TestCache();
+      final dependencies = AppDependencies.create(
+        database: db,
+        catalogProvider: _TestCatalogProvider(MediaType.lightNovel),
+        cache: cache,
+        additionalSources: [source],
+      );
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump();
+        await dependencies.dispose();
+        await db.close();
+      });
+
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+      await _openCatalogSourceSearch(tester);
+      await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Novel 1'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text('Chapter C')).dy,
+        lessThan(tester.getTopLeft(find.text('Chapter A')).dy),
+      );
+      await tester.tap(find.text('Chapter A'));
+      await tester.pumpAndSettle();
+      expect(source.chapterRefs, ['a']);
+      await tester.ensureVisible(find.byType(NovelContentView));
+      await tester.pumpAndSettle();
+      expect(source.resourceRefs, ['image-a']);
+      final scroll = tester
+          .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+          .controller!;
+      scroll.jumpTo(scroll.position.maxScrollExtent * .4);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byTooltip('Next chapter'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(source.chapterRefs, ['a', 'b']);
+      final savedA = await SqliteProgressRepository(db).load(source.ref('a'));
+      expect(savedA, isNotNull);
+      expect(savedA!.media, source.ref('a'));
+      final savedProgression =
+          (savedA.position as progress.TextPosition).progression;
+      expect(savedProgression, greaterThan(0));
+      var reader = tester.widget<NovelReaderPage>(find.byType(NovelReaderPage));
+      expect(reader.title, 'Chapter B');
+      expect(reader.initialProgress, isNull);
+      await tester.ensureVisible(find.byType(NovelContentView));
+      await tester.pumpAndSettle();
+      expect(source.resourceRefs, ['image-a', 'image-b']);
+      await tester.tap(find.byTooltip('Previous chapter'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+      // Reopening A reuses cached content but loads a fresh progress session.
+      expect(source.chapterRefs, ['a', 'b']);
+      reader = tester.widget<NovelReaderPage>(find.byType(NovelReaderPage));
+      expect(reader.title, 'Chapter A');
+      expect(reader.initialProgress?.media, source.ref('a'));
+      expect(
+        (reader.initialProgress!.position as progress.TextPosition).progression,
+        savedProgression,
+      );
+      await tester.ensureVisible(find.byType(NovelContentView));
+      await tester.pumpAndSettle();
+      expect(source.resourceRefs, ['image-a', 'image-b']);
+      expect(source.resourceRefs, everyElement(anyOf('image-a', 'image-b')));
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(Duration.zero);
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
 
   testWidgets('series refresh failure keeps the last chapter list visible', (
     tester,
@@ -269,7 +383,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: NovelSeriesPage(target: target, openChapter: (_, _) async {}),
+        home: NovelSeriesPage(target: target, openChapter: (_, _, _) async {}),
       ),
     );
     await tester.pumpAndSettle();
