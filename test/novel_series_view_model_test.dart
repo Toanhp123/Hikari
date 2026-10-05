@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/features/remote_novel/novel_series_view_model.dart';
@@ -40,5 +41,6 @@ void main() {
 
 NovelDetails _details(String title) => NovelDetails(
   metadata: MediaMetadata(title: title),
+  chapterListOrder: ChapterListOrder.readingOrder,
   chapters: const [],
 );

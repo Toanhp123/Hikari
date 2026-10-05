@@ -1,4 +1,4 @@
-/// Structural order of chapters supplied by a source.
+/// How a source-provided chapter list relates to reading order.
 enum ChapterListOrder {
   /// List starts with the chapter read first.
   readingOrder,

@@ -124,6 +124,7 @@ class FakeRemote
   Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
       MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
+        chapterListOrder: ChapterListOrder.readingOrder,
         chapters: [
           MangaChapter(
             title: 'Chapter',
@@ -937,6 +938,7 @@ void main() {
                 : Future.value(
                     MangaSeriesDetails(
                       metadata: MediaMetadata(title: 'Series'),
+                      chapterListOrder: ChapterListOrder.readingOrder,
                       chapters: [],
                     ),
                   );
@@ -970,6 +972,7 @@ void main() {
             if (++calls == 2) throw StateError('offline');
             return MangaSeriesDetails(
               metadata: MediaMetadata(title: 'Series'),
+              chapterListOrder: ChapterListOrder.readingOrder,
               chapters: [MangaChapter(title: 'Chapter 1', source: ref)],
             );
           },
@@ -1004,6 +1007,7 @@ void main() {
           sourceName: 'Test source',
           loadDetails: () async => MangaSeriesDetails(
             metadata: MediaMetadata(title: 'Series'),
+            chapterListOrder: ChapterListOrder.readingOrder,
             chapters: [
               MangaChapter(
                 title: 'External chapter',

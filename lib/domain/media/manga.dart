@@ -52,7 +52,7 @@ final class MangaSeriesDetails {
   MangaSeriesDetails({
     required this.metadata,
     required List<MangaChapter> chapters,
-    this.chapterListOrder = ChapterListOrder.readingOrder,
+    required this.chapterListOrder,
   }) : chapters = List.unmodifiable(chapters);
 
   final MediaMetadata metadata;
@@ -60,7 +60,7 @@ final class MangaSeriesDetails {
   /// Chapters in structural source order. Input is snapshotted immutably.
   final List<MangaChapter> chapters;
 
-  /// Defaults to reading order when callers do not declare source order.
+  /// Declares how the structural source list relates to reading order.
   final ChapterListOrder chapterListOrder;
 
   List<MangaChapter> get chaptersInReadingOrder =>

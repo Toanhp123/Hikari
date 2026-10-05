@@ -9,6 +9,7 @@ import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -506,6 +507,7 @@ final class _MangaCatalogSource
   Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
       MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Catalog title'),
+        chapterListOrder: ChapterListOrder.readingOrder,
         chapters: const [],
       );
 
@@ -548,6 +550,7 @@ final class _NovelCatalogSource
   @override
   Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
     metadata: MediaMetadata(title: 'Catalog title'),
+    chapterListOrder: ChapterListOrder.readingOrder,
     chapters: const [],
   );
 

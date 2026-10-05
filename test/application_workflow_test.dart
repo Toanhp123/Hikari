@@ -5,6 +5,7 @@ import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/source_registry.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -129,6 +130,7 @@ class _MangaSource
   Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
       MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
+        chapterListOrder: ChapterListOrder.readingOrder,
         chapters: [],
       );
   @override
@@ -209,6 +211,7 @@ class _ForeignMangaSource extends _MangaSource {
   Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
       MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
+        chapterListOrder: ChapterListOrder.readingOrder,
         chapters: [
           MangaChapter(
             title: 'Foreign',
@@ -241,6 +244,7 @@ class _RichNovelSource implements NovelSeriesSource, NovelChapterSource {
   @override
   Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
     metadata: MediaMetadata(title: 'Rich book'),
+    chapterListOrder: ChapterListOrder.readingOrder,
     chapters: [],
   );
   @override

@@ -52,14 +52,14 @@ final class NovelDetails {
   NovelDetails({
     required this.metadata,
     required List<NovelChapter> chapters,
-    this.chapterListOrder = ChapterListOrder.readingOrder,
+    required this.chapterListOrder,
   }) : chapters = List.unmodifiable(chapters);
   final MediaMetadata metadata;
 
   /// Complete list in source order, including all source chapter-list pages.
   final List<NovelChapter> chapters;
 
-  /// Defaults to reading order when callers do not declare source order.
+  /// Declares how the structural source list relates to reading order.
   final ChapterListOrder chapterListOrder;
 
   List<NovelChapter> get chaptersInReadingOrder =>

@@ -79,6 +79,7 @@ void main() {
       );
       final details = MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Example'),
+        chapterListOrder: ChapterListOrder.readingOrder,
         chapters: [chapter],
       );
 
@@ -121,6 +122,7 @@ void main() {
     ];
     final reading = MangaSeriesDetails(
       metadata: MediaMetadata(title: 'Manga'),
+      chapterListOrder: ChapterListOrder.readingOrder,
       chapters: chapters,
     );
     final reverse = MangaSeriesDetails(
@@ -187,6 +189,7 @@ void main() {
     ];
     final reading = NovelDetails(
       metadata: MediaMetadata(title: 'Novel'),
+      chapterListOrder: ChapterListOrder.readingOrder,
       chapters: chapters,
     );
     final reverse = NovelDetails(

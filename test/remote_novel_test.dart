@@ -125,6 +125,7 @@ class FakeNovel
       authors: ['Author'],
       genres: ['Fantasy'],
     ),
+    chapterListOrder: ChapterListOrder.readingOrder,
     chapters: [
       NovelChapter(
         title: 'Chapter rich',
@@ -160,6 +161,7 @@ class _RefreshNovel extends FakeNovel {
     if (++detailLoads == 2) throw StateError('offline');
     return NovelDetails(
       metadata: MediaMetadata(title: 'Novel'),
+      chapterListOrder: ChapterListOrder.readingOrder,
       chapters: [NovelChapter(title: 'Chapter 1', source: ref('chapter'))],
     );
   }
@@ -172,6 +174,7 @@ class _ForeignNovel extends FakeNovel {
       title: 'Foreign',
       cover: SourceMediaRef(sourceId: SourceId('foreign'), itemId: 'cover'),
     ),
+    chapterListOrder: ChapterListOrder.readingOrder,
     chapters: [],
   );
   @override

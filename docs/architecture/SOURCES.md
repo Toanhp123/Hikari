@@ -59,9 +59,9 @@ Capabilities compose. Android extension-backed manga sources implement search + 
 
 ### Chapter list order
 
-`MangaSeriesDetails` and `NovelDetails` keep immutable `chapters` exactly in source-provided structural order. `ChapterListOrder` declares whether that sequence begins with first-read chapter; absent declaration defaults to reading order for existing callers. `chaptersInReadingOrder` provides a separate reversed immutable view when requested, without sorting on optional chapter numbers or dates.
+`MangaSeriesDetails` and `NovelDetails` keep immutable `chapters` exactly in source-provided structural order. Every details producer must declare a `ChapterListOrder`, which states whether that sequence begins with the first-read or last-read chapter. `chaptersInReadingOrder` exposes the corresponding immutable reading-order list without sorting on optional chapter numbers or dates.
 
-Mihon declares reverse reading order because its chapter contract supplies descending source order. LNReader declares reading order: its detail adapter appends paginated chapter lists unchanged, preserving the plugin's structural sequence. Do not infer sequence from metadata; providers may omit or repeat chapter numbers. LNReader pagination limits and duplicate-path rejection remain documented under [EXTENSIONS](EXTENSIONS.md).
+Mihon declares reverse reading order because its chapter contract supplies descending source order. Hikari's current LNReader compatibility treats `parseNovel` page 1 followed by `parsePage` pages 2..N as reading order and declares that explicitly. Descending LNReader page-plugin semantics are not modeled yet; if Hikari adopts that upstream contract, the adapter must normalize or declare it explicitly rather than infer sequence from metadata. Providers may omit or repeat chapter numbers. LNReader pagination limits and duplicate-path rejection remain documented under [EXTENSIONS](EXTENSIONS.md).
 
 Mihon collapses exact stable chapter identities (derived from URLs) before saving continuation state, retaining the first occurrence and its metadata. Different URLs remain distinct even when chapter numbers match. Chapter numbers, titles, dates and scanlators are metadata, never sequence authority.
 
