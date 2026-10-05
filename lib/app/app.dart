@@ -304,24 +304,49 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   ) async {
     final target = await _dependencies.openMangaChapter.execute(chapter);
     if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => MangaReaderPage(
-          title: target.chapter.title,
-          credit: [
-            target.source.name,
-            if (target.chapter.scanlator != null) target.chapter.scanlator!,
-          ].join(' · '),
-          loadPages: () async => target.pages,
-          readPage: (page) =>
-              _dependencies.readMangaPage.execute(target.source, page),
-          reloadPage: (page) =>
-              _dependencies.readMangaPage.reload(target.source, page),
-          initialProgress: target.progress.initialProgress,
-          saveProgress: target.progress.save,
+    var routeClosed = false;
+    void closePrefetchWindow() {
+      routeClosed = true;
+      _dependencies.prefetchMangaPages.cancelPending();
+    }
+
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PopScope(
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) closePrefetchWindow();
+            },
+            child: MangaReaderPage(
+              title: target.chapter.title,
+              credit: [
+                target.source.name,
+                if (target.chapter.scanlator != null) target.chapter.scanlator!,
+              ].join(' · '),
+              loadPages: () async => target.pages,
+              readPage: (page) =>
+                  _dependencies.readMangaPage.execute(target.source, page),
+              reloadPage: (page) =>
+                  _dependencies.readMangaPage.reload(target.source, page),
+              onPageDisplayed: (index) {
+                if (routeClosed) return;
+                unawaited(
+                  _dependencies.prefetchMangaPages.execute(
+                    target.source,
+                    target.pages,
+                    index,
+                  ),
+                );
+              },
+              initialProgress: target.progress.initialProgress,
+              saveProgress: target.progress.save,
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      closePrefetchWindow();
+    }
   }
 
   @override
