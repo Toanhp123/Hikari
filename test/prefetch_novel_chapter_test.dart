@@ -33,6 +33,56 @@ void main() {
     expect(source.maxActiveResources, 1);
   });
 
+  test('foreground joins an active chapter-content prefetch', () async {
+    final cache = _Cache();
+    final source = _Source()
+      ..holdChapter = 'next'
+      ..contentFor = (_) => RichReadingContent(html: '<p>next</p>');
+    final contentReader = ReadNovelChapterContent(cache);
+    final prefetch = PrefetchNovelChapter(
+      SourceRegistry([source]),
+      contentReader,
+      ReadNovelResource(cache),
+    );
+
+    final pending = prefetch.execute(_chapter('next'));
+    await source.chapterStarted.future;
+    final foreground = contentReader.execute(source, _ref('next'));
+
+    expect(source.chapterReads, ['next']);
+    source.chapterGate.complete(RichReadingContent(html: '<p>next</p>'));
+    expect((await foreground).html, '<p>next</p>');
+    await pending;
+    expect(source.chapterReads, ['next']);
+  });
+
+  test('foreground joins an active resource prefetch', () async {
+    final cache = _Cache();
+    final source = _Source()
+      ..holdResource = 'image'
+      ..contentFor = (_) => RichReadingContent(
+        html: '<p>next</p>',
+        resources: {'image': _ref('image')},
+      );
+    final contentReader = ReadNovelChapterContent(cache);
+    final resourceReader = ReadNovelResource(cache);
+    final prefetch = PrefetchNovelChapter(
+      SourceRegistry([source]),
+      contentReader,
+      resourceReader,
+    );
+
+    final pending = prefetch.execute(_chapter('next'));
+    await source.resourceStarted.future;
+    final foreground = resourceReader.execute(source, _ref('image'));
+
+    expect(source.resourceReads, ['image']);
+    source.resourceGate.complete(Uint8List.fromList([1]));
+    expect(await foreground, [1]);
+    await pending;
+    expect(source.resourceReads, ['image']);
+  });
+
   test('warmed chapter and resources are reused by foreground reads', () async {
     final cache = _Cache();
     final source = _Source()

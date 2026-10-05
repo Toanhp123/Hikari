@@ -5,9 +5,9 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 
-/// Speculatively warms the next remote novel chapter through the normal cache
-/// workflows. Work is intentionally serial and best-effort so foreground
-/// reading remains authoritative.
+/// Speculatively warms one remote novel chapter selected by the reader's
+/// lookahead policy through the normal cache workflows. Work is intentionally
+/// serial and best-effort so foreground reading remains authoritative.
 final class PrefetchNovelChapter {
   PrefetchNovelChapter(this._sources, this._readContent, this._readResource);
 

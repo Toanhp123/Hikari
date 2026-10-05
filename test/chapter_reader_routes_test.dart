@@ -248,6 +248,12 @@ void main() {
 
     expect(viewModel.state.target.chapter.source, _novelB);
     expect(prefetched, [_novelB, _novelC]);
+
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pumpAndSettle();
+
+    expect(viewModel.state.target.chapter.source, _novelC);
+    expect(prefetched, [_novelB, _novelC]);
     await tester.pumpWidget(const SizedBox());
   });
 
