@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -20,10 +21,14 @@ class NovelReaderPage extends StatefulWidget {
     this.loadText,
     this.loadContent,
     this.readResource,
+    this.reloadContent,
+    this.reloadResource,
     this.initialProgress,
     this.saveProgress,
   }) : assert((loadText != null) != (loadContent != null)),
-       assert(loadContent == null || readResource != null);
+       assert(loadContent == null || readResource != null),
+       assert(reloadContent == null || loadContent != null),
+       assert(reloadResource == null || readResource != null);
 
   final MediaProgress? initialProgress;
   final Future<void> Function(ProgressPosition, bool)? saveProgress;
@@ -32,6 +37,8 @@ class NovelReaderPage extends StatefulWidget {
   final Future<String> Function()? loadText;
   final Future<RichReadingContent> Function()? loadContent;
   final Future<Uint8List> Function(SourceMediaRef)? readResource;
+  final Future<RichReadingContent> Function()? reloadContent;
+  final Future<Uint8List> Function(SourceMediaRef)? reloadResource;
 
   @override
   State<NovelReaderPage> createState() => _NovelReaderPageState();
@@ -53,7 +60,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   final double _horizontalPadding = 20.0;
 
   void _changed() {
-    if (!_restored || !_scroll.hasClients) return;
+    if (!_restored || !_scroll.hasClients || _restoringReload) return;
     _position = textProgression(
       _scroll.offset,
       _scroll.position.maxScrollExtent,
@@ -102,6 +109,8 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   RichReadingContent? _content;
   Object? _error;
   bool _loading = true;
+  bool _reloading = false;
+  bool _restoringReload = false;
 
   @override
   void initState() {
@@ -111,14 +120,16 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool fresh = false}) async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final text = await widget.loadText?.call();
-      final content = await widget.loadContent?.call();
+      final content = fresh && widget.reloadContent != null
+          ? await widget.reloadContent!.call()
+          : await widget.loadContent?.call();
       if (!mounted) return;
       setState(() {
         _text = text;
@@ -150,6 +161,43 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     }
   }
 
+  Future<void> _reload() async {
+    final reload = widget.reloadContent;
+    if (reload == null || _reloading) return;
+    setState(() => _reloading = true);
+    try {
+      final content = await reload();
+      if (!mounted) return;
+      final progression = _restored
+          ? _position
+          : resumeText(widget.initialProgress);
+      setState(() {
+        _content = content;
+        _text = null;
+        _error = null;
+        _reloading = false;
+        _restoringReload = true;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_scroll.hasClients && _scroll.position.maxScrollExtent > 0) {
+          final offset =
+              progression.clamp(0.0, 1.0) * _scroll.position.maxScrollExtent;
+          _scroll.jumpTo(offset);
+        }
+        _position = progression;
+        _progress.value = progression;
+        _restoringReload = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _reloading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not reload this chapter.')),
+      );
+    }
+  }
+
   void _showPreferencesSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -173,6 +221,12 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         foregroundColor: _readerTheme.fg,
         elevation: 0,
         actions: [
+          if (widget.reloadContent != null)
+            HikariRefreshAction(
+              tooltip: 'Reload chapter',
+              refreshing: _reloading,
+              onPressed: _reload,
+            ),
           HikariIconButton(
             icon: const Icon(Icons.format_size_rounded),
             tooltip: 'Reading Preferences',
@@ -196,7 +250,8 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                           const Text('Could not load this novel.'),
                           const SizedBox(height: HikariSpacing.sm),
                           TextButton(
-                            onPressed: _load,
+                            onPressed: () =>
+                                _load(fresh: widget.reloadContent != null),
                             child: const Text('Try again'),
                           ),
                         ],
@@ -216,6 +271,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                               ? NovelContentView(
                                   content: _content!,
                                   readResource: widget.readResource!,
+                                  reloadResource: widget.reloadResource,
                                   textStyle: TextStyle(
                                     color: _readerTheme.fg,
                                     fontSize: _fontSize,

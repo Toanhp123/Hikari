@@ -100,6 +100,9 @@ Episode discovery, stream selection, headers and DRM remain separate future requ
 `OpenMangaChapter` resolves `MangaPageSource`, loads chapter progress and resolves pages
 before navigation. `OpenNovelChapter` does the equivalent for `NovelChapterSource`,
 returning rich HTML with registered resources rather than coercing it to plain text.
+Remote novel content/resources use application cache workflows only after adapter
+normalization; local `NovelTextSource` and `PublicationSource` paths remain uncached
+by these workflows. See [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md).
 This keeps invalid chapter references from creating a reader route that cannot load.
 
 `SearchManga` and `SearchNovels` own search-and-open invariants. They expose only
@@ -149,8 +152,9 @@ MediaKitVideoSession ------------------------> presentation composition
 Platform bootstrap discovers compatible external sources before composition. `additionalSources` is the single generic registration seam beyond the local source. No remote provider is constructed by `AppDependencies`; an empty discovery result is valid and hides remote search through existing capability checks.
 
 Default resources created there are disposed there. Injected resources remain owned by
-the caller where ownership is externally supplied. No service locator or runtime DI
-container is required for the current graph.
+the caller where ownership is externally supplied. The default byte cache is
+reconstructible and isolated from `UserDatabase`; see [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md).
+No service locator or runtime DI container is required for the current graph.
 
 ## Adding a source
 

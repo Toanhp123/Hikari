@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -69,9 +70,25 @@ final class _TestCatalogProvider implements CatalogProvider {
   Future<void> close() async {}
 }
 
+final class _TestCache implements ByteCache {
+  final values = <String, Uint8List>{};
+  @override
+  Future<Uint8List?> read(String namespace, String key) async =>
+      values['$namespace/$key'];
+  @override
+  Future<void> write(String namespace, String key, Uint8List bytes) async {
+    values['$namespace/$key'] = Uint8List.fromList(bytes);
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
 class FakeNovel
     implements NovelSearchSource, NovelSeriesSource, NovelChapterSource {
   FakeNovel({this.id = const SourceId('fake-novel')});
+  int chapterReads = 0;
+  int resourceReads = 0;
   @override
   final SourceId id;
   @override
@@ -118,14 +135,20 @@ class FakeNovel
     ],
   );
   @override
-  Future<RichReadingContent> chapterContent(
-    SourceMediaRef chapter,
-  ) async => RichReadingContent(
-    html:
-        '<h2>Rich heading</h2>${List.generate(70, (i) => '<p>Paragraph $i with text for reading progress.</p>').join()}',
-  );
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async {
+    chapterReads++;
+    return RichReadingContent(
+      html:
+          '<h2>Rich heading</h2>${List.generate(70, (i) => '<p>Paragraph $i with text for reading progress.</p>').join()}<img src="img">',
+      resources: {'img': ref('image')},
+    );
+  }
+
   @override
-  Future<Uint8List> readResource(SourceMediaRef resource) async => Uint8List(0);
+  Future<Uint8List> readResource(SourceMediaRef resource) async {
+    resourceReads++;
+    return Uint8List.fromList([resource.itemId.codeUnits.length]);
+  }
 }
 
 class _RefreshNovel extends FakeNovel {
@@ -250,8 +273,10 @@ void main() {
     final file = File('${directory.path}/user.sqlite');
     var db = UserDatabase(NativeDatabase(file));
     final source = FakeNovel();
+    final cache = _TestCache();
     var dependencies = AppDependencies.create(
       database: db,
+      cache: cache,
       catalogProvider: _TestCatalogProvider(MediaType.lightNovel),
       additionalSources: [source],
     );
@@ -267,7 +292,11 @@ void main() {
     expect(find.textContaining('1.5'), findsOneWidget);
     await tester.tap(find.text('Chapter rich'));
     await tester.pumpAndSettle();
+    expect(source.chapterReads, 1);
     expect(find.byType(NovelContentView), findsOneWidget);
+    await tester.ensureVisible(find.byType(NovelContentView));
+    await tester.pumpAndSettle();
+    expect(source.resourceReads, 1);
     await tester.drag(
       find.byType(SingleChildScrollView).last,
       const Offset(0, -600),
@@ -288,6 +317,7 @@ void main() {
     final restarted = FakeNovel();
     dependencies = AppDependencies.create(
       database: db,
+      cache: cache,
       additionalSources: [restarted],
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
@@ -299,6 +329,10 @@ void main() {
     await tester.tap(find.text('Chapter rich'));
     await tester.pumpAndSettle();
     expect(restarted.searches, 0);
+    expect(restarted.chapterReads, 0);
+    await tester.ensureVisible(find.byType(NovelContentView));
+    await tester.pumpAndSettle();
+    expect(restarted.resourceReads, 0);
     final reader = tester.widget<NovelReaderPage>(find.byType(NovelReaderPage));
     expect(
       (reader.initialProgress!.position as progress.TextPosition).progression,
@@ -315,7 +349,7 @@ void main() {
     await db.close();
 
     db = UserDatabase(NativeDatabase(file));
-    dependencies = AppDependencies.create(database: db);
+    dependencies = AppDependencies.create(database: db, cache: cache);
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));

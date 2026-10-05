@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:hikari/application/sources/source_registry.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 
@@ -10,15 +12,49 @@ import 'package:hikari/domain/media/source.dart';
 /// keeps search and picker UI agnostic to the extension runtime (Mihon,
 /// LNReader, or future anime providers).
 final class ReadSourceArtwork {
-  const ReadSourceArtwork(this._sources);
+  static const cacheNamespace = 'source-artwork-v1';
+
+  ReadSourceArtwork(this._sources, {this._cache});
 
   final SourceRegistry _sources;
+  final ByteCache? _cache;
+  final Map<SourceMediaRef, Future<Uint8List?>> _inFlight = {};
 
-  Future<Uint8List?> execute(SourceMediaRef artwork) async {
+  Future<Uint8List?> execute(SourceMediaRef artwork) {
     final source = _sources.find(artwork.sourceId);
-    if (source is! ArtworkSource) return null;
+    if (source is! ArtworkSource) return Future.value(null);
+
+    final pending = _inFlight[artwork];
+    if (pending != null) return pending;
+    final load = _load(source, artwork);
+    final shared = load.whenComplete(() {
+      _inFlight.remove(artwork);
+    });
+    _inFlight[artwork] = shared;
+    return shared;
+  }
+
+  Future<Uint8List?> _load(ArtworkSource source, SourceMediaRef artwork) async {
+    final cache = _cache;
+    if (cache != null) {
+      try {
+        final cached = await cache.read(cacheNamespace, cacheKey(artwork));
+        if (cached != null && cached.isNotEmpty) return cached;
+      } catch (_) {
+        // Cache failures never prevent source reads.
+      }
+    }
 
     final bytes = await source.readArtwork(artwork);
-    return bytes.isEmpty ? null : bytes;
+    if (bytes.isEmpty || cache == null) return bytes.isEmpty ? null : bytes;
+    try {
+      await cache.write(cacheNamespace, cacheKey(artwork), bytes);
+    } catch (_) {
+      // Cache failures never hide successfully loaded source bytes.
+    }
+    return bytes;
   }
+
+  static String cacheKey(SourceMediaRef artwork) =>
+      jsonEncode([artwork.sourceId.value, artwork.itemId]);
 }

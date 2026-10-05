@@ -3,16 +3,21 @@ import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/read_manga_page.dart';
+import 'package:hikari/application/media/read_novel_chapter_content.dart';
+import 'package:hikari/application/media/read_novel_resource.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/application/sources/source_registry.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
 import 'package:hikari/infrastructure/catalog/anilist/anilist_catalog_provider.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
@@ -22,6 +27,11 @@ import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.da
 
 /// Composition root for application workflows and replaceable infrastructure.
 final class AppDependencies {
+  static const _sourceArtworkCacheBudgetBytes = 64 * 1024 * 1024;
+  static const _mangaPageCacheBudgetBytes = 128 * 1024 * 1024;
+  static const _novelChapterCacheBudgetBytes = 32 * 1024 * 1024;
+  static const _novelResourceCacheBudgetBytes = 64 * 1024 * 1024;
+
   AppDependencies._(
     this._database,
     this._ownsDatabase, {
@@ -40,14 +50,21 @@ final class AppDependencies {
     required this.searchManga,
     required this.searchNovels,
     required this.readSourceArtwork,
+    required this.readMangaPage,
+    required this.readNovelChapterContent,
+    required this.readNovelResource,
     required this.openNovelChapter,
     required this.videoSession,
+    required this.cache,
+    required this.ownsCache,
   });
 
   factory AppDependencies.create({
     UserDatabase? database,
     bool ownsDatabase = false,
     LocalMediaSource? localMediaSource,
+    ByteCache? cache,
+    bool ownsCache = false,
     bool ownsLocalMediaSource = false,
     CatalogProvider? catalogProvider,
     bool ownsCatalogProvider = false,
@@ -60,6 +77,19 @@ final class AppDependencies {
       ...additionalSources,
     ]);
     final resolvedDatabase = database ?? UserDatabase();
+    final resolvedCache =
+        cache ??
+        DiskByteCache(
+          namespaceByteBudgets: const {
+            ReadSourceArtwork.cacheNamespace: _sourceArtworkCacheBudgetBytes,
+            ReadMangaPage.cacheNamespace: _mangaPageCacheBudgetBytes,
+            ReadNovelChapterContent.cacheNamespace:
+                _novelChapterCacheBudgetBytes,
+            ReadNovelResource.cacheNamespace: _novelResourceCacheBudgetBytes,
+          },
+        );
+    final readNovelChapterContent = ReadNovelChapterContent(resolvedCache);
+    final readNovelResource = ReadNovelResource(resolvedCache);
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
     final progressRepository = SqliteProgressRepository(resolvedDatabase);
     final searchManga = SearchManga(sourceRegistry);
@@ -85,9 +115,21 @@ final class AppDependencies {
       openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
       searchManga: searchManga,
       searchNovels: searchNovels,
-      readSourceArtwork: ReadSourceArtwork(sourceRegistry),
-      openNovelChapter: OpenNovelChapter(sourceRegistry, progressRepository),
+      readSourceArtwork: ReadSourceArtwork(
+        sourceRegistry,
+        cache: resolvedCache,
+      ),
+      readMangaPage: ReadMangaPage(resolvedCache),
+      readNovelChapterContent: readNovelChapterContent,
+      readNovelResource: readNovelResource,
+      openNovelChapter: OpenNovelChapter(
+        sourceRegistry,
+        progressRepository,
+        readNovelChapterContent,
+      ),
       videoSession: MediaKitVideoSession(),
+      cache: resolvedCache,
+      ownsCache: cache == null || ownsCache,
     );
   }
 
@@ -104,8 +146,13 @@ final class AppDependencies {
   final SearchManga searchManga;
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;
+  final ReadMangaPage readMangaPage;
+  final ReadNovelChapterContent readNovelChapterContent;
+  final ReadNovelResource readNovelResource;
   final OpenNovelChapter openNovelChapter;
   final MediaKitVideoSession videoSession;
+  final ByteCache cache;
+  final bool ownsCache;
 
   final UserDatabase _database;
   final bool _ownsDatabase;
@@ -120,6 +167,8 @@ final class AppDependencies {
   }
 
   bool _databaseClosed = false;
+  bool _cacheClosed = false;
+
   Future<void> _close() async {
     try {
       try {
@@ -131,9 +180,16 @@ final class AppDependencies {
           try {
             if (ownsCatalogProvider) await catalogProvider.close();
           } finally {
-            if (_ownsDatabase && !_databaseClosed) {
-              await _database.close();
-              _databaseClosed = true;
+            try {
+              if (_ownsDatabase && !_databaseClosed) {
+                await _database.close();
+                _databaseClosed = true;
+              }
+            } finally {
+              if (ownsCache && !_cacheClosed) {
+                await cache.close();
+                _cacheClosed = true;
+              }
             }
           }
         }

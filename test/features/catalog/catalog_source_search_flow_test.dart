@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -380,6 +381,7 @@ AppDependencies _dependencies({
   Iterable<MediaSource> additionalSources = const [],
 }) => AppDependencies.create(
   database: database,
+  cache: _NoCache(),
   localMediaSource: local,
   catalogProvider: _Provider(
     onDiscover: () async => CatalogDiscovery(
@@ -391,6 +393,16 @@ AppDependencies _dependencies({
   ),
   additionalSources: additionalSources,
 );
+
+// UI routing tests avoid real filesystem work in the fake-async zone.
+final class _NoCache implements ByteCache {
+  @override
+  Future<Uint8List?> read(String namespace, String key) async => null;
+  @override
+  Future<void> write(String namespace, String key, Uint8List bytes) async {}
+  @override
+  Future<void> close() async {}
+}
 
 Future<void> _unmount(WidgetTester tester) async {
   // Drift closes watched queries on a zero-duration timer. Unmount and pump

@@ -20,7 +20,7 @@ class MangaSeriesPage extends StatefulWidget {
   });
   final String title, sourceName;
   final Future<MangaSeriesDetails> Function() loadDetails;
-  final Future<Uint8List> Function(SourceMediaRef)? readArtwork;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final Future<void> Function(BuildContext, MangaChapter) openChapter;
   @override
   State<MangaSeriesPage> createState() => _MangaSeriesPageState();

@@ -11,6 +11,7 @@ class NovelContentView extends StatelessWidget {
     super.key,
     required this.content,
     required this.readResource,
+    this.reloadResource,
     this.onTapLink,
     this.htmlKey,
     this.textStyle,
@@ -19,6 +20,7 @@ class NovelContentView extends StatelessWidget {
   final GlobalKey<HtmlWidgetState>? htmlKey;
   final RichReadingContent content;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
+  final Future<Uint8List> Function(SourceMediaRef)? reloadResource;
   final Future<bool> Function(String)? onTapLink;
   final TextStyle? textStyle;
 
@@ -26,14 +28,17 @@ class NovelContentView extends StatelessWidget {
   Widget build(BuildContext context) => HtmlWidget(
     content.html,
     key: htmlKey,
+    rebuildTriggers: [content],
     factoryBuilder: _SourceWidgetFactory.new,
     customWidgetBuilder: (element) {
       if (element.localName != 'img') return null;
       final resource = content.resources[element.attributes['src']];
       if (resource == null) return const SizedBox.shrink();
       return _SourceImage(
+        key: ValueKey<SourceMediaRef>(resource),
         resource: resource,
         readResource: readResource,
+        reloadResource: reloadResource,
         label: element.attributes['alt'] ?? 'Illustration',
       );
     },
@@ -58,13 +63,16 @@ class _SourceWidgetFactory extends WidgetFactory {
 
 class _SourceImage extends StatefulWidget {
   const _SourceImage({
+    super.key,
     required this.resource,
     required this.readResource,
     required this.label,
+    this.reloadResource,
   });
 
   final SourceMediaRef resource;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
+  final Future<Uint8List> Function(SourceMediaRef)? reloadResource;
   final String label;
 
   @override
@@ -108,7 +116,11 @@ class _SourceImageState extends State<_SourceImage> {
     children: [
       const Text('Could not load illustration.'),
       TextButton(
-        onPressed: () => setState(() => _bytes = _read()),
+        onPressed: () => setState(() {
+          _bytes = widget.reloadResource != null
+              ? widget.reloadResource!(widget.resource)
+              : _read();
+        }),
         child: const Text('Retry illustration'),
       ),
     ],

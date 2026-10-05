@@ -24,7 +24,7 @@ class MangaSeriesContent extends StatelessWidget {
   final bool openingChapter;
   final Future<void> Function() onRefresh;
   final ValueChanged<MangaChapter> onOpenChapter;
-  final Future<Uint8List> Function(SourceMediaRef)? readArtwork;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
 
   @override
   Widget build(BuildContext context) {

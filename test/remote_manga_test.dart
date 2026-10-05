@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
+
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -35,6 +37,27 @@ Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 50));
   }
   expect(find.text('Series'), findsOneWidget);
+}
+
+final class _TestByteCache implements ByteCache {
+  final values = <String, Uint8List>{};
+  final reads = <String>[];
+  final writes = <String>[];
+  String _key(String namespace, String key) => '$namespace/$key';
+  @override
+  Future<Uint8List?> read(String namespace, String key) async {
+    reads.add(_key(namespace, key));
+    return values[_key(namespace, key)];
+  }
+
+  @override
+  Future<void> write(String namespace, String key, Uint8List bytes) async {
+    writes.add(_key(namespace, key));
+    values[_key(namespace, key)] = bytes;
+  }
+
+  @override
+  Future<void> close() async {}
 }
 
 final class _TestCatalogProvider implements CatalogProvider {
@@ -116,6 +139,34 @@ class FakeRemote
 
   @override
   Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
+}
+
+class _CountingPageRemote extends FakeRemote {
+  int pageReads = 0;
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => [
+    const SourceMediaRef(sourceId: SourceId('fake'), itemId: 'page-0'),
+    const SourceMediaRef(sourceId: SourceId('fake'), itemId: 'page-1'),
+  ];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async {
+    pageReads++;
+    return Uint8List.fromList([1]);
+  }
+}
+
+class _RetryingPageRemote extends ResumableRemote {
+  int pageReads = 0;
+  bool failFirst = false;
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async {
+    pageReads++;
+    if (failFirst && pageReads == 1) throw StateError('offline');
+    return super.readPage(page);
+  }
 }
 
 class ResumableRemote extends FakeRemote {
@@ -399,6 +450,174 @@ void main() {
     await db.close();
     debugDefaultTargetPlatformOverride = null;
   });
+  testWidgets(
+    'remote reader reuses page bytes navigating and reopening chapter',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      final db = UserDatabase(NativeDatabase.memory());
+      final remote = _CountingPageRemote();
+      final cache = _TestByteCache();
+      final dependencies = AppDependencies.create(
+        database: db,
+        catalogProvider: _TestCatalogProvider(MediaType.manga),
+        cache: cache,
+        additionalSources: [remote],
+      );
+      const series = SourceMediaRef(
+        sourceId: SourceId('fake'),
+        itemId: 'series',
+      );
+      await SqliteLibraryRepository(db).upsert(
+        LibraryEntry(
+          media: const Media(
+            title: 'Series',
+            type: MediaType.manga,
+            source: series,
+          ),
+          addedAt: DateTime.utc(2026),
+        ),
+      );
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Series'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chapter'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      expect(remote.pageReads, 2);
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chapter'));
+      await tester.pumpAndSettle();
+      expect(remote.pageReads, 2);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(Duration.zero);
+      await dependencies.dispose();
+      await db.close();
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
+
+  testWidgets('remote cached invalid page retries source until valid frame', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    final db = UserDatabase(NativeDatabase.memory());
+    final remote = _RetryingPageRemote()..failFirst = true;
+    const chapter = SourceMediaRef(
+      sourceId: SourceId('fake'),
+      itemId: 'chapter',
+    );
+    final progress = SqliteProgressRepository(db);
+    final validPng = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
+    );
+    final cache = _TestByteCache()
+      ..values['manga-page-v1/["fake","page-0"]'] = Uint8List.fromList([1]);
+    final dependencies = AppDependencies.create(
+      database: db,
+      catalogProvider: _TestCatalogProvider(MediaType.manga),
+      cache: cache,
+      additionalSources: [remote],
+    );
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await _openCatalogSourceSearch(tester);
+    await tester.tap(find.text('Series'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapter'));
+    await tester.pumpAndSettle();
+    expect(remote.pageReads, 0);
+    expect(cache.writes, isEmpty);
+    expect(find.text('Could not decode this page.'), findsOneWidget);
+    expect(await progress.load(chapter), isNull);
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+    expect(remote.pageReads, 1);
+    expect(find.text('Could not load this page.'), findsOneWidget);
+    expect(await progress.load(chapter), isNull);
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pumpAndSettle();
+    expect(remote.pageReads, 2);
+    expect(find.text('Could not decode this page.'), findsNothing);
+    expect(cache.values['manga-page-v1/["fake","page-0"]'], validPng);
+    expect(cache.writes, ['manga-page-v1/["fake","page-0"]']);
+    final saved = await progress.load(chapter);
+    expect(saved, isNotNull);
+    expect((saved!.position as PagePosition).pageIndex, 0);
+    expect(saved.completed, isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
+    await db.close();
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('direct local manga reader bypasses remote page cache', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    const channel = MethodChannel('hikari/local_media');
+    final messenger = tester.binding.defaultBinaryMessenger;
+    var reads = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'children') {
+        return [
+          {'id': 'page-0', 'name': '1.png', 'isDirectory': false},
+          {'id': 'page-1', 'name': '2.png', 'isDirectory': false},
+        ];
+      }
+      if (call.method == 'read') {
+        reads++;
+        return base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
+        );
+      }
+      fail('Unexpected ${call.method}');
+    });
+    final db = UserDatabase(NativeDatabase.memory());
+    final cache = _TestByteCache();
+    final dependencies = AppDependencies.create(database: db, cache: cache);
+    await SqliteLibraryRepository(db).upsert(
+      LibraryEntry(
+        media: const Media(
+          title: 'Local pages',
+          type: MediaType.manga,
+          source: SourceMediaRef(sourceId: SourceId.local, itemId: 'folder'),
+        ),
+        addedAt: DateTime.utc(2026),
+      ),
+    );
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Local pages'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Next page'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Local pages'));
+    await tester.pumpAndSettle();
+    expect(reads, 3);
+    expect(cache.reads, isEmpty);
+    expect(cache.writes, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
+    await db.close();
+    messenger.setMockMethodCallHandler(channel, null);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('app resumes remote chapter from chapter-keyed progress', (
     tester,
   ) async {
@@ -430,7 +649,8 @@ void main() {
     await tester.tap(find.text('Series'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Page 2 of 2'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     // Advance fake time so Drift's deferred stream disposal can finish.

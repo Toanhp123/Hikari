@@ -182,7 +182,8 @@ Hikari/
         ├── ADR-008-external-remote-provider-ownership.md
         ├── ADR-009-stable-source-identities.md
         ├── ADR-010-bounded-lnreader-runtime.md
-        └── ADR-011-catalog-content-boundary.md
+        ├── ADR-011-catalog-content-boundary.md
+        └── ADR-012-reconstructible-cache-foundation.md
 ```
 
 Future `architecture/` and `roadmap/` documents are created incrementally only when the project has real knowledge or active execution state to store. Completed one-off plans should be removed after durable facts move to canonical architecture/product docs.

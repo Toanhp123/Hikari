@@ -209,6 +209,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         target: novel,
         openChapter: _openNovelChapter,
         library: _dependencies.libraryRepository,
+        readArtwork: _dependencies.readSourceArtwork.execute,
       ),
       PublicationReaderOpenTarget publication => _buildPublicationReaderPage(
         publication,
@@ -242,7 +243,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     sourceName: target.seriesSource.name,
     loadDetails: target.loadDetails,
     readArtwork: target.seriesSource is ArtworkSource
-        ? (target.seriesSource as ArtworkSource).readArtwork
+        ? _dependencies.readSourceArtwork.execute
         : null,
     openChapter: _openMangaChapter,
   );
@@ -282,7 +283,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         builder: (_) => NovelReaderPage(
           title: chapter.title,
           loadContent: () async => target.content,
-          readResource: target.source.readResource,
+          reloadContent: () => _dependencies.readNovelChapterContent.reload(
+            target.source,
+            chapter.source,
+          ),
+          readResource: (resource) =>
+              _dependencies.readNovelResource.execute(target.source, resource),
+          reloadResource: (resource) =>
+              _dependencies.readNovelResource.reload(target.source, resource),
           initialProgress: target.progress.initialProgress,
           saveProgress: target.progress.save,
         ),
@@ -305,7 +313,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             if (target.chapter.scanlator != null) target.chapter.scanlator!,
           ].join(' · '),
           loadPages: () async => target.pages,
-          readPage: target.source.readPage,
+          readPage: (page) =>
+              _dependencies.readMangaPage.execute(target.source, page),
+          reloadPage: (page) =>
+              _dependencies.readMangaPage.reload(target.source, page),
           initialProgress: target.progress.initialProgress,
           saveProgress: target.progress.save,
         ),

@@ -1,3 +1,4 @@
+import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -18,9 +19,14 @@ final class NovelChapterOpenTarget {
 }
 
 final class OpenNovelChapter {
-  const OpenNovelChapter(this._sources, this._progressRepository);
+  const OpenNovelChapter(
+    this._sources,
+    this._progressRepository,
+    this._readContent,
+  );
   final SourceRegistry _sources;
   final ProgressRepository _progressRepository;
+  final ReadNovelChapterContent _readContent;
 
   Future<NovelChapterOpenTarget> execute(NovelChapter chapter) async {
     final source = _sources.requireCapability<NovelChapterSource>(
@@ -30,10 +36,7 @@ final class OpenNovelChapter {
         !(source as MediaSourceAvailability).isAvailable) {
       throw StateError('Source is unavailable on this device.');
     }
-    final content = await source.chapterContent(chapter.source);
-    if (content.resources.values.any((ref) => ref.sourceId != source.id)) {
-      throw StateError('Novel source returned foreign resources.');
-    }
+    final content = await _readContent.execute(source, chapter.source);
     return NovelChapterOpenTarget(
       chapter: chapter,
       source: source,
