@@ -3,6 +3,7 @@ import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
@@ -88,6 +89,7 @@ final class AppDependencies {
             ReadNovelResource.cacheNamespace: _novelResourceCacheBudgetBytes,
           },
         );
+    final readMangaPage = ReadMangaPage(resolvedCache);
     final readNovelChapterContent = ReadNovelChapterContent(resolvedCache);
     final readNovelResource = ReadNovelResource(resolvedCache);
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
@@ -119,7 +121,7 @@ final class AppDependencies {
         sourceRegistry,
         cache: resolvedCache,
       ),
-      readMangaPage: ReadMangaPage(resolvedCache),
+      readMangaPage: readMangaPage,
       readNovelChapterContent: readNovelChapterContent,
       readNovelResource: readNovelResource,
       openNovelChapter: OpenNovelChapter(
@@ -158,6 +160,10 @@ final class AppDependencies {
   final bool _ownsDatabase;
   final bool ownsLocalMediaSource;
   final bool ownsCatalogProvider;
+
+  PrefetchMangaPages createMangaPagePrefetch() =>
+      PrefetchMangaPages(readMangaPage);
+
   bool _disposed = false;
   Future<void>? _disposing;
 

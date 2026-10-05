@@ -43,6 +43,7 @@ final class _TestByteCache implements ByteCache {
   final values = <String, Uint8List>{};
   final reads = <String>[];
   final writes = <String>[];
+  final writeSignals = <String, Completer<void>>{};
   String _key(String namespace, String key) => '$namespace/$key';
   @override
   Future<Uint8List?> read(String namespace, String key) async {
@@ -52,8 +53,10 @@ final class _TestByteCache implements ByteCache {
 
   @override
   Future<void> write(String namespace, String key, Uint8List bytes) async {
-    writes.add(_key(namespace, key));
-    values[_key(namespace, key)] = bytes;
+    final cacheKey = _key(namespace, key);
+    writes.add(cacheKey);
+    values[cacheKey] = bytes;
+    writeSignals[cacheKey]?.complete();
   }
 
   @override
@@ -141,7 +144,7 @@ class FakeRemote
   Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
 }
 
-class _CountingPageRemote extends FakeRemote {
+class _CountingPageRemote extends ResumableRemote {
   int pageReads = 0;
 
   @override
@@ -153,8 +156,61 @@ class _CountingPageRemote extends FakeRemote {
   @override
   Future<Uint8List> readPage(SourceMediaRef page) async {
     pageReads++;
-    return Uint8List.fromList([1]);
+    return super.readPage(page);
   }
+}
+
+class _GatedPageRemote extends ResumableRemote {
+  final reads = <String>[];
+  final gate = Completer<Uint8List>();
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async =>
+      List.generate(
+        4,
+        (index) => SourceMediaRef(sourceId: id, itemId: 'page-$index'),
+      );
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async {
+    reads.add(page.itemId);
+    if (page.itemId == 'page-1') return gate.future;
+    return super.readPage(page);
+  }
+}
+
+class _JumpRacePageRemote extends ResumableRemote {
+  final reads = <String>[];
+  final page1Started = Completer<void>();
+  final page5Started = Completer<void>();
+  final _page1Gate = Completer<Uint8List>();
+  final _page5Gate = Completer<Uint8List>();
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async =>
+      List.generate(
+        8,
+        (index) => SourceMediaRef(sourceId: id, itemId: 'page-$index'),
+      );
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async {
+    reads.add(page.itemId);
+    switch (page.itemId) {
+      case 'page-1':
+        if (!page1Started.isCompleted) page1Started.complete();
+        return _page1Gate.future;
+      case 'page-5':
+        if (!page5Started.isCompleted) page5Started.complete();
+        return _page5Gate.future;
+      default:
+        return super.readPage(page);
+    }
+  }
+
+  void releasePage1() => _page1Gate.complete(_png);
+
+  void releasePage5() => _page5Gate.complete(_png);
 }
 
 class _RetryingPageRemote extends ResumableRemote {
@@ -483,8 +539,27 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Series'));
       await tester.pumpAndSettle();
+      final prefetchedPage = cache.writeSignals.putIfAbsent(
+        'manga-page-v1/["fake","page-1"]',
+        Completer<void>.new,
+      );
       await tester.tap(find.text('Chapter'));
       await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        final image = tester.widget<Image>(find.byType(Image).last);
+        final decoded = Completer<void>();
+        final stream = image.image.resolve(ImageConfiguration.empty);
+        final listener = ImageStreamListener((_, _) => decoded.complete());
+        stream.addListener(listener);
+        await decoded.future;
+        stream.removeListener(listener);
+      });
+      await tester.pumpAndSettle();
+      expect(prefetchedPage.isCompleted, isTrue);
+      expect(
+        cache.values.containsKey('manga-page-v1/["fake","page-1"]'),
+        isTrue,
+      );
       await tester.tap(find.byTooltip('Next page'));
       await tester.pumpAndSettle();
       expect(remote.pageReads, 2);
@@ -545,14 +620,158 @@ void main() {
       () async => Future<void>.delayed(const Duration(milliseconds: 100)),
     );
     await tester.pumpAndSettle();
-    expect(remote.pageReads, 2);
+    expect(remote.pageReads, 3);
     expect(find.text('Could not decode this page.'), findsNothing);
     expect(cache.values['manga-page-v1/["fake","page-0"]'], validPng);
-    expect(cache.writes, ['manga-page-v1/["fake","page-0"]']);
+    expect(cache.writes, [
+      'manga-page-v1/["fake","page-0"]',
+      'manga-page-v1/["fake","page-1"]',
+    ]);
     final saved = await progress.load(chapter);
     expect(saved, isNotNull);
     expect((saved!.position as PagePosition).pageIndex, 0);
     expect(saved.completed, isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
+    await dependencies.dispose();
+    await db.close();
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets(
+    'foreground jump invalidates stale prefetch before the new page displays',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      final db = UserDatabase(NativeDatabase.memory());
+      final remote = _JumpRacePageRemote();
+      final cache = _TestByteCache();
+      final dependencies = AppDependencies.create(
+        database: db,
+        catalogProvider: _TestCatalogProvider(MediaType.manga),
+        cache: cache,
+        additionalSources: [remote],
+      );
+      addTearDown(dependencies.dispose);
+      addTearDown(db.close);
+
+      await tester.pumpWidget(HikariApp(dependencies: dependencies));
+      await tester.pumpAndSettle();
+      await _openCatalogSourceSearch(tester);
+      await tester.tap(find.text('Series'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chapter'));
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() async {
+        final image = tester.widget<Image>(find.byType(Image).last);
+        final decoded = Completer<void>();
+        final stream = image.image.resolve(ImageConfiguration.empty);
+        final listener = ImageStreamListener((_, _) => decoded.complete());
+        stream.addListener(listener);
+        await decoded.future;
+        stream.removeListener(listener);
+      });
+      await tester.pump();
+      await tester.runAsync(() => remote.page1Started.future);
+      expect(remote.reads, ['page-0', 'page-1']);
+
+      final slider = tester.widget<Slider>(find.byType(Slider));
+      slider.onChangeEnd!(6);
+      await tester.pump();
+      await tester.runAsync(() => remote.page5Started.future);
+      expect(remote.reads, ['page-0', 'page-1', 'page-5']);
+
+      final page1Cached = cache.writeSignals.putIfAbsent(
+        'manga-page-v1/["fake","page-1"]',
+        Completer<void>.new,
+      );
+      remote.releasePage1();
+      await tester.runAsync(() async {
+        await page1Cached.future;
+        await Future<void>.delayed(Duration.zero);
+      });
+      await tester.pump();
+      expect(remote.reads, [
+        'page-0',
+        'page-1',
+        'page-5',
+      ], reason: 'the stale page-0 window must not continue with page-2');
+
+      final page5Cached = cache.writeSignals.putIfAbsent(
+        'manga-page-v1/["fake","page-5"]',
+        Completer<void>.new,
+      );
+      final page7Cached = cache.writeSignals.putIfAbsent(
+        'manga-page-v1/["fake","page-7"]',
+        Completer<void>.new,
+      );
+      remote.releasePage5();
+      await tester.runAsync(() => page5Cached.future);
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        final image = tester.widget<Image>(find.byType(Image).last);
+        final decoded = Completer<void>();
+        final stream = image.image.resolve(ImageConfiguration.empty);
+        final listener = ImageStreamListener((_, _) => decoded.complete());
+        stream.addListener(listener);
+        await decoded.future;
+        stream.removeListener(listener);
+      });
+      await tester.pump();
+      await tester.runAsync(() => page7Cached.future);
+
+      expect(remote.reads, ['page-0', 'page-1', 'page-5', 'page-6', 'page-7']);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(Duration.zero);
+      debugDefaultTargetPlatformOverride = null;
+    },
+  );
+
+  testWidgets('route pop stops active prefetch remainder and late callbacks', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final db = UserDatabase(NativeDatabase.memory());
+    final remote = _GatedPageRemote();
+    final cache = _TestByteCache();
+    final dependencies = AppDependencies.create(
+      database: db,
+      catalogProvider: _TestCatalogProvider(MediaType.manga),
+      cache: cache,
+      additionalSources: [remote],
+    );
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await _openCatalogSourceSearch(tester);
+    await tester.tap(find.text('Series'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapter'));
+    await tester.pumpAndSettle();
+    final reader = tester.widget<MangaReaderPage>(find.byType(MangaReaderPage));
+    await tester.runAsync(() async {
+      final image = tester.widget<Image>(find.byType(Image).last);
+      final decoded = Completer<void>();
+      final stream = image.image.resolve(ImageConfiguration.empty);
+      final listener = ImageStreamListener((_, _) => decoded.complete());
+      stream.addListener(listener);
+      await decoded.future;
+      stream.removeListener(listener);
+    });
+    await tester.pumpAndSettle();
+    expect(remote.reads, ['page-0', 'page-1']);
+    await tester.tap(find.byTooltip('Back'));
+    // PopScope invalidates synchronously, before reverse transition completes.
+    reader.onPageDisplayed!(1);
+    remote.gate.complete(
+      await ResumableRemote().readPage(
+        const SourceMediaRef(sourceId: SourceId('fake'), itemId: 'page-1'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(remote.reads, ['page-0', 'page-1']);
+    expect(cache.values.containsKey('manga-page-v1/["fake","page-1"]'), isTrue);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(Duration.zero);
     await dependencies.dispose();

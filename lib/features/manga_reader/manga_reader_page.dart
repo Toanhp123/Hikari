@@ -18,6 +18,7 @@ class MangaReaderPage extends StatefulWidget {
     this.initialProgress,
     this.saveProgress,
     this.reloadPage,
+    this.onPageDisplayed,
   });
 
   final MediaProgress? initialProgress;
@@ -28,6 +29,7 @@ class MangaReaderPage extends StatefulWidget {
   final Future<List<SourceMediaRef>> Function() loadPages;
   final Future<Uint8List> Function(SourceMediaRef) readPage;
   final Future<Uint8List> Function(SourceMediaRef)? reloadPage;
+  final ValueChanged<int>? onPageDisplayed;
 
   @override
   State<MangaReaderPage> createState() => _MangaReaderPageState();
@@ -41,12 +43,20 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   bool _failed = false;
   int _index = 0;
   ImageProvider? _savedImage;
+  ImageProvider? _notifiedImage;
   bool _hasNavigated = false;
   bool _showControls = true;
   int _loadGeneration = 0;
   bool _retryRequiresReload = false;
 
   void _displayed(ImageProvider image, int index) {
+    if (_notifiedImage != image) {
+      _notifiedImage = image;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _image != image) return;
+        widget.onPageDisplayed?.call(index);
+      });
+    }
     if (widget.initialProgress?.completed == true && !_hasNavigated) return;
     if (_savedImage == image) return;
     _savedImage = image;
@@ -76,6 +86,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   void _releaseImage() {
     _image = null;
     _savedImage = null;
+    _notifiedImage = null;
   }
 
   @override

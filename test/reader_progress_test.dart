@@ -61,6 +61,7 @@ void main() {
     tester,
   ) async {
     final writes = <(ProgressPosition, bool)>[];
+    final displayed = <int>[];
     await tester.pumpWidget(
       MaterialApp(
         home: MangaReaderPage(
@@ -69,6 +70,7 @@ void main() {
             PagePosition(pageIndex: 2, pageCount: 3),
             completed: true,
           ),
+          onPageDisplayed: displayed.add,
           saveProgress: (position, completed) async =>
               writes.add((position, completed)),
           loadPages: () async => [ref, ref, ref],
@@ -86,6 +88,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Page 1 of 3'), findsOneWidget);
     expect(find.text('Could not decode this page.'), findsNothing);
+    expect(displayed, [0]);
     expect(writes, isEmpty);
     await tester.pumpWidget(const SizedBox());
     expect(writes, isEmpty);
@@ -94,6 +97,7 @@ void main() {
     'completed manga meaningful reread becomes active then complete',
     (tester) async {
       final writes = <(ProgressPosition, bool)>[];
+      final displayed = <int>[];
       await tester.pumpWidget(
         MaterialApp(
           home: MangaReaderPage(
@@ -102,6 +106,7 @@ void main() {
               PagePosition(pageIndex: 2, pageCount: 3),
               completed: true,
             ),
+            onPageDisplayed: displayed.add,
             saveProgress: (position, completed) async =>
                 writes.add((position, completed)),
             loadPages: () async => [ref, ref, ref],
@@ -127,6 +132,7 @@ void main() {
         );
       });
       await tester.pumpAndSettle();
+      expect(displayed, [0, 1]);
       expect((writes.last.$1 as PagePosition).pageIndex, 1);
       expect(writes.last.$2, isFalse);
       await tester.tap(find.byTooltip('Next page'));
@@ -138,10 +144,98 @@ void main() {
         );
       });
       await tester.pumpAndSettle();
+      expect(displayed, [0, 1, 2]);
       expect((writes.last.$1 as PagePosition).pageIndex, 2);
       expect(writes.last.$2, isTrue);
     },
   );
+  testWidgets('manga display callback fires once only after image decode', (
+    tester,
+  ) async {
+    final displayed = <int>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Pages',
+          loadPages: () async => [ref],
+          readPage: (_) async => Uint8List.fromList([1, 2]),
+          reloadPage: (_) async => png,
+          onPageDisplayed: displayed.add,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(displayed, isEmpty);
+    expect(find.text('Could not decode this page.'), findsOneWidget);
+    await tester.tap(find.text('Try again'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pumpAndSettle();
+    expect(displayed, [0]);
+    await tester.pump();
+    expect(displayed, [0]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('bytes alone do not notify before a decoded frame is painted', (
+    tester,
+  ) async {
+    final displayed = <int>[];
+    final bytes = Completer<Uint8List>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Frame',
+          loadPages: () async => [ref],
+          readPage: (_) => bytes.future,
+          onPageDisplayed: displayed.add,
+        ),
+      ),
+    );
+    await tester.pump();
+    bytes.complete(png);
+    expect(displayed, isEmpty);
+    await tester.pump();
+    final image = tester.widget<Image>(find.byType(Image));
+    await tester.runAsync(() async {
+      final decoded = Completer<void>();
+      final stream = image.image.resolve(ImageConfiguration.empty);
+      final listener = ImageStreamListener((_, _) => decoded.complete());
+      stream.addListener(listener);
+      await decoded.future;
+      stream.removeListener(listener);
+    });
+    await tester.pump();
+    expect(displayed, [0]);
+    await tester.tap(find.byType(InteractiveViewer));
+    await tester.pumpAndSettle();
+    expect(displayed, [0]);
+  });
+
+  testWidgets('save failure does not repeat display notification', (
+    tester,
+  ) async {
+    final displayed = <int>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Pages',
+          loadPages: () async => [ref],
+          readPage: (_) async => png,
+          onPageDisplayed: displayed.add,
+          saveProgress: (_, _) async => throw StateError('offline'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(displayed, [0]);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(displayed, [0]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
     'manga decode failure never writes progress; completed starts first',
     (tester) async {
