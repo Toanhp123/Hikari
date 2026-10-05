@@ -4,8 +4,8 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 
 @immutable
-final class NovelChapterReaderState {
-  const NovelChapterReaderState({
+final class NovelChapterReaderUiState {
+  const NovelChapterReaderUiState({
     required this.target,
     required this.chapterIndex,
     this.openingAdjacent = false,
@@ -31,7 +31,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
         'Initial novel chapter must have one sequence entry.',
       );
     }
-    _state = NovelChapterReaderState(
+    _state = NovelChapterReaderUiState(
       target: initialTarget,
       chapterIndex: index,
     );
@@ -39,14 +39,12 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
 
   final List<NovelChapter> _chapters;
   final OpenNovelChapter _openChapter;
-  late NovelChapterReaderState _state;
-  NovelChapterReaderState get state => _state;
+  late NovelChapterReaderUiState _state;
+  NovelChapterReaderUiState get state => _state;
   bool get canOpenPrevious => _state.chapterIndex > 0;
   bool get canOpenNext => _state.chapterIndex < _chapters.length - 1;
-  bool get isClosed => _closed || _disposed;
   int _generation = 0;
   bool _closed = false;
-  bool _disposed = false;
 
   static void _validate(Iterable<SourceMediaRef> refs) {
     final seen = <SourceMediaRef>{};
@@ -59,16 +57,16 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> previous() => _move(-1);
-  Future<void> next() => _move(1);
+  Future<void> openPrevious() => _move(-1);
+  Future<void> openNext() => _move(1);
 
   Future<void> _move(int delta) async {
-    if (_closed || _disposed || _state.openingAdjacent) return;
+    if (_closed || _state.openingAdjacent) return;
     final index = _state.chapterIndex + delta;
     if (index < 0 || index >= _chapters.length) return;
     final generation = ++_generation;
     _publish(
-      NovelChapterReaderState(
+      NovelChapterReaderUiState(
         target: _state.target,
         chapterIndex: _state.chapterIndex,
         openingAdjacent: true,
@@ -76,12 +74,12 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
     );
     try {
       final target = await _openChapter.execute(_chapters[index]);
-      if (_closed || _disposed || generation != _generation) return;
-      _publish(NovelChapterReaderState(target: target, chapterIndex: index));
+      if (_closed || generation != _generation) return;
+      _publish(NovelChapterReaderUiState(target: target, chapterIndex: index));
     } catch (_) {
-      if (_closed || _disposed || generation != _generation) return;
+      if (_closed || generation != _generation) return;
       _publish(
-        NovelChapterReaderState(
+        NovelChapterReaderUiState(
           target: _state.target,
           chapterIndex: _state.chapterIndex,
         ),
@@ -96,16 +94,15 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
     _generation++;
   }
 
-  void _publish(NovelChapterReaderState state) {
-    if (_closed || _disposed) return;
+  void _publish(NovelChapterReaderUiState state) {
+    if (_closed) return;
     _state = state;
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _disposed = true;
-    _generation++;
+    close();
     super.dispose();
   }
 }

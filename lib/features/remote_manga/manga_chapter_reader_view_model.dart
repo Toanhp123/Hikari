@@ -4,8 +4,8 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 
 @immutable
-final class MangaChapterReaderState {
-  const MangaChapterReaderState({
+final class MangaChapterReaderUiState {
+  const MangaChapterReaderUiState({
     required this.target,
     required this.chapterIndex,
     this.openingAdjacent = false,
@@ -30,7 +30,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
         'Initial manga chapter must have one sequence entry.',
       );
     }
-    _state = MangaChapterReaderState(
+    _state = MangaChapterReaderUiState(
       target: initialTarget,
       chapterIndex: index,
     );
@@ -38,8 +38,8 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
 
   final List<MangaChapter> _chapters;
   final OpenMangaChapter _openChapter;
-  late MangaChapterReaderState _state;
-  MangaChapterReaderState get state => _state;
+  late MangaChapterReaderUiState _state;
+  MangaChapterReaderUiState get state => _state;
   bool get canOpenPrevious => _state.chapterIndex > 0;
   bool get canOpenNext => _state.chapterIndex < _chapters.length - 1;
   int _generation = 0;
@@ -61,8 +61,8 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> previous() => _move(-1);
-  Future<void> next() => _move(1);
+  Future<void> openPrevious() => _move(-1);
+  Future<void> openNext() => _move(1);
 
   Future<void> _move(int delta) async {
     if (_closed || _state.openingAdjacent) return;
@@ -70,7 +70,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     if (index < 0 || index >= _chapters.length) return;
     final generation = ++_generation;
     _publish(
-      MangaChapterReaderState(
+      MangaChapterReaderUiState(
         target: _state.target,
         chapterIndex: _state.chapterIndex,
         openingAdjacent: true,
@@ -79,11 +79,11 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     try {
       final target = await _openChapter.execute(_chapters[index]);
       if (_closed || generation != _generation) return;
-      _publish(MangaChapterReaderState(target: target, chapterIndex: index));
+      _publish(MangaChapterReaderUiState(target: target, chapterIndex: index));
     } catch (_) {
       if (_closed || generation != _generation) return;
       _publish(
-        MangaChapterReaderState(
+        MangaChapterReaderUiState(
           target: _state.target,
           chapterIndex: _state.chapterIndex,
         ),
@@ -98,7 +98,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     _generation++;
   }
 
-  void _publish(MangaChapterReaderState state) {
+  void _publish(MangaChapterReaderUiState state) {
     if (_closed) return;
     _state = state;
     notifyListeners();

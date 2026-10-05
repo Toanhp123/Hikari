@@ -54,17 +54,17 @@ void main() {
     final source = _Source()..gates['c'] = Completer();
     final model = await _model(source, _b, [_a, _b, _c]);
     addTearDown(model.dispose);
-    await model.previous();
+    await model.openPrevious();
     expect(model.state.target.chapter.source, _a);
-    await model.next();
+    await model.openNext();
     expect(model.state.target.chapter.source, _b);
 
     final started = source.started.putIfAbsent('c', Completer<void>.new);
-    final moving = model.next();
+    final moving = model.openNext();
     await started.future;
     expect(model.state.openingAdjacent, isTrue);
-    await model.previous();
-    await model.next();
+    await model.openPrevious();
+    await model.openNext();
     expect(source.calls.where((id) => id == 'c'), hasLength(1));
     source.gates['c']!.complete([_c]);
     await moving;
@@ -82,7 +82,7 @@ void main() {
       openChapter: OpenMangaChapter(SourceRegistry([source]), _Progress()),
     );
     addTearDown(model.dispose);
-    await model.next();
+    await model.openNext();
     expect(model.state.target.chapter.source, _b);
   });
 
@@ -103,7 +103,7 @@ void main() {
     );
     input.clear();
     addTearDown(model.dispose);
-    await model.next();
+    await model.openNext();
     expect(model.state.target.chapter.source, _c);
     final hiddenTarget = await _open(source, hidden);
     expect(
@@ -120,10 +120,10 @@ void main() {
     final source = _Source();
     final first = await _model(source, _a, [_a, _b]);
     addTearDown(first.dispose);
-    await first.previous();
+    await first.openPrevious();
     final last = await _model(source, _b, [_a, _b]);
     addTearDown(last.dispose);
-    await last.next();
+    await last.openNext();
     expect(source.calls, isEmpty);
   });
 
@@ -132,7 +132,7 @@ void main() {
     final started = source.started.putIfAbsent('b', Completer<void>.new);
     final model = await _model(source, _a, [_a, _b]);
     addTearDown(model.dispose);
-    final pending = model.next();
+    final pending = model.openNext();
     await started.future;
     source.gates['b']!.completeError(StateError('offline'));
     await expectLater(pending, throwsStateError);
@@ -140,7 +140,7 @@ void main() {
     expect(model.state.openingAdjacent, isFalse);
     source.gates.remove('b');
     source.started.remove('b');
-    await model.next();
+    await model.openNext();
     expect(model.state.target.chapter.source, _b);
   });
 
@@ -153,7 +153,7 @@ void main() {
         final model = await _model(source, _a, [_a, _b]);
         var notices = 0;
         model.addListener(() => notices++);
-        final pending = model.next();
+        final pending = model.openNext();
         await started.future;
         if (dispose) {
           model.dispose();
@@ -178,7 +178,7 @@ void main() {
         final model = await _model(source, _a, [_a, _b]);
         var notices = 0;
         model.addListener(() => notices++);
-        final pending = model.next();
+        final pending = model.openNext();
         await started.future;
         if (dispose) {
           model.dispose();

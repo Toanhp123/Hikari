@@ -137,10 +137,10 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
             );
           },
           onPreviousChapter: !_closed && _viewModel.canOpenPrevious
-              ? () => _move(_viewModel.previous)
+              ? () => _move(_viewModel.openPrevious)
               : null,
           onNextChapter: !_closed && _viewModel.canOpenNext
-              ? () => _move(_viewModel.next)
+              ? () => _move(_viewModel.openNext)
               : null,
           chapterNavigationLoading: state.openingAdjacent,
           initialProgress: target.progress.initialProgress,

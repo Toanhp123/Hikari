@@ -84,10 +84,10 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
           initialProgress: target.progress.initialProgress,
           saveProgress: target.progress.save,
           onPreviousChapter: !_closed && _viewModel.canOpenPrevious
-              ? () => _move(_viewModel.previous)
+              ? () => _move(_viewModel.openPrevious)
               : null,
           onNextChapter: !_closed && _viewModel.canOpenNext
-              ? () => _move(_viewModel.next)
+              ? () => _move(_viewModel.openNext)
               : null,
           chapterNavigationLoading: state.openingAdjacent,
         );

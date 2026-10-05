@@ -97,11 +97,11 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
 
   Future<void> _saveBarrier() => _saveTail;
 
+  bool get _readerInteractionBusy =>
+      _loading || _handingOffChapter || widget.chapterNavigationLoading;
+
   Future<void> _handoffChapter(Future<void> Function()? action) async {
-    if (action == null ||
-        _handingOffChapter ||
-        widget.chapterNavigationLoading ||
-        _loading) {
+    if (action == null || _readerInteractionBusy) {
       return;
     }
     setState(() => _handingOffChapter = true);
@@ -196,10 +196,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   void _move(int delta) {
-    if (_handingOffChapter ||
-        widget.chapterNavigationLoading ||
-        _loading ||
-        _pages == null) {
+    if (_readerInteractionBusy || _pages == null) {
       return;
     }
     final target = _index + delta;
@@ -210,10 +207,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   void _jumpToPage(int page) {
-    if (_handingOffChapter ||
-        widget.chapterNavigationLoading ||
-        _loading ||
-        _pages == null) {
+    if (_readerInteractionBusy || _pages == null) {
       return;
     }
     if (page < 0 || page >= _pages!.length) return;
@@ -245,10 +239,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                   : _failed
                   ? MangaReaderFailure(
                       message: 'Could not load this page.',
-                      onRetry:
-                          _loading ||
-                              _handingOffChapter ||
-                              widget.chapterNavigationLoading
+                      onRetry: _readerInteractionBusy
                           ? null
                           : (_pages == null
                                 ? _loadPages
@@ -275,7 +266,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                           semanticLabel: 'Page ${_index + 1}',
                           errorBuilder: (_, _, _) => MangaReaderFailure(
                             message: 'Could not decode this page.',
-                            onRetry: _loading
+                            onRetry: _readerInteractionBusy
                                 ? null
                                 : (_pages == null
                                       ? _loadPages
@@ -304,10 +295,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                 onNextChapter: widget.onNextChapter == null
                     ? null
                     : () => _handoffChapter(widget.onNextChapter),
-                chapterNavigationLoading:
-                    _loading ||
-                    _handingOffChapter ||
-                    widget.chapterNavigationLoading,
+                chapterNavigationLoading: _readerInteractionBusy,
               ),
             ),
           if (_showControls && pages != null && pages.isNotEmpty)
@@ -318,10 +306,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
               child: MangaReaderPageControls(
                 pageIndex: _index,
                 pageCount: pages.length,
-                loading:
-                    _loading ||
-                    _handingOffChapter ||
-                    widget.chapterNavigationLoading,
+                loading: _readerInteractionBusy,
                 onPrevious: () => _move(-1),
                 onNext: () => _move(1),
                 onJumpToPage: _jumpToPage,

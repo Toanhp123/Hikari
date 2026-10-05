@@ -307,6 +307,57 @@ void main() {
     },
   );
 
+  testWidgets('manga decode retry is locked during chapter handoff', (
+    tester,
+  ) async {
+    final navigation = Completer<void>();
+    var reloads = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Decode handoff',
+          loadPages: () async => [ref],
+          readPage: (_) async => Uint8List.fromList([1, 2]),
+          reloadPage: (_) async {
+            reloads++;
+            return png;
+          },
+          onNextChapter: () => navigation.future,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Could not decode this page.'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Try again'))
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Try again'))
+          .onPressed,
+      isNull,
+    );
+    expect(reloads, 0);
+
+    navigation.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Try again'))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets(
     'novel restores after layout, debounces and flushes final position',
     (tester) async {
