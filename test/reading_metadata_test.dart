@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
@@ -77,6 +79,7 @@ void main() {
       );
       final details = MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Example'),
+        chapterListOrder: ChapterListOrder.readingOrder,
         chapters: [chapter],
       );
 
@@ -104,6 +107,143 @@ void main() {
       );
     },
   );
+
+  test('manga details expose both immutable chapter list orders', () {
+    final chapters = [
+      for (var index = 0; index < 3; index++)
+        MangaChapter(
+          title: 'Chapter $index',
+          chapterNumber: [3.0, null, 1.5][index],
+          source: SourceMediaRef(
+            sourceId: const SourceId('test'),
+            itemId: '$index',
+          ),
+        ),
+    ];
+    final reading = MangaSeriesDetails(
+      metadata: MediaMetadata(title: 'Manga'),
+      chapterListOrder: ChapterListOrder.readingOrder,
+      chapters: chapters,
+    );
+    final reverse = MangaSeriesDetails(
+      metadata: MediaMetadata(title: 'Manga'),
+      chapters: chapters,
+      chapterListOrder: ChapterListOrder.reverseReadingOrder,
+    );
+    chapters.clear();
+
+    final sourceOrder = List.of(reverse.chapters);
+    reverse.chaptersInReadingOrder;
+    expect(reverse.chapters, sourceOrder);
+    expect(
+      () => reading.chaptersInReadingOrder.clear(),
+      throwsUnsupportedError,
+    );
+    expect(() => reverse.chapters.clear(), throwsUnsupportedError);
+    expect(reading.chapterListOrder, ChapterListOrder.readingOrder);
+    expect(reading.chaptersInReadingOrder, same(reading.chapters));
+    expect(reading.chaptersInReadingOrder.map((chapter) => chapter.title), [
+      'Chapter 0',
+      'Chapter 1',
+      'Chapter 2',
+    ]);
+    expect(reverse.chaptersInReadingOrder.map((chapter) => chapter.title), [
+      'Chapter 2',
+      'Chapter 1',
+      'Chapter 0',
+    ]);
+    expect(reverse.chaptersInReadingOrder.first.chapterNumber, 1.5);
+    expect(reverse.chaptersInReadingOrder.last.chapterNumber, 3);
+    expect(() => reading.chapters.clear(), throwsUnsupportedError);
+    expect(
+      () => reverse.chaptersInReadingOrder.clear(),
+      throwsUnsupportedError,
+    );
+    for (final order in ChapterListOrder.values) {
+      final empty = MangaSeriesDetails(
+        metadata: MediaMetadata(title: 'Empty'),
+        chapters: const [],
+        chapterListOrder: order,
+      );
+      final single = MangaSeriesDetails(
+        metadata: MediaMetadata(title: 'Single'),
+        chapters: [reading.chapters.first],
+        chapterListOrder: order,
+      );
+      expect(empty.chaptersInReadingOrder, isEmpty);
+      expect(single.chaptersInReadingOrder, [reading.chapters.first]);
+    }
+  });
+
+  test('novel details expose both immutable chapter list orders', () {
+    final chapters = [
+      for (var index = 0; index < 3; index++)
+        NovelChapter(
+          title: 'Chapter $index',
+          chapterNumber: [9.0, null, 1.5][index],
+          source: SourceMediaRef(
+            sourceId: const SourceId('test'),
+            itemId: '$index',
+          ),
+        ),
+    ];
+    final reading = NovelDetails(
+      metadata: MediaMetadata(title: 'Novel'),
+      chapterListOrder: ChapterListOrder.readingOrder,
+      chapters: chapters,
+    );
+    final reverse = NovelDetails(
+      metadata: MediaMetadata(title: 'Novel'),
+      chapters: chapters,
+      chapterListOrder: ChapterListOrder.reverseReadingOrder,
+    );
+    chapters.clear();
+
+    final sourceOrder = List.of(reverse.chapters);
+    reverse.chaptersInReadingOrder;
+    expect(reverse.chapters, sourceOrder);
+    expect(
+      () => reading.chaptersInReadingOrder.clear(),
+      throwsUnsupportedError,
+    );
+    expect(() => reverse.chapters.clear(), throwsUnsupportedError);
+    expect(reading.chapterListOrder, ChapterListOrder.readingOrder);
+    expect(reading.chaptersInReadingOrder, same(reading.chapters));
+    expect(reading.chaptersInReadingOrder.map((chapter) => chapter.title), [
+      'Chapter 0',
+      'Chapter 1',
+      'Chapter 2',
+    ]);
+    expect(reverse.chaptersInReadingOrder.map((chapter) => chapter.title), [
+      'Chapter 2',
+      'Chapter 1',
+      'Chapter 0',
+    ]);
+    expect(reverse.chaptersInReadingOrder[0].chapterNumber, 1.5);
+    expect(reverse.chaptersInReadingOrder[1].chapterNumber, isNull);
+    expect(
+      () => reading.chapters.add(reading.chapters.first),
+      throwsUnsupportedError,
+    );
+    expect(
+      () => reverse.chaptersInReadingOrder.clear(),
+      throwsUnsupportedError,
+    );
+    for (final order in ChapterListOrder.values) {
+      final empty = NovelDetails(
+        metadata: MediaMetadata(title: 'Empty'),
+        chapters: const [],
+        chapterListOrder: order,
+      );
+      final single = NovelDetails(
+        metadata: MediaMetadata(title: 'Single'),
+        chapters: [reading.chapters.first],
+        chapterListOrder: order,
+      );
+      expect(empty.chaptersInReadingOrder, isEmpty);
+      expect(single.chaptersInReadingOrder, [reading.chapters.first]);
+    }
+  });
 
   test('artwork source owns cover byte loading', () async {
     final source = _ArtworkSource();

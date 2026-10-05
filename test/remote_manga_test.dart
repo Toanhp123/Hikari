@@ -14,6 +14,7 @@ import 'package:hikari/core/cache/byte_cache.dart';
 
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -123,6 +124,7 @@ class FakeRemote
   Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
       MangaSeriesDetails(
         metadata: MediaMetadata(title: 'Series'),
+        chapterListOrder: ChapterListOrder.readingOrder,
         chapters: [
           MangaChapter(
             title: 'Chapter',
@@ -936,6 +938,7 @@ void main() {
                 : Future.value(
                     MangaSeriesDetails(
                       metadata: MediaMetadata(title: 'Series'),
+                      chapterListOrder: ChapterListOrder.readingOrder,
                       chapters: [],
                     ),
                   );
@@ -969,6 +972,7 @@ void main() {
             if (++calls == 2) throw StateError('offline');
             return MangaSeriesDetails(
               metadata: MediaMetadata(title: 'Series'),
+              chapterListOrder: ChapterListOrder.readingOrder,
               chapters: [MangaChapter(title: 'Chapter 1', source: ref)],
             );
           },
@@ -1003,6 +1007,7 @@ void main() {
           sourceName: 'Test source',
           loadDetails: () async => MangaSeriesDetails(
             metadata: MediaMetadata(title: 'Series'),
+            chapterListOrder: ChapterListOrder.readingOrder,
             chapters: [
               MangaChapter(
                 title: 'External chapter',
@@ -1030,7 +1035,7 @@ void main() {
     expect(opens, 0);
   });
 
-  testWidgets('chapter list preserves attribution and selected ref', (
+  testWidgets('chapter list preserves source order, attribution and ref', (
     tester,
   ) async {
     const ref = SourceMediaRef(sourceId: SourceId('fake'), itemId: 'chapter');
@@ -1042,8 +1047,22 @@ void main() {
           sourceName: 'Test source',
           loadDetails: () async => MangaSeriesDetails(
             metadata: MediaMetadata(title: 'Series'),
+            chapterListOrder: ChapterListOrder.reverseReadingOrder,
             chapters: [
-              MangaChapter(title: 'Chapter 1', source: ref, scanlator: 'Group'),
+              MangaChapter(
+                title: 'Latest',
+                source: ref,
+                chapterNumber: 3,
+                scanlator: 'Group',
+              ),
+              MangaChapter(
+                title: 'Earliest',
+                source: const SourceMediaRef(
+                  sourceId: SourceId('fake'),
+                  itemId: 'earliest',
+                ),
+                chapterNumber: 1,
+              ),
             ],
           ),
           openChapter: (_, chapter) async {
@@ -1054,7 +1073,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('Group'), findsOneWidget);
-    await tester.tap(find.text('Chapter 1'));
+    expect(
+      tester.getTopLeft(find.text('Latest')).dy,
+      lessThan(tester.getTopLeft(find.text('Earliest')).dy),
+    );
+    await tester.tap(find.text('Latest'));
     await tester.pumpAndSettle();
     expect(selected?.source, ref);
   });

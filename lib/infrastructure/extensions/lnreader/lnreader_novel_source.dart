@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'package:html/parser.dart' as html;
 
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -148,6 +149,7 @@ class LnReaderNovelSource
     final seen = <String>{};
     return NovelDetails(
       metadata: _metadata(row),
+      chapterListOrder: ChapterListOrder.readingOrder,
       chapters: chapters.map((value) {
         final chapter = Map<String, dynamic>.from(value as Map);
         final path = chapter['path'] as String;

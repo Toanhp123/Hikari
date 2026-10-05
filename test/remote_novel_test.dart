@@ -9,6 +9,7 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -124,6 +125,7 @@ class FakeNovel
       authors: ['Author'],
       genres: ['Fantasy'],
     ),
+    chapterListOrder: ChapterListOrder.readingOrder,
     chapters: [
       NovelChapter(
         title: 'Chapter rich',
@@ -159,6 +161,7 @@ class _RefreshNovel extends FakeNovel {
     if (++detailLoads == 2) throw StateError('offline');
     return NovelDetails(
       metadata: MediaMetadata(title: 'Novel'),
+      chapterListOrder: ChapterListOrder.readingOrder,
       chapters: [NovelChapter(title: 'Chapter 1', source: ref('chapter'))],
     );
   }
@@ -171,6 +174,7 @@ class _ForeignNovel extends FakeNovel {
       title: 'Foreign',
       cover: SourceMediaRef(sourceId: SourceId('foreign'), itemId: 'cover'),
     ),
+    chapterListOrder: ChapterListOrder.readingOrder,
     chapters: [],
   );
   @override
@@ -228,6 +232,28 @@ void main() {
       throwsStateError,
     );
   });
+  testWidgets('novel chapter list preserves source order', (tester) async {
+    final source = _ReversedNovel();
+    final target = NovelSeriesOpenTarget(
+      Media(
+        title: 'Novel',
+        type: MediaType.lightNovel,
+        source: source.ref('series'),
+      ),
+      source: source,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelSeriesPage(target: target, openChapter: (_, _) async {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('Latest')).dy,
+      lessThan(tester.getTopLeft(find.text('Earliest')).dy),
+    );
+  });
+
   testWidgets('series refresh failure keeps the last chapter list visible', (
     tester,
   ) async {
@@ -368,4 +394,16 @@ void main() {
     await db.close();
     debugDefaultTargetPlatformOverride = null;
   });
+}
+
+final class _ReversedNovel extends FakeNovel {
+  @override
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
+    metadata: MediaMetadata(title: 'Novel'),
+    chapterListOrder: ChapterListOrder.reverseReadingOrder,
+    chapters: [
+      NovelChapter(title: 'Latest', source: ref('latest')),
+      NovelChapter(title: 'Earliest', source: ref('earliest')),
+    ],
+  );
 }

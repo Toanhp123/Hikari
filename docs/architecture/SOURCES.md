@@ -57,6 +57,16 @@ The current source surface is deliberately small:
 
 Capabilities compose. Android extension-backed manga sources implement search + series + pages + artwork. Local SAF implements direct video + pages + text + publications + platform availability + an optional open lease for archive-backed media. Remote novels use search + series + rich chapters. Domain does not know HTTP, SAF, SQLite, extension APKs, plugin JavaScript or Flutter widgets.
 
+### Chapter list order
+
+`MangaSeriesDetails` and `NovelDetails` keep immutable `chapters` exactly in source-provided structural order. Every details producer must declare a `ChapterListOrder`, which states whether that sequence begins with the first-read or last-read chapter. `chaptersInReadingOrder` exposes the corresponding immutable reading-order list without sorting on optional chapter numbers or dates.
+
+Mihon declares reverse reading order because its chapter contract supplies descending source order. Hikari's current LNReader compatibility treats `parseNovel` page 1 followed by `parsePage` pages 2..N as reading order and declares that explicitly. Descending LNReader page-plugin semantics are not modeled yet; if Hikari adopts that upstream contract, the adapter must normalize or declare it explicitly rather than infer sequence from metadata. Providers may omit or repeat chapter numbers. LNReader pagination limits and duplicate-path rejection remain documented under [EXTENSIONS](EXTENSIONS.md).
+
+Mihon collapses exact stable chapter identities (derived from URLs) before saving continuation state, retaining the first occurrence and its metadata. Different URLs remain distinct even when chapter numbers match. Chapter numbers, titles, dates and scanlators are metadata, never sequence authority.
+
+Remote chapter-list UI continues to render `chapters` in structural source order and passes selected chapter through unchanged. This contract adds no navigation or reader lifecycle behavior.
+
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
 an operation that cannot be expressed by the current contracts.
 

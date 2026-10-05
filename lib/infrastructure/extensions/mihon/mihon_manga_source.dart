@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import 'package:hikari/infrastructure/persistence/user_database.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -138,9 +139,13 @@ final class MihonMangaSource
     if (result.manga.url != mangaReference.url) {
       throw StateError('Extension details do not match requested identity.');
     }
+    final seen = <String>{};
+    final chapters = result.chapters
+        .where((chapter) => seen.add(_references.chapterFromPlugin(chapter)))
+        .toList(growable: false);
     await _database.transaction(() async {
       await _remember(manga.itemId, _references.mangaState(result.manga));
-      for (final chapter in result.chapters) {
+      for (final chapter in chapters) {
         await _remember(
           _references.chapterFromPlugin(chapter),
           _references.chapterState(chapter),
@@ -149,7 +154,8 @@ final class MihonMangaSource
     });
     return MangaSeriesDetails(
       metadata: _metadata(result.manga),
-      chapters: result.chapters
+      chapterListOrder: ChapterListOrder.reverseReadingOrder,
+      chapters: chapters
           .map(
             (chapter) => MangaChapter(
               title: chapter.title,

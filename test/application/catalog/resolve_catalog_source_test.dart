@@ -7,6 +7,7 @@ import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -238,6 +239,7 @@ final class _NovelSource
   @override
   Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
     metadata: MediaMetadata(title: 'Novel'),
+    chapterListOrder: ChapterListOrder.readingOrder,
     chapters: const [],
   );
 
