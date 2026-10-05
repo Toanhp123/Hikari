@@ -17,7 +17,7 @@ final class ReadMangaPage {
   Future<Uint8List> execute(MangaPageSource source, SourceMediaRef page) {
     if (page.sourceId != source.id) {
       return Future.error(
-        StateError('Manga source returned foreign page reference.'),
+        StateError('Manga source received foreign page reference.'),
       );
     }
     final current = _inFlight[page];
@@ -28,7 +28,7 @@ final class ReadMangaPage {
   Future<Uint8List> reload(MangaPageSource source, SourceMediaRef page) {
     if (page.sourceId != source.id) {
       return Future.error(
-        StateError('Manga source returned foreign page reference.'),
+        StateError('Manga source received foreign page reference.'),
       );
     }
     final current = _inFlight[page];

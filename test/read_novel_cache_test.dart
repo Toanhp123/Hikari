@@ -278,6 +278,27 @@ void main() {
     expect(cache.writes, 2);
   });
 
+  test('image-only rich chapter is cacheable', () async {
+    final cache = _Cache();
+    final source = _Source();
+    final reader = ReadNovelChapterContent(cache);
+    final chapter = _ref('illustration-only');
+    final image = _ref('illustration');
+    source.result = RichReadingContent(
+      html: '<figure><img src="image"></figure>',
+      resources: {'image': image},
+    );
+
+    final first = await reader.execute(source, chapter);
+    expect(first.resources, {'image': image});
+    expect(cache.writes, 1);
+
+    source.result = RichReadingContent(html: '<p>network should not run</p>');
+    final cached = await reader.execute(source, chapter);
+    expect(cached.resources, {'image': image});
+    expect(source.chapterReads, 1);
+  });
+
   test('chapter rejects foreign refs and resources', () async {
     final cache = _Cache();
     final source = _Source();

@@ -80,7 +80,7 @@ final class ReadNovelChapterContent {
         final cached = await _cache.read(cacheNamespace, cacheKey(chapter));
         if (cached != null) {
           final content = _decode(cached, chapter);
-          if (content != null && _hasContent(content.html)) {
+          if (content != null && _hasCacheableContent(content)) {
             _validateResources(source, content);
             return content;
           }
@@ -91,7 +91,7 @@ final class ReadNovelChapterContent {
     }
     final content = await source.chapterContent(chapter);
     _validateResources(source, content);
-    if (_hasContent(content.html)) {
+    if (_hasCacheableContent(content)) {
       try {
         await _cache.write(
           cacheNamespace,
@@ -108,7 +108,10 @@ final class ReadNovelChapterContent {
   static String cacheKey(SourceMediaRef chapter) =>
       jsonEncode([chapter.sourceId.value, chapter.itemId]);
 
-  static bool _hasContent(String html) {
+  static bool _hasCacheableContent(RichReadingContent content) =>
+      content.resources.isNotEmpty || _hasVisibleText(content.html);
+
+  static bool _hasVisibleText(String html) {
     final text = html
         .replaceAll(RegExp(r'<[^>]*>'), '')
         .replaceAll(
