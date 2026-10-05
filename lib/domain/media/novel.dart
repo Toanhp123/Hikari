@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
@@ -48,12 +49,23 @@ final class NovelSearchPage {
 }
 
 final class NovelDetails {
-  NovelDetails({required this.metadata, required List<NovelChapter> chapters})
-    : chapters = List.unmodifiable(chapters);
+  NovelDetails({
+    required this.metadata,
+    required List<NovelChapter> chapters,
+    this.chapterListOrder = ChapterListOrder.readingOrder,
+  }) : chapters = List.unmodifiable(chapters);
   final MediaMetadata metadata;
 
   /// Complete list in source order, including all source chapter-list pages.
   final List<NovelChapter> chapters;
+
+  /// Defaults to reading order when callers do not declare source order.
+  final ChapterListOrder chapterListOrder;
+
+  List<NovelChapter> get chaptersInReadingOrder =>
+      chapterListOrder == ChapterListOrder.readingOrder
+      ? chapters
+      : List.unmodifiable(chapters.reversed);
 }
 
 final class RichReadingContent {

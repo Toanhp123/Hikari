@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
@@ -51,10 +52,21 @@ final class MangaSeriesDetails {
   MangaSeriesDetails({
     required this.metadata,
     required List<MangaChapter> chapters,
+    this.chapterListOrder = ChapterListOrder.readingOrder,
   }) : chapters = List.unmodifiable(chapters);
 
   final MediaMetadata metadata;
+
+  /// Chapters in structural source order. Input is snapshotted immutably.
   final List<MangaChapter> chapters;
+
+  /// Defaults to reading order when callers do not declare source order.
+  final ChapterListOrder chapterListOrder;
+
+  List<MangaChapter> get chaptersInReadingOrder =>
+      chapterListOrder == ChapterListOrder.readingOrder
+      ? chapters
+      : List.unmodifiable(chapters.reversed);
 }
 
 abstract interface class MangaSearchSource implements MediaSource {

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/extensions/lnreader/lnreader_novel_source.dart';
 
@@ -15,6 +16,9 @@ void main() {
     () async {
       var duplicate = false;
       var images = false;
+      var rowCountSingle = false;
+      final chapterCalls = <List<Object?>>[];
+      final pageCalls = <List<Object?>>[];
       String? artworkUrl;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
@@ -23,6 +27,16 @@ void main() {
               return Uint8List.fromList([7, 8, 9]);
             }
             final args = call.arguments as Map;
+            if (args['method'] == 'parseNovel') {
+              chapterCalls.add(
+                jsonDecode(args['args'] as String) as List<Object?>,
+              );
+            }
+            if (args['method'] == 'parsePage') {
+              pageCalls.add(
+                jsonDecode(args['args'] as String) as List<Object?>,
+              );
+            }
             return jsonEncode(switch (args['method']) {
               'searchNovels' => [
                 {
@@ -38,7 +52,7 @@ void main() {
                 'genres': 'Fantasy',
                 'rating': 4.5,
                 'status': 'Ongoing',
-                'totalPages': 2,
+                'totalPages': rowCountSingle ? 1 : 2,
                 'chapters': [
                   {
                     'name': 'First',
@@ -84,6 +98,31 @@ void main() {
         search.results.single.media.source,
       );
       expect(details.chapters.length, 2);
+      expect(details.chapterListOrder, ChapterListOrder.readingOrder);
+      expect(details.chaptersInReadingOrder, details.chapters);
+      expect(details.chapters.map((chapter) => chapter.title), [
+        'First',
+        'Second',
+      ]);
+      expect(chapterCalls, [
+        ['/novel'],
+      ]);
+      expect(pageCalls, [
+        ['/novel', '2'],
+      ]);
+      duplicate = false;
+      chapterCalls.clear();
+      pageCalls.clear();
+      rowCountSingle = true;
+      final singlePage = await source.loadDetails(
+        search.results.single.media.source,
+      );
+      expect(singlePage.chapters.map((chapter) => chapter.title), ['First']);
+      expect(chapterCalls, [
+        ['/novel'],
+      ]);
+      expect(pageCalls, isEmpty);
+      rowCountSingle = false;
       expect(details.metadata.authors, ['A', 'B']);
       expect(details.metadata.rating, 4.5);
       expect(details.metadata.ratingMax, 5);

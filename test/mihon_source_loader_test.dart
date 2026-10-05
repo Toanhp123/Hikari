@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -29,6 +30,7 @@ final class _FakeGateway implements MihonExtensionGateway {
   String? chapterMangaUrl;
   String? artworkUrl;
   MihonMangaItem? seriesManga;
+  List<MihonChapterItem>? seriesChapters;
   String revision = '1';
   String? chapterMangaTitle;
   String? chapterMangaMemo;
@@ -88,16 +90,18 @@ final class _FakeGateway implements MihonExtensionGateway {
             rawStatus: 'Ongoing',
             memo: '{"seriesId":"123"}',
           ),
-      chapters: [
-        MihonChapterItem(
-          title: revision == '1' ? 'Chapter 1' : 'Renamed chapter',
-          url: '/chapter/$_chapterId',
-          scanlator: revision == '1' ? 'Group' : 'New group',
-          chapterNumber: revision == '1' ? 1 : 1.5,
-          dateUpload: revision == '1' ? 123456789 : 987654321,
-          memo: revision == '1' ? '{"chapterId":"456"}' : 'new opaque memo',
-        ),
-      ],
+      chapters:
+          seriesChapters ??
+          [
+            MihonChapterItem(
+              title: revision == '1' ? 'Chapter 1' : 'Renamed chapter',
+              url: '/chapter/$_chapterId',
+              scanlator: revision == '1' ? 'Group' : 'New group',
+              chapterNumber: revision == '1' ? 1 : 1.5,
+              dateUpload: revision == '1' ? 123456789 : 987654321,
+              memo: revision == '1' ? '{"chapterId":"456"}' : 'new opaque memo',
+            ),
+          ],
     );
   }
 
@@ -423,6 +427,169 @@ void main() {
       expect(source, isA<MangaPageSource>());
       expect(source.id, const SourceId('mihon:42'));
       expect(source.name, 'Example Source [vi]');
+    },
+  );
+
+  test('Mihon preserves structural descending source order', () async {
+    final gateway = _FakeGateway(const [_mangaDex])
+      ..seriesChapters = [
+        const MihonChapterItem(title: '3', url: '/3', chapterNumber: 3),
+        const MihonChapterItem(title: '2', url: '/2', chapterNumber: 2),
+        const MihonChapterItem(title: '1', url: '/1', chapterNumber: 1),
+      ];
+    final source = (await MihonSourceLoader(
+      gateway: gateway,
+      database: database,
+    ).loadSources()).single;
+    final media = (await (source as MangaSearchSource).search('example'))
+        .results
+        .single
+        .media;
+    final details = await (source as MangaSeriesSource).loadDetails(
+      media.source,
+    );
+
+    expect(details.chapters.map((chapter) => chapter.title), ['3', '2', '1']);
+    expect(details.chapterListOrder, ChapterListOrder.reverseReadingOrder);
+    expect(details.chaptersInReadingOrder.map((chapter) => chapter.title), [
+      '1',
+      '2',
+      '3',
+    ]);
+  });
+
+  test(
+    'Mihon keeps first duplicate continuation and retains distinct URLs',
+    () async {
+      final gateway = _FakeGateway(const [_mangaDex])
+        ..seriesChapters = [
+          const MihonChapterItem(title: 'First', url: '/same', memo: 'first'),
+          const MihonChapterItem(
+            title: 'Duplicate',
+            url: '/same',
+            memo: 'later',
+          ),
+          const MihonChapterItem(title: 'Distinct', url: '/distinct'),
+          const MihonChapterItem(title: 'Null number', url: '/null'),
+          const MihonChapterItem(
+            title: 'Fractional',
+            url: '/fraction',
+            chapterNumber: 1.5,
+          ),
+        ];
+      final source = (await MihonSourceLoader(
+        gateway: gateway,
+        database: database,
+      ).loadSources()).single;
+      final media = (await (source as MangaSearchSource).search('example'))
+          .results
+          .single
+          .media;
+      final details = await (source as MangaSeriesSource).loadDetails(
+        media.source,
+      );
+
+      expect(details.chapters.map((chapter) => chapter.title), [
+        'First',
+        'Distinct',
+        'Null number',
+        'Fractional',
+      ]);
+      expect(
+        details.chapters.map((chapter) => chapter.source).toSet(),
+        hasLength(4),
+      );
+      expect(
+        await database.select(database.mihonContinuationRecords).get(),
+        hasLength(5),
+      );
+      await (source as MangaPageSource).pages(details.chapters.first.source);
+      expect(gateway.pageChapterUrl, '/same');
+      expect(gateway.pageChapterTitle, 'First');
+      expect(gateway.pageChapterMemo, 'first');
+    },
+  );
+
+  test(
+    'Mihon preserves source order and first continuation for duplicate URLs',
+    () async {
+      final gateway = _FakeGateway(const [_mangaDex])
+        ..seriesChapters = [
+          MihonChapterItem(
+            title: 'Chapter 3',
+            url: '/chapter/3',
+            chapterNumber: 3,
+          ),
+          MihonChapterItem(
+            title: 'First duplicate',
+            url: '/chapter/2',
+            chapterNumber: 2,
+            memo: 'first memo',
+          ),
+          MihonChapterItem(
+            title: 'Later duplicate',
+            url: '/chapter/2',
+            chapterNumber: 2,
+            memo: 'later memo',
+          ),
+          MihonChapterItem(
+            title: 'Chapter 1',
+            url: '/chapter/1',
+            chapterNumber: 1,
+          ),
+          MihonChapterItem(
+            title: 'Same number, distinct URL',
+            url: '/chapter/other',
+            chapterNumber: 2,
+          ),
+          MihonChapterItem(title: 'Unnumbered', url: '/chapter/null'),
+          MihonChapterItem(
+            title: 'Fractional',
+            url: '/chapter/fraction',
+            chapterNumber: 1.5,
+          ),
+        ];
+      final source = (await MihonSourceLoader(
+        gateway: gateway,
+        database: database,
+      ).loadSources()).single;
+      final media = (await (source as MangaSearchSource).search('example'))
+          .results
+          .single
+          .media;
+      final details = await (source as MangaSeriesSource).loadDetails(
+        media.source,
+      );
+
+      expect(details.chapterListOrder, ChapterListOrder.reverseReadingOrder);
+      expect(details.chapters.map((chapter) => chapter.title), [
+        'Chapter 3',
+        'First duplicate',
+        'Chapter 1',
+        'Same number, distinct URL',
+        'Unnumbered',
+        'Fractional',
+      ]);
+      expect(details.chaptersInReadingOrder.map((chapter) => chapter.title), [
+        'Fractional',
+        'Unnumbered',
+        'Same number, distinct URL',
+        'Chapter 1',
+        'First duplicate',
+        'Chapter 3',
+      ]);
+      expect(
+        details.chapters.map((chapter) => chapter.source).toSet(),
+        hasLength(6),
+      );
+      final reloaded = (await MihonSourceLoader(
+        gateway: gateway,
+        database: database,
+      ).loadSources()).single;
+      await (reloaded as MangaPageSource).pages(details.chapters[1].source);
+      expect(gateway.pageChapterUrl, '/chapter/2');
+      expect(gateway.pageChapterTitle, 'First duplicate');
+      expect(gateway.pageChapterMemo, 'first memo');
     },
   );
 

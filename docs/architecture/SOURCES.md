@@ -57,6 +57,16 @@ The current source surface is deliberately small:
 
 Capabilities compose. Android extension-backed manga sources implement search + series + pages + artwork. Local SAF implements direct video + pages + text + publications + platform availability + an optional open lease for archive-backed media. Remote novels use search + series + rich chapters. Domain does not know HTTP, SAF, SQLite, extension APKs, plugin JavaScript or Flutter widgets.
 
+### Chapter list order
+
+`MangaSeriesDetails` and `NovelDetails` keep immutable `chapters` exactly in source-provided structural order. `ChapterListOrder` declares whether that sequence begins with first-read chapter; absent declaration defaults to reading order for existing callers. `chaptersInReadingOrder` provides a separate reversed immutable view when requested, without sorting on optional chapter numbers or dates.
+
+Mihon declares reverse reading order because its chapter contract supplies descending source order. LNReader declares reading order: its detail adapter appends paginated chapter lists unchanged, preserving the plugin's structural sequence. Do not infer sequence from metadata; providers may omit or repeat chapter numbers. LNReader pagination limits and duplicate-path rejection remain documented under [EXTENSIONS](EXTENSIONS.md).
+
+Mihon collapses exact stable chapter identities (derived from URLs) before saving continuation state, retaining the first occurrence and its metadata. Different URLs remain distinct even when chapter numbers match. Chapter numbers, titles, dates and scanlators are metadata, never sequence authority.
+
+Remote chapter-list UI continues to render `chapters` in structural source order and passes selected chapter through unchanged. This contract adds no navigation or reader lifecycle behavior.
+
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
 an operation that cannot be expressed by the current contracts.
 
