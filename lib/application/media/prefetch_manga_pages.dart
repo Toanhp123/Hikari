@@ -16,10 +16,10 @@ final class PrefetchMangaPages {
     List<SourceMediaRef> pages,
     int displayedIndex,
   ) {
-    final generation = ++_generation;
     if (displayedIndex < 0 || displayedIndex >= pages.length) {
       return Future.value();
     }
+    final generation = ++_generation;
     return _tail = _tail.then((_) async {
       for (var offset = 1; offset <= 2; offset++) {
         if (generation != _generation) return;

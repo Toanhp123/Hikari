@@ -213,7 +213,6 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                       maxScale: 4,
                       child: SizedBox.expand(
                         child: Image(
-                          key: ValueKey(_image),
                           image: _image!,
                           fit: BoxFit.contain,
                           frameBuilder: (_, child, frame, synchronouslyLoaded) {

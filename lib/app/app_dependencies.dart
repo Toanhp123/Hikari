@@ -52,7 +52,6 @@ final class AppDependencies {
     required this.searchNovels,
     required this.readSourceArtwork,
     required this.readMangaPage,
-    required this.prefetchMangaPages,
     required this.readNovelChapterContent,
     required this.readNovelResource,
     required this.openNovelChapter,
@@ -123,7 +122,6 @@ final class AppDependencies {
         cache: resolvedCache,
       ),
       readMangaPage: readMangaPage,
-      prefetchMangaPages: PrefetchMangaPages(readMangaPage),
       readNovelChapterContent: readNovelChapterContent,
       readNovelResource: readNovelResource,
       openNovelChapter: OpenNovelChapter(
@@ -151,7 +149,6 @@ final class AppDependencies {
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;
   final ReadMangaPage readMangaPage;
-  final PrefetchMangaPages prefetchMangaPages;
   final ReadNovelChapterContent readNovelChapterContent;
   final ReadNovelResource readNovelResource;
   final OpenNovelChapter openNovelChapter;
@@ -163,6 +160,10 @@ final class AppDependencies {
   final bool _ownsDatabase;
   final bool ownsLocalMediaSource;
   final bool ownsCatalogProvider;
+
+  PrefetchMangaPages createMangaPagePrefetch() =>
+      PrefetchMangaPages(readMangaPage);
+
   bool _disposed = false;
   Future<void>? _disposing;
 

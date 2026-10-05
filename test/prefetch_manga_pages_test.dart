@@ -34,6 +34,19 @@ void main() {
     }
   });
 
+  test('invalid request does not cancel an active valid window', () async {
+    final source = _PageSource()..holdFirst = true;
+    final prefetch = PrefetchMangaPages(ReadMangaPage(_Cache()));
+    final pending = prefetch.execute(source, pages, 0);
+    await source.started.future;
+
+    await prefetch.execute(source, pages, -1);
+    source.gate.complete(Uint8List.fromList([1]));
+    await pending;
+
+    expect(source.reads, ['1', '2']);
+  });
+
   test('speculative reads never overlap while first read is blocked', () async {
     final source = _PageSource()..holdFirst = true;
     final prefetch = PrefetchMangaPages(ReadMangaPage(_Cache()));
