@@ -283,7 +283,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         builder: (_) => NovelReaderPage(
           title: chapter.title,
           loadContent: () async => target.content,
-          readResource: target.source.readResource,
+          reloadContent: () => _dependencies.readNovelChapterContent.reload(
+            target.source,
+            chapter.source,
+          ),
+          readResource: (resource) =>
+              _dependencies.readNovelResource.execute(target.source, resource),
+          reloadResource: (resource) =>
+              _dependencies.readNovelResource.reload(target.source, resource),
           initialProgress: target.progress.initialProgress,
           saveProgress: target.progress.save,
         ),

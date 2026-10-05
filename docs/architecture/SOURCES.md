@@ -100,6 +100,9 @@ Episode discovery, stream selection, headers and DRM remain separate future requ
 `OpenMangaChapter` resolves `MangaPageSource`, loads chapter progress and resolves pages
 before navigation. `OpenNovelChapter` does the equivalent for `NovelChapterSource`,
 returning rich HTML with registered resources rather than coercing it to plain text.
+Remote novel content/resources use application cache workflows only after adapter
+normalization; local `NovelTextSource` and `PublicationSource` paths remain uncached
+by these workflows. See [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md).
 This keeps invalid chapter references from creating a reader route that cannot load.
 
 `SearchManga` and `SearchNovels` own search-and-open invariants. They expose only

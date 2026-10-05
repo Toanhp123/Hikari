@@ -4,6 +4,8 @@ import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
+import 'package:hikari/application/media/read_novel_chapter_content.dart';
+import 'package:hikari/application/media/read_novel_resource.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/search/search_novels.dart';
@@ -27,6 +29,8 @@ import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.da
 final class AppDependencies {
   static const _sourceArtworkCacheBudgetBytes = 64 * 1024 * 1024;
   static const _mangaPageCacheBudgetBytes = 128 * 1024 * 1024;
+  static const _novelChapterCacheBudgetBytes = 32 * 1024 * 1024;
+  static const _novelResourceCacheBudgetBytes = 64 * 1024 * 1024;
 
   AppDependencies._(
     this._database,
@@ -47,6 +51,8 @@ final class AppDependencies {
     required this.searchNovels,
     required this.readSourceArtwork,
     required this.readMangaPage,
+    required this.readNovelChapterContent,
+    required this.readNovelResource,
     required this.openNovelChapter,
     required this.videoSession,
     required this.cache,
@@ -77,8 +83,13 @@ final class AppDependencies {
           namespaceByteBudgets: const {
             ReadSourceArtwork.cacheNamespace: _sourceArtworkCacheBudgetBytes,
             ReadMangaPage.cacheNamespace: _mangaPageCacheBudgetBytes,
+            ReadNovelChapterContent.cacheNamespace:
+                _novelChapterCacheBudgetBytes,
+            ReadNovelResource.cacheNamespace: _novelResourceCacheBudgetBytes,
           },
         );
+    final readNovelChapterContent = ReadNovelChapterContent(resolvedCache);
+    final readNovelResource = ReadNovelResource(resolvedCache);
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
     final progressRepository = SqliteProgressRepository(resolvedDatabase);
     final searchManga = SearchManga(sourceRegistry);
@@ -109,7 +120,13 @@ final class AppDependencies {
         cache: resolvedCache,
       ),
       readMangaPage: ReadMangaPage(resolvedCache),
-      openNovelChapter: OpenNovelChapter(sourceRegistry, progressRepository),
+      readNovelChapterContent: readNovelChapterContent,
+      readNovelResource: readNovelResource,
+      openNovelChapter: OpenNovelChapter(
+        sourceRegistry,
+        progressRepository,
+        readNovelChapterContent,
+      ),
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
       ownsCache: cache == null || ownsCache,
@@ -130,6 +147,8 @@ final class AppDependencies {
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;
   final ReadMangaPage readMangaPage;
+  final ReadNovelChapterContent readNovelChapterContent;
+  final ReadNovelResource readNovelResource;
   final OpenNovelChapter openNovelChapter;
   final MediaKitVideoSession videoSession;
   final ByteCache cache;

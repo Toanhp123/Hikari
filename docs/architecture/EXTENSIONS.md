@@ -136,7 +136,14 @@ limits and reproducible packaging. `LnReaderSourceLoader` registers normalized
 capabilities. Stable references contain source ID, entity kind and original path;
 provider metadata never changes identity. HTML is sanitized, images become
 source-owned resource references, and image requests use the plugin export's
-`imageRequestInit`.
+`imageRequestInit`. Sanitized rich chapter HTML and normalized image references enter
+Hikari's remote novel cache only after adapter normalization; each uses an independent
+versioned namespace and byte budget. A cache-version change is required when that
+normalization/security representation changes. Explicit reader reload bypasses stored
+content; local text and publication routes do not use these remote cache workflows.
+There is no immutable plugin revision in the normalized source contract, so adapter
+configuration/content changes can remain cached until reload, eviction, cache clear or
+namespace-version change. See [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md).
 
 Supported calls: `searchNovels(term, page)`, `parseNovel(path)`,
 `parseChapter(path)` and optional `parsePage(path, pageString)`. The upstream

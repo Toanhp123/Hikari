@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
+import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
 
 void main() {
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'book');
@@ -302,6 +304,231 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpWidget(const SizedBox());
     expect(writes, hasLength(1));
+  });
+  testWidgets(
+    'novel reload preserves live progression and does not save progress',
+    (tester) async {
+      final writes = <(ProgressPosition, bool)>[];
+      var loads = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NovelReaderPage(
+            title: 'Reload',
+            initialProgress: saved(TextPosition(progression: 0.2)),
+            saveProgress: (position, completed) async =>
+                writes.add((position, completed)),
+            loadContent: () async => RichReadingContent(
+              html:
+                  '<p>${List.filled(300, 'First chapter body.').join(' ')}</p>',
+            ),
+            readResource: (_) async => Uint8List(0),
+            reloadContent: () async {
+              loads++;
+              return RichReadingContent(
+                html:
+                    '<p>${List.filled(80, 'Short chapter body.').join(' ')}</p>',
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final scroll = tester
+          .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+          .controller!;
+      scroll.jumpTo(scroll.position.maxScrollExtent * 0.65);
+      await tester.pump(const Duration(milliseconds: 600));
+      writes.clear();
+      final before = scroll.offset / scroll.position.maxScrollExtent;
+      await tester.tap(find.byTooltip('Reload chapter'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+      final after = scroll.offset / scroll.position.maxScrollExtent;
+      expect(loads, 1);
+      expect(after, closeTo(before, 0.02));
+      expect(find.text('${(before * 100).toInt()}%'), findsOneWidget);
+      expect(writes, isEmpty);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(writes, isEmpty);
+    },
+  );
+  testWidgets(
+    'illustration retry reloads bytes and changed ref reads new resource',
+    (tester) async {
+      const first = SourceMediaRef(sourceId: SourceId('source'), itemId: 'one');
+      const second = SourceMediaRef(
+        sourceId: SourceId('source'),
+        itemId: 'two',
+      );
+      final decodeErrorBytes = Uint8List.fromList([0, 0, 0, 0, 0, 0, 0, 0]);
+      var retries = 0;
+      final reads = <String>[];
+      RichReadingContent content(SourceMediaRef resource) => RichReadingContent(
+        html: '<img src="image">',
+        resources: {'image': resource},
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NovelContentView(
+              content: content(first),
+              readResource: (resource) async {
+                reads.add(resource.itemId);
+                return decodeErrorBytes;
+              },
+              reloadResource: (resource) async {
+                retries++;
+                return png;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Could not load illustration.'), findsOneWidget);
+      await tester.tap(find.text('Retry illustration'));
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pumpAndSettle();
+      expect(retries, 1);
+      expect(find.text('Could not load illustration.'), findsNothing);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: NovelContentView(
+              content: content(second),
+              readResource: (resource) async {
+                reads.add(resource.itemId);
+                return png;
+              },
+              reloadResource: (_) async => png,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(reads, ['one', 'two']);
+    },
+  );
+
+  testWidgets(
+    'repeated non-scrollable reload preserves logical progression without saves',
+    (tester) async {
+      final writes = <(ProgressPosition, bool)>[];
+      var reloads = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NovelReaderPage(
+            title: 'Short reload',
+            initialProgress: saved(TextPosition(progression: 0.65)),
+            saveProgress: (position, completed) async =>
+                writes.add((position, completed)),
+            loadContent: () async => RichReadingContent(
+              html: '<p>Long body ${List.filled(250, 'word').join(' ')}</p>',
+            ),
+            readResource: (_) async => Uint8List(0),
+            reloadContent: () async {
+              reloads++;
+              return RichReadingContent(html: '<p>short</p>');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final scroll = tester
+          .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+          .controller!;
+      scroll.jumpTo(scroll.position.maxScrollExtent * 0.65);
+      await tester.pump(const Duration(milliseconds: 600));
+      writes.clear();
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.byTooltip('Reload chapter'));
+        await tester.pumpAndSettle();
+        expect(scroll.position.maxScrollExtent, 0);
+        expect(find.text('65%'), findsOneWidget);
+        expect(writes, isEmpty);
+      }
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(reloads, 2);
+      expect(writes, isEmpty);
+      await tester.pumpWidget(const SizedBox());
+      expect(writes, isEmpty);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    },
+  );
+
+  testWidgets('pending reload restores progression after concurrent scroll', (
+    tester,
+  ) async {
+    final pendingReload = Completer<RichReadingContent>();
+    final writes = <(ProgressPosition, bool)>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Pending reload',
+          saveProgress: (position, completed) async =>
+              writes.add((position, completed)),
+          loadContent: () async => RichReadingContent(
+            html: '<p>${List.filled(250, 'starting body').join(' ')}</p>',
+          ),
+          readResource: (_) async => Uint8List(0),
+          reloadContent: () => pendingReload.future,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Reload chapter'));
+    await tester.pump();
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    scroll.jumpTo(scroll.position.maxScrollExtent * 0.4);
+    writes.clear();
+    pendingReload.complete(
+      RichReadingContent(
+        html: '<p>${List.filled(250, 'fresh body').join(' ')}</p>',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(scroll.offset / scroll.position.maxScrollExtent, closeTo(0.4, 0.02));
+    expect(writes, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    expect(writes, hasLength(1));
+    expect((writes.single.$1 as TextPosition).progression, closeTo(0.4, 0.02));
+  });
+
+  testWidgets('novel failed reload retains content and progress state', (
+    tester,
+  ) async {
+    final writes = <(ProgressPosition, bool)>[];
+    var failures = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Reload failure',
+          saveProgress: (position, completed) async =>
+              writes.add((position, completed)),
+          loadContent: () async =>
+              RichReadingContent(html: '<p>Visible chapter</p>'),
+          readResource: (_) async => Uint8List(0),
+          reloadContent: () async {
+            failures++;
+            throw StateError('offline');
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Reload chapter'));
+    await tester.pumpAndSettle();
+    expect(failures, 1);
+    expect(find.byType(NovelContentView), findsOneWidget);
+    expect(find.text('Could not reload this chapter.'), findsOneWidget);
+    expect(writes, isEmpty);
   });
   testWidgets('completed novel starts at top; failed content does not save', (
     tester,
