@@ -321,10 +321,11 @@ void main() {
       );
       await tester.tap(find.text('Chapter A'));
       await tester.pumpAndSettle();
-      expect(source.chapterRefs, ['a']);
+      // Opening A also warms B; moving to B warms C.
+      expect(source.chapterRefs, ['a', 'b']);
       await tester.ensureVisible(find.byType(NovelContentView));
       await tester.pumpAndSettle();
-      expect(source.resourceRefs, ['image-a']);
+      expect(source.resourceRefs, unorderedEquals(['image-a', 'image-b']));
       final scroll = tester
           .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
           .controller!;
@@ -333,7 +334,7 @@ void main() {
       await tester.tap(find.byTooltip('Next chapter'));
       await tester.pump();
       await tester.pumpAndSettle();
-      expect(source.chapterRefs, ['a', 'b']);
+      expect(source.chapterRefs, ['a', 'b', 'c']);
       final savedA = await SqliteProgressRepository(db).load(source.ref('a'));
       expect(savedA, isNotNull);
       expect(savedA!.media, source.ref('a'));
@@ -345,12 +346,15 @@ void main() {
       expect(reader.initialProgress, isNull);
       await tester.ensureVisible(find.byType(NovelContentView));
       await tester.pumpAndSettle();
-      expect(source.resourceRefs, ['image-a', 'image-b']);
+      expect(
+        source.resourceRefs,
+        unorderedEquals(['image-a', 'image-b', 'image-c']),
+      );
       await tester.tap(find.byTooltip('Previous chapter'));
       await tester.pump();
       await tester.pumpAndSettle();
       // Reopening A reuses cached content but loads a fresh progress session.
-      expect(source.chapterRefs, ['a', 'b']);
+      expect(source.chapterRefs, ['a', 'b', 'c']);
       reader = tester.widget<NovelReaderPage>(find.byType(NovelReaderPage));
       expect(reader.title, 'Chapter A');
       expect(reader.initialProgress?.media, source.ref('a'));
@@ -360,8 +364,14 @@ void main() {
       );
       await tester.ensureVisible(find.byType(NovelContentView));
       await tester.pumpAndSettle();
-      expect(source.resourceRefs, ['image-a', 'image-b']);
-      expect(source.resourceRefs, everyElement(anyOf('image-a', 'image-b')));
+      expect(
+        source.resourceRefs,
+        unorderedEquals(['image-a', 'image-b', 'image-c']),
+      );
+      expect(
+        source.resourceRefs,
+        everyElement(anyOf('image-a', 'image-b', 'image-c')),
+      );
       await tester.pumpWidget(const SizedBox());
       await tester.pump(Duration.zero);
       debugDefaultTargetPlatformOverride = null;

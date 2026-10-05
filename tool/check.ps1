@@ -23,7 +23,7 @@ function Invoke-Step {
 Invoke-Step 'Resolve locked dependencies' { fvm flutter pub get --enforce-lockfile }
 Invoke-Step 'Check formatting' {
     $dartFiles = @(
-        git ls-files --cached --others --exclude-standard -- '*.dart' |
+        git ls-files --cached --others --exclude-standard -- '*.dart' ':(exclude).claude/worktrees/**' |
             Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
     )
     if ($LASTEXITCODE -ne 0) {

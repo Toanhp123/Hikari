@@ -296,6 +296,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             reloadContent: _dependencies.readNovelChapterContent.reload,
             readResource: _dependencies.readNovelResource.execute,
             reloadResource: _dependencies.readNovelResource.reload,
+            createPrefetch: _dependencies.createNovelChapterPrefetch,
+            prefetchChapter: _dependencies.prefetchNovelChapter,
           ),
         ),
       );

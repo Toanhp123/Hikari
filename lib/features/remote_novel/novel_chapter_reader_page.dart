@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
@@ -14,6 +15,8 @@ class NovelChapterReaderPage extends StatefulWidget {
     required this.reloadContent,
     required this.readResource,
     required this.reloadResource,
+    required this.createPrefetch,
+    required this.prefetchChapter,
   });
 
   final NovelChapterReaderViewModel viewModel;
@@ -23,6 +26,9 @@ class NovelChapterReaderPage extends StatefulWidget {
   readResource;
   final Future<Uint8List> Function(NovelChapterSource, SourceMediaRef)
   reloadResource;
+  final PrefetchNovelChapter Function() createPrefetch;
+  final Future<void> Function(PrefetchNovelChapter, NovelChapter)
+  prefetchChapter;
 
   @override
   State<NovelChapterReaderPage> createState() => _NovelChapterReaderPageState();
@@ -31,15 +37,40 @@ class NovelChapterReaderPage extends StatefulWidget {
 class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
   bool _closed = false;
   late final NovelChapterReaderViewModel _viewModel = widget.viewModel;
+  late final PrefetchNovelChapter _prefetch;
+  SourceMediaRef? _prefetchOrigin;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefetch = widget.createPrefetch();
+    _viewModel.addListener(_scheduleNextChapter);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleNextChapter());
+  }
+
+  void _scheduleNextChapter() {
+    if (_closed) return;
+    final current = _viewModel.state.target.chapter.source;
+    if (_prefetchOrigin == current) return;
+    _prefetchOrigin = current;
+    _prefetch.cancelPending();
+    final next = _viewModel.nextChapter;
+    if (next != null) {
+      unawaited(widget.prefetchChapter(_prefetch, next));
+    }
+  }
 
   void _close() {
     if (_closed) return;
     _closed = true;
+    _prefetch.cancelPending();
+    _viewModel.removeListener(_scheduleNextChapter);
     _viewModel.close();
   }
 
   Future<void> _move(Future<void> Function() action) async {
     if (_closed) return;
+    _prefetch.cancelPending();
     try {
       await action();
     } catch (_) {

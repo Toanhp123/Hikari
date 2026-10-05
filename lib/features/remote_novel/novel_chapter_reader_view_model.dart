@@ -43,6 +43,8 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
   NovelChapterReaderUiState get state => _state;
   bool get canOpenPrevious => _state.chapterIndex > 0;
   bool get canOpenNext => _state.chapterIndex < _chapters.length - 1;
+  NovelChapter? get nextChapter =>
+      canOpenNext ? _chapters[_state.chapterIndex + 1] : null;
   int _generation = 0;
   bool _closed = false;
 

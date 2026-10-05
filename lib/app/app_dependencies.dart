@@ -3,6 +3,7 @@ import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
@@ -18,6 +19,7 @@ import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
@@ -57,6 +59,7 @@ final class AppDependencies {
     required this.readNovelChapterContent,
     required this.readNovelResource,
     required this.openNovelChapter,
+    required this.createNovelChapterPrefetch,
     required this.videoSession,
     required this.cache,
     required this.ownsCache,
@@ -131,6 +134,11 @@ final class AppDependencies {
         progressRepository,
         readNovelChapterContent,
       ),
+      createNovelChapterPrefetch: () => PrefetchNovelChapter(
+        sourceRegistry,
+        readNovelChapterContent,
+        readNovelResource,
+      ),
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
       ownsCache: cache == null || ownsCache,
@@ -154,6 +162,7 @@ final class AppDependencies {
   final ReadNovelChapterContent readNovelChapterContent;
   final ReadNovelResource readNovelResource;
   final OpenNovelChapter openNovelChapter;
+  final PrefetchNovelChapter Function() createNovelChapterPrefetch;
   final MediaKitVideoSession videoSession;
   final ByteCache cache;
   final bool ownsCache;
@@ -172,6 +181,11 @@ final class AppDependencies {
     List<SourceMediaRef> pages,
     int index,
   ) => prefetch.execute(source, pages, index);
+
+  Future<void> prefetchNovelChapter(
+    PrefetchNovelChapter prefetch,
+    NovelChapter chapter,
+  ) => prefetch.execute(chapter);
 
   bool _disposed = false;
   Future<void>? _disposing;

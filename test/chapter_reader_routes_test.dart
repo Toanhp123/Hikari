@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
+import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
@@ -26,6 +27,7 @@ const _mangaA = SourceMediaRef(sourceId: _mangaId, itemId: 'a');
 const _mangaB = SourceMediaRef(sourceId: _mangaId, itemId: 'b');
 const _novelA = SourceMediaRef(sourceId: _novelId, itemId: 'a');
 const _novelB = SourceMediaRef(sourceId: _novelId, itemId: 'b');
+const _novelC = SourceMediaRef(sourceId: _novelId, itemId: 'c');
 final _png = Uint8List.fromList([
   137,
   80,
@@ -195,6 +197,60 @@ class _NovelSource implements NovelChapterSource {
 }
 
 void main() {
+  testWidgets('novel reader prefetch window follows the current chapter', (
+    tester,
+  ) async {
+    final source = _NovelSource();
+    final contentCache = _Cache();
+    final contentReader = ReadNovelChapterContent(contentCache);
+    final resourceReader = ReadNovelResource(_Cache());
+    final workflow = OpenNovelChapter(
+      SourceRegistry([source]),
+      _Progress(),
+      contentReader,
+    );
+    final chapters = [
+      NovelChapter(title: 'Chapter A', source: _novelA),
+      NovelChapter(title: 'Chapter B', source: _novelB),
+      NovelChapter(title: 'Chapter C', source: _novelC),
+    ];
+    final viewModel = NovelChapterReaderViewModel(
+      initialTarget: await workflow.execute(chapters.first),
+      chaptersInReadingOrder: chapters,
+      openChapter: workflow,
+    );
+    final prefetched = <SourceMediaRef>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelChapterReaderPage(
+          viewModel: viewModel,
+          reloadContent: contentReader.reload,
+          readResource: resourceReader.execute,
+          reloadResource: resourceReader.reload,
+          createPrefetch: () => PrefetchNovelChapter(
+            SourceRegistry([source]),
+            contentReader,
+            resourceReader,
+          ),
+          prefetchChapter: (_, chapter) async {
+            prefetched.add(chapter.source);
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(prefetched, [_novelB]);
+
+    source.firstB.complete(RichReadingContent(html: '<p>B</p>'));
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pumpAndSettle();
+
+    expect(viewModel.state.target.chapter.source, _novelB);
+    expect(prefetched, [_novelB, _novelC]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   for (final lateFailure in [false, true]) {
     testWidgets(
       'manga adjacent failure retries; late failure=$lateFailure after pop is ignored',
@@ -336,6 +392,12 @@ void main() {
                             readResource.execute(source, resource),
                         reloadResource: (source, resource) =>
                             readResource.reload(source, resource),
+                        createPrefetch: () => PrefetchNovelChapter(
+                          SourceRegistry([source]),
+                          workflowContent,
+                          readResource,
+                        ),
+                        prefetchChapter: (_, _) => Future<void>.value(),
                       ),
                     ),
                   ),
