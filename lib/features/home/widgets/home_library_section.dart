@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/app/theme/design_system/design_system.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -24,9 +23,10 @@ class HomeFeedHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -35,9 +35,10 @@ class HomeFeedHeader extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Recently added',
-                  style: HikariTypography.titleLarge.copyWith(
-                    color: colors.textPrimary,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: colors.onSurface,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: -0.15,
                   ),
                 ),
               ),
@@ -46,18 +47,27 @@ class HomeFeedHeader extends StatelessWidget {
             ],
           ),
           if (filters.isNotEmpty) ...[
-            const SizedBox(height: HikariSpacing.xs),
-            HikariChipRow(
-              children: [
-                for (final filter in filters)
-                  HikariChip(
-                    label: filter.mediaType == null
-                        ? 'All'
-                        : mediaTypeFilterLabel(filter.mediaType!),
-                    isSelected: effectiveFilter == filter,
-                    onTap: () => onSelectFilter(filter),
-                  ),
-              ],
+            const SizedBox(height: HikariSpace.micro),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final filter in filters) ...[
+                    FilterChip(
+                      label: Text(
+                        filter.mediaType == null
+                            ? 'All'
+                            : mediaTypeFilterLabel(filter.mediaType!),
+                      ),
+                      selected: effectiveFilter == filter,
+                      onSelected: (_) => onSelectFilter(filter),
+                      showCheckmark: false,
+                      shape: HikariShape.pill,
+                    ),
+                    const SizedBox(width: HikariSpace.inline),
+                  ],
+                ],
+              ),
             ),
           ],
         ],
@@ -78,18 +88,21 @@ class HomeMediaGridSliver extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     if (items.isEmpty) {
       return HomeBoundedSliverBox(
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: HikariSpacing.lg,
-            vertical: HikariSpacing.xl,
+            horizontal: HikariSpace.content,
+            vertical: HikariSpace.section,
           ),
           child: Center(
             child: Text(
               'No items in this category.',
-              style: HikariTypography.bodySmall.copyWith(
-                color: context.hikariColors.textMuted,
+              style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                color: colors.onSurfaceVariant,
               ),
             ),
           ),
@@ -101,17 +114,23 @@ class HomeMediaGridSliver extends StatelessWidget {
       childCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final colors = context.hikariColors;
         return MediaPoster(
           title: item.title,
           badgeText: mediaTypeBadgeLabel(item.type),
-          badgeColor: mediaTypeBadgeColor(colors, item.type),
+          badgeColor: _mediaTypeBadgeColor(colors, item.type),
           onTap: () => openMedia(context, item),
         );
       },
     );
   }
 }
+
+Color _mediaTypeBadgeColor(ColorScheme colors, MediaType type) =>
+    switch (type) {
+      MediaType.anime => colors.primary,
+      MediaType.manga => const Color(0xFFFAB387), // Catppuccin Peach
+      MediaType.lightNovel => const Color(0xFF89DCEB), // Catppuccin Sky
+    };
 
 class HomeLoadingGridSliver extends StatelessWidget {
   const HomeLoadingGridSliver({super.key});
@@ -154,7 +173,7 @@ class HomeBoundedSliverBox extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: HikariBreakpoints.maxContentWidth,
+            maxWidth: HikariLayout.contentMaxWidth,
           ),
           child: child,
         ),
@@ -176,16 +195,22 @@ class _HomePosterGridSliver extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverLayoutBuilder(
       builder: (context, constraints) {
-        final extraWidth =
-            constraints.crossAxisExtent > HikariBreakpoints.maxContentWidth
-            ? constraints.crossAxisExtent - HikariBreakpoints.maxContentWidth
+        final width = constraints.crossAxisExtent;
+        final extraWidth = width > HikariLayout.contentMaxWidth
+            ? width - HikariLayout.contentMaxWidth
             : 0.0;
-        final horizontalPadding = (extraWidth / 2) + HikariSpacing.lg;
+        final horizontalPadding = (extraWidth / 2) + HikariLayout.gutter(width);
+        final columnCount = HikariLayout.posterColumnCount(width);
 
         return SliverPadding(
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           sliver: SliverGrid(
-            gridDelegate: mediaPosterGridDelegate,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columnCount,
+              mainAxisSpacing: HikariSpace.content,
+              crossAxisSpacing: HikariSpace.content,
+              childAspectRatio: HikariSize.posterAspectRatio,
+            ),
             delegate: SliverChildBuilderDelegate(
               itemBuilder,
               childCount: childCount,

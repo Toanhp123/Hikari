@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+
+import 'package:hikari/app/theme/design_system/design_system.dart';
 
 class HomeWarningNotice extends StatelessWidget {
   const HomeWarningNotice({
@@ -15,30 +16,36 @@ class HomeWarningNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final statusColors = theme.extension<HikariStatusColors>();
+    final warningColor =
+        statusColors?.onWarningContainer ?? const Color(0xFFFAB387);
+    final warningBg =
+        statusColors?.warningContainer ?? warningColor.withValues(alpha: 0.12);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
       child: Material(
-        color: colors.warning.withValues(alpha: 0.08),
+        color: warningBg,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderMd,
-          side: BorderSide(color: colors.warning.withValues(alpha: 0.28)),
+          borderRadius: HikariShape.large,
+          side: BorderSide(color: warningColor.withValues(alpha: 0.28)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: HikariSpacing.md,
-            vertical: HikariSpacing.sm,
+            horizontal: HikariSpace.content,
+            vertical: HikariSpace.inline,
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: colors.warning),
-              const SizedBox(width: HikariSpacing.sm),
+              Icon(icon, size: 20, color: warningColor),
+              const SizedBox(width: HikariSpace.inline),
               Expanded(
                 child: Text(
                   message,
-                  style: HikariTypography.bodySmall.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: (theme.textTheme.bodySmall ?? const TextStyle())
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
               ),
               TextButton(onPressed: onRetry, child: const Text('Retry')),

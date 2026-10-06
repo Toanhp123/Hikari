@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+
+import 'package:hikari/app/theme/design_system/design_system.dart';
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key, this.onSearch});
@@ -9,13 +9,15 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        HikariSpacing.lg,
-        HikariSpacing.xs,
-        HikariSpacing.lg,
-        HikariSpacing.sm,
+        HikariSpace.content,
+        HikariSpace.inline,
+        HikariSpace.content,
+        HikariSpace.compact,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -23,13 +25,15 @@ class HomeHeader extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [colors.primary, colors.secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  borderRadius: HikariRadius.borderSm,
+                  borderRadius: HikariShape.medium,
                   boxShadow: [
                     BoxShadow(
                       color: colors.primary.withValues(alpha: 0.22),
@@ -38,33 +42,34 @@ class HomeHeader extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome,
-                  color: Colors.white,
-                  size: 18,
+                  color: colors.onPrimary,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: HikariSpacing.sm),
+              const SizedBox(width: HikariSpace.compact),
               Text(
                 'Hikari',
-                style: HikariTypography.titleLarge.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                ),
+                style: (theme.textTheme.titleLarge ?? const TextStyle())
+                    .copyWith(
+                      color: colors.onSurface,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
               ),
             ],
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              HikariIconButton(
-                tooltip: 'Search',
-                onPressed: onSearch,
-                icon: const Icon(Icons.search_rounded),
+          if (onSearch != null)
+            IconButton(
+              tooltip: 'Search',
+              onPressed: onSearch,
+              icon: Icon(
+                Icons.search_rounded,
+                color: colors.onSurfaceVariant,
+                size: 24,
               ),
-            ],
-          ),
+            ),
         ],
       ),
     );

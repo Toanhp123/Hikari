@@ -382,6 +382,14 @@ export 'first.dart' if (dart.library.io) 'second.dart';
       const approvedAdopters = {
         'lib/app/navigation/app_navigation_shell.dart',
         'lib/core/ui/components/hikari_search_bar.dart',
+        'lib/features/home/home_page.dart',
+        'lib/features/home/widgets/catalog_discovery_sections.dart',
+        'lib/features/home/widgets/continue_shelf.dart',
+        'lib/features/home/widgets/hero_carousel.dart',
+        'lib/features/home/widgets/home_header.dart',
+        'lib/features/home/widgets/home_library_section.dart',
+        'lib/features/home/widgets/home_section_link.dart',
+        'lib/features/home/widgets/home_warning_notice.dart',
       };
       final adopters = <String>{};
       for (final file in Directory(

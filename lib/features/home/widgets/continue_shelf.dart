@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+
+import 'package:hikari/app/theme/design_system/design_system.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -26,14 +27,18 @@ class ContinueShelf extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
 
-    final colors = context.hikariColors;
-    final cardWidth = context.isCompact ? 164.0 : 196.0;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final isCompact =
+        HikariLayout.classify(MediaQuery.sizeOf(context).width) ==
+        HikariLayoutClass.compact;
+    final cardWidth = isCompact ? 172.0 : 208.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
           child: Row(
             children: [
               Expanded(
@@ -42,16 +47,18 @@ class ContinueShelf extends StatelessWidget {
                   children: [
                     Text(
                       'Continue',
-                      style: HikariTypography.titleLarge.copyWith(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: (theme.textTheme.titleLarge ?? const TextStyle())
+                          .copyWith(
+                            color: colors.onSurface,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'Pick up where you left off',
-                      style: HikariTypography.bodySmall.copyWith(
-                        color: colors.textMuted,
-                      ),
+                      style: (theme.textTheme.bodySmall ?? const TextStyle())
+                          .copyWith(color: colors.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -61,15 +68,18 @@ class ContinueShelf extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: HikariSpacing.md),
+        const SizedBox(height: HikariSpace.compact),
         SizedBox(
-          height: 184,
+          height: 142,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: HikariSpace.content,
+            ),
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: HikariSpacing.md),
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: HikariSpace.compact),
             itemBuilder: (context, index) => SizedBox(
               width: cardWidth,
               child: _ContinueCard(
@@ -94,9 +104,14 @@ class _ContinueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final badgeText = mediaTypeBadgeLabel(item.media.type);
-    final badgeColor = mediaTypeBadgeColor(colors, item.media.type);
+    final badgeColor = switch (item.media.type) {
+      MediaType.anime => colors.primary,
+      MediaType.manga => const Color(0xFFFAB387),
+      MediaType.lightNovel => const Color(0xFF89DCEB),
+    };
     final actionIcon = switch (item.media.type) {
       MediaType.anime => Icons.play_arrow_rounded,
       MediaType.manga => Icons.auto_stories_rounded,
@@ -111,12 +126,16 @@ class _ContinueCard extends StatelessWidget {
       child: Material(
         color: colors.surfaceContainer,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderMd,
-          side: BorderSide(color: colors.borderSubtle),
+          borderRadius: HikariShape.large,
+          side: BorderSide(
+            color: colors.outlineVariant.withValues(alpha: 0.6),
+            width: HikariShape.borderWidth,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
+          splashColor: colors.primary.withValues(alpha: 0.12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -130,40 +149,64 @@ class _ContinueCard extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            badgeColor.withValues(alpha: 0.18),
-                            colors.surfaceElevated,
+                            badgeColor.withValues(alpha: 0.16),
+                            colors.surfaceContainerHigh,
                             colors.surfaceContainer,
                           ],
                         ),
                       ),
                       child: Center(
-                        child: Icon(
-                          actionIcon,
-                          size: 30,
-                          color: badgeColor.withValues(alpha: 0.72),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: badgeColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(actionIcon, size: 22, color: badgeColor),
                         ),
                       ),
                     ),
                     Positioned(
-                      left: HikariSpacing.sm,
-                      top: HikariSpacing.sm,
+                      left: HikariSpace.inline,
+                      top: HikariSpace.inline,
                       child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: badgeColor.withValues(alpha: 0.9),
-                          borderRadius: HikariRadius.borderXs,
+                        decoration: ShapeDecoration(
+                          color: badgeColor.withValues(alpha: 0.18),
+                          shape: HikariShape.pill,
                         ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: HikariSpacing.sm,
-                            vertical: 3,
+                            horizontal: 6,
+                            vertical: 2,
                           ),
                           child: Text(
                             badgeText,
-                            style: HikariTypography.labelSmall.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style:
+                                (theme.textTheme.labelSmall ??
+                                        const TextStyle())
+                                    .copyWith(
+                                      fontSize: 10,
+                                      color: badgeColor,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.4,
+                                    ),
                           ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Semantics(
+                        label: 'Progress',
+                        value:
+                            '${(item.progress.clamp(0.0, 1.0) * 100).round()}%',
+                        child: MediaProgressBar(
+                          progress: item.progress,
+                          height: 3,
+                          showGlow: false,
                         ),
                       ),
                     ),
@@ -171,7 +214,12 @@ class _ContinueCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(HikariSpacing.sm),
+                padding: const EdgeInsets.fromLTRB(
+                  HikariSpace.inline,
+                  6,
+                  HikariSpace.inline,
+                  HikariSpace.inline,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -179,37 +227,22 @@ class _ContinueCard extends StatelessWidget {
                       item.media.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: HikariTypography.titleSmall.copyWith(
-                        color: colors.textPrimary,
-                      ),
+                      style: (theme.textTheme.titleSmall ?? const TextStyle())
+                          .copyWith(
+                            color: colors.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                     const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            progressLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: HikariTypography.bodySmall.copyWith(
-                              color: colors.textSecondary,
-                            ),
+                    Text(
+                      progressLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: (theme.textTheme.bodySmall ?? const TextStyle())
+                          .copyWith(
+                            fontSize: 11,
+                            color: colors.onSurfaceVariant,
                           ),
-                        ),
-                        const SizedBox(width: HikariSpacing.sm),
-                        Icon(actionIcon, size: 17, color: colors.primaryGlow),
-                      ],
-                    ),
-                    const SizedBox(height: HikariSpacing.sm),
-                    Semantics(
-                      label: 'Progress',
-                      value:
-                          '${(item.progress.clamp(0.0, 1.0) * 100).round()}%',
-                      child: MediaProgressBar(
-                        progress: item.progress,
-                        height: 3,
-                        showGlow: false,
-                      ),
                     ),
                   ],
                 ),

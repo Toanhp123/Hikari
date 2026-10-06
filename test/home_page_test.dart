@@ -13,7 +13,7 @@ import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 
 void main() {
-  testWidgets('Continue shelf precedes catalog discovery', (tester) async {
+  testWidgets('Catalog featured hero precedes resume shelf', (tester) async {
     tester.view.physicalSize = const Size(900, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -49,12 +49,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      tester.getTopLeft(find.byType(ContinueShelf)).dy,
-      lessThan(tester.getTopLeft(find.text('Featured')).dy),
+      tester.getTopLeft(find.text('Featured')).dy,
+      lessThan(tester.getTopLeft(find.byType(ContinueShelf)).dy),
     );
   });
 
-  testWidgets('Home prioritizes resume content before featured discovery', (
+  testWidgets('Home features spotlight hero before resume content', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 1600);
@@ -108,8 +108,8 @@ void main() {
     expect(find.text('Recently added'), findsOneWidget);
 
     expect(
-      tester.getTopLeft(find.byType(ContinueShelf)).dy,
-      lessThan(tester.getTopLeft(find.text('Featured')).dy),
+      tester.getTopLeft(find.text('Featured')).dy,
+      lessThan(tester.getTopLeft(find.byType(ContinueShelf)).dy),
     );
 
     await tester.tap(find.text('Manga'));

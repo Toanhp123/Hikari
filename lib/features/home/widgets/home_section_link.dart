@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+
+import 'package:hikari/app/theme/design_system/design_system.dart';
 
 class HomeSectionLink extends StatelessWidget {
   const HomeSectionLink({super.key, required this.label, required this.onTap});
@@ -9,29 +10,33 @@ class HomeSectionLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return InkWell(
       onTap: onTap,
-      borderRadius: HikariRadius.borderSm,
+      borderRadius: HikariShape.small,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
+        constraints: const BoxConstraints(minHeight: HikariSize.touchTarget),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.xs),
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.micro),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 label,
-                style: HikariTypography.labelMedium.copyWith(
-                  color: colors.primaryGlow,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: (theme.textTheme.labelMedium ?? const TextStyle())
+                    .copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
               ),
               const SizedBox(width: 2),
               Icon(
                 Icons.chevron_right_rounded,
                 size: 19,
-                color: colors.primaryGlow,
+                color: colors.primary,
               ),
             ],
           ),
