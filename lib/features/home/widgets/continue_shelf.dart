@@ -45,14 +45,17 @@ class ContinueShelf extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Continue',
-                      style: (theme.textTheme.titleLarge ?? const TextStyle())
-                          .copyWith(
-                            color: colors.onSurface,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
+                    Semantics(
+                      headingLevel: 2,
+                      child: Text(
+                        'Continue',
+                        style: (theme.textTheme.titleLarge ?? const TextStyle())
+                            .copyWith(
+                              color: colors.onSurface,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -106,11 +109,14 @@ class _ContinueCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final statusColors = theme.extension<HikariStatusColors>();
     final badgeText = mediaTypeBadgeLabel(item.media.type);
     final badgeColor = switch (item.media.type) {
       MediaType.anime => colors.primary,
-      MediaType.manga => const Color(0xFFFAB387),
-      MediaType.lightNovel => const Color(0xFF89DCEB),
+      MediaType.manga =>
+        statusColors?.onWarningContainer ?? const Color(0xFFFAB387),
+      MediaType.lightNovel =>
+        statusColors?.onInfoContainer ?? const Color(0xFF89DCEB),
     };
     final actionIcon = switch (item.media.type) {
       MediaType.anime => Icons.play_arrow_rounded,
@@ -186,7 +192,6 @@ class _ContinueCard extends StatelessWidget {
                                 (theme.textTheme.labelSmall ??
                                         const TextStyle())
                                     .copyWith(
-                                      fontSize: 10,
                                       color: badgeColor,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 0.4,
@@ -239,10 +244,7 @@ class _ContinueCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: (theme.textTheme.bodySmall ?? const TextStyle())
-                          .copyWith(
-                            fontSize: 11,
-                            color: colors.onSurfaceVariant,
-                          ),
+                          .copyWith(color: colors.onSurfaceVariant),
                     ),
                   ],
                 ),

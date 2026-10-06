@@ -48,7 +48,8 @@ class MediaPoster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
 
     Widget artwork = AspectRatio(
       aspectRatio: 2 / 3,
@@ -57,7 +58,7 @@ class MediaPoster extends StatelessWidget {
           color: colors.surfaceContainer,
           borderRadius: HikariRadius.borderMd,
           border: Border.all(
-            color: colors.border.withValues(alpha: 0.6),
+            color: colors.outlineVariant.withValues(alpha: 0.6),
             width: 1,
           ),
         ),
@@ -102,17 +103,18 @@ class MediaPoster extends StatelessWidget {
         children: [
           if (!isLoading && title.isNotEmpty) ...[
             SizedBox(
-              height: 32,
+              height: MediaQuery.textScalerOf(context).scale(32.0),
               child: Text(
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
-                  height: 1.25,
-                ),
+                style: (theme.textTheme.labelMedium ?? const TextStyle())
+                    .copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colors.onSurface,
+                      height: 1.25,
+                    ),
               ),
             ),
             if (subtitle != null && subtitle!.isNotEmpty) ...[
@@ -121,7 +123,8 @@ class MediaPoster extends StatelessWidget {
                 subtitle!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 10, color: colors.textSecondary),
+                style: (theme.textTheme.bodySmall ?? const TextStyle())
+                    .copyWith(color: colors.onSurfaceVariant),
               ),
             ],
           ] else if (isLoading) ...[
@@ -129,7 +132,7 @@ class MediaPoster extends StatelessWidget {
               height: 12,
               width: double.infinity,
               decoration: ShapeDecoration(
-                color: colors.surfaceHighlight,
+                color: colors.surfaceContainerHighest,
                 shape: const StadiumBorder(),
               ),
             ),
@@ -138,7 +141,7 @@ class MediaPoster extends StatelessWidget {
               height: 10,
               width: 60,
               decoration: ShapeDecoration(
-                color: colors.surfaceHighlight,
+                color: colors.surfaceContainerHighest,
                 shape: const StadiumBorder(),
               ),
             ),
@@ -193,11 +196,11 @@ class MediaPoster extends StatelessWidget {
     );
   }
 
-  Widget _buildArtwork(HikariColors colors) {
+  Widget _buildArtwork(ColorScheme colors) {
     if (isLoading) {
       return _PosterSkeleton(
-        baseColor: colors.surfaceContainer,
-        highlightColor: colors.surfaceHighlight,
+        baseColor: colors.surfaceContainerHigh,
+        highlightColor: colors.surfaceContainerHighest,
       );
     }
 
@@ -221,8 +224,8 @@ class MediaPoster extends StatelessWidget {
         loadingBuilder: (_, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return _PosterSkeleton(
-            baseColor: colors.surfaceContainer,
-            highlightColor: colors.surfaceHighlight,
+            baseColor: colors.surfaceContainerHigh,
+            highlightColor: colors.surfaceContainerHighest,
           );
         },
       );
@@ -231,14 +234,14 @@ class MediaPoster extends StatelessWidget {
     return _fallbackPlaceholder(colors);
   }
 
-  Widget _fallbackPlaceholder(HikariColors colors) {
+  Widget _fallbackPlaceholder(ColorScheme colors) {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colors.surfaceElevated,
+            colors.surfaceContainerHigh,
             colors.surfaceContainer,
             colors.surface,
           ],
@@ -248,7 +251,7 @@ class MediaPoster extends StatelessWidget {
         child: Icon(
           Icons.movie_filter_rounded,
           size: 28,
-          color: colors.primaryGlow.withValues(alpha: 0.75),
+          color: colors.primary.withValues(alpha: 0.75),
         ),
       ),
     );
@@ -263,6 +266,7 @@ class _MediaBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.9),
@@ -272,8 +276,7 @@ class _MediaBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         child: Text(
           label,
-          style: const TextStyle(
-            fontSize: 10,
+          style: (theme.textTheme.labelSmall ?? const TextStyle()).copyWith(
             fontWeight: FontWeight.w700,
             color: Colors.white,
             letterSpacing: 0.5,

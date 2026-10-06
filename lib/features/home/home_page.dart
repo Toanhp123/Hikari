@@ -56,6 +56,18 @@ class _HomePageState extends State<HomePage> {
     progressRepository: widget.progressRepository,
     discoverCatalog: widget.discoverCatalog,
   );
+  ThemeData? _scopedTheme;
+  Color? _accentSeed;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final accentSeed = Theme.of(context).colorScheme.primary;
+    if (_scopedTheme == null || _accentSeed != accentSeed) {
+      _accentSeed = accentSeed;
+      _scopedTheme = HikariDesignTheme.dark(accentSeed: accentSeed);
+    }
+  }
 
   @override
   void didUpdateWidget(HomePage oldWidget) {
@@ -74,7 +86,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: HikariDesignTheme.dark(),
+      data: _scopedTheme ?? HikariDesignTheme.dark(),
       child: Builder(
         builder: (context) {
           return ListenableBuilder(
@@ -206,13 +218,14 @@ class _HomePageState extends State<HomePage> {
                       child: HomeLibraryError(onRetry: _viewModel.reload),
                     ),
                   const SliverToBoxAdapter(
-                    child: SizedBox(height: HikariSpace.spacious),
+                    child: SizedBox(height: HikariLayout.bottomBarClearance),
                   ),
                 ],
               );
               return Scaffold(
                 backgroundColor: Theme.of(context).colorScheme.surface,
                 body: SafeArea(
+                  bottom: false,
                   child: hasRefreshableSource
                       ? RefreshIndicator.adaptive(
                           onRefresh: _viewModel.refresh,

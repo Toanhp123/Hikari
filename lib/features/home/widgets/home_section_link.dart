@@ -17,7 +17,10 @@ class HomeSectionLink extends StatelessWidget {
       onTap: onTap,
       borderRadius: HikariShape.small,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: HikariSize.touchTarget),
+        constraints: const BoxConstraints(
+          minWidth: HikariSize.touchTarget,
+          minHeight: HikariSize.touchTarget,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: HikariSpace.micro),
           child: Row(

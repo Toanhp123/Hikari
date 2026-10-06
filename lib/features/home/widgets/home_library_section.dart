@@ -49,12 +49,15 @@ class HomeRecentShelf extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  'Recently added',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: colors.onSurface,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.15,
+                child: Semantics(
+                  headingLevel: 2,
+                  child: Text(
+                    'Recently added',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: colors.onSurface,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.15,
+                    ),
                   ),
                 ),
               ),
@@ -124,7 +127,7 @@ class HomeRecentShelf extends StatelessWidget {
                   child: MediaPoster(
                     title: item.title,
                     badgeText: mediaTypeBadgeLabel(item.type),
-                    badgeColor: _mediaTypeBadgeColor(colors, item.type),
+                    badgeColor: _mediaTypeBadgeColor(theme, item.type),
                     onTap: () => openMedia(context, item),
                   ),
                 );
@@ -136,12 +139,17 @@ class HomeRecentShelf extends StatelessWidget {
   }
 }
 
-Color _mediaTypeBadgeColor(ColorScheme colors, MediaType type) =>
-    switch (type) {
-      MediaType.anime => colors.primary,
-      MediaType.manga => const Color(0xFFFAB387), // Catppuccin Peach
-      MediaType.lightNovel => const Color(0xFF89DCEB), // Catppuccin Sky
-    };
+Color _mediaTypeBadgeColor(ThemeData theme, MediaType type) {
+  final colors = theme.colorScheme;
+  final statusColors = theme.extension<HikariStatusColors>();
+  return switch (type) {
+    MediaType.anime => colors.primary,
+    MediaType.manga =>
+      statusColors?.onWarningContainer ?? const Color(0xFFFAB387),
+    MediaType.lightNovel =>
+      statusColors?.onInfoContainer ?? const Color(0xFF89DCEB),
+  };
+}
 
 class HomeRecentShelfSkeleton extends StatelessWidget {
   const HomeRecentShelfSkeleton({super.key});

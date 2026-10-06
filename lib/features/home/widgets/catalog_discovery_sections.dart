@@ -78,11 +78,14 @@ class CatalogDiscoverySections extends StatelessWidget {
                 HikariSpace.content,
                 HikariSpace.inline,
               ),
-              child: Text(
-                _sectionTitle(section),
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.15,
+              child: Semantics(
+                headingLevel: 2,
+                child: Text(
+                  _sectionTitle(section),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.15,
+                  ),
                 ),
               ),
             ),

@@ -45,7 +45,11 @@ class HomeWarningNotice extends StatelessWidget {
                 child: Text(
                   message,
                   style: (theme.textTheme.bodySmall ?? const TextStyle())
-                      .copyWith(color: colors.onSurfaceVariant),
+                      .copyWith(
+                        color:
+                            statusColors?.onWarningContainer ??
+                            colors.onSurface,
+                      ),
                 ),
               ),
               TextButton(onPressed: onRetry, child: const Text('Retry')),

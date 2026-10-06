@@ -60,11 +60,19 @@ class _HeroCarouselState extends State<HeroCarousel> {
     if (page < 0 || page >= widget.entries.length || page == _currentPage) {
       return;
     }
-    await _pageController.animateToPage(
-      page,
-      duration: HikariDesignMotion.standard,
-      curve: Easing.standard,
+    final duration = HikariDesignMotion.duration(
+      context,
+      HikariDesignMotion.standard,
     );
+    if (duration == Duration.zero) {
+      _pageController.jumpToPage(page);
+    } else {
+      await _pageController.animateToPage(
+        page,
+        duration: duration,
+        curve: Easing.standard,
+      );
+    }
   }
 
   @override
