@@ -10,27 +10,27 @@ abstract final class HikariDesignTheme {
   static ThemeData dark({bool oled = false, Color? accentSeed}) {
     final colors =
         ColorScheme.fromSeed(
-          seedColor: accentSeed ?? const Color(0xFF8B5CF6),
+          seedColor: accentSeed ?? const Color(0xFFB4BEFE),
           brightness: Brightness.dark,
         ).copyWith(
-          surface: oled ? Colors.black : const Color(0xFF0B0F17),
-          surfaceDim: oled ? Colors.black : const Color(0xFF0B0F17),
-          surfaceBright: const Color(0xFF2A3752),
-          surfaceContainerLowest: oled ? Colors.black : const Color(0xFF080B12),
-          surfaceContainerLow: const Color(0xFF121620),
-          surfaceContainer: const Color(0xFF161B26),
-          surfaceContainerHigh: const Color(0xFF1F293D),
-          surfaceContainerHighest: const Color(0xFF2A3752),
-          onSurface: const Color(0xFFF8FAFC),
-          onSurfaceVariant: const Color(0xFFB8C2D1),
-          outline: const Color(0xFF8896AA),
-          outlineVariant: const Color(0xFF354158),
+          surface: oled ? Colors.black : const Color(0xFF181825),
+          surfaceDim: oled ? Colors.black : const Color(0xFF181825),
+          surfaceBright: const Color(0xFF383C59),
+          surfaceContainerLowest: oled ? Colors.black : const Color(0xFF11111B),
+          surfaceContainerLow: const Color(0xFF1E1E2E),
+          surfaceContainer: const Color(0xFF252739),
+          surfaceContainerHigh: const Color(0xFF2E3247),
+          surfaceContainerHighest: const Color(0xFF383C59),
+          onSurface: const Color(0xFFCDD6F4),
+          onSurfaceVariant: const Color(0xFFA6ADC8),
+          outline: const Color(0xFF6C7086),
+          outlineVariant: const Color(0xFF313244),
         );
     const statusColors = HikariStatusColors(
-      warningContainer: Color(0xFF3D2B12),
-      onWarningContainer: Color(0xFFFFE0A3),
-      infoContainer: Color(0xFF102E40),
-      onInfoContainer: Color(0xFFB9E5FF),
+      warningContainer: Color(0xFF453026),
+      onWarningContainer: Color(0xFFFAB387),
+      infoContainer: Color(0xFF1E3547),
+      onInfoContainer: Color(0xFF89DCEB),
     );
     final base = ThemeData(
       useMaterial3: true,

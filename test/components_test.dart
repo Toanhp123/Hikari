@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/app/theme/design_system/design_system.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
@@ -90,27 +91,42 @@ void main() {
   });
 
   group('HikariSearchBar', () {
-    testWidgets('debounces query input and clears input on close button tap', (
+    testWidgets('uses scoped design theme and preserves search behavior', (
       tester,
     ) async {
       String currentQuery = '';
+      const accent = Color(0xFF06B6D4);
       await tester.pumpWidget(
-        testWrapper(
-          HikariSearchBar(
-            debounceDuration: const Duration(milliseconds: 50),
-            onChanged: (val) => currentQuery = val,
+        MaterialApp(
+          theme: HikariTheme.darkTheme(accentColor: accent),
+          home: Scaffold(
+            body: HikariSearchBar(
+              debounceDuration: const Duration(milliseconds: 50),
+              onChanged: (val) => currentQuery = val,
+            ),
           ),
         ),
       );
 
-      await tester.enterText(find.byType(TextField), 'Bleach');
+      final searchBar = find.byType(SearchBar);
+      expect(searchBar, findsOneWidget);
+      final scopedTheme = Theme.of(tester.element(searchBar));
+      final targetTheme = HikariDesignTheme.dark(accentSeed: accent);
+      expect(scopedTheme.colorScheme.primary, targetTheme.colorScheme.primary);
+      expect(
+        scopedTheme.searchBarTheme.constraints!.minHeight,
+        HikariSize.fieldMinHeight,
+      );
+
+      await tester.enterText(searchBar, 'Bleach');
       await tester.pump(const Duration(milliseconds: 20));
       expect(currentQuery, ''); // not yet debounced
 
       await tester.pump(const Duration(milliseconds: 60));
       expect(currentQuery, 'Bleach'); // debounced
+      expect(find.byTooltip('Clear search'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.tap(find.byTooltip('Clear search'));
       await tester.pumpAndSettle();
       expect(currentQuery, '');
     });

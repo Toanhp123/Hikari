@@ -24,7 +24,7 @@ void main() {
     );
 
     expect(find.text('Explore & Search'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), '  Frieren  ');
+    await tester.enterText(find.byType(SearchBar), '  Frieren  ');
     await tester.pump(const Duration(milliseconds: 301));
     expect(provider.calls, isEmpty);
 
@@ -39,7 +39,7 @@ void main() {
     expect(provider.calls.last, ('Frieren', MediaType.manga));
     expect(find.text('Manga result'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'Bleach');
+    await tester.enterText(find.byType(SearchBar), 'Bleach');
     await tester.pump(const Duration(milliseconds: 301));
     expect(provider.calls.length, 2);
     expect(find.text('Explore & Search'), findsOneWidget);

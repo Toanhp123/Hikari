@@ -38,7 +38,7 @@ void main() {
       expect(find.text('Find a source'), findsOneWidget);
 
       // Enter search query
-      await tester.enterText(find.byType(TextField), 'Solo');
+      await tester.enterText(find.byType(SearchBar), 'Solo');
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 

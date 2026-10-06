@@ -212,6 +212,14 @@ Trước mỗi commit, trên Windows có thể chạy toàn bộ Foundation v1.1
 .\tool\check.ps1
 ```
 
+Khi format thủ công, chỉ truyền các file Dart vừa sửa. Nếu cần format toàn bộ source/test hiện tại:
+
+```bash
+fvm dart format lib test
+```
+
+Không dùng `fvm dart format .`: phạm vi root có thể quét cả worktree/cache ngoài checkout đang xử lý. Khi thêm thư mục Dart cấp root mới, cập nhật danh sách `lib test` trong lệnh trên và CI. `tool/check.ps1` đã liệt kê file qua Git, loại `.claude/worktrees/**` và chia batch để tránh giới hạn độ dài command line trên Windows.
+
 Hoặc chạy từng bước liên quan thủ công. Tối thiểu:
 
 ```bash

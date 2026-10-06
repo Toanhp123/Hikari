@@ -324,7 +324,7 @@ export 'first.dart' if (dart.library.io) 'second.dart';
   });
 
   test(
-    'foundation imports only Flutter and its own files; app stays unwired',
+    'foundation stays isolated and adoption is limited to approved seams',
     () {
       final directory = Directory('lib/app/theme/design_system');
       for (final file in directory.listSync().whereType<File>()) {
@@ -337,20 +337,24 @@ export 'first.dart' if (dart.library.io) 'second.dart';
           );
         }
       }
+
+      const approvedAdopters = {
+        'lib/core/ui/components/hikari_search_bar.dart',
+      };
+      final adopters = <String>{};
       for (final file in Directory(
         'lib',
       ).listSync(recursive: true).whereType<File>()) {
-        if (!file.path.endsWith('.dart') ||
-            file.path.replaceAll('\\', '/').contains('/design_system/')) {
+        final path = file.path.replaceAll('\\', '/');
+        if (!path.endsWith('.dart') || path.contains('/design_system/')) {
           continue;
         }
-        expect(
-          _directiveUris(file.readAsStringSync())
-              .where((uri) => uri.contains('design_system/')),
-          isEmpty,
-          reason: 'Foundation pass must not rewire ${file.path}',
-        );
+        if (_directiveUris(file.readAsStringSync())
+            .any((uri) => uri.contains('design_system/'))) {
+          adopters.add(path);
+        }
       }
+      expect(adopters, approvedAdopters);
     },
   );
 }

@@ -1,12 +1,12 @@
 # Hikari Design System Foundation
 
-Status: **canonical migration target; deliberately not wired into the app**.
+Status: **canonical migration target; incremental adoption started**.
 
-Public entry: `lib/app/theme/design_system/design_system.dart`. Current screens still use the legacy `app/theme/hikari_*.dart` and `core/ui` widgets. This foundation does not change navigation, settings, persistence, business logic, or current appearance. See [ADR-013](../decisions/ADR-013-design-system-foundation.md) for placement and coexistence rationale.
+Public entry: `lib/app/theme/design_system/design_system.dart`. The root app theme and most screens still use the legacy `app/theme/hikari_*.dart` system. The first approved migration seam is `core/ui/components/hikari_search_bar.dart`, which applies the target theme only to its native Material `SearchBar` subtree while preserving existing search behavior. Navigation, settings, persistence and business logic remain unchanged. See [ADR-013](../decisions/ADR-013-design-system-foundation.md) for placement and coexistence rationale.
 
 ## Principles
 
-Artwork first; quiet chrome; dense metadata without tiny text. Keep obsidian/violet identity, but use readable semantic pairs rather than glowing accents everywhere. Density comes from hierarchy and layout, never smaller hit targets. Native Material controls supply focus, keyboard, semantics and disabled behavior. Feature experiences stay feature-owned.
+Artwork first; quiet chrome; dense metadata without tiny text. Adopt calm Catppuccin Mocha palette with soft wisteria lavender (`#B4BEFE`) and soothing charcoal surfaces (`#181825` / `#1E1E2E`), eliminating eye strain and chromatic vibration. Density comes from hierarchy and layout, never smaller hit targets. Native Material controls supply focus, keyboard, semantics and disabled behavior. Feature experiences stay feature-owned.
 
 ## Repository audit
 
@@ -105,17 +105,21 @@ Compact uses existing bottom navigation, medium and above can retain rail; expan
 
 ## Adoption and evidence
 
-New or migrated UI uses semantic design-system APIs. Do not add arbitrary colors, spacing scales, radii, typography variants or animation durations unless a real missing semantic concept is demonstrated. Do not mix legacy `context.hikariColors` with target ThemeData in one migrated subtree. Migrate shared primitive internals before switching root theme; use an explicitly scoped Theme for incremental adoption. Remove the foundation-only unwired assertion when the migration intentionally begins; retain isolation/contrast tests.
+New or migrated UI uses semantic design-system APIs. Do not add arbitrary colors, spacing scales, radii, typography variants or animation durations unless a real missing semantic concept is demonstrated. Do not mix legacy `context.hikariColors` with target ThemeData in one migrated subtree. Migrate shared primitive internals before switching root theme; use an explicitly scoped Theme for incremental adoption. Architecture tests keep the current adopter set explicit so migration cannot spread accidentally.
 
-Recommended sequence: shared actions/search/state primitives and scoped preview; app theme/navigation; Home + catalog/search; Detail + pickers; Library/Local/Settings; manga/player chrome; novel/publication chrome and prose mapping. Validate each on Android and Windows before broad adoption.
+The first seam is `HikariSearchBar`: it now composes Flutter's native `SearchBar` under a scoped `HikariDesignTheme`, forwarding only the live root's semantic primary color as the temporary accent bridge. Existing debounce behavior is preserved in the wrapper for compatibility during this small migration; it is not a design-system responsibility or motion token and should move to the owning feature/controller when search behavior is next refactored. The target search surface roles are identical in dark and OLED, so this seam does not need to infer legacy OLED state. Remove this bridge when the root theme migrates.
 
-Automated foundation tests protect dark/OLED contrast pairs, reading contrast, fractional widths/invalid inputs, Android-style disabled-animation duration, native text contrast and touch targets/labels at 100% and 200% scaling, state styling, isolation and no app imports. They do not certify every future screen. Visually validate violet seed output, raised dark surfaces, OLED black separation, poster density, long localized titles, 200%+ scaling, keyboard focus, paper mode and real artwork overlays during migration. Run TalkBack and desktop keyboard checks; iOS requires macOS/device verification.
+Recommended sequence: finish shared actions/search/state primitives and scoped preview; app theme/navigation; Home + catalog/search; Detail + pickers; Library/Local/Settings; manga/player chrome; novel/publication chrome and prose mapping. Validate each on Android and Windows before broad adoption.
+
+Automated foundation tests protect dark/OLED contrast pairs, reading contrast, fractional widths/invalid inputs, Android-style disabled-animation duration, native text contrast and touch targets/labels at 100% and 200% scaling, state styling, foundation isolation and the explicit migration-adopter allowlist. `HikariSearchBar` tests also verify the scoped target theme, 56dp search minimum, debounce and labeled clear action. They do not certify every future screen. Visually validate violet seed output, raised dark surfaces, OLED black separation, poster density, long localized titles, 200%+ scaling, keyboard focus, paper mode and real artwork overlays during migration. Run TalkBack and desktop keyboard checks; iOS requires macOS/device verification.
 
 ## Research and rationale
 
 Reviewed 2026-10-06 using Firecrawl and local UI UX Pro Max. Generic generated red/news palette and marketing-hero layout did not fit Hikari and were rejected; Flutter theme/context guidance retained. Sources inform principles, not copied screens:
 
 - [Flutter Material 3 defaults](https://docs.flutter.dev/release/breaking-changes/material-3-default): ColorScheme/TextTheme/component themes are native composition points.
+- [Flutter `SearchBar`](https://api.flutter.dev/flutter/material/SearchBar-class.html) and [scoped themes](https://docs.flutter.dev/cookbook/design/themes): the native bar already exposes controller, submit/change callbacks, leading/trailing actions and semantic Material behavior; a local `Theme` is the supported incremental override boundary while the root remains legacy.
+- [Netflix mobile layout](https://help.netflix.com/en/node/575087423404644): current media discovery keeps search/navigation simple and places swipeable shortcuts/filters near discovery rather than turning search into a separate visual system. Hikari keeps its existing search/filter flow; no Netflix styling is copied.
 - [Flutter tonal surface roles](https://docs.flutter.dev/release/breaking-changes/new-color-scheme-roles): tone-based surface hierarchy instead of opacity elevation overlays.
 - [Flutter accessibility](https://docs.flutter.dev/ui/accessibility): readable contrast, 48 targets, assistive technology and scaling checks. Foundation tests require 4.5:1 for normal text, including primary action text on tonal surfaces, selection and Snackbar action/content pairs. Color tests cover all product seeds (`#8B5CF6`, `#EC4899`, `#06B6D4`, `#10B981`, `#F59E0B`) plus black as a stress seed, in dark and OLED modes. Widget tests include Flutter's `textContrastGuideline`; 3:1 is not sufficient for normal-size action labels.
 - [Flutter adaptive best practices](https://docs.flutter.dev/ui/adaptive-responsive/best-practices): touch first, constrain wide content, use available window space, retain state and keyboard support.
