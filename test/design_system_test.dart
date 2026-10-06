@@ -380,6 +380,7 @@ export 'first.dart' if (dart.library.io) 'second.dart';
       }
 
       const approvedAdopters = {
+        'lib/app/navigation/app_navigation_shell.dart',
         'lib/core/ui/components/hikari_search_bar.dart',
       };
       final adopters = <String>{};
