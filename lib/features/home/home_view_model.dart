@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:hikari/application/catalog/discover_catalog.dart';
+import 'package:hikari/application/progress/load_continue_reading.dart';
+import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -17,19 +19,6 @@ enum HomeFilterType {
   const HomeFilterType(this.mediaType);
 
   final MediaType? mediaType;
-}
-
-@immutable
-final class ContinueReadingItem {
-  const ContinueReadingItem({
-    required this.media,
-    required this.progress,
-    this.position,
-  });
-
-  final Media media;
-  final double progress;
-  final ProgressPosition? position;
 }
 
 @immutable
@@ -93,9 +82,15 @@ final class HomeUiState {
 final class HomeViewModel extends ChangeNotifier {
   HomeViewModel(
     LibraryRepository? repository, {
-    this._progressRepository,
+    LoadContinueReading? continueReading,
+    ProgressRepository? progressRepository,
     DiscoverCatalog? discoverCatalog,
   }) : _repository = repository,
+       _continueReading =
+           continueReading ??
+           (progressRepository == null
+               ? null
+               : LoadContinueReading(progressRepository)),
        _discoverCatalog = discoverCatalog {
     if (repository is ObservableLibraryRepository) {
       _state = const HomeUiState(loading: true);
@@ -111,7 +106,7 @@ final class HomeViewModel extends ChangeNotifier {
   }
 
   final LibraryRepository? _repository;
-  final ProgressRepository? _progressRepository;
+  final LoadContinueReading? _continueReading;
   final DiscoverCatalog? _discoverCatalog;
   StreamSubscription<List<LibraryEntry>>? _subscription;
 
@@ -218,51 +213,21 @@ final class HomeViewModel extends ChangeNotifier {
     required int revision,
   }) async {
     final media = List<Media>.unmodifiable(entries.map((entry) => entry.media));
-    final continueItems = <({ContinueReadingItem item, DateTime updatedAt})>[];
+    var continueItems = const <ContinueReadingItem>[];
     Object? progressError;
-    final progressRepository = _progressRepository;
-    if (progressRepository != null) {
-      for (final item in media) {
-        try {
-          final progress = await progressRepository.load(item.source);
-          if (progress == null || progress.completed) continue;
-          final fraction = switch (progress.position) {
-            VideoPosition(:final position, :final duration)
-                when duration > Duration.zero =>
-              position.inMilliseconds / duration.inMilliseconds,
-            PagePosition(:final pageIndex, :final pageCount)
-                when pageCount > 0 =>
-              (pageIndex + 1) / pageCount,
-            TextPosition(:final progression) => progression,
-            DocumentPosition(:final progression, :final totalProgression) =>
-              totalProgression ?? progression ?? 0.0,
-            _ => null,
-          };
-          if (fraction != null) {
-            continueItems.add((
-              item: ContinueReadingItem(
-                media: item,
-                progress: fraction,
-                position: progress.position,
-              ),
-              updatedAt: progress.updatedAt,
-            ));
-          }
-        } catch (error) {
-          progressError ??= error;
-        }
-      }
+    final loader = _continueReading;
+    if (loader != null) {
+      final result = await loader.execute(entries);
+      continueItems = result.items;
+      progressError = result.error;
     }
     if (_disposed || _streamRevision != revision) return;
-    continueItems.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     _publish(
       _state.copyWith(
         loading: false,
         libraryItems: media,
         hasLibrarySnapshot: true,
-        continueItems: List.unmodifiable(
-          continueItems.map((entry) => entry.item),
-        ),
+        continueItems: continueItems,
         progressError: progressError,
         clearProgressError: progressError == null,
         clearError: true,

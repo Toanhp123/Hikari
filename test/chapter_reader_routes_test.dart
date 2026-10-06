@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
@@ -11,11 +11,16 @@ import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
+import 'package:hikari/application/progress/save_series_chapter_progress.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
 import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_reader_view_model.dart';
@@ -111,6 +116,324 @@ class _Progress implements ProgressRepository {
 
   @override
   Future<void> save(MediaProgress progress) async {}
+}
+
+class _Continuations implements SeriesContinuationRepository {
+  SourceMediaRef? chapter;
+
+  @override
+  Future<SourceMediaRef?> load(SourceMediaRef series) async => chapter;
+
+  @override
+  Future<void> save(SeriesContinuation continuation) async {
+    chapter = continuation.chapter;
+  }
+}
+
+class _DelayedProgress extends _Progress {
+  final saveStarted = Completer<void>();
+  final secondSaveStarted = Completer<void>();
+  final allowSave = Completer<void>();
+  final allowSecondSave = Completer<void>();
+  final writes = <MediaProgress>[];
+  final rows = <SourceMediaRef, MediaProgress>{};
+
+  @override
+  Future<MediaProgress?> load(SourceMediaRef media) async => rows[media];
+
+  @override
+  Future<void> save(MediaProgress progress) async {
+    final isActivationBaseline = switch (progress.position) {
+      PagePosition(:final pageIndex) => pageIndex == 0,
+      TextPosition(:final progression) => progression == 0,
+      _ => false,
+    };
+    if (!rows.containsKey(progress.media) && isActivationBaseline) {
+      rows[progress.media] = progress;
+      return;
+    }
+    writes.add(progress);
+    if (!saveStarted.isCompleted) {
+      saveStarted.complete();
+      await allowSave.future;
+    } else {
+      if (!secondSaveStarted.isCompleted) secondSaveStarted.complete();
+      await allowSecondSave.future;
+    }
+    rows[progress.media] = progress;
+  }
+}
+
+class _FixedCache implements ByteCache {
+  const _FixedCache();
+  @override
+  Future<Uint8List?> read(String namespace, String key) async => null;
+  @override
+  Future<void> write(String namespace, String key, Uint8List bytes) async {}
+  @override
+  Future<void> close() async {}
+}
+
+class _MangaReaderSource extends _MangaSource implements MangaSeriesSource {
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef chapter) async => [
+    const SourceMediaRef(sourceId: _mangaId, itemId: 'a-page-0'),
+    const SourceMediaRef(sourceId: _mangaId, itemId: 'a-page-1'),
+  ];
+
+  @override
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
+      MangaSeriesDetails(
+        metadata: MediaMetadata(title: 'Series'),
+        chapters: [MangaChapter(title: 'Chapter A', source: _mangaA)],
+        chapterListOrder: ChapterListOrder.readingOrder,
+      );
+}
+
+class _StaticNovelSource implements NovelChapterSource {
+  @override
+  SourceId get id => _novelId;
+  @override
+  String get name => 'Novel';
+  @override
+  Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async =>
+      RichReadingContent(html: List.filled(60, 'reading text').join(' '));
+  @override
+  Future<Uint8List> readResource(SourceMediaRef resource) async => _png;
+}
+
+Future<void> _pushReader(
+  BuildContext context,
+  Widget page,
+  VoidCallback onReturned,
+  ValueNotifier<int> refreshes,
+) async {
+  await Navigator.of(context)
+      .push<void>(MaterialPageRoute<void>(builder: (_) => page));
+  onReturned();
+  refreshes.value++;
+}
+
+Widget _home(
+  Widget reader,
+  ValueListenable<int> refreshes,
+  VoidCallback onReturned,
+) => MaterialApp(
+  home: Builder(
+    builder: (context) => Scaffold(
+      body: Column(
+        children: [
+          ValueListenableBuilder<int>(
+            valueListenable: refreshes,
+            builder: (_, count, _) => Text('Home refresh $count'),
+          ),
+          TextButton(
+            onPressed: () => _pushReader(
+              context,
+              reader,
+              onReturned,
+              refreshes as ValueNotifier<int>,
+            ),
+            child: const Text('Open reader'),
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+
+Future<void> _testDelayedRemoteExit(
+  WidgetTester tester, {
+  required bool novel,
+  required bool systemBack,
+}) async {
+  final progress = _DelayedProgress();
+  final refreshes = ValueNotifier<int>(0);
+  addTearDown(() => refreshes.dispose());
+  final manga = _MangaReaderSource();
+  final novelSource = _StaticNovelSource();
+  final reader = ReadNovelChapterContent(const _FixedCache());
+  final continuations = _Continuations();
+  final page = novel
+      ? await _createNovelReaderRoute(
+          novelSource,
+          progress,
+          reader,
+          continuations,
+        )
+      : await _createMangaReaderRoute(manga, progress, continuations);
+  var returned = false;
+  await tester.pumpWidget(_home(page, refreshes, () => returned = true));
+
+  await tester.tap(find.text('Open reader'));
+  await tester.pumpAndSettle();
+  if (novel) {
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    scroll.jumpTo(scroll.position.maxScrollExtent * .6);
+  } else {
+    final image = tester.widget<Image>(find.byType(Image));
+    await tester.runAsync(
+      () => precacheImage(
+        image.image,
+        tester.element(find.byType(MangaReaderPage)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await progress.saveStarted.future;
+    await tester.tap(find.byTooltip('Next page'));
+    await tester.pumpAndSettle();
+    expect(progress.writes, hasLength(1));
+    expect(progress.writes.single.position, isA<PagePosition>());
+    expect((progress.writes.single.position as PagePosition).pageIndex, 0);
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    await tester.pumpAndSettle();
+    expect(find.byType(Image), findsOneWidget);
+  }
+  if (systemBack) {
+    await tester.binding.handlePopRoute();
+  } else {
+    await tester.tap(find.byTooltip('Back').last);
+  }
+  await tester.pump();
+  await progress.saveStarted.future;
+  expect(find.text('Open reader'), findsNothing);
+  expect(refreshes.value, 0);
+  if (novel) {
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    final frozenAt = scroll.offset;
+    // Closing state intentionally rejects gesture input.
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -300),
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle();
+    expect(scroll.offset, frozenAt);
+    expect(find.byTooltip('Reading Preferences'), findsOneWidget);
+    await tester.tap(
+      find.byTooltip('Reading Preferences'),
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Color Theme'), findsNothing);
+    expect(find.text('Font Size'), findsNothing);
+  } else {
+    expect(find.byTooltip('Next page'), findsOneWidget);
+    await tester.tap(find.byTooltip('Next page'), warnIfMissed: false);
+    expect(progress.writes, hasLength(1));
+  }
+  progress.allowSave.complete();
+  if (!novel) {
+    for (var i = 0; i < 5 && !progress.secondSaveStarted.isCompleted; i++) {
+      await tester.pump();
+    }
+    expect(progress.secondSaveStarted.isCompleted, isTrue);
+    expect(progress.writes, hasLength(2));
+    expect(find.byType(MangaChapterReaderPage), findsOneWidget);
+    expect(find.text('Open reader'), findsNothing);
+    expect(refreshes.value, 0);
+    progress.allowSecondSave.complete();
+  }
+  await tester.pumpAndSettle();
+  expect(find.text('Open reader'), findsOneWidget);
+  expect(refreshes.value, 1);
+  expect(returned, isTrue);
+  expect(continuations.chapter, novel ? _novelA : _mangaA);
+  if (novel) {
+    expect(progress.writes, hasLength(1));
+  } else {
+    expect(progress.writes, hasLength(2));
+    expect(progress.rows[_mangaA]?.position, isA<PagePosition>());
+    expect((progress.rows[_mangaA]!.position as PagePosition).pageIndex, 1);
+  }
+}
+
+Future<Widget> _createMangaReaderRoute(
+  _MangaReaderSource source,
+  _DelayedProgress progress,
+  _Continuations continuations,
+) async {
+  final workflow = OpenMangaChapter(SourceRegistry([source]), progress);
+  final chapter = MangaChapter(title: 'Chapter A', source: _mangaA);
+  final saveContinuation = SaveSeriesChapterProgress(
+    continuations,
+    const SourceMediaRef(sourceId: _mangaId, itemId: 'series'),
+  );
+  final model = MangaChapterReaderViewModel(
+    initialTarget: await workflow.execute(chapter),
+    chaptersInReadingOrder: [chapter],
+    openChapter: workflow,
+    onChapterActivated: (target) => saveContinuation.activate(
+      target.progress,
+      target.chapter.source,
+      PagePosition(pageIndex: 0, pageCount: target.pages.length),
+    ),
+    onProgress: (target, position, completed) => saveContinuation.execute(
+      target.progress,
+      target.chapter.source,
+      position,
+      completed,
+    ),
+  );
+  return MangaChapterReaderPage(
+    viewModel: model,
+    readPage: (source, page) => source.readPage(page),
+    reloadPage: (source, page) => source.readPage(page),
+    createPrefetch: () =>
+        PrefetchMangaPages(ReadMangaPage(const _FixedCache())),
+    prefetchPages: (prefetch, source, pages, index) =>
+        prefetch.execute(source, pages, index),
+  );
+}
+
+Future<Widget> _createNovelReaderRoute(
+  _StaticNovelSource source,
+  _DelayedProgress progress,
+  ReadNovelChapterContent readContent,
+  _Continuations continuations,
+) async {
+  final workflow = OpenNovelChapter(
+    SourceRegistry([source]),
+    progress,
+    readContent,
+  );
+  final chapter = NovelChapter(title: 'Chapter A', source: _novelA);
+  final saveContinuation = SaveSeriesChapterProgress(
+    continuations,
+    const SourceMediaRef(sourceId: _novelId, itemId: 'series'),
+  );
+  final model = NovelChapterReaderViewModel(
+    initialTarget: await workflow.execute(chapter),
+    chaptersInReadingOrder: [chapter],
+    openChapter: workflow,
+    onChapterActivated: (target) => saveContinuation.activate(
+      target.progress,
+      target.chapter.source,
+      TextPosition(progression: 0),
+    ),
+    onProgress: (target, position, completed) => saveContinuation.execute(
+      target.progress,
+      target.chapter.source,
+      position,
+      completed,
+    ),
+  );
+  final resource = ReadNovelResource(const _FixedCache());
+  return NovelChapterReaderPage(
+    viewModel: model,
+    reloadContent: (source, chapter) => readContent.reload(source, chapter),
+    readResource: resource.execute,
+    reloadResource: resource.reload,
+    createPrefetch: () =>
+        PrefetchNovelChapter(SourceRegistry([source]), readContent, resource),
+    prefetchChapter: (_, _) async {},
+  );
 }
 
 class _Cache implements ByteCache {
@@ -356,6 +679,19 @@ void main() {
     expect(prefetched, [_novelB, _novelC]);
     await tester.pumpWidget(const SizedBox());
   });
+
+  for (final popBySystem in [true, false]) {
+    for (final isNovel in [true, false]) {
+      testWidgets(
+        '${isNovel ? 'novel' : 'manga'} remote route drains save before ${popBySystem ? 'OS' : 'AppBar'} pop',
+        (tester) => _testDelayedRemoteExit(
+          tester,
+          novel: isNovel,
+          systemBack: popBySystem,
+        ),
+      );
+    }
+  }
 
   for (final lateFailure in [false, true]) {
     testWidgets(

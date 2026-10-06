@@ -9,6 +9,8 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_series_continuation_repository.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
 
 void main() {
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'item');
@@ -143,6 +145,143 @@ void main() {
     }
   });
 
+  test(
+    'version three migrates all tables and validates current schema',
+    () async {
+      await db.close();
+      final directory = await Directory.systemTemp.createTemp('hikari-v3-');
+      final file = File('${directory.path}/state.sqlite');
+      const series = SourceMediaRef(
+        sourceId: SourceId('remote'),
+        itemId: 'series',
+      );
+      const chapter = SourceMediaRef(
+        sourceId: SourceId('remote'),
+        itemId: 'chapter',
+      );
+      final v3 = UserDatabase(NativeDatabase(file));
+      await v3.customStatement(
+        "INSERT INTO progress_records (source_id, item_id, kind, text_progression, completed, updated_at) VALUES ('remote', 'chapter', 'text', 0.6, 0, 100)",
+      );
+      await v3.customStatement(
+        "INSERT INTO library_records (source_id, item_id, title, media_type, added_at) VALUES ('remote', 'series', 'Series', 'manga', 101)",
+      );
+      await v3.customStatement(
+        "INSERT INTO mihon_continuation_records (source_id, item_id, payload) VALUES ('mihon', 'opaque', 'payload')",
+      );
+      await v3.customStatement(
+        "INSERT INTO progress_records (source_id, item_id, kind, page_index, page_count, completed, updated_at) VALUES ('remote', 'chapter-page', 'page', 1, 3, 0, 102)",
+      );
+      await v3.customStatement(
+        "INSERT INTO mihon_continuation_records (source_id, item_id, payload) VALUES ('mihon', 'preserved', 'legacy-payload')",
+      );
+      await v3.customStatement('DROP TABLE series_continuation_records');
+      await v3.customStatement('PRAGMA user_version = 3');
+      await v3.close();
+      final old = UserDatabase(NativeDatabase(file));
+      try {
+        final restoredProgress = SqliteProgressRepository(old);
+        final restoredChapterProgress = (await restoredProgress.load(chapter))!;
+        expect(
+          (restoredChapterProgress.position as TextPosition).progression,
+          .6,
+        );
+        final pageProgress = await restoredProgress.load(
+          const SourceMediaRef(
+            sourceId: SourceId('remote'),
+            itemId: 'chapter-page',
+          ),
+        );
+        expect((pageProgress!.position as PagePosition).pageIndex, 1);
+        expect((pageProgress.position as PagePosition).pageCount, 3);
+        expect(
+          (await SqliteLibraryRepository(old).loadAll()).single.media.source,
+          series,
+        );
+        final migratedContinuations = SqliteSeriesContinuationRepository(old);
+        expect(await migratedContinuations.load(series), isNull);
+        await migratedContinuations.save(
+          SeriesContinuation(series: series, chapter: chapter),
+        );
+        expect(await migratedContinuations.load(series), chapter);
+        final mihon = await old
+            .customSelect(
+              'SELECT payload FROM mihon_continuation_records ORDER BY item_id',
+            )
+            .get();
+        expect(
+          mihon.map((row) => row.data['payload']),
+          unorderedEquals(['legacy-payload', 'payload']),
+        );
+        expect(
+          (await old.customSelect('PRAGMA user_version').getSingle())
+              .data['user_version'],
+          4,
+        );
+        await old.validateDatabaseSchema();
+      } finally {
+        await old.close();
+        await directory.delete(recursive: true);
+      }
+    },
+  );
+
+  test('series continuation survives reopen, Library removal and progress deletion', () async {
+    await db.close();
+    final directory = await Directory.systemTemp.createTemp(
+      'hikari-continuation-',
+    );
+    final file = File('${directory.path}/state.sqlite');
+    const series = SourceMediaRef(
+      sourceId: SourceId('remote'),
+      itemId: 'series',
+    );
+    const chapter = SourceMediaRef(
+      sourceId: SourceId('remote'),
+      itemId: 'chapter',
+    );
+    final first = UserDatabase(NativeDatabase.createInBackground(file));
+    await SqliteSeriesContinuationRepository(first)
+        .save(SeriesContinuation(series: series, chapter: chapter));
+    await SqliteLibraryRepository(first).upsert(
+      LibraryEntry(
+        media: const Media(
+          title: 'Series',
+          type: MediaType.manga,
+          source: series,
+        ),
+        addedAt: now,
+      ),
+    );
+    await SqliteProgressRepository(first).save(
+      MediaProgress(
+        media: chapter,
+        position: PagePosition(pageIndex: 1, pageCount: 3),
+        completed: false,
+        updatedAt: now,
+      ),
+    );
+    await first.close();
+    final second = UserDatabase(NativeDatabase.createInBackground(file));
+    try {
+      final continuations = SqliteSeriesContinuationRepository(second);
+      final restoredLibrary = SqliteLibraryRepository(second);
+      final restoredProgress = SqliteProgressRepository(second);
+      expect(await continuations.load(series), chapter);
+      expect(await restoredLibrary.contains(series), isTrue);
+      expect(await restoredProgress.load(chapter), isNotNull);
+      await restoredLibrary.remove(series);
+      await restoredProgress.delete(chapter);
+      expect(await restoredLibrary.contains(series), isFalse);
+      expect(await restoredProgress.load(chapter), isNull);
+      expect(await continuations.load(series), chapter);
+      await second.validateDatabaseSchema();
+    } finally {
+      await second.close();
+      await directory.delete(recursive: true);
+    }
+  });
+
   test('document position roundtrips after file reopen', () async {
     await db.close();
     final directory = await Directory.systemTemp.createTemp('hikari-document-');
@@ -208,6 +347,7 @@ void main() {
     expect((text.position as TextPosition).progression, 1);
     expect(text.completed, isFalse);
   });
+
   test('remote series snapshot survives close and reopen', () async {
     await db.close();
     final directory = await Directory.systemTemp.createTemp('hikari-remote-');

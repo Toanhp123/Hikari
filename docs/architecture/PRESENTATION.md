@@ -45,11 +45,12 @@ flows.
 
 ### Home
 
-`HomeViewModel` joins Library media with incomplete Progress records, owns the selected
-media filter and catalog-discovery loading/retry state, and exposes the effective filtered
-feed. It exposes progress position data rather than producing English progress copy; the
-Continue widget formats that presentation at the UI edge. Catalog discovery widgets render
-data supplied by Home instead of executing `DiscoverCatalog` themselves.
+`HomeViewModel` delegates Continue assembly to `LoadContinueReading`, which joins Library
+media with series continuation and chapter/direct-media Progress while isolating broken rows per
+item. Home owns the selected media filter and catalog-discovery loading/retry state, and exposes
+the effective filtered feed. It exposes progress position data rather than producing English
+progress copy; the Continue widget formats that presentation at the UI edge. Catalog discovery
+widgets render data supplied by Home instead of executing `DiscoverCatalog` themselves.
 
 ### Catalog
 

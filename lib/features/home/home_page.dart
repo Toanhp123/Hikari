@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
+import 'package:hikari/application/progress/load_continue_reading.dart';
+import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -23,6 +25,8 @@ class HomePage extends StatefulWidget {
     required this.openMedia,
     this.library,
     this.progressRepository,
+    this.loadContinueReading,
+    this.onContinue,
     this.discoverCatalog,
     this.openCatalogDetail,
     this.refreshRevision = 0,
@@ -33,6 +37,8 @@ class HomePage extends StatefulWidget {
   final void Function(BuildContext, Media) openMedia;
   final LibraryRepository? library;
   final ProgressRepository? progressRepository;
+  final LoadContinueReading? loadContinueReading;
+  final void Function(BuildContext, ContinueReadingItem)? onContinue;
   final DiscoverCatalog? discoverCatalog;
   final void Function(BuildContext, CatalogEntry)? openCatalogDetail;
   final int refreshRevision;
@@ -46,6 +52,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final HomeViewModel _viewModel = HomeViewModel(
     widget.library,
+    continueReading: widget.loadContinueReading,
     progressRepository: widget.progressRepository,
     discoverCatalog: widget.discoverCatalog,
   );
@@ -91,6 +98,7 @@ class _HomePageState extends State<HomePage> {
                   child: ContinueShelf(
                     items: state.continueItems,
                     onOpenMedia: widget.openMedia,
+                    onContinue: widget.onContinue,
                     onSeeAll: widget.onNavigateToLibrary,
                   ),
                 ),

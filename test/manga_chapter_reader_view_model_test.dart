@@ -101,6 +101,53 @@ void main() {
     },
   );
 
+  test(
+    'successful adjacent open activates the new chapter only after open',
+    () async {
+      final source = _Source();
+      final workflow = OpenMangaChapter(SourceRegistry([source]), _Progress());
+      final activations = <SourceMediaRef>[];
+      final model = MangaChapterReaderViewModel(
+        initialTarget: await _open(source, _chapter(_a)),
+        chaptersInReadingOrder: [_chapter(_a), _chapter(_b)],
+        openChapter: workflow,
+        onChapterActivated: (target) async =>
+            activations.add(target.chapter.source),
+      );
+      addTearDown(model.dispose);
+
+      await model.openNext();
+      await model.flush();
+
+      expect(model.state.target.chapter.source, _b);
+      expect(activations, [_b]);
+    },
+  );
+
+  test('failed adjacent open does not activate the target chapter', () async {
+    final source = _Source()..gates['b'] = Completer();
+    final workflow = OpenMangaChapter(SourceRegistry([source]), _Progress());
+    final activations = <SourceMediaRef>[];
+    final model = MangaChapterReaderViewModel(
+      initialTarget: await _open(source, _chapter(_a)),
+      chaptersInReadingOrder: [_chapter(_a), _chapter(_b)],
+      openChapter: workflow,
+      onChapterActivated: (target) async =>
+          activations.add(target.chapter.source),
+    );
+    addTearDown(model.dispose);
+    final started = source.started.putIfAbsent('b', Completer<void>.new);
+    final pending = model.openNext();
+    await started.future;
+    source.gates['b']!.completeError(StateError('offline'));
+
+    await expectLater(pending, throwsStateError);
+    await model.flush();
+
+    expect(model.state.target.chapter.source, _a);
+    expect(activations, isEmpty);
+  });
+
   test('same-number chapters use distinct stable source refs', () async {
     final source = _Source();
     final first = MangaChapter(title: 'A', source: _a, chapterNumber: 1);

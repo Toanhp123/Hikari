@@ -4,7 +4,7 @@ import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
-import 'package:hikari/features/home/home_view_model.dart';
+import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/features/home/widgets/home_section_link.dart';
 
 /// High-priority shelf for resuming media with unified progress treatment.
@@ -13,11 +13,13 @@ class ContinueShelf extends StatelessWidget {
     super.key,
     required this.items,
     required this.onOpenMedia,
+    this.onContinue,
     this.onSeeAll,
   });
 
   final List<ContinueReadingItem> items;
   final void Function(BuildContext, Media) onOpenMedia;
+  final void Function(BuildContext, ContinueReadingItem)? onContinue;
   final VoidCallback? onSeeAll;
 
   @override
@@ -72,7 +74,9 @@ class ContinueShelf extends StatelessWidget {
               width: cardWidth,
               child: _ContinueCard(
                 item: items[index],
-                onTap: () => onOpenMedia(context, items[index].media),
+                onTap: () => onContinue != null
+                    ? onContinue!(context, items[index])
+                    : onOpenMedia(context, items[index].media),
               ),
             ),
           ),
@@ -219,6 +223,14 @@ class _ContinueCard extends StatelessWidget {
 }
 
 String _progressLabel(ContinueReadingItem item) {
+  if (item.chapter != null) {
+    if (item.position case PagePosition(:final pageIndex, :final pageCount)) {
+      return item.completed
+          ? 'Chapter completed · Page ${pageIndex + 1} of $pageCount'
+          : 'Last read chapter · Page ${pageIndex + 1} of $pageCount';
+    }
+    return item.completed ? 'Chapter completed' : 'Last read chapter';
+  }
   return switch (item.position) {
     VideoPosition() => 'Resume video',
     PagePosition(:final pageIndex, :final pageCount) =>

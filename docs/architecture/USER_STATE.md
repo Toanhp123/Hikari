@@ -40,22 +40,55 @@ framework or reconciliation algorithm is introduced now.
 ## Storage and composition
 
 [ADR-004](../decisions/ADR-004-user-state-persistence.md) selects Drift/SQLite.
-`UserDatabase` schema version 3 has independent tables, each keyed by
-`(source_id, item_id)`, without foreign keys or cascading ownership:
+`UserDatabase` schema version 4 stores independent progress, Library, and remote
+series-continuation state, each keyed by source identity without cascading ownership:
 
 - `progress_records`: kind, nullable position_ms/duration_ms/page_index/page_count/
   text_progression, document_resource/document_progression/document_total_progression/
   document_locator, completed integer, updated_at epoch milliseconds.
 - `library_records`: title, media_type, added_at epoch milliseconds.
-- `mihon_continuation_records`: source-private encoded payload including memo,
-  title and chapter fields. This is neither Library membership nor progress.
+- `mihon_continuation_records`: provider-private encoded continuation payload; not
+  Library membership, progress, or the source-neutral relationship below.
+- `series_continuation_records`: one remote series-to-last-read-chapter reference.
+  It stores no metadata, progress, foreign key, or cascading ownership; deleting
+  Library membership or chapter progress leaves the relationship intact.
 
-Version 3 adds continuation storage and migrates valid `mihon-v1:` manga/chapter
-references to stable kind-plus-URL `mihon-v2:` keys, retaining their continuation.
-Duplicate old keys coalesce to latest progress and earliest Library membership;
-item ID breaks timestamp ties deterministically. Malformed/unrecognized references
-and unrelated local/provider rows remain unchanged. See
-[ADR-009](../decisions/ADR-009-stable-source-identities.md).
+Version 4 adds bounded remote-series continuation keyed by series source reference.
+The selected chapter must still resolve exactly once in a fresh source sequence at
+resume time. This state is distinct from provider-private continuation data.
+
+A chapter becomes the series continuation when it becomes the active reader target.
+Initial activation and successful adjacent navigation ensure a child Progress row exists
+(first-open manga starts at page 0; first-open novel starts at text progression 0), then
+persist the exact series-to-chapter relationship. Existing child progress is never reset.
+Meaningful reader progress saves persist the child position first and then idempotently
+confirm the same relationship. Failed source opens and prefetch never advance it. The
+relationship has no timestamp: Home sorts using child progress `updatedAt`. A completed
+child remains eligible, and reopening it preserves the reader's existing completed-reopen
+behavior until meaningful rereading. The progress and relationship writes are intentionally
+not atomic; failed writes are retried by later progress/activation and by the reader flush
+on exit. No historical parent mapping is inferred and no first-unread chapter is selected.
+
+Home Continue is derived only from saved parent Library entries. Direct-media rows join by
+parent source reference and completed direct items are excluded. Manga and light-novel
+series rows load an exact child reference from `series_continuation_records`, then join
+that child's progress; a missing child row never falls back to parent progress. Child
+progress timestamp orders Continue items, including completed chapter continuations.
+The relationship and child progress persist independently from Library membership;
+removing membership hides the item without deleting either record. See
+[ADR-011](../decisions/ADR-011-catalog-content-boundary.md).
+
+`OpenSeriesContinuation` resolves the saved parent through `OpenMedia`, reloads a fresh
+source sequence, and validates the exact child reference occurs once and belongs to the
+same source. Unavailable sources, missing children, and malformed/duplicate sequences
+fail before chapter navigation. A partially acquired media lease is released on failure.
+
+Version 3 migrates version 2 by adding `mihon_continuation_records` and migrating
+valid `mihon-v1:` manga/chapter references to stable kind-plus-URL `mihon-v2:` keys,
+retaining their continuation. Duplicate old keys coalesce to latest progress and
+earliest Library membership; item ID breaks timestamp ties deterministically.
+Malformed/unrecognized references and unrelated local/provider rows remain unchanged.
+See [ADR-009](../decisions/ADR-009-stable-source-identities.md).
 
 Version 2 migrates version 1 by adding the four nullable document columns. Existing
 video/page/text progress and Library rows remain unchanged; new document positions use
