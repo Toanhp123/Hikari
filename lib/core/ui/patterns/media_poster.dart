@@ -9,7 +9,7 @@ const mediaPosterGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
   maxCrossAxisExtent: HikariBreakpoints.posterGridMaxExtent,
   crossAxisSpacing: HikariSpacing.md,
   mainAxisSpacing: HikariSpacing.md,
-  childAspectRatio: 0.55,
+  childAspectRatio: 0.52,
 );
 
 /// Shared 2:3 media artwork pattern with title and metadata below artwork.
@@ -159,10 +159,17 @@ class MediaPoster extends StatelessWidget {
           }
         }
 
+        Widget artworkBox = artwork;
+        if (constraints.hasBoundedHeight) {
+          artworkBox = Expanded(
+            child: Align(alignment: Alignment.topCenter, child: artwork),
+          );
+        }
+
         Widget column = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [artwork, textContent],
+          children: [artworkBox, textContent],
         );
 
         if (cardWidth != null) {

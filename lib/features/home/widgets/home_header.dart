@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/design_system/design_system.dart';
 
+/// Pinned glassmorphic header for Home with dynamic gradient blur on scroll.
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key, this.onSearch});
 
@@ -9,69 +11,151 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _HomeHeaderDelegate(onSearch: onSearch),
+    );
+  }
+}
+
+class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _HomeHeaderDelegate({this.onSearch});
+
+  final VoidCallback? onSearch;
+
+  static const double _headerHeight = 58.0;
+
+  @override
+  double get minExtent => _headerHeight;
+
+  @override
+  double get maxExtent => _headerHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        HikariSpace.content,
-        HikariSpace.inline,
-        HikariSpace.content,
-        HikariSpace.compact,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [colors.primary, colors.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+    // Smooth transition over the first 32 pixels of scroll
+    final progress = (shrinkOffset / 32.0).clamp(0.0, 1.0);
+    final isScrolled = progress > 0.0;
+
+    return Semantics(
+      header: true,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: isScrolled
+              ? ImageFilter.blur(
+                  sigmaX: 16.0 * progress,
+                  sigmaY: 16.0 * progress,
+                )
+              : ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  colors.surface.withValues(alpha: 0.88 * progress),
+                  colors.surface.withValues(alpha: 0.65 * progress),
+                ],
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: colors.outlineVariant.withValues(
+                    alpha: 0.35 * progress,
                   ),
-                  borderRadius: HikariShape.medium,
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.primary.withValues(alpha: 0.22),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+                  width: HikariShape.borderWidth,
                 ),
-                child: Icon(
-                  Icons.auto_awesome,
-                  color: colors.onPrimary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: HikariSpace.compact),
-              Text(
-                'Hikari',
-                style: (theme.textTheme.titleLarge ?? const TextStyle())
-                    .copyWith(
-                      color: colors.onSurface,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
-              ),
-            ],
-          ),
-          if (onSearch != null)
-            IconButton(
-              tooltip: 'Search',
-              onPressed: onSearch,
-              icon: Icon(
-                Icons.search_rounded,
-                color: colors.onSurfaceVariant,
-                size: 24,
               ),
             ),
-        ],
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: HikariLayout.contentMaxWidth,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HikariSpace.content,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [colors.primary, colors.secondary],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: HikariShape.medium,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colors.primary.withValues(alpha: 0.22),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.auto_awesome,
+                              color: colors.onPrimary,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: HikariSpace.compact),
+                          Text(
+                            'Hikari',
+                            style:
+                                (theme.textTheme.titleLarge ??
+                                        const TextStyle())
+                                    .copyWith(
+                                      color: colors.onSurface,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                          ),
+                        ],
+                      ),
+                      if (onSearch != null)
+                        IconButton.filledTonal(
+                          tooltip: 'Search',
+                          style: IconButton.styleFrom(
+                            backgroundColor: colors.surfaceContainerHighest
+                                .withValues(alpha: 0.5 + (0.3 * progress)),
+                            foregroundColor: colors.onSurface,
+                            minimumSize: const Size(
+                              HikariSize.touchTarget,
+                              HikariSize.touchTarget,
+                            ),
+                          ),
+                          onPressed: onSearch,
+                          icon: const Icon(
+                            Icons.search_rounded,
+                            size: HikariSize.icon,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
+  }
+
+  @override
+  bool shouldRebuild(covariant _HomeHeaderDelegate oldDelegate) {
+    return oldDelegate.onSearch != onSearch;
   }
 }

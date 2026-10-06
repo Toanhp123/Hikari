@@ -96,9 +96,7 @@ class _HomePageState extends State<HomePage> {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
-                  HomeBoundedSliverBox(
-                    child: HomeHeader(onSearch: widget.onNavigateToSearch),
-                  ),
+                  HomeHeader(onSearch: widget.onNavigateToSearch),
                   if (hasCatalogDiscovery) ...[
                     if (featured.isNotEmpty)
                       HomeBoundedSliverBox(
