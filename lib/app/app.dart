@@ -315,10 +315,13 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   ) async {
     final initialTarget = await _dependencies.openMangaChapter.execute(chapter);
     if (!context.mounted) return;
+    final chapterPrefetch = _dependencies.createMangaChapterPrefetch();
     final viewModel = MangaChapterReaderViewModel(
       initialTarget: initialTarget,
       chaptersInReadingOrder: chaptersInReadingOrder,
       openChapter: _dependencies.openMangaChapter,
+      pageListLoader: chapterPrefetch.loadPages,
+      chapterPrefetch: chapterPrefetch,
     );
     try {
       await Navigator.of(context).push(

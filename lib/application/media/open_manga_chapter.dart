@@ -27,7 +27,14 @@ final class OpenMangaChapter {
   final SourceRegistry _sources;
   final ProgressRepository _progressRepository;
 
-  Future<MangaChapterOpenTarget> execute(MangaChapter chapter) async {
+  Future<MangaChapterOpenTarget> execute(
+    MangaChapter chapter, {
+    Future<List<SourceMediaRef>> Function(
+      MangaPageSource source,
+      SourceMediaRef chapter,
+    )?
+    pageListLoader,
+  }) async {
     final source = _sources.requireCapability<MangaPageSource>(
       chapter.source.sourceId,
     );
@@ -39,7 +46,9 @@ final class OpenMangaChapter {
       repository: _progressRepository,
       media: chapter.source,
     );
-    final pages = await source.pages(chapter.source);
+    final pages =
+        await (pageListLoader?.call(source, chapter.source) ??
+            source.pages(chapter.source));
     if (pages.any((page) => page.sourceId != source.id)) {
       throw StateError('Manga source returned foreign page references.');
     }

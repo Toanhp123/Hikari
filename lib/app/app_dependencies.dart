@@ -3,6 +3,7 @@ import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
@@ -52,6 +53,7 @@ final class AppDependencies {
     required this.resolveCatalogSource,
     required this.openMedia,
     required this.openMangaChapter,
+    required this.createMangaChapterPrefetch,
     required this.searchManga,
     required this.searchNovels,
     required this.readSourceArtwork,
@@ -120,6 +122,8 @@ final class AppDependencies {
       ),
       openMedia: OpenMedia(sourceRegistry, progressRepository),
       openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
+      createMangaChapterPrefetch: () =>
+          PrefetchMangaChapter(sourceRegistry, readMangaPage),
       searchManga: searchManga,
       searchNovels: searchNovels,
       readSourceArtwork: ReadSourceArtwork(
@@ -155,6 +159,7 @@ final class AppDependencies {
   final ResolveCatalogSource resolveCatalogSource;
   final OpenMedia openMedia;
   final OpenMangaChapter openMangaChapter;
+  final PrefetchMangaChapter Function() createMangaChapterPrefetch;
   final SearchManga searchManga;
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;

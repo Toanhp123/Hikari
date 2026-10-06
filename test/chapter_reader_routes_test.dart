@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
+import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
@@ -71,7 +72,7 @@ final _png = Uint8List.fromList([
   65,
   84,
   120,
-  218,
+  156,
   99,
   248,
   207,
@@ -162,6 +163,34 @@ class _MangaSource implements MangaPageSource {
   Future<Uint8List> readPage(SourceMediaRef page) async => _png;
 }
 
+class _MangaPrefetchSource implements MangaPageSource {
+  final pageLists = <String>[];
+  final pageReads = <String>[];
+
+  @override
+  SourceId get id => _mangaId;
+
+  @override
+  String get name => 'Manga prefetch source';
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef chapter) async {
+    pageLists.add(chapter.itemId);
+    final count = chapter == _mangaA ? 8 : 3;
+    return List.generate(
+      count,
+      (index) =>
+          SourceMediaRef(sourceId: id, itemId: '${chapter.itemId}-$index'),
+    );
+  }
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async {
+    pageReads.add(page.itemId);
+    return _png;
+  }
+}
+
 class _NovelSource implements NovelChapterSource {
   final firstB = Completer<RichReadingContent>();
   final retryStarted = Completer<void>();
@@ -197,6 +226,77 @@ class _NovelSource implements NovelChapterSource {
 }
 
 void main() {
+  testWidgets(
+    'manga next-chapter prefetch waits for the final five pages and reuses page list',
+    (tester) async {
+      final source = _MangaPrefetchSource();
+      final cache = _Cache();
+      final reader = ReadMangaPage(cache);
+      final chapterPrefetch = PrefetchMangaChapter(
+        SourceRegistry([source]),
+        reader,
+      );
+      final workflow = OpenMangaChapter(SourceRegistry([source]), _Progress());
+      final chapters = [
+        MangaChapter(title: 'Chapter A', source: _mangaA),
+        MangaChapter(title: 'Chapter B', source: _mangaB),
+      ];
+      final initial = await workflow.execute(chapters.first);
+      source.pageLists.clear();
+      final viewModel = MangaChapterReaderViewModel(
+        initialTarget: initial,
+        chaptersInReadingOrder: chapters,
+        openChapter: workflow,
+        pageListLoader: chapterPrefetch.loadPages,
+        chapterPrefetch: chapterPrefetch,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MangaChapterReaderPage(
+            viewModel: viewModel,
+            readPage: reader.execute,
+            reloadPage: reader.reload,
+            createPrefetch: () => PrefetchMangaPages(reader),
+            prefetchPages: (prefetch, pageSource, pages, index) =>
+                prefetch.execute(pageSource, pages, index),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() async {
+        await precacheImage(
+          tester.widget<Image>(find.byType(Image)).image,
+          tester.element(find.byType(MangaChapterReaderPage)),
+        );
+      });
+      await tester.pumpAndSettle();
+
+      expect(source.pageLists.where((id) => id == 'b'), isEmpty);
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.byTooltip('Next page'));
+        await tester.pumpAndSettle();
+        expect(source.pageLists.where((id) => id == 'b'), isEmpty);
+      }
+
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
+      expect(source.pageLists.where((id) => id == 'b'), hasLength(1));
+      expect(source.pageReads.where((id) => id.startsWith('b-')).take(2), [
+        'b-0',
+        'b-1',
+      ]);
+
+      await tester.tap(find.byTooltip('Next chapter'));
+      await tester.pumpAndSettle();
+      expect(viewModel.state.target.chapter.source, _mangaB);
+      expect(source.pageLists.where((id) => id == 'b'), hasLength(1));
+
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets('novel reader prefetch window follows the current chapter', (
     tester,
   ) async {

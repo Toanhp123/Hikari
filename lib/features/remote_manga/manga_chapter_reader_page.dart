@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/domain/media/manga.dart';
-import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_reader_view_model.dart';
@@ -54,6 +54,7 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     final target = _viewModel.state.target;
     if (identical(_observedTarget, target)) return;
     _prefetch.cancelPending();
+    _viewModel.discardChapterPrefetch();
     _observedTarget = target;
     _prefetch = widget.createPrefetch();
   }
@@ -63,6 +64,7 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     _closed = true;
     _pageGeneration++;
     _prefetch.cancelPending();
+    _viewModel.discardChapterPrefetch();
     _viewModel.removeListener(_targetChanged);
     _viewModel.close();
   }
@@ -71,6 +73,7 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     if (_closed) return;
     _pageGeneration++;
     _prefetch.cancelPending();
+    _viewModel.cancelChapterPrefetch();
     try {
       await action();
     } catch (_) {
@@ -82,6 +85,31 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
         );
       }
     }
+  }
+
+  Future<void> _prefetchFrom({
+    required MangaChapterOpenTarget target,
+    required PrefetchMangaPages prefetch,
+    required int generation,
+    required int displayedIndex,
+  }) async {
+    await widget.prefetchPages(
+      prefetch,
+      target.source,
+      target.pages,
+      displayedIndex,
+    );
+    if (_closed ||
+        _viewModel.state.openingAdjacent ||
+        generation != _pageGeneration ||
+        !identical(prefetch, _prefetch) ||
+        !identical(target, _viewModel.state.target)) {
+      return;
+    }
+    await _viewModel.prefetchNextChapter(
+      target: target,
+      displayedIndex: displayedIndex,
+    );
   }
 
   @override
@@ -113,10 +141,12 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
           loadPages: () async => target.pages,
           readPage: (page) {
             prefetch.cancelPending();
+            _viewModel.cancelChapterPrefetch();
             return widget.readPage(target.source, page);
           },
           reloadPage: (page) {
             prefetch.cancelPending();
+            _viewModel.cancelChapterPrefetch();
             return widget.reloadPage(target.source, page);
           },
           onPageDisplayed: (index) {
@@ -128,11 +158,11 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
               return;
             }
             unawaited(
-              widget.prefetchPages(
-                prefetch,
-                target.source,
-                target.pages,
-                index,
+              _prefetchFrom(
+                target: target,
+                prefetch: prefetch,
+                generation: generation,
+                displayedIndex: index,
               ),
             );
           },

@@ -72,6 +72,35 @@ void main() {
     expect(model.canOpenNext, isFalse);
   });
 
+  test(
+    'adjacent open can consume a reader-session page-list handoff',
+    () async {
+      final source = _Source();
+      final workflow = OpenMangaChapter(SourceRegistry([source]), _Progress());
+      var handoffs = 0;
+      final model = MangaChapterReaderViewModel(
+        initialTarget: await _open(source, _chapter(_a)),
+        chaptersInReadingOrder: [_chapter(_a), _chapter(_b)],
+        openChapter: workflow,
+        pageListLoader: (resolvedSource, chapter) async {
+          handoffs++;
+          expect(resolvedSource, same(source));
+          expect(chapter, _b);
+          return [const SourceMediaRef(sourceId: _id, itemId: 'b-page')];
+        },
+      );
+      addTearDown(model.dispose);
+
+      expect(model.nextChapter?.source, _b);
+      await model.openNext();
+
+      expect(handoffs, 1);
+      expect(source.calls, isEmpty);
+      expect(model.state.target.pages.single.itemId, 'b-page');
+      expect(model.nextChapter, isNull);
+    },
+  );
+
   test('same-number chapters use distinct stable source refs', () async {
     final source = _Source();
     final first = MangaChapter(title: 'A', source: _a, chapterNumber: 1);

@@ -89,8 +89,11 @@ snapshot in declared reading order; each reader route keeps that sequence fixed 
 Feature-local chapter reader routes own adjacent-navigation ViewModels; those ViewModels use injected
 open workflows and stable source references, publish a new chapter only after a successful open,
 and ignore stale completions after route close. Each successful open supplies a fresh
-`ProgressSession` for its chapter. Manga routes own one page-prefetch instance per current chapter target
-and cancel stale pending work on navigation or foreground reads. Remote novel routes own one
+`ProgressSession` for its chapter. Manga routes own one current-page prefetch instance per chapter
+target plus one next-chapter prefetch instance per reader session. Current-page lookahead stays at two
+pages; inside the final five pages it runs first, then the chapter lookahead keeps a one-slot page-list
+handoff and warms at most the first two page bytes. Foreground reads cancel stale byte warming, while
+foreground chapter open may still consume or join the prepared page list. Remote novel routes own one
 chapter-prefetch instance per reader session: they warm only the next reading-order chapter through
 the existing normalized content/resource cache workflows, fetch registered resources serially, and
 cancel stale queued work on chapter handoff or route close. Low-level reader pages remain single-chapter

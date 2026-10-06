@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 
@@ -21,6 +22,8 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     required MangaChapterOpenTarget initialTarget,
     required List<MangaChapter> chaptersInReadingOrder,
     required this._openChapter,
+    this._pageListLoader,
+    this._chapterPrefetch,
   }) : _chapters = _normalize(chaptersInReadingOrder) {
     final index = _chapters.indexWhere(
       (chapter) => chapter.source == initialTarget.chapter.source,
@@ -38,10 +41,18 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
 
   final List<MangaChapter> _chapters;
   final OpenMangaChapter _openChapter;
+  final PrefetchMangaChapter? _chapterPrefetch;
+  final Future<List<SourceMediaRef>> Function(
+    MangaPageSource source,
+    SourceMediaRef chapter,
+  )?
+  _pageListLoader;
   late MangaChapterReaderUiState _state;
   MangaChapterReaderUiState get state => _state;
   bool get canOpenPrevious => _state.chapterIndex > 0;
   bool get canOpenNext => _state.chapterIndex < _chapters.length - 1;
+  MangaChapter? get nextChapter =>
+      canOpenNext ? _chapters[_state.chapterIndex + 1] : null;
   int _generation = 0;
   bool _closed = false;
 
@@ -61,6 +72,27 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> prefetchNextChapter({
+    required MangaChapterOpenTarget target,
+    required int displayedIndex,
+  }) async {
+    final chapter = nextChapter;
+    if (_closed ||
+        _state.openingAdjacent ||
+        !identical(target, _state.target) ||
+        chapter == null ||
+        displayedIndex < 0 ||
+        displayedIndex >= target.pages.length ||
+        target.pages.length - displayedIndex > 5) {
+      return;
+    }
+    await _chapterPrefetch?.execute(chapter);
+  }
+
+  void cancelChapterPrefetch() => _chapterPrefetch?.cancelPending();
+
+  void discardChapterPrefetch() => _chapterPrefetch?.discard();
+
   Future<void> openPrevious() => _move(-1);
   Future<void> openNext() => _move(1);
 
@@ -77,7 +109,10 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
       ),
     );
     try {
-      final target = await _openChapter.execute(_chapters[index]);
+      final target = await _openChapter.execute(
+        _chapters[index],
+        pageListLoader: _pageListLoader,
+      );
       if (_closed || generation != _generation) return;
       _publish(MangaChapterReaderUiState(target: target, chapterIndex: index));
     } catch (_) {
@@ -96,6 +131,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     if (_closed) return;
     _closed = true;
     _generation++;
+    discardChapterPrefetch();
   }
 
   void _publish(MangaChapterReaderUiState state) {
