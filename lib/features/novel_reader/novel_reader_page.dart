@@ -25,6 +25,9 @@ class NovelReaderPage extends StatefulWidget {
     this.reloadResource,
     this.initialProgress,
     this.saveProgress,
+    this.onPreviousChapter,
+    this.onNextChapter,
+    this.chapterNavigationLoading = false,
   }) : assert((loadText != null) != (loadContent != null)),
        assert(loadContent == null || readResource != null),
        assert(reloadContent == null || loadContent != null),
@@ -32,6 +35,9 @@ class NovelReaderPage extends StatefulWidget {
 
   final MediaProgress? initialProgress;
   final Future<void> Function(ProgressPosition, bool)? saveProgress;
+  final Future<void> Function()? onPreviousChapter;
+  final Future<void> Function()? onNextChapter;
+  final bool chapterNavigationLoading;
 
   final String title;
   final Future<String> Function()? loadText;
@@ -53,14 +59,30 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   bool _completed = false;
   (double, bool)? _lastSaved;
   final _progress = ValueNotifier<double>(0);
+  Future<void> _saveTail = Future<void>.value();
+  bool _handingOffChapter = false;
+  int _saveRevision = 0;
 
   NovelReaderTheme _readerTheme = NovelReaderTheme.charcoal;
   double _fontSize = 16.0;
   final double _lineHeight = 1.6;
   final double _horizontalPadding = 20.0;
 
+  bool get _chapterTransitionBusy =>
+      _handingOffChapter || widget.chapterNavigationLoading;
+
+  void _setChapterHandoff(bool value) {
+    if (_handingOffChapter == value) return;
+    setState(() => _handingOffChapter = value);
+  }
+
   void _changed() {
-    if (!_restored || !_scroll.hasClients || _restoringReload) return;
+    if (_chapterTransitionBusy ||
+        !_restored ||
+        !_scroll.hasClients ||
+        _restoringReload) {
+      return;
+    }
     _position = textProgression(
       _scroll.offset,
       _scroll.position.maxScrollExtent,
@@ -71,23 +93,43 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     _debounce = Timer(const Duration(milliseconds: 500), _flush);
   }
 
-  Future<void> _flush() async {
+  Future<void> _flush() {
     _debounce?.cancel();
-    if (!_restored || _lastSaved == (_position, _completed)) return;
+    if (!_restored || _lastSaved == (_position, _completed)) return _saveTail;
     final value = (_position, _completed);
     _lastSaved = value;
-    try {
-      await widget.saveProgress?.call(
-        TextPosition(progression: value.$1),
-        value.$2,
-      );
-    } catch (_) {
-      _lastSaved = null;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save reading progress.')),
-        );
+    final revision = ++_saveRevision;
+    final save = widget.saveProgress;
+    final previous = _saveTail;
+    _saveTail = () async {
+      await previous;
+      try {
+        await save?.call(TextPosition(progression: value.$1), value.$2);
+      } catch (_) {
+        if (_saveRevision == revision) _lastSaved = null;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not save reading progress.')),
+          );
+        }
       }
+    }();
+    return _saveTail;
+  }
+
+  Future<void> _handoffChapter(Future<void> Function()? action) async {
+    if (action == null || _chapterTransitionBusy || _loading || _reloading) {
+      return;
+    }
+    _debounce?.cancel();
+    _setChapterHandoff(true);
+    if (_scroll.hasClients) _scroll.jumpTo(_scroll.offset);
+    try {
+      await _flush();
+      if (!mounted) return;
+      await action();
+    } finally {
+      if (mounted) _setChapterHandoff(false);
     }
   }
 
@@ -163,7 +205,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
 
   Future<void> _reload() async {
     final reload = widget.reloadContent;
-    if (reload == null || _reloading) return;
+    if (_chapterTransitionBusy || reload == null || _reloading) return;
     setState(() => _reloading = true);
     try {
       final content = await reload();
@@ -221,11 +263,29 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         foregroundColor: _readerTheme.fg,
         elevation: 0,
         actions: [
+          if (widget.onPreviousChapter != null)
+            IconButton(
+              tooltip: 'Previous chapter',
+              onPressed: _chapterTransitionBusy || _loading || _reloading
+                  ? null
+                  : () => _handoffChapter(widget.onPreviousChapter),
+              icon: const Icon(Icons.skip_previous),
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            ),
+          if (widget.onNextChapter != null)
+            IconButton(
+              tooltip: 'Next chapter',
+              onPressed: _chapterTransitionBusy || _loading || _reloading
+                  ? null
+                  : () => _handoffChapter(widget.onNextChapter),
+              icon: const Icon(Icons.skip_next),
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            ),
           if (widget.reloadContent != null)
             HikariRefreshAction(
               tooltip: 'Reload chapter',
               refreshing: _reloading,
-              onPressed: _reload,
+              onPressed: _chapterTransitionBusy ? null : _reload,
             ),
           HikariIconButton(
             icon: const Icon(Icons.format_size_rounded),
@@ -239,6 +299,8 @@ class _NovelReaderPageState extends State<NovelReaderPage>
       body: SafeArea(
         child: Column(
           children: [
+            if (_chapterTransitionBusy)
+              const LinearProgressIndicator(minHeight: 2),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -257,35 +319,41 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                         ],
                       ),
                     )
-                  : SingleChildScrollView(
-                      controller: _scroll,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: _horizontalPadding,
-                        vertical: 20,
-                      ),
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 720),
-                          child: _content != null
-                              ? NovelContentView(
-                                  content: _content!,
-                                  readResource: widget.readResource!,
-                                  reloadResource: widget.reloadResource,
-                                  textStyle: TextStyle(
-                                    color: _readerTheme.fg,
-                                    fontSize: _fontSize,
-                                    height: _lineHeight,
+                  : IgnorePointer(
+                      ignoring: _chapterTransitionBusy,
+                      child: SingleChildScrollView(
+                        controller: _scroll,
+                        physics: _chapterTransitionBusy
+                            ? const NeverScrollableScrollPhysics()
+                            : null,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: _horizontalPadding,
+                          vertical: 20,
+                        ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 720),
+                            child: _content != null
+                                ? NovelContentView(
+                                    content: _content!,
+                                    readResource: widget.readResource!,
+                                    reloadResource: widget.reloadResource,
+                                    textStyle: TextStyle(
+                                      color: _readerTheme.fg,
+                                      fontSize: _fontSize,
+                                      height: _lineHeight,
+                                    ),
+                                  )
+                                : SelectableText(
+                                    _text ?? '',
+                                    style: TextStyle(
+                                      color: _readerTheme.fg,
+                                      fontSize: _fontSize,
+                                      height: _lineHeight,
+                                    ),
                                   ),
-                                )
-                              : SelectableText(
-                                  _text ?? '',
-                                  style: TextStyle(
-                                    color: _readerTheme.fg,
-                                    fontSize: _fontSize,
-                                    height: _lineHeight,
-                                  ),
-                                ),
+                          ),
                         ),
                       ),
                     ),

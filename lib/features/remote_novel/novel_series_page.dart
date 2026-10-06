@@ -20,7 +20,8 @@ class NovelSeriesPage extends StatefulWidget {
     this.readArtwork,
   });
   final NovelSeriesOpenTarget target;
-  final Future<void> Function(BuildContext, NovelChapter) openChapter;
+  final Future<void> Function(BuildContext, NovelChapter, List<NovelChapter>)
+  openChapter;
   final LibraryRepository? library;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   @override
@@ -47,9 +48,11 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
 
   Future<void> _open(NovelChapter chapter) async {
     if (_opening) return;
+    final sequence = _viewModel.state.details?.chaptersInReadingOrder;
+    if (sequence == null) return;
     setState(() => _opening = true);
     try {
-      await widget.openChapter(context, chapter);
+      await widget.openChapter(context, chapter, List.unmodifiable(sequence));
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -3,6 +3,8 @@ import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/prefetch_manga_chapter.dart';
+import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
@@ -16,6 +18,9 @@ import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
@@ -48,6 +53,7 @@ final class AppDependencies {
     required this.resolveCatalogSource,
     required this.openMedia,
     required this.openMangaChapter,
+    required this.createMangaChapterPrefetch,
     required this.searchManga,
     required this.searchNovels,
     required this.readSourceArtwork,
@@ -55,6 +61,7 @@ final class AppDependencies {
     required this.readNovelChapterContent,
     required this.readNovelResource,
     required this.openNovelChapter,
+    required this.createNovelChapterPrefetch,
     required this.videoSession,
     required this.cache,
     required this.ownsCache,
@@ -115,6 +122,8 @@ final class AppDependencies {
       ),
       openMedia: OpenMedia(sourceRegistry, progressRepository),
       openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
+      createMangaChapterPrefetch: () =>
+          PrefetchMangaChapter(sourceRegistry, readMangaPage),
       searchManga: searchManga,
       searchNovels: searchNovels,
       readSourceArtwork: ReadSourceArtwork(
@@ -128,6 +137,11 @@ final class AppDependencies {
         sourceRegistry,
         progressRepository,
         readNovelChapterContent,
+      ),
+      createNovelChapterPrefetch: () => PrefetchNovelChapter(
+        sourceRegistry,
+        readNovelChapterContent,
+        readNovelResource,
       ),
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
@@ -145,6 +159,7 @@ final class AppDependencies {
   final ResolveCatalogSource resolveCatalogSource;
   final OpenMedia openMedia;
   final OpenMangaChapter openMangaChapter;
+  final PrefetchMangaChapter Function() createMangaChapterPrefetch;
   final SearchManga searchManga;
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;
@@ -152,6 +167,7 @@ final class AppDependencies {
   final ReadNovelChapterContent readNovelChapterContent;
   final ReadNovelResource readNovelResource;
   final OpenNovelChapter openNovelChapter;
+  final PrefetchNovelChapter Function() createNovelChapterPrefetch;
   final MediaKitVideoSession videoSession;
   final ByteCache cache;
   final bool ownsCache;
@@ -163,6 +179,18 @@ final class AppDependencies {
 
   PrefetchMangaPages createMangaPagePrefetch() =>
       PrefetchMangaPages(readMangaPage);
+
+  Future<void> prefetchMangaPages(
+    PrefetchMangaPages prefetch,
+    MangaPageSource source,
+    List<SourceMediaRef> pages,
+    int index,
+  ) => prefetch.execute(source, pages, index);
+
+  Future<void> prefetchNovelChapter(
+    PrefetchNovelChapter prefetch,
+    NovelChapter chapter,
+  ) => prefetch.execute(chapter);
 
   bool _disposed = false;
   Future<void>? _disposing;

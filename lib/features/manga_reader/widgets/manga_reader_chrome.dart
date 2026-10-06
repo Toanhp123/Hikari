@@ -10,11 +10,17 @@ class MangaReaderTopBar extends StatelessWidget {
     required this.title,
     required this.onBack,
     this.credit,
+    this.onPreviousChapter,
+    this.onNextChapter,
+    this.chapterNavigationLoading = false,
   });
 
   final String title;
   final String? credit;
   final VoidCallback onBack;
+  final VoidCallback? onPreviousChapter;
+  final VoidCallback? onNextChapter;
+  final bool chapterNavigationLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +47,30 @@ class MangaReaderTopBar extends StatelessWidget {
                 onPressed: onBack,
               ),
               const SizedBox(width: HikariSpacing.xs),
+              if (onPreviousChapter != null || onNextChapter != null) ...[
+                if (onPreviousChapter != null)
+                  IconButton(
+                    tooltip: 'Previous chapter',
+                    onPressed: chapterNavigationLoading
+                        ? null
+                        : onPreviousChapter,
+                    icon: const Icon(Icons.skip_previous),
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                  ),
+                if (onNextChapter != null)
+                  IconButton(
+                    tooltip: 'Next chapter',
+                    onPressed: chapterNavigationLoading ? null : onNextChapter,
+                    icon: const Icon(Icons.skip_next),
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                  ),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

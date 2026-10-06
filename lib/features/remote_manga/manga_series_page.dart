@@ -21,7 +21,8 @@ class MangaSeriesPage extends StatefulWidget {
   final String title, sourceName;
   final Future<MangaSeriesDetails> Function() loadDetails;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
-  final Future<void> Function(BuildContext, MangaChapter) openChapter;
+  final Future<void> Function(BuildContext, MangaChapter, List<MangaChapter>)
+  openChapter;
   @override
   State<MangaSeriesPage> createState() => _MangaSeriesPageState();
 }
@@ -46,9 +47,11 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
 
   Future<void> _openChapter(MangaChapter chapter) async {
     if (_isOpeningChapter) return;
+    final sequence = _viewModel.state.details?.chaptersInReadingOrder;
+    if (sequence == null) return;
     setState(() => _isOpeningChapter = true);
     try {
-      await widget.openChapter(context, chapter);
+      await widget.openChapter(context, chapter, List.unmodifiable(sequence));
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

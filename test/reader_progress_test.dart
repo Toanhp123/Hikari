@@ -307,6 +307,57 @@ void main() {
     },
   );
 
+  testWidgets('manga decode retry is locked during chapter handoff', (
+    tester,
+  ) async {
+    final navigation = Completer<void>();
+    var reloads = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Decode handoff',
+          loadPages: () async => [ref],
+          readPage: (_) async => Uint8List.fromList([1, 2]),
+          reloadPage: (_) async {
+            reloads++;
+            return png;
+          },
+          onNextChapter: () => navigation.future,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Could not decode this page.'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Try again'))
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Try again'))
+          .onPressed,
+      isNull,
+    );
+    expect(reloads, 0);
+
+    navigation.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Try again'))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets(
     'novel restores after layout, debounces and flushes final position',
     (tester) async {
@@ -658,5 +709,323 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());
     expect(writes, isEmpty);
+  });
+  testWidgets(
+    'adjacent reader controls stay accessible at narrow scaled layout',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      Widget scaled(Widget child) => MediaQuery(
+        data: const MediaQueryData(
+          size: Size(375, 812),
+          textScaler: TextScaler.linear(2),
+        ),
+        child: child,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: scaled(
+            MangaReaderPage(
+              title: 'A long chapter title',
+              loadPages: () async => [ref],
+              readPage: (_) async => png,
+              onPreviousChapter: () async {},
+              onNextChapter: () async {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Previous chapter'), findsOneWidget);
+      expect(find.byTooltip('Next chapter'), findsOneWidget);
+      for (final tooltip in ['Previous chapter', 'Next chapter']) {
+        expect(
+          tester.getSize(find.byTooltip(tooltip)).width,
+          greaterThanOrEqualTo(48),
+        );
+        expect(
+          tester.getSize(find.byTooltip(tooltip)).height,
+          greaterThanOrEqualTo(48),
+        );
+      }
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: scaled(
+            NovelReaderPage(
+              title: 'A long chapter title',
+              loadText: () async => 'Readable text',
+              onPreviousChapter: () async {},
+              onNextChapter: () async {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Previous chapter'), findsOneWidget);
+      expect(find.byTooltip('Next chapter'), findsOneWidget);
+      for (final tooltip in ['Previous chapter', 'Next chapter']) {
+        expect(
+          tester.getSize(find.byTooltip(tooltip)).width,
+          greaterThanOrEqualTo(48),
+        );
+        expect(
+          tester.getSize(find.byTooltip(tooltip)).height,
+          greaterThanOrEqualTo(48),
+        );
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('chapter controls absent for direct single-chapter readers', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Local pages',
+          loadPages: () async => [ref],
+          readPage: (_) async => png,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Previous chapter'), findsNothing);
+    expect(find.byTooltip('Next chapter'), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Local text',
+          loadText: () async => 'Text',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Previous chapter'), findsNothing);
+    expect(find.byTooltip('Next chapter'), findsNothing);
+  });
+
+  testWidgets('manga reserved save blocks handoff before post-frame callback', (
+    tester,
+  ) async {
+    final save = Completer<void>();
+    final saveStarted = Completer<void>();
+    var navigations = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Reserved',
+          loadPages: () async => [ref],
+          readPage: (_) async => Uint8List(0),
+          saveProgress: (_, _) {
+            if (!saveStarted.isCompleted) saveStarted.complete();
+            return save.future;
+          },
+          onNextChapter: () async => navigations++,
+        ),
+      ),
+    );
+    await tester.pump();
+    final image = tester.widget<Image>(find.byType(Image));
+    image.frameBuilder!(tester.element(find.byType(Image)), image, 0, false);
+    final button = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byTooltip('Next chapter'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    button.onPressed!.call();
+    expect(saveStarted.isCompleted, isFalse);
+    expect(navigations, 0);
+    await tester.pump();
+    expect(saveStarted.isCompleted, isTrue);
+    save.complete();
+    await tester.pump();
+    expect(navigations, 1);
+  });
+
+  testWidgets('manga waits for in-flight save; failure releases barrier', (
+    tester,
+  ) async {
+    final save = Completer<void>();
+    var navigations = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Failed save',
+          loadPages: () async => [ref, ref],
+          readPage: (_) async => png,
+          saveProgress: (_, _) => save.future,
+          onNextChapter: () async => navigations++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pump();
+    expect(navigations, 0);
+    save.completeError(StateError('offline'));
+    await tester.pump();
+    await tester.pump();
+    expect(navigations, 1);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('novel handoff flushes pending debounce and awaits write', (
+    tester,
+  ) async {
+    final save = Completer<void>();
+    final started = Completer<void>();
+    var navigations = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Text',
+          loadText: () async => List.filled(150, 'Readable words.').join('\n'),
+          saveProgress: (_, _) {
+            if (!started.isCompleted) started.complete();
+            return save.future;
+          },
+          onNextChapter: () async => navigations++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    scroll.jumpTo(scroll.position.maxScrollExtent / 2);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pump();
+    await started.future;
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('Text'), findsWidgets);
+    expect(navigations, 0);
+    save.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(navigations, 1);
+  });
+
+  testWidgets('novel handoff unlocks after route handles failed chapter open', (
+    tester,
+  ) async {
+    var attempts = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Failed handoff',
+          loadText: () async => List.filled(150, 'Readable words.').join('\n'),
+          onNextChapter: () async {
+            attempts++;
+            // Route handles failed opens; low-level reader releases its lock.
+            try {
+              await Future<void>.error(StateError('offline'));
+            } catch (_) {}
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pumpAndSettle();
+    expect(attempts, 1);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    final control = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byTooltip('Next chapter'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(control.onPressed, isNotNull);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+  });
+
+  testWidgets('novel scroll input locked while chapter handoff waits', (
+    tester,
+  ) async {
+    final save = Completer<void>();
+    final started = Completer<void>();
+    var navigations = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Locked',
+          loadText: () async => List.filled(200, 'Readable words.').join('\n'),
+          saveProgress: (_, _) {
+            if (!started.isCompleted) started.complete();
+            return save.future;
+          },
+          onNextChapter: () async => navigations++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    scroll.jumpTo(scroll.position.maxScrollExtent * .3);
+    await tester.pump(const Duration(milliseconds: 50));
+    final before = scroll.offset;
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pump();
+    await started.future;
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -400),
+      warnIfMissed: false,
+    );
+    await tester.pump();
+    expect(scroll.offset, before);
+    expect(navigations, 0);
+    save.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(navigations, 1);
+  });
+
+  testWidgets('novel older failed save cannot clear newer ABA revision', (
+    tester,
+  ) async {
+    final first = Completer<void>();
+    final second = Completer<void>();
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'ABA',
+          loadText: () async => List.filled(200, 'Readable words.').join('\n'),
+          saveProgress: (_, _) => calls++ == 0 ? first.future : second.future,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    final extent = scroll.position.maxScrollExtent;
+    scroll.jumpTo(extent * .25);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    scroll.jumpTo(extent * .5);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    scroll.jumpTo(extent * .25);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(calls, 1);
+    first.completeError(StateError('old write failed'));
+    await tester.pump();
+    expect(calls, 2);
+    second.complete();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 }

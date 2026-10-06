@@ -19,6 +19,9 @@ class MangaReaderPage extends StatefulWidget {
     this.saveProgress,
     this.reloadPage,
     this.onPageDisplayed,
+    this.onPreviousChapter,
+    this.onNextChapter,
+    this.chapterNavigationLoading = false,
   });
 
   final MediaProgress? initialProgress;
@@ -30,6 +33,9 @@ class MangaReaderPage extends StatefulWidget {
   final Future<Uint8List> Function(SourceMediaRef) readPage;
   final Future<Uint8List> Function(SourceMediaRef)? reloadPage;
   final ValueChanged<int>? onPageDisplayed;
+  final Future<void> Function()? onPreviousChapter;
+  final Future<void> Function()? onNextChapter;
+  final bool chapterNavigationLoading;
 
   @override
   State<MangaReaderPage> createState() => _MangaReaderPageState();
@@ -48,6 +54,8 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   bool _showControls = true;
   int _loadGeneration = 0;
   bool _retryRequiresReload = false;
+  bool _handingOffChapter = false;
+  Future<void> _saveTail = Future<void>.value();
 
   void _displayed(ImageProvider image, int index) {
     if (_notifiedImage != image) {
@@ -60,21 +68,50 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     if (widget.initialProgress?.completed == true && !_hasNavigated) return;
     if (_savedImage == image) return;
     _savedImage = image;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || _image != image) return;
+    final frameReady = Completer<void>();
+    final previous = _saveTail;
+    final save = widget.saveProgress;
+    final pageCount = _pages!.length;
+    _saveTail = () async {
+      await previous;
+      await frameReady.future;
       try {
-        await widget.saveProgress?.call(
-          PagePosition(pageIndex: index, pageCount: _pages!.length),
-          index == _pages!.length - 1,
+        await save?.call(
+          PagePosition(pageIndex: index, pageCount: pageCount),
+          index == pageCount - 1,
         );
       } catch (_) {
-        if (!mounted) return;
-        _savedImage = null;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save reading progress.')),
-        );
+        if (_savedImage == image) _savedImage = null;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not save reading progress.')),
+          );
+        }
       }
+    }();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!frameReady.isCompleted) frameReady.complete();
     });
+    unawaited(_saveTail);
+  }
+
+  Future<void> _saveBarrier() => _saveTail;
+
+  bool get _readerInteractionBusy =>
+      _loading || _handingOffChapter || widget.chapterNavigationLoading;
+
+  Future<void> _handoffChapter(Future<void> Function()? action) async {
+    if (action == null || _readerInteractionBusy) {
+      return;
+    }
+    setState(() => _handingOffChapter = true);
+    try {
+      await _saveBarrier();
+      if (!mounted) return;
+      await action();
+    } finally {
+      if (mounted) setState(() => _handingOffChapter = false);
+    }
   }
 
   @override
@@ -159,7 +196,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   void _move(int delta) {
-    if (_loading || _pages == null) return;
+    if (_readerInteractionBusy || _pages == null) {
+      return;
+    }
     final target = _index + delta;
     if (target < 0 || target >= _pages!.length) return;
     _hasNavigated = true;
@@ -168,7 +207,9 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   void _jumpToPage(int page) {
-    if (_loading || _pages == null) return;
+    if (_readerInteractionBusy || _pages == null) {
+      return;
+    }
     if (page < 0 || page >= _pages!.length) return;
     _hasNavigated = true;
     _index = page;
@@ -176,6 +217,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   }
 
   void _toggleControls() {
+    if (_handingOffChapter) return;
     setState(() => _showControls = !_showControls);
   }
 
@@ -197,7 +239,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                   : _failed
                   ? MangaReaderFailure(
                       message: 'Could not load this page.',
-                      onRetry: _loading
+                      onRetry: _readerInteractionBusy
                           ? null
                           : (_pages == null
                                 ? _loadPages
@@ -224,7 +266,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                           semanticLabel: 'Page ${_index + 1}',
                           errorBuilder: (_, _, _) => MangaReaderFailure(
                             message: 'Could not decode this page.',
-                            onRetry: _loading
+                            onRetry: _readerInteractionBusy
                                 ? null
                                 : (_pages == null
                                       ? _loadPages
@@ -247,9 +289,15 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                 title: widget.title,
                 credit: widget.credit,
                 onBack: () => Navigator.of(context).pop(),
+                onPreviousChapter: widget.onPreviousChapter == null
+                    ? null
+                    : () => _handoffChapter(widget.onPreviousChapter),
+                onNextChapter: widget.onNextChapter == null
+                    ? null
+                    : () => _handoffChapter(widget.onNextChapter),
+                chapterNavigationLoading: _readerInteractionBusy,
               ),
             ),
-
           if (_showControls && pages != null && pages.isNotEmpty)
             Positioned(
               bottom: 0,
@@ -258,11 +306,18 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
               child: MangaReaderPageControls(
                 pageIndex: _index,
                 pageCount: pages.length,
-                loading: _loading,
+                loading: _readerInteractionBusy,
                 onPrevious: () => _move(-1),
                 onNext: () => _move(1),
                 onJumpToPage: _jumpToPage,
               ),
+            ),
+          if (_handingOffChapter)
+            const Positioned(
+              top: 4,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(minHeight: 2),
             ),
         ],
       ),
