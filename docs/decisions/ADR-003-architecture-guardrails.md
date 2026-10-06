@@ -38,6 +38,14 @@ app
   -> composition root; may wire all layers
 ```
 
+The guard also recognizes narrow UI-foundation exceptions that are more precise than the top-level matrix:
+
+- `features/` may import `app/theme/`, but no other `app/` routing or composition code;
+- `app/theme/` stays isolated to itself plus Flutter UI APIs;
+- `core/ui/` may import `app/theme/` and other `core/ui/` code, while `core/ui/patterns/` may additionally render domain models.
+
+These exceptions keep shared visual primitives close to the app theme without allowing feature code to bypass application/domain boundaries.
+
 Additional rules:
 
 - Root entrypoints stay thin: they may enter Hikari through `app/` and use Flutter bootstrap APIs, but not implementation packages or platform APIs directly.

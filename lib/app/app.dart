@@ -243,12 +243,13 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   }
 
   Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) => MangaSeriesPage(
-    title: target.media.title,
+    media: target.media,
     sourceName: target.seriesSource.name,
     loadDetails: target.loadDetails,
     readArtwork: target.seriesSource is ArtworkSource
         ? _dependencies.readSourceArtwork.execute
         : null,
+    library: _dependencies.libraryRepository,
     openChapter: _openMangaChapter,
   );
 
