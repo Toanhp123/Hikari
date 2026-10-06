@@ -63,24 +63,24 @@ Surfaces communicate hierarchy through tone, not default shadows. Cards, app bar
 
 Consume the current theme, not static TextStyle colors. Platform font defaults and fallbacks are retained; no font download or unbundled custom-family promise.
 
-| Purpose | TextTheme | Size / weight / line height |
+| Purpose | TextTheme | Size / weight / line height / tracking |
 | --- | --- | --- |
-| Hero | `displayLarge` | 32 / 700 / 1.25 |
-| Page title | `headlineMedium` | 24 / 700 / 1.3 |
-| Section | `titleLarge` | 20 / 600 / 1.4 |
-| Card/list title | `titleMedium` | 16 / 600 / 1.5 |
-| Compact title | `titleSmall` | 14 / 600 / 1.4 |
-| Body / secondary body | `bodyLarge` / `bodyMedium` | 16 / 14, regular, 1.5 |
-| Metadata/caption | `bodySmall` | 12 / regular / 1.5 |
-| Action / compact label | `labelLarge` / `labelMedium` | 14 / 600, 12 / 500, 1.4 |
+| Hero | `displayLarge` | 32 / 700 / 1.25 / -0.5 |
+| Page title | `headlineMedium` | 24 / 700 / 1.3 / -0.25 |
+| Section | `titleLarge` | 20 / 600 / 1.4 / -0.15 |
+| Card/list title | `titleMedium` | 16 / 600 / 1.5 / 0.0 |
+| Compact title | `titleSmall` | 14 / 600 / 1.4 / 0.1 |
+| Body / secondary body | `bodyLarge` / `bodyMedium` | 16 / 14, regular, 1.5 / 0.15–0.25 |
+| Metadata/caption | `bodySmall` | 12 / regular / 1.5 / 0.3 |
+| Action / compact label | `labelLarge` / `labelMedium` | 14 / 600 / 1.4 / 0.1, 12 / 500 / 1.4 / 0.25 |
 
-Other Material slots keep framework defaults; use listed roles for product UI. Essential text never uses 10/11 dp. Do not clamp TextScaler. Cards may truncate visual titles to two lines only if complete title remains available to semantics/detail; prose never truncates. Prefer growing rows/wrapping actions over fixed heights.
+Other Material slots keep framework defaults or match scale; use listed roles for product UI. Optical letter spacing tightens large headings (-0.5 to -0.25) and opens small metadata (+0.3) for OLED clarity. Essential text never uses 10/11 dp. Do not clamp TextScaler. Cards may truncate visual titles to two lines only if complete title remains available to semantics/detail; prose never truncates. Prefer growing rows/wrapping actions over fixed heights.
 
 `HikariSpace`: micro 4, inline 8, compact 12, content 16, section 24, separation 32, spacious 48. `HikariShape`: small 8, medium 14, large 16, extraLarge 24; `pill` uses StadiumBorder rather than 999 radius. `HikariSize`: target 48, field minimum 48, icons 16/24/32; 2:3 poster and 16:9 landscape, poster grid max extent 200. Small icons never imply small hit targets.
 
 ## Adaptive and motion contracts
 
-Use available bounded width from LayoutBuilder; window width only at navigation root. `HikariLayout.classify`: compact <600, medium <840, expanded <1200, wide >=1200 logical pixels. Gutters 16/24/32/32. Invalid/unbounded widths are rejected; callers must choose a bounded layout constraint. Content max 1440, prose max 720, dialog max 560, sheet max 640. These are caps, not required widths or fixed heights.
+Use available bounded width from LayoutBuilder; window width only at navigation root. `HikariLayout.classify`: compact <600, medium <840, expanded <1200, wide >=1200 logical pixels. Gutters 16/24/32/32. `HikariLayout.posterColumnCount`: 2 cols (<400), 3 cols (<600), 4 cols (<900), 5 cols (<1200), 6 cols (>=1200). `HikariLayout.bottomBarClearance`: 88.0. Invalid/unbounded widths are rejected; callers must choose a bounded layout constraint. Content max 1440, prose max 720, dialog max 560, sheet max 640. These are caps, not required widths or fixed heights.
 
 Compact uses existing bottom navigation, medium and above can retain rail; expanded may show supporting detail columns. Wide does not invent another navigation mode. Grids use available width with max poster extent and 12/16 gaps; calculate title space with scaled text, never a fixed total-card aspect ratio. Narrow windows, landscape height, keyboard insets and fold/resize must still work. Sheets/dialog bodies scroll; bounded width alone is insufficient. Reader max width is a starting cap, not a promised character count across fonts.
 

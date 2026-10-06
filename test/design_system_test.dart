@@ -109,6 +109,8 @@ void main() {
         if (oled) expect(colors.surface, Colors.black);
         expect(theme.textTheme.labelSmall!.fontSize, greaterThanOrEqualTo(12));
         expect(theme.textTheme.bodyLarge!.height, greaterThanOrEqualTo(1.5));
+        expect(theme.textTheme.displayLarge!.letterSpacing, lessThan(0));
+        expect(theme.textTheme.bodySmall!.letterSpacing, greaterThan(0));
       }
     }
   });
@@ -135,8 +137,22 @@ void main() {
       expect(HikariLayout.classify(width), expected);
       expect(HikariLayout.gutter(width), greaterThanOrEqualTo(16));
     }
+    for (final (width, expectedCols) in [
+      (0.0, 2),
+      (399.0, 2),
+      (400.0, 3),
+      (599.9, 3),
+      (600.0, 4),
+      (899.9, 4),
+      (900.0, 5),
+      (1199.9, 5),
+      (1200.0, 6),
+    ]) {
+      expect(HikariLayout.posterColumnCount(width), expectedCols);
+    }
     for (final width in [-1.0, double.nan, double.infinity]) {
       expect(() => HikariLayout.classify(width), throwsArgumentError);
+      expect(() => HikariLayout.posterColumnCount(width), throwsArgumentError);
     }
   });
 
