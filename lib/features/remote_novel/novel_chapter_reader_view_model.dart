@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/domain/progress/progress.dart';
 
 @immutable
 final class NovelChapterReaderUiState {
@@ -21,6 +22,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
     required NovelChapterOpenTarget initialTarget,
     required List<NovelChapter> chaptersInReadingOrder,
     required this._openChapter,
+    this.onProgress,
   }) : _chapters = List.unmodifiable(chaptersInReadingOrder) {
     _validate(_chapters.map((chapter) => chapter.source));
     final index = _chapters.indexWhere(
@@ -39,6 +41,8 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
 
   final List<NovelChapter> _chapters;
   final OpenNovelChapter _openChapter;
+  final Future<void> Function(NovelChapterOpenTarget, ProgressPosition, bool)?
+  onProgress;
   late NovelChapterReaderUiState _state;
   NovelChapterReaderUiState get state => _state;
   bool get canOpenPrevious => _state.chapterIndex > 0;
@@ -47,6 +51,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
       canOpenNext ? _chapters[_state.chapterIndex + 1] : null;
   int _generation = 0;
   bool _closed = false;
+  bool _closing = false;
 
   static void _validate(Iterable<SourceMediaRef> refs) {
     final seen = <SourceMediaRef>{};
@@ -63,7 +68,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
   Future<void> openNext() => _move(1);
 
   Future<void> _move(int delta) async {
-    if (_closed || _state.openingAdjacent) return;
+    if (_closed || _closing || _state.openingAdjacent) return;
     final index = _state.chapterIndex + delta;
     if (index < 0 || index >= _chapters.length) return;
     final generation = ++_generation;
@@ -88,6 +93,32 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
       );
       rethrow;
     }
+  }
+
+  Future<void> Function()? _flushReader;
+
+  void registerFlush(Future<void> Function() flush) => _flushReader = flush;
+
+  Future<void> flush() => _flushReader?.call() ?? Future.value();
+
+  Future<void> saveProgress(
+    NovelChapterOpenTarget target,
+    ProgressPosition position,
+    bool completed,
+  ) async {
+    if (_closed || !identical(target, _state.target)) return;
+    final save = onProgress;
+    if (save != null) {
+      await save(target, position, completed);
+    } else {
+      await target.progress.save(position, completed);
+    }
+  }
+
+  void beginClose() {
+    if (_closing || _closed) return;
+    _closing = true;
+    _generation++;
   }
 
   void close() {

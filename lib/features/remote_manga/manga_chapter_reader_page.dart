@@ -41,6 +41,37 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
   late MangaChapterOpenTarget _observedTarget;
   bool _closed = false;
   int _pageGeneration = 0;
+  bool _exiting = false;
+  bool _readyToPop = false;
+
+  Future<void> _exit() async {
+    if (_exiting) return;
+    setState(() => _exiting = true);
+    _closed = true;
+    _viewModel.beginClose();
+    _pageGeneration++;
+    _prefetch.cancelPending();
+    _viewModel.discardChapterPrefetch();
+    _viewModel.removeListener(_targetChanged);
+    await WidgetsBinding.instance.endOfFrame;
+    try {
+      await _viewModel.flush();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save reading progress.')),
+        );
+      }
+    } finally {
+      _viewModel.close();
+    }
+    if (!mounted) return;
+    setState(() => _readyToPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+      await Navigator.of(context).maybePop();
+    }
+  }
 
   @override
   void initState() {
@@ -121,8 +152,13 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
 
   @override
   Widget build(BuildContext context) => PopScope(
+    canPop: _readyToPop,
     onPopInvokedWithResult: (didPop, _) {
-      if (didPop) _close();
+      if (didPop) {
+        _close();
+      } else {
+        _exit();
+      }
     },
     child: ListenableBuilder(
       listenable: _viewModel,
@@ -174,7 +210,10 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
               : null,
           chapterNavigationLoading: state.openingAdjacent,
           initialProgress: target.progress.initialProgress,
-          saveProgress: target.progress.save,
+          saveProgress: (position, completed) =>
+              _viewModel.saveProgress(target, position, completed),
+          registerFlush: _viewModel.registerFlush,
+          closing: _exiting,
         );
       },
     ),

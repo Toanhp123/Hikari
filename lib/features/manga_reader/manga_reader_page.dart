@@ -22,6 +22,8 @@ class MangaReaderPage extends StatefulWidget {
     this.onPreviousChapter,
     this.onNextChapter,
     this.chapterNavigationLoading = false,
+    this.registerFlush,
+    this.closing = false,
   });
 
   final MediaProgress? initialProgress;
@@ -36,6 +38,8 @@ class MangaReaderPage extends StatefulWidget {
   final Future<void> Function()? onPreviousChapter;
   final Future<void> Function()? onNextChapter;
   final bool chapterNavigationLoading;
+  final ValueChanged<Future<void> Function()>? registerFlush;
+  final bool closing;
 
   @override
   State<MangaReaderPage> createState() => _MangaReaderPageState();
@@ -58,10 +62,11 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   Future<void> _saveTail = Future<void>.value();
 
   void _displayed(ImageProvider image, int index) {
+    if (widget.closing) return;
     if (_notifiedImage != image) {
       _notifiedImage = image;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _image != image) return;
+        if (!mounted || widget.closing || _image != image) return;
         widget.onPageDisplayed?.call(index);
       });
     }
@@ -98,7 +103,10 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   Future<void> _saveBarrier() => _saveTail;
 
   bool get _readerInteractionBusy =>
-      _loading || _handingOffChapter || widget.chapterNavigationLoading;
+      widget.closing ||
+      _loading ||
+      _handingOffChapter ||
+      widget.chapterNavigationLoading;
 
   Future<void> _handoffChapter(Future<void> Function()? action) async {
     if (action == null || _readerInteractionBusy) {
@@ -117,6 +125,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   @override
   void initState() {
     super.initState();
+    widget.registerFlush?.call(_saveBarrier);
     _loadPages();
   }
 
@@ -288,7 +297,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
               child: MangaReaderTopBar(
                 title: widget.title,
                 credit: widget.credit,
-                onBack: () => Navigator.of(context).pop(),
+                onBack: () => Navigator.of(context).maybePop(),
                 onPreviousChapter: widget.onPreviousChapter == null
                     ? null
                     : () => _handoffChapter(widget.onPreviousChapter),

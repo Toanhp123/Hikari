@@ -28,6 +28,8 @@ class NovelReaderPage extends StatefulWidget {
     this.onPreviousChapter,
     this.onNextChapter,
     this.chapterNavigationLoading = false,
+    this.registerFlush,
+    this.closing = false,
   }) : assert((loadText != null) != (loadContent != null)),
        assert(loadContent == null || readResource != null),
        assert(reloadContent == null || loadContent != null),
@@ -38,6 +40,8 @@ class NovelReaderPage extends StatefulWidget {
   final Future<void> Function()? onPreviousChapter;
   final Future<void> Function()? onNextChapter;
   final bool chapterNavigationLoading;
+  final ValueChanged<Future<void> Function()>? registerFlush;
+  final bool closing;
 
   final String title;
   final Future<String> Function()? loadText;
@@ -77,7 +81,8 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   }
 
   void _changed() {
-    if (_chapterTransitionBusy ||
+    if (widget.closing ||
+        _chapterTransitionBusy ||
         !_restored ||
         !_scroll.hasClients ||
         _restoringReload) {
@@ -95,7 +100,17 @@ class _NovelReaderPageState extends State<NovelReaderPage>
 
   Future<void> _flush() {
     _debounce?.cancel();
-    if (!_restored || _lastSaved == (_position, _completed)) return _saveTail;
+    if (!_restored) return _saveTail;
+    if (widget.closing && _scroll.hasClients) {
+      _position = textProgression(
+        _scroll.offset,
+        _scroll.position.maxScrollExtent,
+      );
+      _completed = textAtEnd(_scroll.offset, _scroll.position.maxScrollExtent);
+    } else if (widget.closing) {
+      return _saveTail;
+    }
+    if (_lastSaved == (_position, _completed)) return _saveTail;
     final value = (_position, _completed);
     _lastSaved = value;
     final revision = ++_saveRevision;
@@ -134,6 +149,14 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   }
 
   @override
+  void didUpdateWidget(covariant NovelReaderPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.closing && widget.closing && _scroll.hasClients) {
+      _scroll.jumpTo(_scroll.offset);
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) unawaited(_flush());
   }
@@ -157,6 +180,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   @override
   void initState() {
     super.initState();
+    widget.registerFlush?.call(_flush);
     WidgetsBinding.instance.addObserver(this);
     _scroll.addListener(_changed);
     _load();
@@ -291,7 +315,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
             icon: const Icon(Icons.format_size_rounded),
             tooltip: 'Reading Preferences',
             color: _readerTheme.fg,
-            onPressed: _showPreferencesSheet,
+            onPressed: widget.closing ? null : _showPreferencesSheet,
           ),
           const SizedBox(width: HikariSpacing.xs),
         ],
@@ -320,10 +344,10 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                       ),
                     )
                   : IgnorePointer(
-                      ignoring: _chapterTransitionBusy,
+                      ignoring: _chapterTransitionBusy || widget.closing,
                       child: SingleChildScrollView(
                         controller: _scroll,
-                        physics: _chapterTransitionBusy
+                        physics: _chapterTransitionBusy || widget.closing
                             ? const NeverScrollableScrollPhysics()
                             : null,
                         padding: EdgeInsets.symmetric(

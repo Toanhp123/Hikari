@@ -2,7 +2,9 @@ import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
+import 'package:hikari/application/progress/load_continue_reading.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/open_series_continuation.dart';
 import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
@@ -30,6 +32,8 @@ import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/playback/media_kit_video_session.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_series_continuation_repository.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
 
 /// Composition root for application workflows and replaceable infrastructure.
 final class AppDependencies {
@@ -43,6 +47,9 @@ final class AppDependencies {
     this._ownsDatabase, {
     required this.libraryRepository,
     required this.progressRepository,
+    required this.seriesContinuationRepository,
+    required this.openSeriesContinuation,
+    required this.loadContinueReading,
     required this.localMediaSource,
     required this.ownsLocalMediaSource,
     required this.catalogProvider,
@@ -101,6 +108,10 @@ final class AppDependencies {
     final readNovelResource = ReadNovelResource(resolvedCache);
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
     final progressRepository = SqliteProgressRepository(resolvedDatabase);
+    final seriesContinuationRepository = SqliteSeriesContinuationRepository(
+      resolvedDatabase,
+    );
+    final openMedia = OpenMedia(sourceRegistry, progressRepository);
     final searchManga = SearchManga(sourceRegistry);
     final searchNovels = SearchNovels(sourceRegistry);
 
@@ -109,6 +120,12 @@ final class AppDependencies {
       database == null || ownsDatabase,
       libraryRepository: libraryRepository,
       progressRepository: progressRepository,
+      seriesContinuationRepository: seriesContinuationRepository,
+      openSeriesContinuation: OpenSeriesContinuation(openMedia),
+      loadContinueReading: LoadContinueReading(
+        progressRepository,
+        seriesContinuationRepository,
+      ),
       localMediaSource: resolvedLocalSource,
       ownsLocalMediaSource: localMediaSource == null || ownsLocalMediaSource,
       catalogProvider: resolvedCatalogProvider,
@@ -120,7 +137,7 @@ final class AppDependencies {
         searchManga: searchManga,
         searchNovels: searchNovels,
       ),
-      openMedia: OpenMedia(sourceRegistry, progressRepository),
+      openMedia: openMedia,
       openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
       createMangaChapterPrefetch: () =>
           PrefetchMangaChapter(sourceRegistry, readMangaPage),
@@ -151,6 +168,9 @@ final class AppDependencies {
 
   final LibraryRepository libraryRepository;
   final ProgressRepository progressRepository;
+  final SeriesContinuationRepository seriesContinuationRepository;
+  final OpenSeriesContinuation openSeriesContinuation;
+  final LoadContinueReading loadContinueReading;
   final LocalMediaSource localMediaSource;
   final CatalogProvider catalogProvider;
   final DiscoverCatalog discoverCatalog;

@@ -5,11 +5,14 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/open_series_continuation.dart';
+import 'package:hikari/application/progress/save_remote_chapter_progress.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/catalog/catalog_search_page.dart';
 import 'package:hikari/features/home/home_page.dart';
@@ -211,7 +214,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
       NovelSeriesOpenTarget novel => NovelSeriesPage(
         target: novel,
-        openChapter: _openNovelChapter,
+        openChapter: (context, chapter, sequence) =>
+            _openNovelChapter(context, chapter, sequence, parent: novel.media),
         library: _dependencies.libraryRepository,
         readArtwork: _dependencies.readSourceArtwork.execute,
       ),
@@ -250,8 +254,74 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         ? _dependencies.readSourceArtwork.execute
         : null,
     library: _dependencies.libraryRepository,
-    openChapter: _openMangaChapter,
+    openChapter: (context, chapter, sequence) =>
+        _openMangaChapter(context, chapter, sequence, parent: target.media),
   );
+
+  Future<void> _continueReading(
+    BuildContext context,
+    ContinueReadingItem item,
+  ) async {
+    if (item.chapter == null) {
+      await _openMedia(context, item.media);
+      return;
+    }
+    if (_isOpeningMedia) return;
+    _isOpeningMedia = true;
+    try {
+      await _continueReadingInner(context, item);
+    } finally {
+      _isOpeningMedia = false;
+      if (mounted) setState(() => _homeRefreshRevision++);
+    }
+  }
+
+  Future<void> _continueReadingInner(
+    BuildContext context,
+    ContinueReadingItem item,
+  ) async {
+    final chapter = item.chapter;
+    if (chapter == null) {
+      await _openMedia(context, item.media);
+      return;
+    }
+    SeriesContinuationOpenTarget? target;
+    try {
+      target = await _dependencies.openSeriesContinuation.execute(
+        item.media,
+        chapter,
+      );
+      if (!context.mounted) return;
+      switch (target) {
+        case MangaContinuationOpenTarget():
+          await _openMangaChapter(
+            context,
+            target.selected,
+            target.sequence,
+            parent: target.series,
+          );
+        case NovelContinuationOpenTarget():
+          await _openNovelChapter(
+            context,
+            target.selected,
+            target.sequence,
+            parent: target.series,
+          );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not resume this chapter. Check source access and try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      await target?.release();
+    }
+  }
 
   Widget _buildMangaReaderPage(MangaReaderOpenTarget target) => MangaReaderPage(
     title: target.media.title,
@@ -280,14 +350,34 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Future<void> _openNovelChapter(
     BuildContext context,
     NovelChapter chapter,
-    List<NovelChapter> chaptersInReadingOrder,
-  ) async {
+    List<NovelChapter> chaptersInReadingOrder, {
+    Media? parent,
+  }) async {
     final initialTarget = await _dependencies.openNovelChapter.execute(chapter);
     if (!context.mounted) return;
+    final saveContinuation = parent == null
+        ? null
+        : SaveRemoteChapterProgress(
+            _dependencies.seriesContinuationRepository,
+            parent.source,
+          );
     final viewModel = NovelChapterReaderViewModel(
       initialTarget: initialTarget,
       chaptersInReadingOrder: chaptersInReadingOrder,
       openChapter: _dependencies.openNovelChapter,
+      onProgress: (target, position, completed) async {
+        if (saveContinuation == null) {
+          await target.progress.save(position, completed);
+        } else {
+          await saveContinuation(
+            target,
+            target.progress,
+            target.chapter.source,
+            position,
+            completed,
+          );
+        }
+      },
     );
     try {
       await Navigator.of(context).push(
@@ -312,17 +402,37 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Future<void> _openMangaChapter(
     BuildContext context,
     MangaChapter chapter,
-    List<MangaChapter> chaptersInReadingOrder,
-  ) async {
+    List<MangaChapter> chaptersInReadingOrder, {
+    Media? parent,
+  }) async {
     final initialTarget = await _dependencies.openMangaChapter.execute(chapter);
     if (!context.mounted) return;
     final chapterPrefetch = _dependencies.createMangaChapterPrefetch();
+    final saveContinuation = parent == null
+        ? null
+        : SaveRemoteChapterProgress(
+            _dependencies.seriesContinuationRepository,
+            parent.source,
+          );
     final viewModel = MangaChapterReaderViewModel(
       initialTarget: initialTarget,
       chaptersInReadingOrder: chaptersInReadingOrder,
       openChapter: _dependencies.openMangaChapter,
       pageListLoader: chapterPrefetch.loadPages,
       chapterPrefetch: chapterPrefetch,
+      onProgress: (target, position, completed) async {
+        if (saveContinuation == null) {
+          await target.progress.save(position, completed);
+        } else {
+          await saveContinuation(
+            target,
+            target.progress,
+            target.chapter.source,
+            position,
+            completed,
+          );
+        }
+      },
     );
     try {
       await Navigator.of(context).push(
@@ -362,7 +472,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.home: HomePage(
               openMedia: _openMedia,
               library: libraryRepository,
-              progressRepository: _dependencies.progressRepository,
+              loadContinueReading: _dependencies.loadContinueReading,
+              onContinue: _continueReading,
               discoverCatalog: _dependencies.discoverCatalog,
               openCatalogDetail: _openCatalogDetail,
               refreshRevision: _homeRefreshRevision,

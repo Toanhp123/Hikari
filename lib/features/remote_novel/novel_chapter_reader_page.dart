@@ -39,6 +39,35 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
   late final NovelChapterReaderViewModel _viewModel = widget.viewModel;
   late final PrefetchNovelChapter _prefetch;
   SourceMediaRef? _prefetchOrigin;
+  bool _exiting = false;
+  bool _readyToPop = false;
+
+  Future<void> _exit() async {
+    if (_exiting) return;
+    setState(() => _exiting = true);
+    _closed = true;
+    _viewModel.beginClose();
+    _prefetch.cancelPending();
+    _viewModel.removeListener(_scheduleNextChapter);
+    await WidgetsBinding.instance.endOfFrame;
+    try {
+      await _viewModel.flush();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save reading progress.')),
+        );
+      }
+    } finally {
+      _viewModel.close();
+    }
+    if (!mounted) return;
+    setState(() => _readyToPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+      await Navigator.of(context).maybePop();
+    }
+  }
 
   @override
   void initState() {
@@ -93,8 +122,13 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
 
   @override
   Widget build(BuildContext context) => PopScope(
+    canPop: _readyToPop,
     onPopInvokedWithResult: (didPop, _) {
-      if (didPop) _close();
+      if (didPop) {
+        _close();
+      } else {
+        _exit();
+      }
     },
     child: ListenableBuilder(
       listenable: _viewModel,
@@ -113,7 +147,10 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
           reloadResource: (resource) =>
               widget.reloadResource(target.source, resource),
           initialProgress: target.progress.initialProgress,
-          saveProgress: target.progress.save,
+          saveProgress: (position, completed) =>
+              _viewModel.saveProgress(target, position, completed),
+          registerFlush: _viewModel.registerFlush,
+          closing: _exiting,
           onPreviousChapter: !_closed && _viewModel.canOpenPrevious
               ? () => _move(_viewModel.openPrevious)
               : null,

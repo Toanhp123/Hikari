@@ -3,6 +3,7 @@ import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/progress.dart';
 
 @immutable
 final class MangaChapterReaderUiState {
@@ -22,6 +23,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     required MangaChapterOpenTarget initialTarget,
     required List<MangaChapter> chaptersInReadingOrder,
     required this._openChapter,
+    this.onProgress,
     this._pageListLoader,
     this._chapterPrefetch,
   }) : _chapters = _normalize(chaptersInReadingOrder) {
@@ -41,6 +43,8 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
 
   final List<MangaChapter> _chapters;
   final OpenMangaChapter _openChapter;
+  final Future<void> Function(MangaChapterOpenTarget, ProgressPosition, bool)?
+  onProgress;
   final PrefetchMangaChapter? _chapterPrefetch;
   final Future<List<SourceMediaRef>> Function(
     MangaPageSource source,
@@ -55,6 +59,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
       canOpenNext ? _chapters[_state.chapterIndex + 1] : null;
   int _generation = 0;
   bool _closed = false;
+  bool _closing = false;
 
   static List<MangaChapter> _normalize(List<MangaChapter> chapters) {
     _validate(chapters.map((chapter) => chapter.source));
@@ -78,6 +83,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
   }) async {
     final chapter = nextChapter;
     if (_closed ||
+        _closing ||
         _state.openingAdjacent ||
         !identical(target, _state.target) ||
         chapter == null ||
@@ -97,7 +103,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
   Future<void> openNext() => _move(1);
 
   Future<void> _move(int delta) async {
-    if (_closed || _state.openingAdjacent) return;
+    if (_closed || _closing || _state.openingAdjacent) return;
     final index = _state.chapterIndex + delta;
     if (index < 0 || index >= _chapters.length) return;
     final generation = ++_generation;
@@ -125,6 +131,33 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
       );
       rethrow;
     }
+  }
+
+  Future<void> Function()? _flushReader;
+
+  void registerFlush(Future<void> Function() flush) => _flushReader = flush;
+
+  Future<void> flush() => _flushReader?.call() ?? Future.value();
+
+  Future<void> saveProgress(
+    MangaChapterOpenTarget target,
+    ProgressPosition position,
+    bool completed,
+  ) async {
+    if (_closed || !identical(target, _state.target)) return;
+    final save = onProgress;
+    if (save != null) {
+      await save(target, position, completed);
+    } else {
+      await target.progress.save(position, completed);
+    }
+  }
+
+  void beginClose() {
+    if (_closing || _closed) return;
+    _closing = true;
+    _generation++;
+    discardChapterPrefetch();
   }
 
   void close() {

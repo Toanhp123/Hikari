@@ -1502,6 +1502,292 @@ class MihonContinuationRecordsCompanion
   }
 }
 
+class $SeriesContinuationRecordsTable extends SeriesContinuationRecords
+    with TableInfo<$SeriesContinuationRecordsTable, SeriesContinuationRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SeriesContinuationRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _seriesItemIdMeta = const VerificationMeta(
+    'seriesItemId',
+  );
+  @override
+  late final GeneratedColumn<String> seriesItemId = GeneratedColumn<String>(
+    'series_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _chapterItemIdMeta = const VerificationMeta(
+    'chapterItemId',
+  );
+  @override
+  late final GeneratedColumn<String> chapterItemId = GeneratedColumn<String>(
+    'chapter_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [sourceId, seriesItemId, chapterItemId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'series_continuation_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SeriesContinuationRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('series_item_id')) {
+      context.handle(
+        _seriesItemIdMeta,
+        seriesItemId.isAcceptableOrUnknown(
+          data['series_item_id']!,
+          _seriesItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_seriesItemIdMeta);
+    }
+    if (data.containsKey('chapter_item_id')) {
+      context.handle(
+        _chapterItemIdMeta,
+        chapterItemId.isAcceptableOrUnknown(
+          data['chapter_item_id']!,
+          _chapterItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_chapterItemIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sourceId, seriesItemId};
+  @override
+  SeriesContinuationRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SeriesContinuationRecord(
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      seriesItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}series_item_id'],
+      )!,
+      chapterItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chapter_item_id'],
+      )!,
+    );
+  }
+
+  @override
+  $SeriesContinuationRecordsTable createAlias(String alias) {
+    return $SeriesContinuationRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class SeriesContinuationRecord extends DataClass
+    implements Insertable<SeriesContinuationRecord> {
+  final String sourceId;
+  final String seriesItemId;
+  final String chapterItemId;
+  const SeriesContinuationRecord({
+    required this.sourceId,
+    required this.seriesItemId,
+    required this.chapterItemId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['source_id'] = Variable<String>(sourceId);
+    map['series_item_id'] = Variable<String>(seriesItemId);
+    map['chapter_item_id'] = Variable<String>(chapterItemId);
+    return map;
+  }
+
+  SeriesContinuationRecordsCompanion toCompanion(bool nullToAbsent) {
+    return SeriesContinuationRecordsCompanion(
+      sourceId: Value(sourceId),
+      seriesItemId: Value(seriesItemId),
+      chapterItemId: Value(chapterItemId),
+    );
+  }
+
+  factory SeriesContinuationRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SeriesContinuationRecord(
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      seriesItemId: serializer.fromJson<String>(json['seriesItemId']),
+      chapterItemId: serializer.fromJson<String>(json['chapterItemId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sourceId': serializer.toJson<String>(sourceId),
+      'seriesItemId': serializer.toJson<String>(seriesItemId),
+      'chapterItemId': serializer.toJson<String>(chapterItemId),
+    };
+  }
+
+  SeriesContinuationRecord copyWith({
+    String? sourceId,
+    String? seriesItemId,
+    String? chapterItemId,
+  }) => SeriesContinuationRecord(
+    sourceId: sourceId ?? this.sourceId,
+    seriesItemId: seriesItemId ?? this.seriesItemId,
+    chapterItemId: chapterItemId ?? this.chapterItemId,
+  );
+  SeriesContinuationRecord copyWithCompanion(
+    SeriesContinuationRecordsCompanion data,
+  ) {
+    return SeriesContinuationRecord(
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      seriesItemId: data.seriesItemId.present
+          ? data.seriesItemId.value
+          : this.seriesItemId,
+      chapterItemId: data.chapterItemId.present
+          ? data.chapterItemId.value
+          : this.chapterItemId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SeriesContinuationRecord(')
+          ..write('sourceId: $sourceId, ')
+          ..write('seriesItemId: $seriesItemId, ')
+          ..write('chapterItemId: $chapterItemId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(sourceId, seriesItemId, chapterItemId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SeriesContinuationRecord &&
+          other.sourceId == this.sourceId &&
+          other.seriesItemId == this.seriesItemId &&
+          other.chapterItemId == this.chapterItemId);
+}
+
+class SeriesContinuationRecordsCompanion
+    extends UpdateCompanion<SeriesContinuationRecord> {
+  final Value<String> sourceId;
+  final Value<String> seriesItemId;
+  final Value<String> chapterItemId;
+  final Value<int> rowid;
+  const SeriesContinuationRecordsCompanion({
+    this.sourceId = const Value.absent(),
+    this.seriesItemId = const Value.absent(),
+    this.chapterItemId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SeriesContinuationRecordsCompanion.insert({
+    required String sourceId,
+    required String seriesItemId,
+    required String chapterItemId,
+    this.rowid = const Value.absent(),
+  }) : sourceId = Value(sourceId),
+       seriesItemId = Value(seriesItemId),
+       chapterItemId = Value(chapterItemId);
+  static Insertable<SeriesContinuationRecord> custom({
+    Expression<String>? sourceId,
+    Expression<String>? seriesItemId,
+    Expression<String>? chapterItemId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sourceId != null) 'source_id': sourceId,
+      if (seriesItemId != null) 'series_item_id': seriesItemId,
+      if (chapterItemId != null) 'chapter_item_id': chapterItemId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SeriesContinuationRecordsCompanion copyWith({
+    Value<String>? sourceId,
+    Value<String>? seriesItemId,
+    Value<String>? chapterItemId,
+    Value<int>? rowid,
+  }) {
+    return SeriesContinuationRecordsCompanion(
+      sourceId: sourceId ?? this.sourceId,
+      seriesItemId: seriesItemId ?? this.seriesItemId,
+      chapterItemId: chapterItemId ?? this.chapterItemId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (seriesItemId.present) {
+      map['series_item_id'] = Variable<String>(seriesItemId.value);
+    }
+    if (chapterItemId.present) {
+      map['chapter_item_id'] = Variable<String>(chapterItemId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SeriesContinuationRecordsCompanion(')
+          ..write('sourceId: $sourceId, ')
+          ..write('seriesItemId: $seriesItemId, ')
+          ..write('chapterItemId: $chapterItemId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$UserDatabase extends GeneratedDatabase {
   _$UserDatabase(QueryExecutor e) : super(e);
   $UserDatabaseManager get managers => $UserDatabaseManager(this);
@@ -1511,6 +1797,8 @@ abstract class _$UserDatabase extends GeneratedDatabase {
   late final $LibraryRecordsTable libraryRecords = $LibraryRecordsTable(this);
   late final $MihonContinuationRecordsTable mihonContinuationRecords =
       $MihonContinuationRecordsTable(this);
+  late final $SeriesContinuationRecordsTable seriesContinuationRecords =
+      $SeriesContinuationRecordsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1519,6 +1807,7 @@ abstract class _$UserDatabase extends GeneratedDatabase {
     progressRecords,
     libraryRecords,
     mihonContinuationRecords,
+    seriesContinuationRecords,
   ];
 }
 
@@ -2326,6 +2615,203 @@ typedef $$MihonContinuationRecordsTableProcessedTableManager =
       MihonContinuationRecord,
       PrefetchHooks Function()
     >;
+typedef $$SeriesContinuationRecordsTableCreateCompanionBuilder =
+    SeriesContinuationRecordsCompanion Function({
+      required String sourceId,
+      required String seriesItemId,
+      required String chapterItemId,
+      Value<int> rowid,
+    });
+typedef $$SeriesContinuationRecordsTableUpdateCompanionBuilder =
+    SeriesContinuationRecordsCompanion Function({
+      Value<String> sourceId,
+      Value<String> seriesItemId,
+      Value<String> chapterItemId,
+      Value<int> rowid,
+    });
+
+class $$SeriesContinuationRecordsTableFilterComposer
+    extends Composer<_$UserDatabase, $SeriesContinuationRecordsTable> {
+  $$SeriesContinuationRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get seriesItemId => $composableBuilder(
+    column: $table.seriesItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get chapterItemId => $composableBuilder(
+    column: $table.chapterItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SeriesContinuationRecordsTableOrderingComposer
+    extends Composer<_$UserDatabase, $SeriesContinuationRecordsTable> {
+  $$SeriesContinuationRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get seriesItemId => $composableBuilder(
+    column: $table.seriesItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get chapterItemId => $composableBuilder(
+    column: $table.chapterItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SeriesContinuationRecordsTableAnnotationComposer
+    extends Composer<_$UserDatabase, $SeriesContinuationRecordsTable> {
+  $$SeriesContinuationRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get seriesItemId => $composableBuilder(
+    column: $table.seriesItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get chapterItemId => $composableBuilder(
+    column: $table.chapterItemId,
+    builder: (column) => column,
+  );
+}
+
+class $$SeriesContinuationRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$UserDatabase,
+          $SeriesContinuationRecordsTable,
+          SeriesContinuationRecord,
+          $$SeriesContinuationRecordsTableFilterComposer,
+          $$SeriesContinuationRecordsTableOrderingComposer,
+          $$SeriesContinuationRecordsTableAnnotationComposer,
+          $$SeriesContinuationRecordsTableCreateCompanionBuilder,
+          $$SeriesContinuationRecordsTableUpdateCompanionBuilder,
+          (
+            SeriesContinuationRecord,
+            BaseReferences<
+              _$UserDatabase,
+              $SeriesContinuationRecordsTable,
+              SeriesContinuationRecord
+            >,
+          ),
+          SeriesContinuationRecord,
+          PrefetchHooks Function()
+        > {
+  $$SeriesContinuationRecordsTableTableManager(
+    _$UserDatabase db,
+    $SeriesContinuationRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SeriesContinuationRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SeriesContinuationRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SeriesContinuationRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> sourceId = const Value.absent(),
+                Value<String> seriesItemId = const Value.absent(),
+                Value<String> chapterItemId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SeriesContinuationRecordsCompanion(
+                sourceId: sourceId,
+                seriesItemId: seriesItemId,
+                chapterItemId: chapterItemId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sourceId,
+                required String seriesItemId,
+                required String chapterItemId,
+                Value<int> rowid = const Value.absent(),
+              }) => SeriesContinuationRecordsCompanion.insert(
+                sourceId: sourceId,
+                seriesItemId: seriesItemId,
+                chapterItemId: chapterItemId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $SeriesContinuationRecordsTable,
+                    SeriesContinuationRecord
+                  >(table),
+                  BaseReferences<
+                    _$UserDatabase,
+                    $SeriesContinuationRecordsTable,
+                    SeriesContinuationRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SeriesContinuationRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$UserDatabase,
+      $SeriesContinuationRecordsTable,
+      SeriesContinuationRecord,
+      $$SeriesContinuationRecordsTableFilterComposer,
+      $$SeriesContinuationRecordsTableOrderingComposer,
+      $$SeriesContinuationRecordsTableAnnotationComposer,
+      $$SeriesContinuationRecordsTableCreateCompanionBuilder,
+      $$SeriesContinuationRecordsTableUpdateCompanionBuilder,
+      (
+        SeriesContinuationRecord,
+        BaseReferences<
+          _$UserDatabase,
+          $SeriesContinuationRecordsTable,
+          SeriesContinuationRecord
+        >,
+      ),
+      SeriesContinuationRecord,
+      PrefetchHooks Function()
+    >;
 
 class $UserDatabaseManager {
   final _$UserDatabase _db;
@@ -2338,5 +2824,10 @@ class $UserDatabaseManager {
       $$MihonContinuationRecordsTableTableManager(
         _db,
         _db.mihonContinuationRecords,
+      );
+  $$SeriesContinuationRecordsTableTableManager get seriesContinuationRecords =>
+      $$SeriesContinuationRecordsTableTableManager(
+        _db,
+        _db.seriesContinuationRecords,
       );
 }
