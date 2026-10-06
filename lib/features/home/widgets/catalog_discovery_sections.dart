@@ -90,7 +90,7 @@ class CatalogDiscoverySections extends StatelessWidget {
               builder: (context) {
                 final posterWidth = _catalogPosterWidth(context);
                 return SizedBox(
-                  height: posterWidth * 1.5,
+                  height: posterWidth * 1.5 + 46.0,
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
                       horizontal: HikariSpace.content,
@@ -216,7 +216,7 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                height: posterWidth * 1.5,
+                height: posterWidth * 1.5 + 46.0,
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(
                     horizontal: HikariSpace.content,

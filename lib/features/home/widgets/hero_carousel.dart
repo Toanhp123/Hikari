@@ -82,8 +82,15 @@ class _HeroCarouselState extends State<HeroCarousel> {
       ),
       child: AspectRatio(
         aspectRatio: isCompact ? (16 / 10) : (16 / 7),
-        child: ClipRRect(
-          borderRadius: HikariShape.large,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: HikariShape.large,
+            border: Border.all(
+              color: colors.outlineVariant.withValues(alpha: 0.6),
+              width: HikariShape.borderWidth,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -207,8 +214,8 @@ class _HeroSlide extends StatelessWidget {
                 colors: [
                   Colors.transparent,
                   colors.surface.withValues(alpha: 0.2),
-                  colors.surface.withValues(alpha: 0.8),
-                  colors.surface,
+                  colors.surface.withValues(alpha: 0.75),
+                  colors.surfaceContainer,
                 ],
                 stops: const [0.0, 0.35, 0.72, 1.0],
               ),
@@ -400,6 +407,10 @@ class HeroCarouselSkeleton extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: HikariShape.large,
+            border: Border.all(
+              color: colors.outlineVariant.withValues(alpha: 0.6),
+              width: HikariShape.borderWidth,
+            ),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

@@ -9,10 +9,10 @@ const mediaPosterGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
   maxCrossAxisExtent: HikariBreakpoints.posterGridMaxExtent,
   crossAxisSpacing: HikariSpacing.md,
   mainAxisSpacing: HikariSpacing.md,
-  childAspectRatio: 2 / 3,
+  childAspectRatio: 0.55,
 );
 
-/// Shared 2:3 media artwork pattern.
+/// Shared 2:3 media artwork pattern with title and metadata below artwork.
 ///
 /// Feature-owned cards decide which product metadata belongs around this visual
 /// primitive; the poster itself only owns artwork, identity labels and progress.
@@ -50,106 +50,135 @@ class MediaPoster extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.hikariColors;
 
-    Widget content = AspectRatio(
+    Widget artwork = AspectRatio(
       aspectRatio: 2 / 3,
-      child: Container(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           color: colors.surfaceContainer,
           borderRadius: HikariRadius.borderMd,
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(
+            color: colors.border.withValues(alpha: 0.6),
+            width: 1,
+          ),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildArtwork(colors),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 90,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      colors.scrimStrong,
-                      colors.background.withValues(alpha: 0.96),
-                    ],
+        child: ClipRRect(
+          borderRadius: HikariRadius.borderMd,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildArtwork(colors),
+              if (badgeText != null && badgeText!.isNotEmpty)
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: _MediaBadge(
+                    label: badgeText!,
+                    color: badgeColor ?? colors.primary,
                   ),
                 ),
-              ),
-            ),
-            if (badgeText != null && badgeText!.isNotEmpty)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: _MediaBadge(
-                  label: badgeText!,
-                  color: badgeColor ?? colors.primary,
+              if (progress != null && progress! > 0)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: MediaProgressBar(progress: progress!, height: 3),
                 ),
-              ),
-            Positioned(
-              left: 8,
-              right: 8,
-              bottom: progress != null ? 10 : 8,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
-                      height: 1.25,
-                    ),
-                  ),
-                  if (subtitle != null && subtitle!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (progress != null && progress! > 0)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: MediaProgressBar(progress: progress!, height: 3),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
 
     final tag = heroTag;
     if (tag != null) {
-      content = Hero(tag: tag, child: content);
+      artwork = Hero(tag: tag, child: artwork);
     }
+
+    final textContent = Padding(
+      padding: const EdgeInsets.only(top: 6, left: 2, right: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isLoading && title.isNotEmpty) ...[
+            SizedBox(
+              height: 32,
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                  height: 1.25,
+                ),
+              ),
+            ),
+            if (subtitle != null && subtitle!.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: colors.textSecondary),
+              ),
+            ],
+          ] else if (isLoading) ...[
+            Container(
+              height: 12,
+              width: double.infinity,
+              decoration: ShapeDecoration(
+                color: colors.surfaceHighlight,
+                shape: const StadiumBorder(),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              height: 10,
+              width: 60,
+              decoration: ShapeDecoration(
+                color: colors.surfaceHighlight,
+                shape: const StadiumBorder(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    Widget content = LayoutBuilder(
+      builder: (context, constraints) {
+        double? cardWidth = width;
+        if (cardWidth == null &&
+            constraints.hasBoundedHeight &&
+            constraints.hasBoundedWidth) {
+          final maxAllowedWidth = (constraints.maxHeight - 60) * (2 / 3);
+          if (maxAllowedWidth > 0 && maxAllowedWidth < constraints.maxWidth) {
+            cardWidth = maxAllowedWidth;
+          }
+        }
+
+        Widget column = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [artwork, textContent],
+        );
+
+        if (cardWidth != null) {
+          column = SizedBox(width: cardWidth, child: column);
+        }
+
+        return column;
+      },
+    );
+
     if (onTap != null) {
-      content = InkWell(onTap: onTap, child: content);
+      content = InkWell(
+        onTap: onTap,
+        borderRadius: HikariRadius.borderMd,
+        child: content,
+      );
     }
 
     return RepaintBoundary(

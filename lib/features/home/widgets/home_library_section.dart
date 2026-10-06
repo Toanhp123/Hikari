@@ -107,7 +107,7 @@ class HomeRecentShelf extends StatelessWidget {
           )
         else
           SizedBox(
-            height: posterWidth * 1.5,
+            height: posterWidth * 1.5 + 46.0,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(
                 horizontal: HikariSpace.content,
@@ -173,7 +173,7 @@ class HomeRecentShelfSkeleton extends StatelessWidget {
         ),
         const SizedBox(height: HikariSpace.inline),
         SizedBox(
-          height: posterWidth * 1.5,
+          height: posterWidth * 1.5 + 46.0,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(
               horizontal: HikariSpace.content,

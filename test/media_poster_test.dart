@@ -31,5 +31,12 @@ void main() {
     await tester.tap(find.byType(MediaPoster));
     await tester.pumpAndSettle();
     expect(tapped, isTrue);
+
+    // Title is positioned below the 2:3 artwork container, not overlaid on it
+    final artworkBottom = tester.getBottomLeft(find.byType(AspectRatio)).dy;
+    final titleTop = tester
+        .getTopLeft(find.text('Frieren: Beyond Journey\'s End'))
+        .dy;
+    expect(titleTop, greaterThanOrEqualTo(artworkBottom));
   });
 }

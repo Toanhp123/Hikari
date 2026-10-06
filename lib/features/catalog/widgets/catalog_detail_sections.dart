@@ -180,7 +180,7 @@ class CatalogDetailRelationsSection extends StatelessWidget {
     return CatalogDetailSection(
       title: 'Related',
       child: SizedBox(
-        height: width * 1.5,
+        height: width * 1.5 + 56.0,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),

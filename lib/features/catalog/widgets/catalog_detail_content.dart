@@ -47,7 +47,7 @@ class CatalogDetailLoadingBody extends StatelessWidget {
             _SkeletonBox(width: 84, height: 18, color: colors.surfaceContainer),
             const SizedBox(height: HikariSpacing.md),
             SizedBox(
-              height: 210,
+              height: 246,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: 4,
