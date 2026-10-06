@@ -933,12 +933,21 @@ void main() {
     expect(remote.pageReads, 0);
     expect(cache.writes, isEmpty);
     expect(find.text('Could not decode this page.'), findsOneWidget);
-    expect(await progress.load(chapter), isNull);
+    final baseline = (await progress.load(chapter))!;
+    expect((baseline.position as PagePosition).pageIndex, 0);
+    expect(baseline.completed, isFalse);
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     expect(remote.pageReads, 1);
     expect(find.text('Could not load this page.'), findsOneWidget);
-    expect(await progress.load(chapter), isNull);
+    final afterFailedRetry = (await progress.load(chapter))!;
+    expect((afterFailedRetry.position as PagePosition).pageIndex, 0);
+    expect(
+      (afterFailedRetry.position as PagePosition).pageCount,
+      (baseline.position as PagePosition).pageCount,
+    );
+    expect(afterFailedRetry.completed, baseline.completed);
+    expect(afterFailedRetry.updatedAt, baseline.updatedAt);
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     await tester.runAsync(

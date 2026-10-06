@@ -11,7 +11,7 @@ import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
-import 'package:hikari/application/progress/save_remote_chapter_progress.dart';
+import 'package:hikari/application/progress/save_series_chapter_progress.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
@@ -119,11 +119,15 @@ class _Progress implements ProgressRepository {
 }
 
 class _Continuations implements SeriesContinuationRepository {
-  @override
-  Future<SourceMediaRef?> load(SourceMediaRef series) async => null;
+  SourceMediaRef? chapter;
 
   @override
-  Future<void> save(SeriesContinuation continuation) async {}
+  Future<SourceMediaRef?> load(SourceMediaRef series) async => chapter;
+
+  @override
+  Future<void> save(SeriesContinuation continuation) async {
+    chapter = continuation.chapter;
+  }
 }
 
 class _DelayedProgress extends _Progress {
@@ -139,6 +143,15 @@ class _DelayedProgress extends _Progress {
 
   @override
   Future<void> save(MediaProgress progress) async {
+    final isActivationBaseline = switch (progress.position) {
+      PagePosition(:final pageIndex) => pageIndex == 0,
+      TextPosition(:final progression) => progression == 0,
+      _ => false,
+    };
+    if (!rows.containsKey(progress.media) && isActivationBaseline) {
+      rows[progress.media] = progress;
+      return;
+    }
     writes.add(progress);
     if (!saveStarted.isCompleted) {
       saveStarted.complete();
@@ -331,6 +344,7 @@ Future<void> _testDelayedRemoteExit(
   expect(find.text('Open reader'), findsOneWidget);
   expect(refreshes.value, 1);
   expect(returned, isTrue);
+  expect(continuations.chapter, novel ? _novelA : _mangaA);
   if (novel) {
     expect(progress.writes, hasLength(1));
   } else {
@@ -347,7 +361,7 @@ Future<Widget> _createMangaReaderRoute(
 ) async {
   final workflow = OpenMangaChapter(SourceRegistry([source]), progress);
   final chapter = MangaChapter(title: 'Chapter A', source: _mangaA);
-  final saveContinuation = SaveRemoteChapterProgress(
+  final saveContinuation = SaveSeriesChapterProgress(
     continuations,
     const SourceMediaRef(sourceId: _mangaId, itemId: 'series'),
   );
@@ -355,8 +369,12 @@ Future<Widget> _createMangaReaderRoute(
     initialTarget: await workflow.execute(chapter),
     chaptersInReadingOrder: [chapter],
     openChapter: workflow,
-    onProgress: (target, position, completed) => saveContinuation(
-      target,
+    onChapterActivated: (target) => saveContinuation.activate(
+      target.progress,
+      target.chapter.source,
+      PagePosition(pageIndex: 0, pageCount: target.pages.length),
+    ),
+    onProgress: (target, position, completed) => saveContinuation.execute(
       target.progress,
       target.chapter.source,
       position,
@@ -386,7 +404,7 @@ Future<Widget> _createNovelReaderRoute(
     readContent,
   );
   final chapter = NovelChapter(title: 'Chapter A', source: _novelA);
-  final saveContinuation = SaveRemoteChapterProgress(
+  final saveContinuation = SaveSeriesChapterProgress(
     continuations,
     const SourceMediaRef(sourceId: _novelId, itemId: 'series'),
   );
@@ -394,8 +412,12 @@ Future<Widget> _createNovelReaderRoute(
     initialTarget: await workflow.execute(chapter),
     chaptersInReadingOrder: [chapter],
     openChapter: workflow,
-    onProgress: (target, position, completed) => saveContinuation(
-      target,
+    onChapterActivated: (target) => saveContinuation.activate(
+      target.progress,
+      target.chapter.source,
+      TextPosition(progression: 0),
+    ),
+    onProgress: (target, position, completed) => saveContinuation.execute(
       target.progress,
       target.chapter.source,
       position,

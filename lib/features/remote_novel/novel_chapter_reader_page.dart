@@ -74,6 +74,7 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
     super.initState();
     _prefetch = widget.createPrefetch();
     _viewModel.addListener(_scheduleNextChapter);
+    _viewModel.activateCurrentChapter();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleNextChapter());
   }
 

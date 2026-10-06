@@ -23,6 +23,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     required MangaChapterOpenTarget initialTarget,
     required List<MangaChapter> chaptersInReadingOrder,
     required this._openChapter,
+    this.onChapterActivated,
     this.onProgress,
     this._pageListLoader,
     this._chapterPrefetch,
@@ -43,6 +44,8 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
 
   final List<MangaChapter> _chapters;
   final OpenMangaChapter _openChapter;
+  final Future<void> Function(MangaChapterOpenTarget target)?
+  onChapterActivated;
   final Future<void> Function(MangaChapterOpenTarget, ProgressPosition, bool)?
   onProgress;
   final PrefetchMangaChapter? _chapterPrefetch;
@@ -57,6 +60,8 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
   bool get canOpenNext => _state.chapterIndex < _chapters.length - 1;
   MangaChapter? get nextChapter =>
       canOpenNext ? _chapters[_state.chapterIndex + 1] : null;
+  Future<void> _activationTail = Future<void>.value();
+  Object? _activationError;
   int _generation = 0;
   bool _closed = false;
   bool _closing = false;
@@ -121,6 +126,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
       );
       if (_closed || generation != _generation) return;
       _publish(MangaChapterReaderUiState(target: target, chapterIndex: index));
+      _scheduleChapterActivation(target);
     } catch (_) {
       if (_closed || generation != _generation) return;
       _publish(
@@ -137,7 +143,38 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
 
   void registerFlush(Future<void> Function() flush) => _flushReader = flush;
 
-  Future<void> flush() => _flushReader?.call() ?? Future.value();
+  void activateCurrentChapter() {
+    if (_closed) return;
+    _scheduleChapterActivation(_state.target);
+  }
+
+  void _scheduleChapterActivation(MangaChapterOpenTarget target) {
+    final activate = onChapterActivated;
+    if (activate == null) return;
+    final previous = _activationTail;
+    _activationTail = () async {
+      await previous;
+      try {
+        await activate(target);
+        _activationError = null;
+      } catch (error) {
+        _activationError = error;
+      }
+    }();
+  }
+
+  Future<void> flush() async {
+    await (_flushReader?.call() ?? Future<void>.value());
+    await _activationTail;
+    final error = _activationError;
+    if (error == null || onChapterActivated == null) return;
+    try {
+      await onChapterActivated!(_state.target);
+      _activationError = null;
+    } catch (retryError, retryStackTrace) {
+      Error.throwWithStackTrace(retryError, retryStackTrace);
+    }
+  }
 
   Future<void> saveProgress(
     MangaChapterOpenTarget target,

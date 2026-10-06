@@ -35,9 +35,9 @@ final class OpenSeriesContinuation {
     Media media,
     SourceMediaRef chapter,
   ) async {
+    SeriesContinuation(series: media.source, chapter: chapter);
     final parent = await _openMedia.execute(media);
     try {
-      SeriesContinuation(series: media.source, chapter: chapter);
       switch (parent) {
         case MangaSeriesOpenTarget():
           final details = await parent.loadDetails();

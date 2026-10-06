@@ -8,7 +8,7 @@ import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/progress/progress_session.dart';
-import 'package:hikari/application/progress/save_remote_chapter_progress.dart';
+import 'package:hikari/application/progress/save_series_chapter_progress.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
@@ -160,14 +160,13 @@ void main() {
   );
 
   test(
-    'manga and novel progress writes persist relationship only after progress',
+    'manga and novel progress writes persist position and relationship',
     () async {
       final mangaTarget = await mangaOpen.execute(
         MangaChapter(title: 'A', source: _chapterA),
       );
-      final saveManga = SaveRemoteChapterProgress(continuation, _series);
-      await saveManga(
-        mangaTarget,
+      final saveManga = SaveSeriesChapterProgress(continuation, _series);
+      await saveManga.execute(
         mangaTarget.progress,
         _chapterA,
         PagePosition(pageIndex: 1, pageCount: 3),
@@ -179,9 +178,8 @@ void main() {
       final novelTarget = await novelOpen.execute(
         NovelChapter(title: 'B', source: _chapterB),
       );
-      final saveNovel = SaveRemoteChapterProgress(continuation, _series);
-      await saveNovel(
-        novelTarget,
+      final saveNovel = SaveSeriesChapterProgress(continuation, _series);
+      await saveNovel.execute(
         novelTarget.progress,
         _chapterB,
         TextPosition(progression: .4),
@@ -205,14 +203,85 @@ void main() {
     },
   );
 
+  test(
+    'chapter activation seeds baseline progress and advances continuation',
+    () async {
+      final save = SaveSeriesChapterProgress(continuation, _series);
+
+      await save.activate(
+        await _progressSessionForTest(progress, _chapterB),
+        _chapterB,
+        TextPosition(progression: 0),
+      );
+
+      expect(continuation.chapter, _chapterB);
+      final baseline = progress.rows[_chapterB]!;
+      expect(baseline.completed, isFalse);
+      expect((baseline.position as TextPosition).progression, 0);
+    },
+  );
+
+  test(
+    'chapter activation preserves existing position and completion',
+    () async {
+      final oldTimestamp = DateTime.utc(2025);
+      progress.rows[_chapterB] = MediaProgress(
+        media: _chapterB,
+        position: TextPosition(progression: .7),
+        completed: true,
+        updatedAt: oldTimestamp,
+      );
+      final save = SaveSeriesChapterProgress(continuation, _series);
+
+      await save.activate(
+        await _progressSessionForTest(progress, _chapterB),
+        _chapterB,
+        TextPosition(progression: 0),
+      );
+
+      final refreshed = progress.rows[_chapterB]!;
+      expect((refreshed.position as TextPosition).progression, .7);
+      expect(refreshed.completed, isTrue);
+      expect(refreshed.updatedAt.isAfter(oldTimestamp), isTrue);
+      expect(continuation.chapter, _chapterB);
+    },
+  );
+
+  test(
+    'duplicate in-flight activation of the same chapter is coalesced',
+    () async {
+      final save = SaveSeriesChapterProgress(continuation, _series);
+      final gate = Completer<void>();
+      continuation.delay = gate;
+
+      final session = await _progressSessionForTest(progress, _chapterB);
+      final first = save.activate(
+        session,
+        _chapterB,
+        TextPosition(progression: 0),
+      );
+      final second = save.activate(
+        session,
+        _chapterB,
+        TextPosition(progression: 0),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(continuation.saves, 1);
+
+      gate.complete();
+      await Future.wait([first, second]);
+      expect(continuation.chapter, _chapterB);
+      expect(continuation.saves, 1);
+    },
+  );
+
   test('progress failure prevents relationship write; continuation failure retries', () async {
     final target = await mangaOpen.execute(
       MangaChapter(title: 'A', source: _chapterA),
     );
-    final save = SaveRemoteChapterProgress(continuation, _series);
+    final save = SaveSeriesChapterProgress(continuation, _series);
     await expectLater(
-      SaveRemoteChapterProgress(continuation, _series)(
-        target,
+      SaveSeriesChapterProgress(continuation, _series).execute(
         await _progressSessionForTest(_FailingProgress(), _chapterA),
         _chapterA,
         PagePosition(pageIndex: 0, pageCount: 2),
@@ -223,8 +292,7 @@ void main() {
     expect(continuation.saves, 0);
     continuation.fail = true;
     await expectLater(
-      save(
-        target,
+      save.execute(
         target.progress,
         _chapterA,
         PagePosition(pageIndex: 0, pageCount: 2),
@@ -233,8 +301,7 @@ void main() {
       throwsStateError,
     );
     continuation.fail = false;
-    await save(
-      target,
+    await save.execute(
       target.progress,
       _chapterA,
       PagePosition(pageIndex: 0, pageCount: 2),
@@ -247,17 +314,18 @@ void main() {
     final target = await mangaOpen.execute(
       MangaChapter(title: 'A', source: _chapterA),
     );
-    final save = SaveRemoteChapterProgress(continuation, _series);
+    final save = SaveSeriesChapterProgress(continuation, _series);
     final gate = Completer<void>();
     continuation.delay = gate;
     var completed = false;
-    final pending = save(
-      target,
-      target.progress,
-      _chapterA,
-      PagePosition(pageIndex: 1, pageCount: 2),
-      false,
-    ).then((_) => completed = true);
+    final pending = save
+        .execute(
+          target.progress,
+          _chapterA,
+          PagePosition(pageIndex: 1, pageCount: 2),
+          false,
+        )
+        .then((_) => completed = true);
     await Future<void>.delayed(Duration.zero);
     expect(completed, isFalse);
     gate.complete();

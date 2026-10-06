@@ -94,6 +94,52 @@ void main() {
     expect(source.calls.where((id) => id == 'c'), hasLength(1));
   });
 
+  test(
+    'successful adjacent open activates the new chapter without scrolling',
+    () async {
+      final source = _Source();
+      final workflow = _workflow(source);
+      final activations = <SourceMediaRef>[];
+      final model = NovelChapterReaderViewModel(
+        initialTarget: await workflow.execute(_chapter(_a)),
+        chaptersInReadingOrder: [_chapter(_a), _chapter(_b)],
+        openChapter: workflow,
+        onChapterActivated: (target) async =>
+            activations.add(target.chapter.source),
+      );
+      addTearDown(model.dispose);
+
+      await model.openNext();
+      await model.flush();
+
+      expect(model.state.target.chapter.source, _b);
+      expect(activations, [_b]);
+    },
+  );
+
+  test('failed adjacent open does not activate the target chapter', () async {
+    final source = _Source()..gates['b'] = Completer();
+    final workflow = _workflow(source);
+    final activations = <SourceMediaRef>[];
+    final model = NovelChapterReaderViewModel(
+      initialTarget: await workflow.execute(_chapter(_a)),
+      chaptersInReadingOrder: [_chapter(_a), _chapter(_b)],
+      openChapter: workflow,
+      onChapterActivated: (target) async =>
+          activations.add(target.chapter.source),
+    );
+    addTearDown(model.dispose);
+    final pending = model.openNext();
+    await source.startedFor('b').future;
+    source.gates['b']!.completeError(StateError('offline'));
+
+    await expectLater(pending, throwsStateError);
+    await model.flush();
+
+    expect(model.state.target.chapter.source, _a);
+    expect(activations, isEmpty);
+  });
+
   test('same-number refs distinct and sequence input snapshotted', () async {
     final source = _Source();
     final workflow = _workflow(source);

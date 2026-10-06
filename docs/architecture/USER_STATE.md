@@ -57,14 +57,17 @@ Version 4 adds bounded remote-series continuation keyed by series source referen
 The selected chapter must still resolve exactly once in a fresh source sequence at
 resume time. This state is distinct from provider-private continuation data.
 
-Remote chapter saves first persist meaningful child progress, then update series
-continuation. Opens and prefetch do not write it; failed progress writes never advance
-it. The relationship has no timestamp: Home sorts using child progress `updatedAt`.
-Missing chapter progress omits the relationship from Continue; there is no parent
-progress fallback. A completed child remains eligible, and reopening it preserves the
-reader's existing completed-reopen behavior until meaningful rereading. The two writes
-are intentionally not atomic. No historical parent mapping is inferred and no
-first-unread chapter is selected.
+A chapter becomes the series continuation when it becomes the active reader target.
+Initial activation and successful adjacent navigation ensure a child Progress row exists
+(first-open manga starts at page 0; first-open novel starts at text progression 0), then
+persist the exact series-to-chapter relationship. Existing child progress is never reset.
+Meaningful reader progress saves persist the child position first and then idempotently
+confirm the same relationship. Failed source opens and prefetch never advance it. The
+relationship has no timestamp: Home sorts using child progress `updatedAt`. A completed
+child remains eligible, and reopening it preserves the reader's existing completed-reopen
+behavior until meaningful rereading. The progress and relationship writes are intentionally
+not atomic; failed writes are retried by later progress/activation and by the reader flush
+on exit. No historical parent mapping is inferred and no first-unread chapter is selected.
 
 Home Continue is derived only from saved parent Library entries. Direct-media rows join by
 parent source reference and completed direct items are excluded. Manga and light-novel

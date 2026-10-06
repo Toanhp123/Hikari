@@ -79,6 +79,7 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     _observedTarget = _viewModel.state.target;
     _prefetch = widget.createPrefetch();
     _viewModel.addListener(_targetChanged);
+    _viewModel.activateCurrentChapter();
   }
 
   void _targetChanged() {

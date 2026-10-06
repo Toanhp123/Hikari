@@ -676,8 +676,8 @@ API capability cụ thể vẫn là quyết định của Domain Core; Foundatio
 Vertical remote manga hiện kiểm chứng search → series → chọn chapter → pages bằng các
 capability nhỏ. Android có runtime nạp extension manga Keiyoushi/Mihon-compatible 1.4/1.6
 đã cài và chuyển chúng thành cùng capability trước khi compose `SourceRegistry`;
-Provider remote do extension đã cài cung cấp; core không còn MangaDex built-in. Library lưu series; progress lưu
-chapter, chưa có resume chapter cuối ở cấp series. Chi tiết: [Source architecture](architecture/SOURCES.md),
+Provider remote do extension đã cài cung cấp; core không còn MangaDex built-in. Library lưu series; progress vẫn lưu
+chapter, còn series continuation lưu exact chapter ref gần nhất để Home resume remote serial content qua restart. Chi tiết: [Source architecture](architecture/SOURCES.md),
 [Extension runtime](architecture/EXTENSIONS.md) và [Remote manga](architecture/REMOTE_MANGA.md).
 
 ---
@@ -1037,15 +1037,14 @@ Extension-backed MangaDex đã được xác minh E2E trên Android theo xác nh
 Tiếp tục regression-check persistence/restart/resume và vòng đời extension trên thiết bị thật:
 install trusted APK → restart Hikari → search → chapter list → reader → resume → Library
 → restart. Canonical identity tiếp tục hoãn đến khi có yêu cầu rename reconciliation/dedup
-thực tế. Gap user-state lớn tiếp theo là series-level continuation cho remote manga/novel:
-Library lưu series ref trong khi reader progress lưu chapter ref, nên Home chưa thể suy ra
-"Continue from chapter X" cho remote serial content. Đây nên là feature riêng thay vì nhét
-last-chapter state vào LibraryEntry. Source mới tiếp tục dùng capability hiện có qua
-registry/application foundation, không cần một engine tổng quát.
+thực tế. Remote manga/novel hiện đã có series-level continuation độc lập với Library và
+chapter progress: reader ghi exact active chapter ref, Home resolve lại fresh chapter sequence rồi
+resume đúng chapter/progress qua restart. Completed chapter vẫn là chapter continuation hợp lệ cho
+đến khi chapter khác trở thành active; không suy đoán next unread bằng title/number/date. Source mới
+tiếp tục dùng capability hiện có qua registry/application foundation, không cần một engine tổng quát.
 
 ### Chưa bắt đầu
 
-- series-level remote continuation / Continue from chapter X;
 - extension repository/install/update UI và anime extension runtime;
 - explicit download/offline-management subsystem cho remote content.
 
