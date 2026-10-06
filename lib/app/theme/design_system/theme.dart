@@ -121,7 +121,7 @@ abstract final class HikariDesignTheme {
         color: colors.surfaceContainer,
         elevation: 0,
         margin: EdgeInsets.zero,
-        shape: shape,
+        shape: const RoundedRectangleBorder(borderRadius: HikariShape.large),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: colors.surfaceContainer,
@@ -129,7 +129,7 @@ abstract final class HikariDesignTheme {
         secondarySelectedColor: colors.secondaryContainer,
         secondaryLabelStyle: chipLabelStyle,
         labelStyle: chipLabelStyle,
-        shape: const RoundedRectangleBorder(borderRadius: HikariShape.small),
+        shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(horizontal: HikariSpace.inline),
       ),
       inputDecorationTheme: InputDecorationThemeData(
@@ -160,7 +160,13 @@ abstract final class HikariDesignTheme {
       searchBarTheme: SearchBarThemeData(
         backgroundColor: WidgetStatePropertyAll(colors.surfaceContainer),
         elevation: const WidgetStatePropertyAll(0),
-        shape: const WidgetStatePropertyAll(shape),
+        shape: const WidgetStatePropertyAll(HikariShape.pill),
+        side: WidgetStatePropertyAll(
+          BorderSide(
+            color: colors.outlineVariant,
+            width: HikariShape.borderWidth,
+          ),
+        ),
         constraints: const BoxConstraints(minHeight: HikariSize.fieldMinHeight),
         textStyle: WidgetStatePropertyAll(text.bodyLarge),
         hintStyle: WidgetStatePropertyAll(

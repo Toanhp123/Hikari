@@ -13,7 +13,7 @@ abstract final class HikariSpace {
 
 abstract final class HikariShape {
   static const small = BorderRadius.all(Radius.circular(8));
-  static const medium = BorderRadius.all(Radius.circular(12));
+  static const medium = BorderRadius.all(Radius.circular(14));
   static const large = BorderRadius.all(Radius.circular(16));
   static const extraLarge = BorderRadius.all(Radius.circular(24));
   static const pill = StadiumBorder();
@@ -23,7 +23,7 @@ abstract final class HikariShape {
 
 abstract final class HikariSize {
   static const touchTarget = 48.0;
-  static const fieldMinHeight = 56.0;
+  static const fieldMinHeight = 48.0;
   static const iconSmall = 16.0;
   static const icon = 24.0;
   static const iconLarge = 32.0;
