@@ -26,6 +26,12 @@ import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
+const _seriesMedia = Media(
+  title: 'Series',
+  type: MediaType.manga,
+  source: SourceMediaRef(sourceId: SourceId('fake'), itemId: 'series'),
+);
+
 Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
   await tester.tap(find.text('View details'));
   await tester.pumpAndSettle();
@@ -557,6 +563,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.byType(MangaReaderPage), findsNothing);
+    expect(find.byTooltip('Add to library'), findsOneWidget);
+    await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Remove from library'), findsOneWidget);
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
     expect(find.byType(MangaReaderPage), findsOneWidget);
@@ -567,6 +577,7 @@ void main() {
     await db.close();
     debugDefaultTargetPlatformOverride = null;
   });
+
   testWidgets(
     'remote adjacent chapters follow reading order and stable progress refs',
     (tester) async {
@@ -1241,7 +1252,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: MangaSeriesPage(
-          title: 'Series',
+          media: _seriesMedia,
           sourceName: 'Test source',
           loadDetails: () {
             calls++;
@@ -1278,7 +1289,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: MangaSeriesPage(
-          title: 'Series',
+          media: _seriesMedia,
           sourceName: 'Test source',
           loadDetails: () async {
             if (++calls == 2) throw StateError('offline');
@@ -1315,7 +1326,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: MangaSeriesPage(
-          title: 'Series',
+          media: _seriesMedia,
           sourceName: 'Test source',
           loadDetails: () async => MangaSeriesDetails(
             metadata: MediaMetadata(title: 'Series'),
@@ -1355,7 +1366,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: MangaSeriesPage(
-          title: 'Series',
+          media: _seriesMedia,
           sourceName: 'Test source',
           loadDetails: () async => MangaSeriesDetails(
             metadata: MediaMetadata(title: 'Series'),

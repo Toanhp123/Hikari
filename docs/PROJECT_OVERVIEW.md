@@ -1001,7 +1001,7 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
 - Git workflow standard;
 - Claude Code project instructions and skill-routing policy.
 
-### Walking skeleton đã có code
+### Capabilities hiện đã có code
 
 - Android local folder scan qua SAF, phân loại Anime/Manga/Light Novel;
 - một local root được nhớ qua restart bằng persisted SAF grant + Android-native selection state;
@@ -1027,6 +1027,9 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   thể đăng ký mà không thêm provider-specific branch vào open workflow; Android
   extension runtime tạo source trước composition mà không thay domain/application.
   Xem [SOURCES](architecture/SOURCES.md) và [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md).
+- Home/Catalog/Search/Library/Settings đã có presentation flow thật; Catalog dùng AniList làm metadata plane riêng rồi resolve sang source content trước khi mở reader. Manga và novel series đều có thể add/remove Library ngay tại series page;
+- remote manga và remote novel đều có chapter navigation dựa trên immutable reading-order snapshot. Reader flush progress trước chapter handoff và bỏ stale async completion khi session đóng;
+- reconstructible cache đã có namespace/budget riêng cho artwork, manga page bytes, normalized novel chapter content và novel resources. Manga reader dùng current-page lookahead cùng bounded next-chapter prefetch gần chapter boundary; novel reader warm bounded next-chapter content/resources. Prefetch không tạo user-state hoặc download ownership.
 
 ### Tiếp theo
 
@@ -1034,15 +1037,17 @@ Extension-backed MangaDex đã được xác minh E2E trên Android theo xác nh
 Tiếp tục regression-check persistence/restart/resume và vòng đời extension trên thiết bị thật:
 install trusted APK → restart Hikari → search → chapter list → reader → resume → Library
 → restart. Canonical identity tiếp tục hoãn đến khi có yêu cầu rename reconciliation/dedup
-thực tế. Series-level last-chapter resume và extension repository/install/update UI chỉ
-được thiết kế khi requirement thật chứng minh cần. Source mới dùng capability hiện có
-đi qua registry/application foundation hiện tại mà không cần một engine tổng quát.
+thực tế. Gap user-state lớn tiếp theo là series-level continuation cho remote manga/novel:
+Library lưu series ref trong khi reader progress lưu chapter ref, nên Home chưa thể suy ra
+"Continue from chapter X" cho remote serial content. Đây nên là feature riêng thay vì nhét
+last-chapter state vào LibraryEntry. Source mới tiếp tục dùng capability hiện có qua
+registry/application foundation, không cần một engine tổng quát.
 
 ### Chưa bắt đầu
 
+- series-level remote continuation / Continue from chapter X;
 - extension repository/install/update UI và anime extension runtime;
-- production player/readers;
-- production UI.
+- explicit download/offline-management subsystem cho remote content.
 
 ---
 

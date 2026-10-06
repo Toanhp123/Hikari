@@ -4,23 +4,28 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
+import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/features/library/widgets/library_button.dart';
 import 'package:hikari/features/remote_manga/manga_series_view_model.dart';
 import 'package:hikari/features/remote_manga/widgets/manga_series_content.dart';
 
 class MangaSeriesPage extends StatefulWidget {
   const MangaSeriesPage({
     super.key,
-    required this.title,
+    required this.media,
     required this.sourceName,
     required this.loadDetails,
     this.readArtwork,
+    this.library,
     required this.openChapter,
   });
-  final String title, sourceName;
+  final Media media;
+  final String sourceName;
   final Future<MangaSeriesDetails> Function() loadDetails;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
+  final LibraryRepository? library;
   final Future<void> Function(BuildContext, MangaChapter, List<MangaChapter>)
   openChapter;
   @override
@@ -70,7 +75,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(widget.title),
+      title: Text(widget.media.title),
       actions: [
         ListenableBuilder(
           listenable: _viewModel,
@@ -82,6 +87,8 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
                 : () => unawaited(_viewModel.load()),
           ),
         ),
+        if (widget.library != null)
+          LibraryButton(repository: widget.library!, media: widget.media),
       ],
     ),
     body: SafeArea(
