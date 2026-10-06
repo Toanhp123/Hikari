@@ -122,6 +122,8 @@ void main() {
         greaterThanOrEqualTo(7),
       );
     }
+    expect(HikariReadingMetrics.maxWidth, 680.0);
+    expect(HikariReadingMetrics.lineHeight, greaterThanOrEqualTo(1.6));
   });
 
   test('width classes have no fractional gaps and reject invalid widths', () {
@@ -197,6 +199,29 @@ void main() {
     await tester.pump();
     expect(duration, Duration.zero);
     tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+  });
+
+  testWidgets('motion respects platform reduceMotion signal', (tester) async {
+    late Duration duration;
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(reduceMotion: true);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            duration = HikariDesignMotion.duration(
+              context,
+              HikariDesignMotion.standard,
+            );
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    expect(duration, Duration.zero);
+    tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+    expect(HikariDesignMotion.exit, const Duration(milliseconds: 200));
+    expect(HikariDesignMotion.pressScale, 0.97);
   });
 
   testWidgets('native actions scale, expose labels and retain touch targets', (

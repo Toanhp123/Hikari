@@ -5,7 +5,7 @@ enum HikariLayoutClass { compact, medium, expanded, wide }
 /// Classify available logical width (LayoutBuilder), not device type.
 abstract final class HikariLayout {
   static const contentMaxWidth = 1440.0;
-  static const readingMaxWidth = 720.0;
+  static const readingMaxWidth = 680.0;
   static const dialogMaxWidth = 560.0;
   static const sheetMaxWidth = 640.0;
   static const bottomBarClearance = 88.0;
