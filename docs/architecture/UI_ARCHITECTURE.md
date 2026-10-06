@@ -183,6 +183,12 @@ Only add a token or component when the product actually uses it.
 
 `app/theme` owns global visual language.
 
+The independently defined, **unwired** migration target now lives in
+`app/theme/design_system/`. [Design System](DESIGN_SYSTEM.md) is canonical for
+its token roles and component contracts; [ADR-013](../decisions/ADR-013-design-system-foundation.md)
+records the coexistence decision. The `hikari_*.dart` APIs and examples below
+describe current/legacy styling, not additional target token requirements.
+
 It may contain:
 
 - app `ThemeData`
