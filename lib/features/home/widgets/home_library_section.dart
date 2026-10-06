@@ -7,30 +7,46 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/home_view_model.dart';
 import 'package:hikari/features/home/widgets/home_section_link.dart';
 
-class HomeFeedHeader extends StatelessWidget {
-  const HomeFeedHeader({
+/// Horizontal shelf for the user's recently added saved library items on Home.
+///
+/// Keeps Home 100% consistent with horizontal discovery shelves rather than
+/// an unbounded vertical grid, with a direct link to the full Library tab.
+class HomeRecentShelf extends StatelessWidget {
+  const HomeRecentShelf({
     super.key,
-    required this.filters,
-    required this.effectiveFilter,
-    required this.onSelectFilter,
+    required this.items,
+    required this.openMedia,
+    this.filters = const [],
+    this.effectiveFilter,
+    this.onSelectFilter,
     this.onOpenLibrary,
   });
 
+  final List<Media> items;
+  final void Function(BuildContext, Media) openMedia;
   final List<HomeFilterType> filters;
-  final HomeFilterType effectiveFilter;
-  final ValueChanged<HomeFilterType> onSelectFilter;
+  final HomeFilterType? effectiveFilter;
+  final ValueChanged<HomeFilterType>? onSelectFilter;
   final VoidCallback? onOpenLibrary;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final width = MediaQuery.sizeOf(context).width;
+    final layout = HikariLayout.classify(width);
+    final posterWidth = switch (layout) {
+      HikariLayoutClass.compact => 132.0,
+      HikariLayoutClass.medium => 144.0,
+      HikariLayoutClass.expanded || HikariLayoutClass.wide => 156.0,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
+          child: Row(
             children: [
               Expanded(
                 child: Text(
@@ -46,81 +62,76 @@ class HomeFeedHeader extends StatelessWidget {
                 HomeSectionLink(label: 'Library', onTap: onOpenLibrary!),
             ],
           ),
-          if (filters.isNotEmpty) ...[
-            const SizedBox(height: HikariSpace.micro),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final filter in filters) ...[
-                    FilterChip(
-                      label: Text(
-                        filter.mediaType == null
-                            ? 'All'
-                            : mediaTypeFilterLabel(filter.mediaType!),
-                      ),
-                      selected: effectiveFilter == filter,
-                      onSelected: (_) => onSelectFilter(filter),
-                      showCheckmark: false,
-                      shape: HikariShape.pill,
-                    ),
-                    const SizedBox(width: HikariSpace.inline),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class HomeMediaGridSliver extends StatelessWidget {
-  const HomeMediaGridSliver({
-    super.key,
-    required this.items,
-    required this.openMedia,
-  });
-
-  final List<Media> items;
-  final void Function(BuildContext, Media) openMedia;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-
-    if (items.isEmpty) {
-      return HomeBoundedSliverBox(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: HikariSpace.content,
-            vertical: HikariSpace.section,
-          ),
-          child: Center(
-            child: Text(
-              'No items in this category.',
-              style: (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-          ),
         ),
-      );
-    }
-
-    return _HomePosterGridSliver(
-      childCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return MediaPoster(
-          title: item.title,
-          badgeText: mediaTypeBadgeLabel(item.type),
-          badgeColor: _mediaTypeBadgeColor(colors, item.type),
-          onTap: () => openMedia(context, item),
-        );
-      },
+        if (filters.isNotEmpty && onSelectFilter != null) ...[
+          const SizedBox(height: HikariSpace.micro),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: HikariSpace.content,
+            ),
+            child: Row(
+              children: [
+                for (final filter in filters) ...[
+                  FilterChip(
+                    label: Text(
+                      filter.mediaType == null
+                          ? 'All'
+                          : mediaTypeFilterLabel(filter.mediaType!),
+                    ),
+                    selected: effectiveFilter == filter,
+                    onSelected: (_) => onSelectFilter!(filter),
+                    showCheckmark: false,
+                    shape: HikariShape.pill,
+                  ),
+                  const SizedBox(width: HikariSpace.inline),
+                ],
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: HikariSpace.inline),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: HikariSpace.content,
+              vertical: HikariSpace.section,
+            ),
+            child: Center(
+              child: Text(
+                'No items in this category.',
+                style: (theme.textTheme.bodySmall ?? const TextStyle())
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: posterWidth * 1.5,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(
+                horizontal: HikariSpace.content,
+              ),
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(width: HikariSpace.compact),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return SizedBox(
+                  width: posterWidth,
+                  child: MediaPoster(
+                    title: item.title,
+                    badgeText: mediaTypeBadgeLabel(item.type),
+                    badgeColor: _mediaTypeBadgeColor(colors, item.type),
+                    onTap: () => openMedia(context, item),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }
@@ -132,15 +143,53 @@ Color _mediaTypeBadgeColor(ColorScheme colors, MediaType type) =>
       MediaType.lightNovel => const Color(0xFF89DCEB), // Catppuccin Sky
     };
 
-class HomeLoadingGridSliver extends StatelessWidget {
-  const HomeLoadingGridSliver({super.key});
+class HomeRecentShelfSkeleton extends StatelessWidget {
+  const HomeRecentShelfSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return _HomePosterGridSliver(
-      childCount: 6,
-      itemBuilder: (context, index) =>
-          const MediaPoster(title: '', isLoading: true),
+    final colors = Theme.of(context).colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final layout = HikariLayout.classify(width);
+    final posterWidth = switch (layout) {
+      HikariLayoutClass.compact => 132.0,
+      HikariLayoutClass.medium => 144.0,
+      HikariLayoutClass.expanded || HikariLayoutClass.wide => 156.0,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
+          child: Container(
+            width: 140,
+            height: 20,
+            decoration: ShapeDecoration(
+              color: colors.surfaceContainerHighest,
+              shape: HikariShape.pill,
+            ),
+          ),
+        ),
+        const SizedBox(height: HikariSpace.inline),
+        SizedBox(
+          height: posterWidth * 1.5,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(
+              horizontal: HikariSpace.content,
+            ),
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 4,
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: HikariSpace.compact),
+            itemBuilder: (_, _) => SizedBox(
+              width: posterWidth,
+              child: const MediaPoster(title: '', isLoading: true),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -178,46 +227,6 @@ class HomeBoundedSliverBox extends StatelessWidget {
           child: child,
         ),
       ),
-    );
-  }
-}
-
-class _HomePosterGridSliver extends StatelessWidget {
-  const _HomePosterGridSliver({
-    required this.childCount,
-    required this.itemBuilder,
-  });
-
-  final int childCount;
-  final Widget Function(BuildContext, int) itemBuilder;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverLayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.crossAxisExtent;
-        final extraWidth = width > HikariLayout.contentMaxWidth
-            ? width - HikariLayout.contentMaxWidth
-            : 0.0;
-        final horizontalPadding = (extraWidth / 2) + HikariLayout.gutter(width);
-        final columnCount = HikariLayout.posterColumnCount(width);
-
-        return SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columnCount,
-              mainAxisSpacing: HikariSpace.content,
-              crossAxisSpacing: HikariSpace.content,
-              childAspectRatio: HikariSize.posterAspectRatio,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              itemBuilder,
-              childCount: childCount,
-            ),
-          ),
-        );
-      },
     );
   }
 }

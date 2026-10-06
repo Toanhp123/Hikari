@@ -178,26 +178,31 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                  if (feed.isNotEmpty) ...[
+                  if (feed.isNotEmpty)
                     HomeBoundedSliverBox(
-                      child: HomeFeedHeader(
-                        filters: _viewModel.availableFilters,
-                        effectiveFilter: _viewModel.effectiveFilter,
-                        onSelectFilter: _viewModel.selectFilter,
-                        onOpenLibrary: widget.onNavigateToLibrary,
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: HikariSpace.section,
+                        ),
+                        child: HomeRecentShelf(
+                          items: _viewModel.visibleLibraryItems,
+                          openMedia: widget.openMedia,
+                          filters: _viewModel.availableFilters,
+                          effectiveFilter: _viewModel.effectiveFilter,
+                          onSelectFilter: _viewModel.selectFilter,
+                          onOpenLibrary: widget.onNavigateToLibrary,
+                        ),
                       ),
-                    ),
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: HikariSpace.compact),
-                    ),
-                    HomeMediaGridSliver(
-                      items: _viewModel.visibleLibraryItems,
-                      openMedia: widget.openMedia,
-                    ),
-                  ] else if (state.loading &&
+                    )
+                  else if (state.loading &&
                       !state.hasLibrarySnapshot &&
                       !hasCatalogDiscovery)
-                    const HomeLoadingGridSliver()
+                    const HomeBoundedSliverBox(
+                      child: Padding(
+                        padding: EdgeInsets.only(bottom: HikariSpace.section),
+                        child: HomeRecentShelfSkeleton(),
+                      ),
+                    )
                   else if (state.error != null && !state.hasLibrarySnapshot)
                     HomeBoundedSliverBox(
                       child: HomeLibraryError(onRetry: _viewModel.reload),
