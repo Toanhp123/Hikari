@@ -8,7 +8,7 @@ abstract final class HikariLayout {
   static const readingMaxWidth = 680.0;
   static const dialogMaxWidth = 560.0;
   static const sheetMaxWidth = 640.0;
-  static const bottomBarClearance = 88.0;
+  static const bottomBarClearance = 96.0;
 
   static HikariLayoutClass classify(double width) {
     if (!width.isFinite || width < 0) {

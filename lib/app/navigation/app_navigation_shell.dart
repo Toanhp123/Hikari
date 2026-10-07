@@ -196,7 +196,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
             child: SafeArea(
               top: false,
               child: SizedBox(
-                height: 64,
+                height: 72,
                 child: Row(
                   children: AppTab.values.map((tab) {
                     final isSelected = tab.index == _currentIndex;
@@ -212,7 +212,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                             splashColor: colors.primary.withValues(alpha: 0.12),
                             highlightColor: Colors.transparent,
                             child: SizedBox(
-                              height: 64,
+                              height: 72,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
@@ -223,8 +223,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                       HikariDesignMotion.standard,
                                     ),
                                     curve: HikariDesignMotion.curve,
-                                    width: isSelected ? 56 : 40,
-                                    height: 30,
+                                    width: isSelected ? 60 : 40,
+                                    height: 32,
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? colors.secondaryContainer
@@ -240,7 +240,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                           : colors.onSurfaceVariant,
                                     ),
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 4),
                                   AnimatedDefaultTextStyle(
                                     duration: HikariDesignMotion.duration(
                                       context,
