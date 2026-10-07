@@ -114,6 +114,7 @@ class _HomePageState extends State<HomePage> {
                       HomeBoundedSliverBox(
                         child: Padding(
                           padding: const EdgeInsets.only(
+                            top: HikariSpace.compact,
                             bottom: HikariSpace.section,
                           ),
                           child: HeroCarousel(
@@ -127,7 +128,10 @@ class _HomePageState extends State<HomePage> {
                         state.catalogError == null)
                       const HomeBoundedSliverBox(
                         child: Padding(
-                          padding: EdgeInsets.only(bottom: HikariSpace.section),
+                          padding: EdgeInsets.only(
+                            top: HikariSpace.compact,
+                            bottom: HikariSpace.section,
+                          ),
                           child: HeroCarouselSkeleton(),
                         ),
                       ),

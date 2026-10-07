@@ -90,10 +90,11 @@ class _HeroCarouselState extends State<HeroCarousel> {
       ),
       child: AspectRatio(
         aspectRatio: isCompact ? (16 / 10) : (16 / 7),
-        child: Container(
-          decoration: BoxDecoration(
+        child: Material(
+          color: colors.surfaceContainer,
+          shape: RoundedRectangleBorder(
             borderRadius: HikariShape.large,
-            border: Border.all(
+            side: BorderSide(
               color: colors.outlineVariant.withValues(alpha: 0.6),
               width: HikariShape.borderWidth,
             ),
@@ -103,6 +104,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
             fit: StackFit.expand,
             children: [
               PageView.builder(
+                clipBehavior: Clip.none,
                 controller: _pageController,
                 itemCount: widget.entries.length,
                 onPageChanged: (page) => setState(() => _currentPage = page),
@@ -214,6 +216,19 @@ class _HeroSlide extends StatelessWidget {
               excludeFromSemantics: true,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  colors.surface.withValues(alpha: 0.35),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.25],
+              ),
+            ),
+          ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
