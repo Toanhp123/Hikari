@@ -11,6 +11,7 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
     this.isOled = false,
+    this.selectedAccent,
     this.onToggleOled,
     this.onSelectAccent,
     this.onClearCache,
@@ -19,6 +20,7 @@ class SettingsPage extends StatefulWidget {
   });
 
   final bool isOled;
+  final Color? selectedAccent;
   final ValueChanged<bool>? onToggleOled;
   final ValueChanged<Color>? onSelectAccent;
   final Future<void> Function()? onClearCache;
@@ -107,6 +109,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       body: SettingsContent(
         isOled: _isOled,
+        selectedAccent: widget.selectedAccent,
         isClearingCache: _isClearingCache,
         isChoosingFolder: _isChoosingFolder,
         onToggleOled: widget.onToggleOled == null ? null : _toggleOled,

@@ -6,6 +6,7 @@ class SettingsContent extends StatelessWidget {
   const SettingsContent({
     super.key,
     required this.isOled,
+    this.selectedAccent,
     required this.isClearingCache,
     required this.isChoosingFolder,
     this.onToggleOled,
@@ -16,6 +17,7 @@ class SettingsContent extends StatelessWidget {
   });
 
   final bool isOled;
+  final Color? selectedAccent;
   final bool isClearingCache;
   final bool isChoosingFolder;
   final ValueChanged<bool>? onToggleOled;
@@ -24,12 +26,12 @@ class SettingsContent extends StatelessWidget {
   final String? cacheSizeLabel;
   final VoidCallback? onChooseLocalFolder;
 
-  static const _accentColors = [
-    Color(0xFF8B5CF6),
-    Color(0xFFEC4899),
-    Color(0xFF06B6D4),
-    Color(0xFF10B981),
-    Color(0xFFF59E0B),
+  static const _accentColors = <(String, Color)>[
+    ('Violet', Color(0xFF8B5CF6)),
+    ('Pink', Color(0xFFEC4899)),
+    ('Cyan', Color(0xFF06B6D4)),
+    ('Green', Color(0xFF10B981)),
+    ('Amber', Color(0xFFF59E0B)),
   ];
 
   @override
@@ -66,39 +68,48 @@ class SettingsContent extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: HikariSpacing.sm),
-                    Row(
-                      children: _accentColors.map((color) {
-                        final selected =
-                            colors.primary.toARGB32() == color.toARGB32();
-                        return Padding(
-                          padding: const EdgeInsets.only(
-                            right: HikariSpacing.sm,
-                          ),
-                          child: InkResponse(
-                            onTap: () => onSelectAccent!(color),
-                            radius: 24,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _accentColors.map((accent) {
+                          final (name, color) = accent;
+                          final selected = selectedAccent == color;
+                          return Padding(
+                            padding: const EdgeInsets.only(
+                              right: HikariSpacing.sm,
+                            ),
                             child: Semantics(
-                              label: 'Select accent color',
+                              label: '$name accent',
                               selected: selected,
                               button: true,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  shape: BoxShape.circle,
-                                  border: selected
-                                      ? Border.all(
-                                          color: colors.textPrimary,
-                                          width: 2.5,
-                                        )
-                                      : null,
+                              child: InkWell(
+                                onTap: () => onSelectAccent!(color),
+                                customBorder: const CircleBorder(),
+                                child: SizedBox(
+                                  width: 48,
+                                  height: 48,
+                                  child: Center(
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                        border: selected
+                                            ? Border.all(
+                                                color: colors.textPrimary,
+                                                width: 2.5,
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        }).toList(),
+                      ),
                     ),
                     const SizedBox(height: HikariSpacing.xs),
                     Text(

@@ -87,6 +87,80 @@ void main() {
     },
   );
 
+  testWidgets('visited tab state survives live compact/rail resizes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(599, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var inits = 0;
+    var disposals = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: AppNavigationShell(
+          tabs: {
+            AppTab.home: const Text('Home View'),
+            AppTab.search: _RetainedSearchTab(
+              onInit: () => inits++,
+              onDispose: () => disposals++,
+            ),
+            AppTab.local: const Text('Local View'),
+            AppTab.library: const Text('Library View'),
+            AppTab.settings: const Text('Settings View'),
+          },
+        ),
+      ),
+    );
+    expect(inits, 0); // Unvisited tabs are not mounted.
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+    expect(inits, 1);
+    await tester.enterText(find.byType(TextField), 'persist me');
+    await tester.pump();
+
+    for (final width in [600.0, 601.0, 599.0, 840.0, 375.0]) {
+      tester.view.physicalSize = Size(width, 800);
+      await tester.pumpAndSettle();
+      expect(find.text('persist me'), findsOneWidget);
+      expect(inits, 1, reason: 'Resizing must not remount a visited tab');
+      expect(disposals, 0);
+    }
+  });
+
+  testWidgets('wide rail exposes exactly one selected destination', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: AppNavigationShell(tabs: tabs),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.byTooltip('Home')).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(find.byTooltip('Search')).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    expect(
+      tester.getSemantics(find.byTooltip('Home')).flagsCollection.isSelected,
+      Tristate.isFalse,
+    );
+    semantics.dispose();
+  });
+
   testWidgets('missing destination fails explicitly', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -160,4 +234,34 @@ void main() {
     final barSize = tester.getSize(homeTooltip);
     expect(barSize.height, greaterThanOrEqualTo(48.0));
   });
+}
+
+class _RetainedSearchTab extends StatefulWidget {
+  const _RetainedSearchTab({required this.onInit, required this.onDispose});
+
+  final VoidCallback onInit;
+  final VoidCallback onDispose;
+
+  @override
+  State<_RetainedSearchTab> createState() => _RetainedSearchTabState();
+}
+
+class _RetainedSearchTabState extends State<_RetainedSearchTab> {
+  final _controller = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(controller: _controller);
 }

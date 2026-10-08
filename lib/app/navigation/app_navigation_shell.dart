@@ -127,26 +127,21 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           const SizedBox.shrink(),
     ];
 
-    final shell = isCompact
-        ? Scaffold(
-            extendBody: true,
-            backgroundColor: Colors.transparent,
-            body: IndexedStack(index: _currentIndex, children: children),
-            bottomNavigationBar: _buildDockedBottomBar(context),
-          )
-        : Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Row(
-              children: [
-                _buildNavigationRail(context),
-                Expanded(
-                  child: IndexedStack(index: _currentIndex, children: children),
-                ),
-              ],
-            ),
-          );
-
-    return shell;
+    // Keep visited pages under the same Element ancestry on every resize.
+    // Only the surrounding navigation chrome changes at 600dp.
+    return Scaffold(
+      extendBody: true,
+      backgroundColor: Colors.transparent,
+      body: Row(
+        children: [
+          if (!isCompact) _buildNavigationRail(context),
+          Expanded(
+            child: IndexedStack(index: _currentIndex, children: children),
+          ),
+        ],
+      ),
+      bottomNavigationBar: isCompact ? _buildDockedBottomBar(context) : null,
+    );
   }
 
   Widget _buildDockedBottomBar(BuildContext context) {
@@ -316,6 +311,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                         horizontal: HikariSpacing.sm,
                       ),
                       child: IconButton(
+                        isSelected: isSelected,
                         tooltip: tab.label,
                         onPressed: () => _selectTab(tab),
                         style: IconButton.styleFrom(

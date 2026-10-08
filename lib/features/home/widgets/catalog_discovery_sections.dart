@@ -89,11 +89,11 @@ class CatalogDiscoverySections extends StatelessWidget {
                 ),
               ),
             ),
-            Builder(
-              builder: (context) {
-                final posterWidth = _catalogPosterWidth(context);
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final posterWidth = _catalogPosterWidth(constraints.maxWidth);
                 return SizedBox(
-                  height: posterWidth * 1.5 + 46.0,
+                  height: mediaPosterShelfHeight(context, posterWidth),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
                       horizontal: HikariSpacing.lg,
@@ -146,9 +146,8 @@ String _sectionTitle(CatalogSection section) => switch (section) {
   CatalogSection.seasonalAnime => 'Seasonal Anime',
 };
 
-double _catalogPosterWidth(BuildContext context) {
-  final width = MediaQuery.sizeOf(context).width;
-  final layout = HikariBreakpoints.classify(width);
+double _catalogPosterWidth(double availableWidth) {
+  final layout = HikariBreakpoints.classify(availableWidth);
   return switch (layout) {
     HikariWidthClass.compact => 132.0,
     HikariWidthClass.medium => 144.0,
@@ -162,12 +161,16 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
   final bool excludeFeatured;
 
   @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildSkeleton(context, constraints.maxWidth),
+  );
+
+  Widget _buildSkeleton(BuildContext context, double width) {
     final isCompact =
         HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final colors = Theme.of(context).colorScheme;
-    final posterWidth = _catalogPosterWidth(context);
+    final posterWidth = _catalogPosterWidth(width);
 
     return Semantics(
       key: const ValueKey('catalog-loading-skeleton'),
@@ -218,7 +221,7 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                height: posterWidth * 1.5 + 46.0,
+                height: mediaPosterShelfHeight(context, posterWidth),
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(
                     horizontal: HikariSpacing.lg,

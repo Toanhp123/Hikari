@@ -57,7 +57,7 @@ class LocalMediaContent extends StatelessWidget {
               HikariSpacing.lg,
               0,
               HikariSpacing.lg,
-              100,
+              HikariSpacing.xl,
             ),
             sliver: SliverGrid.builder(
               gridDelegate: mediaPosterGridDelegate,
@@ -88,7 +88,7 @@ class LocalMediaContent extends StatelessWidget {
           SliverFillRemaining(
             hasScrollBody: false,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 96),
+              padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
               child: AsyncStateView(
                 status: state.hasScanResult
                     ? AsyncViewStatus.empty

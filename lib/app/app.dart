@@ -521,6 +521,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             ),
             AppTab.settings: SettingsPage(
               isOled: _isOled,
+              selectedAccent: _accentColor,
               onToggleOled: (value) => setState(() => _isOled = value),
               onSelectAccent: (value) => setState(() => _accentColor = value),
               onChooseLocalFolder: localSource.isAvailable

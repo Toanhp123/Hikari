@@ -73,6 +73,10 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // The outer navigation Scaffold exposes its bottom obstruction through
+    // MediaQuery when extendBody is enabled. In rail mode this is just the
+    // system safe area; never reserve a hardcoded bottom-bar height.
+    final bottomObstruction = MediaQuery.paddingOf(context).bottom;
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, _) {
@@ -194,8 +198,12 @@ class _HomePageState extends State<HomePage> {
               HomeBoundedSliverBox(
                 child: HomeLibraryError(onRetry: _viewModel.reload),
               ),
-            // Existing clearance until the independent bottom-inset pass.
-            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                key: const ValueKey('home-bottom-clearance'),
+                height: bottomObstruction + HikariSpacing.xl,
+              ),
+            ),
           ],
         );
         return Scaffold(

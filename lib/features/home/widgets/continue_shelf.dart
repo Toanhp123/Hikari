@@ -24,14 +24,18 @@ class ContinueShelf extends StatelessWidget {
   final VoidCallback? onSeeAll;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildShelf(context, constraints.maxWidth),
+  );
+
+  Widget _buildShelf(BuildContext context, double width) {
     if (items.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final isCompact =
-        HikariBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
-        HikariWidthClass.compact;
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final cardWidth = isCompact ? 172.0 : 208.0;
 
     return Column(

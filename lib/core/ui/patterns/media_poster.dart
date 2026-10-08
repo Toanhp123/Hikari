@@ -12,6 +12,31 @@ const mediaPosterGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
   childAspectRatio: 0.52,
 );
 
+TextStyle _posterTitleStyle(ThemeData theme) =>
+    (theme.textTheme.labelMedium ?? const TextStyle()).copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: theme.colorScheme.onSurface,
+      height: 1.25,
+    );
+
+/// Height of two real text lines under the active (possibly nonlinear) scaler.
+double mediaPosterTitleReserveHeight(BuildContext context) {
+  final painter = TextPainter(
+    text: TextSpan(text: 'Hg\nHg', style: _posterTitleStyle(Theme.of(context))),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 2,
+  )..layout();
+  final height = painter.height;
+  painter.dispose();
+  return height;
+}
+
+/// Shelf geometry keeps 2:3 artwork and reserves scaled title space below it.
+double mediaPosterShelfHeight(BuildContext context, double posterWidth) =>
+    posterWidth * 1.5 + mediaPosterTitleReserveHeight(context) + 14;
+
 /// Shared 2:3 media artwork pattern with title and metadata below artwork.
 ///
 /// Feature-owned cards decide which product metadata belongs around this visual
@@ -25,6 +50,7 @@ class MediaPoster extends StatelessWidget {
     this.heroTag,
     this.badgeText,
     this.badgeColor,
+    this.badgeForegroundColor,
     this.progress,
     this.subtitle,
     this.onTap,
@@ -39,6 +65,7 @@ class MediaPoster extends StatelessWidget {
   final String? heroTag;
   final String? badgeText;
   final Color? badgeColor;
+  final Color? badgeForegroundColor;
   final double? progress;
   final String? subtitle;
   final VoidCallback? onTap;
@@ -50,6 +77,7 @@ class MediaPoster extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final titleReserve = mediaPosterTitleReserveHeight(context);
 
     Widget artwork = AspectRatio(
       aspectRatio: 2 / 3,
@@ -74,7 +102,10 @@ class MediaPoster extends StatelessWidget {
                   left: 6,
                   child: _MediaBadge(
                     label: badgeText!,
-                    color: badgeColor ?? colors.primary,
+                    color: badgeColor ?? colors.primaryContainer,
+                    foregroundColor:
+                        badgeForegroundColor ??
+                        (badgeColor == null ? colors.onPrimaryContainer : null),
                   ),
                 ),
               if (progress != null && progress! > 0)
@@ -103,18 +134,12 @@ class MediaPoster extends StatelessWidget {
         children: [
           if (!isLoading && title.isNotEmpty) ...[
             SizedBox(
-              height: MediaQuery.textScalerOf(context).scale(32.0),
+              height: titleReserve,
               child: Text(
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: (theme.textTheme.labelMedium ?? const TextStyle())
-                    .copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colors.onSurface,
-                      height: 1.25,
-                    ),
+                style: _posterTitleStyle(theme),
               ),
             ),
             if (subtitle != null && subtitle!.isNotEmpty) ...[
@@ -156,7 +181,8 @@ class MediaPoster extends StatelessWidget {
         if (cardWidth == null &&
             constraints.hasBoundedHeight &&
             constraints.hasBoundedWidth) {
-          final maxAllowedWidth = (constraints.maxHeight - 60) * (2 / 3);
+          final textSpace = titleReserve + (subtitle == null ? 14 : 32);
+          final maxAllowedWidth = (constraints.maxHeight - textSpace) * (2 / 3);
           if (maxAllowedWidth > 0 && maxAllowedWidth < constraints.maxWidth) {
             cardWidth = maxAllowedWidth;
           }
@@ -259,17 +285,32 @@ class MediaPoster extends StatelessWidget {
 }
 
 class _MediaBadge extends StatelessWidget {
-  const _MediaBadge({required this.label, required this.color});
+  const _MediaBadge({
+    required this.label,
+    required this.color,
+    this.foregroundColor,
+  });
 
   final String label;
   final Color color;
+  final Color? foregroundColor;
+
+  // For custom opaque fills, this always chooses the higher-contrast neutral.
+  // The semantic default uses ColorScheme's explicit container/on-container pair.
+  Color get effectiveForeground {
+    if (foregroundColor != null) return foregroundColor!;
+    final luminance = color.computeLuminance();
+    final whiteContrast = 1.05 / (luminance + 0.05);
+    final blackContrast = (luminance + 0.05) / 0.05;
+    return whiteContrast >= blackContrast ? Colors.white : Colors.black;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.9),
+        color: color.withValues(alpha: 1),
         borderRadius: HikariRadius.borderXs,
       ),
       child: Padding(
@@ -278,7 +319,7 @@ class _MediaBadge extends StatelessWidget {
           label,
           style: (theme.textTheme.labelSmall ?? const TextStyle()).copyWith(
             fontWeight: FontWeight.w700,
-            color: Colors.white,
+            color: effectiveForeground,
             letterSpacing: 0.5,
           ),
         ),

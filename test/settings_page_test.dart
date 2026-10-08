@@ -1,5 +1,9 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
+
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/features/settings/settings_page.dart';
 
@@ -28,6 +32,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(attempts, 2);
   });
+  testWidgets('accent swatches use selected seed and named 48dp targets', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    Color? tapped;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(accentColor: const Color(0xFF06B6D4)),
+        home: SettingsPage(
+          selectedAccent: const Color(0xFF06B6D4),
+          onSelectAccent: (color) => tapped = color,
+        ),
+      ),
+    );
+    final cyan = find.bySemanticsLabel('Cyan accent');
+    expect(cyan, findsOneWidget);
+    expect(
+      tester.getSemantics(cyan).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    expect(tester.getSize(cyan).width, greaterThanOrEqualTo(48));
+    expect(tester.getSize(cyan).height, greaterThanOrEqualTo(48));
+    await tester.tap(cyan);
+    expect(tapped, const Color(0xFF06B6D4));
+    semantics.dispose();
+  });
+
   testWidgets('SettingsPage renders sections and handles clear cache', (
     tester,
   ) async {

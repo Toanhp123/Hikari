@@ -30,10 +30,14 @@ class HomeRecentShelf extends StatelessWidget {
   final VoidCallback? onOpenLibrary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildShelf(context, constraints.maxWidth),
+  );
+
+  Widget _buildShelf(BuildContext context, double width) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final width = MediaQuery.sizeOf(context).width;
     final layout = HikariBreakpoints.classify(width);
     final posterWidth = switch (layout) {
       HikariWidthClass.compact => 132.0,
@@ -108,7 +112,7 @@ class HomeRecentShelf extends StatelessWidget {
           )
         else
           SizedBox(
-            height: posterWidth * 1.5 + 46.0,
+            height: mediaPosterShelfHeight(context, posterWidth),
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
               scrollDirection: Axis.horizontal,
@@ -124,6 +128,10 @@ class HomeRecentShelf extends StatelessWidget {
                     title: item.title,
                     badgeText: mediaTypeBadgeLabel(item.type),
                     badgeColor: _mediaTypeBadgeColor(theme, item.type),
+                    badgeForegroundColor: _mediaTypeBadgeForeground(
+                      theme,
+                      item.type,
+                    ),
                     onTap: () => openMedia(context, item),
                   ),
                 );
@@ -139,7 +147,19 @@ Color _mediaTypeBadgeColor(ThemeData theme, MediaType type) {
   final colors = theme.colorScheme;
   final statusColors = theme.extension<HikariStatusColors>();
   return switch (type) {
-    MediaType.anime => colors.primary,
+    MediaType.anime => colors.primaryContainer,
+    MediaType.manga =>
+      statusColors?.warningContainer ?? const Color(0xFF453026),
+    MediaType.lightNovel =>
+      statusColors?.infoContainer ?? const Color(0xFF1E3547),
+  };
+}
+
+Color _mediaTypeBadgeForeground(ThemeData theme, MediaType type) {
+  final colors = theme.colorScheme;
+  final statusColors = theme.extension<HikariStatusColors>();
+  return switch (type) {
+    MediaType.anime => colors.onPrimaryContainer,
     MediaType.manga =>
       statusColors?.onWarningContainer ?? const Color(0xFFFAB387),
     MediaType.lightNovel =>
@@ -151,9 +171,13 @@ class HomeRecentShelfSkeleton extends StatelessWidget {
   const HomeRecentShelfSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildSkeleton(context, constraints.maxWidth),
+  );
+
+  Widget _buildSkeleton(BuildContext context, double width) {
     final colors = Theme.of(context).colorScheme;
-    final width = MediaQuery.sizeOf(context).width;
     final layout = HikariBreakpoints.classify(width);
     final posterWidth = switch (layout) {
       HikariWidthClass.compact => 132.0,
@@ -177,7 +201,7 @@ class HomeRecentShelfSkeleton extends StatelessWidget {
         ),
         const SizedBox(height: HikariSpacing.sm),
         SizedBox(
-          height: posterWidth * 1.5 + 46.0,
+          height: mediaPosterShelfHeight(context, posterWidth),
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             scrollDirection: Axis.horizontal,

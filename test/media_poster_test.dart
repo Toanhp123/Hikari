@@ -39,4 +39,75 @@ void main() {
         .dy;
     expect(titleTop, greaterThanOrEqualTo(artworkBottom));
   });
+
+  testWidgets('custom poster badge uses readable opaque foreground', (
+    tester,
+  ) async {
+    for (final fill in [
+      const Color(0xFFFAB387),
+      const Color(0xFF89DCEB),
+      const Color(0xFF453026),
+      const Color(0xFF1E3547),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 148,
+              height: 280,
+              child: MediaPoster(
+                title: 'Poster',
+                badgeText: 'MANGA',
+                badgeColor: fill,
+              ),
+            ),
+          ),
+        ),
+      );
+      final badge = find
+          .ancestor(of: find.text('MANGA'), matching: find.byType(DecoratedBox))
+          .first;
+      final background =
+          (tester.widget<DecoratedBox>(badge).decoration as BoxDecoration)
+              .color!;
+      final foreground = tester.widget<Text>(find.text('MANGA')).style!.color!;
+      expect(background, fill);
+      final lighter =
+          foreground.computeLuminance() > background.computeLuminance()
+          ? foreground.computeLuminance()
+          : background.computeLuminance();
+      final darker =
+          foreground.computeLuminance() < background.computeLuminance()
+          ? foreground.computeLuminance()
+          : background.computeLuminance();
+      expect((lighter + 0.05) / (darker + 0.05), greaterThanOrEqualTo(4.5));
+    }
+  });
+
+  testWidgets('poster title reserve follows nonlinear font metrics', (
+    tester,
+  ) async {
+    final heights = <double>[];
+    for (final scale in [1.0, 2.0]) {
+      var measured = 0.0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: Builder(
+              builder: (context) {
+                measured = mediaPosterTitleReserveHeight(context);
+                return const Scaffold(body: Text('Measured'));
+              },
+            ),
+          ),
+        ),
+      );
+      heights.add(measured);
+    }
+    expect(heights, hasLength(2));
+    expect(heights[1], greaterThan(heights[0]));
+  });
 }

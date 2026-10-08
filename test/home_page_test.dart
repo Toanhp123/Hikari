@@ -13,6 +13,31 @@ import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 
 void main() {
+  testWidgets('Home bottom clearance follows inherited obstruction', (
+    tester,
+  ) async {
+    for (final bottomPadding in [0.0, 120.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: MediaQuery(
+            data: MediaQueryData(
+              padding: EdgeInsets.only(bottom: bottomPadding),
+            ),
+            child: HomePage(openMedia: (_, _) {}),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('home-bottom-clearance')))
+            .height,
+        bottomPadding + HikariSpacing.xl,
+      );
+    }
+  });
+
   testWidgets('Catalog featured hero precedes resume shelf', (tester) async {
     tester.view.physicalSize = const Size(900, 1400);
     tester.view.devicePixelRatio = 1;

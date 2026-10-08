@@ -73,10 +73,13 @@ class _HeroCarouselState extends State<HeroCarousel> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (widget.entries.isEmpty) return const SizedBox.shrink();
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildCarousel(context, constraints.maxWidth),
+  );
 
-    final width = MediaQuery.sizeOf(context).width;
+  Widget _buildCarousel(BuildContext context, double width) {
+    if (widget.entries.isEmpty) return const SizedBox.shrink();
     final isCompact =
         HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final theme = Theme.of(context);
@@ -110,6 +113,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   entry: widget.entries[index],
                   position: index + 1,
                   total: widget.entries.length,
+                  isCompact: isCompact,
                   openDetail: widget.openDetail,
                 ),
               ),
@@ -178,21 +182,20 @@ class _HeroSlide extends StatelessWidget {
     required this.entry,
     required this.position,
     required this.total,
+    required this.isCompact,
     required this.openDetail,
   });
 
   final CatalogEntry entry;
   final int position;
   final int total;
+  final bool isCompact;
   final ValueChanged<CatalogEntry> openDetail;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final width = MediaQuery.sizeOf(context).width;
-    final isCompact =
-        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final typeLabel = mediaTypeLabel(entry.type);
     final metadata = [typeLabel, ...entry.genres.take(2)].join(' · ');
     final artworkUrl = entry.bannerUrl?.isNotEmpty == true
@@ -415,8 +418,12 @@ class HeroCarouselSkeleton extends StatelessWidget {
   const HeroCarouselSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildSkeleton(context, constraints.maxWidth),
+  );
+
+  Widget _buildSkeleton(BuildContext context, double width) {
     final isCompact =
         HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final colors = Theme.of(context).colorScheme;
