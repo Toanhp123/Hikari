@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -93,15 +94,22 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         ],
       ),
       body: SafeArea(
-        child: ListenableBuilder(
-          listenable: _viewModel,
-          builder: (context, _) => NovelSeriesContent(
-            state: _viewModel.state,
-            sourceName: source.name,
-            openingChapter: _opening,
-            readArtwork: widget.readArtwork,
-            onRefresh: _viewModel.load,
-            onOpenChapter: (chapter) => unawaited(_open(chapter)),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: HikariBreakpoints.maxContentWidth,
+            ),
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) => NovelSeriesContent(
+                state: _viewModel.state,
+                sourceName: source.name,
+                openingChapter: _opening,
+                readArtwork: widget.readArtwork,
+                onRefresh: _viewModel.load,
+                onOpenChapter: (chapter) => unawaited(_open(chapter)),
+              ),
+            ),
           ),
         ),
       ),
