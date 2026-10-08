@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 
 enum AppTab {
   home,
@@ -77,9 +77,6 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
   late int _currentIndex;
   late final Set<int> _loadedIndices;
 
-  ThemeData? _scopedTheme;
-  Color? _accentSeed;
-
   @override
   void initState() {
     super.initState();
@@ -90,16 +87,6 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     _currentIndex = _controller.currentTab.index;
     _loadedIndices = {_currentIndex};
     _controller.addListener(_handleControllerChanged);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final accentSeed = Theme.of(context).colorScheme.primary;
-    if (_scopedTheme == null || _accentSeed != accentSeed) {
-      _accentSeed = accentSeed;
-      _scopedTheme = HikariDesignTheme.dark(accentSeed: accentSeed);
-    }
   }
 
   @override
@@ -129,8 +116,8 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
       throw ArgumentError('A page is required for every AppTab.');
     }
     final isCompact =
-        HikariLayout.classify(MediaQuery.sizeOf(context).width) ==
-        HikariLayoutClass.compact;
+        HikariBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
+        HikariWidthClass.compact;
 
     final children = [
       for (final tab in AppTab.values)
@@ -140,30 +127,18 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           const SizedBox.shrink(),
     ];
 
-    final scopedTheme = _scopedTheme ?? HikariDesignTheme.dark();
-
     final shell = isCompact
         ? Scaffold(
             extendBody: true,
             backgroundColor: Colors.transparent,
             body: IndexedStack(index: _currentIndex, children: children),
-            bottomNavigationBar: Theme(
-              data: scopedTheme,
-              child: Builder(
-                builder: (context) => _buildDockedBottomBar(context),
-              ),
-            ),
+            bottomNavigationBar: _buildDockedBottomBar(context),
           )
         : Scaffold(
             backgroundColor: Colors.transparent,
             body: Row(
               children: [
-                Theme(
-                  data: scopedTheme,
-                  child: Builder(
-                    builder: (context) => _buildNavigationRail(context),
-                  ),
-                ),
+                _buildNavigationRail(context),
                 Expanded(
                   child: IndexedStack(index: _currentIndex, children: children),
                 ),
@@ -189,7 +164,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
               border: Border(
                 top: BorderSide(
                   color: colors.outlineVariant.withValues(alpha: 0.6),
-                  width: HikariShape.borderWidth,
+                  width: HikariRadius.borderWidth,
                 ),
               ),
             ),
@@ -218,11 +193,11 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   AnimatedContainer(
-                                    duration: HikariDesignMotion.duration(
+                                    duration: HikariMotion.duration(
                                       context,
-                                      HikariDesignMotion.standard,
+                                      HikariMotion.standard,
                                     ),
-                                    curve: HikariDesignMotion.curve,
+                                    curve: HikariMotion.curveStandard,
                                     width: isSelected ? 60 : 40,
                                     height: 32,
                                     decoration: BoxDecoration(
@@ -242,11 +217,11 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                   ),
                                   const SizedBox(height: 4),
                                   AnimatedDefaultTextStyle(
-                                    duration: HikariDesignMotion.duration(
+                                    duration: HikariMotion.duration(
                                       context,
-                                      HikariDesignMotion.standard,
+                                      HikariMotion.standard,
                                     ),
-                                    curve: HikariDesignMotion.curve,
+                                    curve: HikariMotion.curveStandard,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style:
@@ -294,7 +269,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           border: Border(
             right: BorderSide(
               color: colors.outlineVariant.withValues(alpha: 0.6),
-              width: HikariShape.borderWidth,
+              width: HikariRadius.borderWidth,
             ),
           ),
         ),
@@ -302,7 +277,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           right: false,
           child: Column(
             children: [
-              const SizedBox(height: HikariSpace.section),
+              const SizedBox(height: HikariSpacing.xl),
               // Hikari Brand Logo Icon
               Container(
                 width: 44,
@@ -313,7 +288,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: HikariShape.medium,
+                  borderRadius: HikariRadius.borderMd,
                   boxShadow: [
                     BoxShadow(
                       color: colors.primary.withValues(alpha: 0.25),
@@ -328,7 +303,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                   size: 22,
                 ),
               ),
-              const SizedBox(height: HikariSpace.separation),
+              const SizedBox(height: HikariSpacing.xxl),
               // Navigation Items
               Expanded(
                 child: ListView(
@@ -337,29 +312,29 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                     final isSelected = tab.index == _currentIndex;
                     return Padding(
                       padding: const EdgeInsets.symmetric(
-                        vertical: HikariSpace.micro,
-                        horizontal: HikariSpace.inline,
+                        vertical: HikariSpacing.xs,
+                        horizontal: HikariSpacing.sm,
                       ),
                       child: IconButton(
                         tooltip: tab.label,
                         onPressed: () => _selectTab(tab),
                         style: IconButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            vertical: HikariSpace.compact,
+                            vertical: HikariSpacing.md,
                           ),
                           shape: const RoundedRectangleBorder(
-                            borderRadius: HikariShape.medium,
+                            borderRadius: HikariRadius.borderMd,
                           ),
                         ),
                         icon: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             AnimatedContainer(
-                              duration: HikariDesignMotion.duration(
+                              duration: HikariMotion.duration(
                                 context,
-                                HikariDesignMotion.standard,
+                                HikariMotion.standard,
                               ),
-                              curve: HikariDesignMotion.curve,
+                              curve: HikariMotion.curveStandard,
                               width: isSelected ? 56 : 40,
                               height: 32,
                               decoration: BoxDecoration(
@@ -379,11 +354,11 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                             ),
                             const SizedBox(height: 4),
                             AnimatedDefaultTextStyle(
-                              duration: HikariDesignMotion.duration(
+                              duration: HikariMotion.duration(
                                 context,
-                                HikariDesignMotion.standard,
+                                HikariMotion.standard,
                               ),
-                              curve: HikariDesignMotion.curve,
+                              curve: HikariMotion.curveStandard,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: (textTheme.labelSmall ?? const TextStyle())

@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// Non-Material warning and informational roles for opt-in UI.
+/// Warning and info pairs not represented by Material ColorScheme.
 @immutable
 class HikariStatusColors extends ThemeExtension<HikariStatusColors> {
+  static const dark = HikariStatusColors(
+    warningContainer: Color(0xFF453026),
+    onWarningContainer: Color(0xFFFAB387),
+    infoContainer: Color(0xFF1E3547),
+    onInfoContainer: Color(0xFF89DCEB),
+  );
+
   const HikariStatusColors({
     required this.warningContainer,
     required this.onWarningContainer,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 
 class HomeSectionLink extends StatelessWidget {
   const HomeSectionLink({super.key, required this.label, required this.onTap});
@@ -15,14 +15,14 @@ class HomeSectionLink extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: HikariShape.small,
+      borderRadius: HikariRadius.borderSm,
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           minWidth: HikariSize.touchTarget,
           minHeight: HikariSize.touchTarget,
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.micro),
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.xs),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -30,15 +30,15 @@ class ContinueShelf extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final isCompact =
-        HikariLayout.classify(MediaQuery.sizeOf(context).width) ==
-        HikariLayoutClass.compact;
+        HikariBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
+        HikariWidthClass.compact;
     final cardWidth = isCompact ? 172.0 : 208.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
           child: Row(
             children: [
               Expanded(
@@ -71,18 +71,15 @@ class ContinueShelf extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: HikariSpace.compact),
+        const SizedBox(height: HikariSpacing.md),
         SizedBox(
           height: 142,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpace.content,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: items.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(width: HikariSpace.compact),
+            separatorBuilder: (_, _) => const SizedBox(width: HikariSpacing.md),
             itemBuilder: (context, index) => SizedBox(
               width: cardWidth,
               child: _ContinueCard(
@@ -132,10 +129,10 @@ class _ContinueCard extends StatelessWidget {
       child: Material(
         color: colors.surfaceContainer,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariShape.large,
+          borderRadius: HikariRadius.borderLg,
           side: BorderSide(
             color: colors.outlineVariant.withValues(alpha: 0.6),
-            width: HikariShape.borderWidth,
+            width: HikariRadius.borderWidth,
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -174,12 +171,12 @@ class _ContinueCard extends StatelessWidget {
                       ),
                     ),
                     Positioned(
-                      left: HikariSpace.inline,
-                      top: HikariSpace.inline,
+                      left: HikariSpacing.sm,
+                      top: HikariSpacing.sm,
                       child: DecoratedBox(
                         decoration: ShapeDecoration(
                           color: badgeColor.withValues(alpha: 0.18),
-                          shape: HikariShape.pill,
+                          shape: HikariRadius.pill,
                         ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
@@ -220,10 +217,10 @@ class _ContinueCard extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  HikariSpace.inline,
+                  HikariSpacing.sm,
                   6,
-                  HikariSpace.inline,
-                  HikariSpace.inline,
+                  HikariSpacing.sm,
+                  HikariSpacing.sm,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

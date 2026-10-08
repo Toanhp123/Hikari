@@ -9,9 +9,9 @@ void main() {
     final darkColors = dark.extension<HikariColors>();
     expect(darkColors, isNotNull);
     expect(darkColors!.isOled, isFalse);
-    expect(darkColors.background, const Color(0xFF0B0F17));
-    expect(darkColors.primary, const Color(0xFF8B5CF6));
-    expect(darkColors.secondary, const Color(0xFFEC4899));
+    expect(darkColors.background, dark.colorScheme.surface);
+    expect(darkColors.primary, dark.colorScheme.primary);
+    expect(darkColors.secondary, dark.colorScheme.secondary);
 
     final oled = HikariTheme.darkTheme(oled: true);
     expect(oled.brightness, Brightness.dark);
@@ -26,12 +26,13 @@ void main() {
       accentColor: const Color(0xFF06B6D4),
     );
     final colors = customTheme.extension<HikariColors>()!;
-    expect(colors.primary, const Color(0xFF06B6D4));
+    expect(colors.primary, customTheme.colorScheme.primary);
+    expect(colors.primary, isNot(const Color(0xFF8B5CF6)));
   });
 
   test('HikariColors lerps smoothly', () {
-    const start = HikariColors.dark();
-    const end = HikariColors.oled();
+    final start = HikariTheme.darkTheme().extension<HikariColors>()!;
+    final end = HikariTheme.darkTheme(oled: true).extension<HikariColors>()!;
     final midway = start.lerp(end, 0.5);
     expect(
       midway.background,
@@ -56,10 +57,12 @@ void main() {
       ),
     );
 
-    expect(resolvedColors.primary, const Color(0xFF8B5CF6));
-    expect(resolvedColors.badgeVideo, const Color(0xFFEC4899));
-    expect(resolvedColors.badgeManga, const Color(0xFF06B6D4));
-    expect(resolvedColors.badgeNovel, const Color(0xFFF59E0B));
+    final theme = HikariTheme.darkTheme();
+    expect(resolvedColors.primary, theme.colorScheme.primary);
+    expect(resolvedColors.badgeVideo, theme.colorScheme.primary);
+    final statuses = theme.extension<HikariStatusColors>()!;
+    expect(resolvedColors.badgeManga, statuses.onWarningContainer);
+    expect(resolvedColors.badgeNovel, statuses.onInfoContainer);
   });
 
   test('HikariSpacing and HikariRadius tokens are correct', () {
@@ -72,8 +75,11 @@ void main() {
 
     expect(HikariRadius.xs, 4.0);
     expect(HikariRadius.sm, 8.0);
-    expect(HikariRadius.md, 12.0);
     expect(HikariRadius.lg, 16.0);
     expect(HikariRadius.capsule, 24.0);
+    expect(HikariRadius.md, 14.0);
+    expect(HikariRadius.xl, 24.0);
+    expect(HikariTypography.labelSmall.fontSize, 12.0);
+    expect(HikariMotion.standard, const Duration(milliseconds: 300));
   });
 }

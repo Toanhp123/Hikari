@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 
 class HomeWarningNotice extends StatelessWidget {
   const HomeWarningNotice({
@@ -25,22 +25,22 @@ class HomeWarningNotice extends StatelessWidget {
         statusColors?.warningContainer ?? warningColor.withValues(alpha: 0.12);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
+      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       child: Material(
         color: warningBg,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariShape.large,
+          borderRadius: HikariRadius.borderLg,
           side: BorderSide(color: warningColor.withValues(alpha: 0.28)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: HikariSpace.content,
-            vertical: HikariSpace.inline,
+            horizontal: HikariSpacing.lg,
+            vertical: HikariSpacing.sm,
           ),
           child: Row(
             children: [
               Icon(icon, size: 20, color: warningColor),
-              const SizedBox(width: HikariSpace.inline),
+              const SizedBox(width: HikariSpacing.sm),
               Expanded(
                 child: Text(
                   message,

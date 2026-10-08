@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -34,18 +34,18 @@ class HomeRecentShelf extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final width = MediaQuery.sizeOf(context).width;
-    final layout = HikariLayout.classify(width);
+    final layout = HikariBreakpoints.classify(width);
     final posterWidth = switch (layout) {
-      HikariLayoutClass.compact => 132.0,
-      HikariLayoutClass.medium => 144.0,
-      HikariLayoutClass.expanded || HikariLayoutClass.wide => 156.0,
+      HikariWidthClass.compact => 132.0,
+      HikariWidthClass.medium => 144.0,
+      HikariWidthClass.expanded || HikariWidthClass.wide => 156.0,
     };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
           child: Row(
             children: [
               Expanded(
@@ -67,12 +67,10 @@ class HomeRecentShelf extends StatelessWidget {
           ),
         ),
         if (filters.isNotEmpty && onSelectFilter != null) ...[
-          const SizedBox(height: HikariSpace.micro),
+          const SizedBox(height: HikariSpacing.xs),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpace.content,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             child: Row(
               children: [
                 for (final filter in filters) ...[
@@ -85,20 +83,20 @@ class HomeRecentShelf extends StatelessWidget {
                     selected: effectiveFilter == filter,
                     onSelected: (_) => onSelectFilter!(filter),
                     showCheckmark: false,
-                    shape: HikariShape.pill,
+                    shape: HikariRadius.pill,
                   ),
-                  const SizedBox(width: HikariSpace.inline),
+                  const SizedBox(width: HikariSpacing.sm),
                 ],
               ],
             ),
           ),
         ],
-        const SizedBox(height: HikariSpace.inline),
+        const SizedBox(height: HikariSpacing.sm),
         if (items.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpace.content,
-              vertical: HikariSpace.section,
+              horizontal: HikariSpacing.lg,
+              vertical: HikariSpacing.xl,
             ),
             child: Center(
               child: Text(
@@ -112,14 +110,12 @@ class HomeRecentShelf extends StatelessWidget {
           SizedBox(
             height: posterWidth * 1.5 + 46.0,
             child: ListView.separated(
-              padding: const EdgeInsets.symmetric(
-                horizontal: HikariSpace.content,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               itemCount: items.length,
               separatorBuilder: (_, _) =>
-                  const SizedBox(width: HikariSpace.compact),
+                  const SizedBox(width: HikariSpacing.md),
               itemBuilder: (context, index) {
                 final item = items[index];
                 return SizedBox(
@@ -158,39 +154,36 @@ class HomeRecentShelfSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final width = MediaQuery.sizeOf(context).width;
-    final layout = HikariLayout.classify(width);
+    final layout = HikariBreakpoints.classify(width);
     final posterWidth = switch (layout) {
-      HikariLayoutClass.compact => 132.0,
-      HikariLayoutClass.medium => 144.0,
-      HikariLayoutClass.expanded || HikariLayoutClass.wide => 156.0,
+      HikariWidthClass.compact => 132.0,
+      HikariWidthClass.medium => 144.0,
+      HikariWidthClass.expanded || HikariWidthClass.wide => 156.0,
     };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpace.content),
+          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
           child: Container(
             width: 140,
             height: 20,
             decoration: ShapeDecoration(
               color: colors.surfaceContainerHighest,
-              shape: HikariShape.pill,
+              shape: HikariRadius.pill,
             ),
           ),
         ),
-        const SizedBox(height: HikariSpace.inline),
+        const SizedBox(height: HikariSpacing.sm),
         SizedBox(
           height: posterWidth * 1.5 + 46.0,
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpace.content,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: 4,
-            separatorBuilder: (_, _) =>
-                const SizedBox(width: HikariSpace.compact),
+            separatorBuilder: (_, _) => const SizedBox(width: HikariSpacing.md),
             itemBuilder: (_, _) => SizedBox(
               width: posterWidth,
               child: const MediaPoster(title: '', isLoading: true),
@@ -230,7 +223,7 @@ class HomeBoundedSliverBox extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: HikariLayout.contentMaxWidth,
+            maxWidth: HikariBreakpoints.maxContentWidth,
           ),
           child: child,
         ),

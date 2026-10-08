@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 
 void main() {
   test('dark and OLED themes provide readable semantic color pairs', () {
@@ -17,9 +17,9 @@ void main() {
         const Color(0xFFF59E0B),
         Colors.black,
       ]) {
-        final theme = HikariDesignTheme.dark(oled: oled, accentSeed: accent);
+        final theme = HikariTheme.darkTheme(oled: oled, accentColor: accent);
         final colors = theme.colorScheme;
-        final defaultColors = HikariDesignTheme.dark(oled: oled).colorScheme;
+        final defaultColors = HikariTheme.darkTheme(oled: oled).colorScheme;
         expect(theme.brightness, Brightness.dark);
         expect(colors.surfaceDim, defaultColors.surfaceDim);
         expect(colors.surfaceBright, defaultColors.surfaceBright);
@@ -115,6 +115,26 @@ void main() {
     }
   });
 
+  test('legacy semantic roles match the native root color scheme', () {
+    for (final oled in [false, true]) {
+      for (final seed in [null, const Color(0xFF06B6D4)]) {
+        final theme = HikariTheme.darkTheme(oled: oled, accentColor: seed);
+        final colors = theme.colorScheme;
+        final legacy = theme.extension<HikariColors>()!;
+        expect(legacy.isOled, oled);
+        expect(legacy.background, colors.surface);
+        expect(legacy.surface, colors.surfaceContainerLow);
+        expect(legacy.surfaceContainer, colors.surfaceContainer);
+        expect(legacy.surfaceElevated, colors.surfaceContainerHigh);
+        expect(legacy.textPrimary, colors.onSurface);
+        expect(legacy.textSecondary, colors.onSurfaceVariant);
+        expect(legacy.primary, colors.primary);
+        expect(legacy.secondary, colors.secondary);
+        expect(legacy.error, colors.error);
+      }
+    }
+  });
+
   test('reading palettes keep prose contrast independent of app theme', () {
     for (final palette in HikariReadingPalette.values) {
       expect(
@@ -128,16 +148,16 @@ void main() {
 
   test('width classes have no fractional gaps and reject invalid widths', () {
     for (final (width, expected) in [
-      (0.0, HikariLayoutClass.compact),
-      (599.9, HikariLayoutClass.compact),
-      (600.0, HikariLayoutClass.medium),
-      (839.9, HikariLayoutClass.medium),
-      (840.0, HikariLayoutClass.expanded),
-      (1199.9, HikariLayoutClass.expanded),
-      (1200.0, HikariLayoutClass.wide),
+      (0.0, HikariWidthClass.compact),
+      (599.9, HikariWidthClass.compact),
+      (600.0, HikariWidthClass.medium),
+      (839.9, HikariWidthClass.medium),
+      (840.0, HikariWidthClass.expanded),
+      (1199.9, HikariWidthClass.expanded),
+      (1200.0, HikariWidthClass.wide),
     ]) {
-      expect(HikariLayout.classify(width), expected);
-      expect(HikariLayout.gutter(width), greaterThanOrEqualTo(16));
+      expect(HikariBreakpoints.classify(width), expected);
+      expect(HikariBreakpoints.gutter(width), greaterThanOrEqualTo(16));
     }
     for (final (width, expectedCols) in [
       (0.0, 2),
@@ -150,11 +170,14 @@ void main() {
       (1199.9, 5),
       (1200.0, 6),
     ]) {
-      expect(HikariLayout.posterColumnCount(width), expectedCols);
+      expect(HikariBreakpoints.posterColumnCount(width), expectedCols);
     }
     for (final width in [-1.0, double.nan, double.infinity]) {
-      expect(() => HikariLayout.classify(width), throwsArgumentError);
-      expect(() => HikariLayout.posterColumnCount(width), throwsArgumentError);
+      expect(() => HikariBreakpoints.classify(width), throwsArgumentError);
+      expect(
+        () => HikariBreakpoints.posterColumnCount(width),
+        throwsArgumentError,
+      );
     }
   });
 
@@ -166,16 +189,13 @@ void main() {
           data: MediaQueryData(disableAnimations: disabled),
           child: Builder(
             builder: (context) {
-              duration = HikariDesignMotion.duration(
-                context,
-                HikariDesignMotion.standard,
-              );
+              duration = HikariMotion.duration(context, HikariMotion.standard);
               return const SizedBox();
             },
           ),
         ),
       );
-      expect(duration, disabled ? Duration.zero : HikariDesignMotion.standard);
+      expect(duration, disabled ? Duration.zero : HikariMotion.standard);
     }
   });
 
@@ -185,10 +205,7 @@ void main() {
       MaterialApp(
         home: Builder(
           builder: (context) {
-            duration = HikariDesignMotion.duration(
-              context,
-              HikariDesignMotion.standard,
-            );
+            duration = HikariMotion.duration(context, HikariMotion.standard);
             return const SizedBox();
           },
         ),
@@ -209,10 +226,7 @@ void main() {
       MaterialApp(
         home: Builder(
           builder: (context) {
-            duration = HikariDesignMotion.duration(
-              context,
-              HikariDesignMotion.standard,
-            );
+            duration = HikariMotion.duration(context, HikariMotion.standard);
             return const SizedBox();
           },
         ),
@@ -220,8 +234,8 @@ void main() {
     );
     expect(duration, Duration.zero);
     tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
-    expect(HikariDesignMotion.exit, const Duration(milliseconds: 200));
-    expect(HikariDesignMotion.pressScale, 0.97);
+    expect(HikariMotion.exit, const Duration(milliseconds: 200));
+    expect(HikariMotion.pressScale, 0.97);
   });
 
   testWidgets('native actions scale, expose labels and retain touch targets', (
@@ -231,7 +245,7 @@ void main() {
     for (final scale in [1.0, 2.0]) {
       await tester.pumpWidget(
         MaterialApp(
-          theme: HikariDesignTheme.dark(),
+          theme: HikariTheme.darkTheme(),
           home: MediaQuery(
             data: MediaQueryData(textScaler: TextScaler.linear(scale)),
             child: Scaffold(
@@ -301,7 +315,7 @@ void main() {
   });
 
   test('chip labels preserve disabled precedence and native borders', () {
-    final theme = HikariDesignTheme.dark();
+    final theme = HikariTheme.darkTheme();
     final colors = theme.colorScheme;
     final chipTheme = theme.chipTheme;
     expect(chipTheme.secondarySelectedColor, colors.secondaryContainer);
@@ -329,8 +343,8 @@ void main() {
   test(
     'native state styling and destructive action keep disabled precedence',
     () {
-      final theme = HikariDesignTheme.dark();
-      final style = HikariDesignTheme.destructiveAction(theme.colorScheme);
+      final theme = HikariTheme.darkTheme();
+      final style = HikariTheme.destructiveAction(theme.colorScheme);
       expect(style.backgroundColor!.resolve({}), theme.colorScheme.error);
       expect(style.foregroundColor!.resolve({}), theme.colorScheme.onError);
       expect(
@@ -365,9 +379,10 @@ export 'first.dart' if (dart.library.io) 'second.dart';
   });
 
   test(
-    'foundation stays isolated and adoption is limited to approved seams',
+    'canonical theme stays isolated and no target migration subtree remains',
     () {
-      final directory = Directory('lib/app/theme/design_system');
+      final directory = Directory('lib/app/theme');
+      expect(Directory('lib/app/theme/design_system').existsSync(), isFalse);
       for (final file in directory.listSync().whereType<File>()) {
         for (final uri in _directiveUris(file.readAsStringSync())) {
           expect(
@@ -378,33 +393,17 @@ export 'first.dart' if (dart.library.io) 'second.dart';
           );
         }
       }
-
-      const approvedAdopters = {
-        'lib/app/navigation/app_navigation_shell.dart',
-        'lib/core/ui/components/hikari_search_bar.dart',
-        'lib/features/home/home_page.dart',
-        'lib/features/home/widgets/catalog_discovery_sections.dart',
-        'lib/features/home/widgets/continue_shelf.dart',
-        'lib/features/home/widgets/hero_carousel.dart',
-        'lib/features/home/widgets/home_header.dart',
-        'lib/features/home/widgets/home_library_section.dart',
-        'lib/features/home/widgets/home_section_link.dart',
-        'lib/features/home/widgets/home_warning_notice.dart',
-      };
-      final adopters = <String>{};
       for (final file in Directory(
         'lib',
       ).listSync(recursive: true).whereType<File>()) {
-        final path = file.path.replaceAll('\\', '/');
-        if (!path.endsWith('.dart') || path.contains('/design_system/')) {
-          continue;
-        }
-        if (_directiveUris(file.readAsStringSync())
-            .any((uri) => uri.contains('design_system/'))) {
-          adopters.add(path);
-        }
+        if (!file.path.endsWith('.dart')) continue;
+        expect(
+          _directiveUris(file.readAsStringSync())
+              .any((uri) => uri.contains('app/theme/design_system/')),
+          isFalse,
+          reason: file.path,
+        );
       }
-      expect(adopters, approvedAdopters);
     },
   );
 }

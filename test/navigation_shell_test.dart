@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_search_bar.dart';
+import 'package:hikari/features/home/home_page.dart';
+import 'package:hikari/features/home/widgets/home_header.dart';
 
 void main() {
   // Deliberately unordered: destination identity must not depend on insertion order.
@@ -40,6 +43,50 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets(
+    'Home, navigation and SearchBar inherit OLED and accent from root',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const seed = Color(0xFF06B6D4);
+      final canonical = HikariTheme.darkTheme(oled: true, accentColor: seed);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: canonical,
+          home: AppNavigationShell(
+            tabs: {
+              AppTab.home: HomePage(openMedia: (_, _) {}),
+              AppTab.search: HikariSearchBar(onChanged: (_) {}),
+              AppTab.local: const Text('Local'),
+              AppTab.library: const Text('Library'),
+              AppTab.settings: const Text('Settings'),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final homeTheme = Theme.of(tester.element(find.byType(HomeHeader)));
+      final navTheme = Theme.of(tester.element(find.byTooltip('Home')));
+      expect(homeTheme.colorScheme.surface, Colors.black);
+      expect(navTheme.colorScheme.surface, Colors.black);
+      expect(homeTheme.colorScheme.primary, canonical.colorScheme.primary);
+      expect(navTheme.colorScheme.primary, canonical.colorScheme.primary);
+      expect(homeTheme.extension<HikariColors>()!.isOled, isTrue);
+      expect(navTheme.extension<HikariColors>()!.isOled, isTrue);
+
+      await tester.tap(find.byTooltip('Search'));
+      await tester.pumpAndSettle();
+      final searchTheme = Theme.of(tester.element(find.byType(SearchBar)));
+      expect(searchTheme.colorScheme.surface, Colors.black);
+      expect(searchTheme.colorScheme.primary, canonical.colorScheme.primary);
+      expect(searchTheme.extension<HikariColors>()!.isOled, isTrue);
+    },
+  );
+
   testWidgets('missing destination fails explicitly', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

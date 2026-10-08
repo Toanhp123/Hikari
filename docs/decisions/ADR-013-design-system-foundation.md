@@ -1,6 +1,6 @@
 # ADR-013: Independently defined, unwired design foundation
 
-Status: Accepted
+Status: Superseded by [ADR-014](ADR-014-canonical-theme-consolidation.md) (historical foundation decision)
 
 ## Context
 

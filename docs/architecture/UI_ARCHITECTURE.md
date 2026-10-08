@@ -183,11 +183,12 @@ Only add a token or component when the product actually uses it.
 
 `app/theme` owns global visual language.
 
-The independently defined, **unwired** migration target now lives in
-`app/theme/design_system/`. [Design System](DESIGN_SYSTEM.md) is canonical for
-its token roles and component contracts; [ADR-013](../decisions/ADR-013-design-system-foundation.md)
-records the coexistence decision. The `hikari_*.dart` APIs and examples below
-describe current/legacy styling, not additional target token requirements.
+The canonical application theme is `HikariTheme.darkTheme()` in
+`app/theme/hikari_theme.dart`, using semantic Material 3 roles plus the
+existing `HikariColors` compatibility view of the same `ColorScheme`.
+[Design System](DESIGN_SYSTEM.md) owns the current token and component contracts.
+[ADR-014](../decisions/ADR-014-canonical-theme-consolidation.md) explains
+why the formerly separate `design_system/` implementation was consolidated.
 
 It may contain:
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/app/theme/design_system/design_system.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
@@ -91,7 +90,7 @@ void main() {
   });
 
   group('HikariSearchBar', () {
-    testWidgets('uses scoped design theme and preserves search behavior', (
+    testWidgets('inherits canonical theme and preserves search behavior', (
       tester,
     ) async {
       String currentQuery = '';
@@ -110,11 +109,11 @@ void main() {
 
       final searchBar = find.byType(SearchBar);
       expect(searchBar, findsOneWidget);
-      final scopedTheme = Theme.of(tester.element(searchBar));
-      final targetTheme = HikariDesignTheme.dark(accentSeed: accent);
-      expect(scopedTheme.colorScheme.primary, targetTheme.colorScheme.primary);
+      final inheritedTheme = Theme.of(tester.element(searchBar));
+      final rootTheme = HikariTheme.darkTheme(accentColor: accent);
+      expect(inheritedTheme.colorScheme.primary, rootTheme.colorScheme.primary);
       expect(
-        scopedTheme.searchBarTheme.constraints!.minHeight,
+        inheritedTheme.searchBarTheme.constraints!.minHeight,
         HikariSize.fieldMinHeight,
       );
 

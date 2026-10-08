@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Semantic spacing scale for the Cinematic Neo-Material design system.
+/// Semantic spacing scale for the Hikari design system.
 abstract final class HikariSpacing {
   /// 4.0 dp
   static const double xs = 4.0;

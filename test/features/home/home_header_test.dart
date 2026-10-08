@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/features/home/widgets/home_header.dart';
 
 void main() {
   Widget buildHeaderTest({VoidCallback? onSearch, double scrollOffset = 0.0}) {
     final controller = ScrollController(initialScrollOffset: scrollOffset);
     return MaterialApp(
-      theme: HikariDesignTheme.dark(),
+      theme: HikariTheme.darkTheme(),
       home: Scaffold(
         body: CustomScrollView(
           controller: controller,

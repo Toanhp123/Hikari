@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 
@@ -60,10 +60,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
     if (page < 0 || page >= widget.entries.length || page == _currentPage) {
       return;
     }
-    final duration = HikariDesignMotion.duration(
-      context,
-      HikariDesignMotion.standard,
-    );
+    final duration = HikariMotion.duration(context, HikariMotion.standard);
     if (duration == Duration.zero) {
       _pageController.jumpToPage(page);
     } else {
@@ -80,23 +77,24 @@ class _HeroCarouselState extends State<HeroCarousel> {
     if (widget.entries.isEmpty) return const SizedBox.shrink();
 
     final width = MediaQuery.sizeOf(context).width;
-    final isCompact = HikariLayout.classify(width) == HikariLayoutClass.compact;
+    final isCompact =
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? HikariSpace.content : HikariSpace.section,
+        horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
       ),
       child: AspectRatio(
         aspectRatio: isCompact ? (16 / 10) : (16 / 7),
         child: Material(
           color: colors.surfaceContainer,
           shape: RoundedRectangleBorder(
-            borderRadius: HikariShape.large,
+            borderRadius: HikariRadius.borderLg,
             side: BorderSide(
               color: colors.outlineVariant.withValues(alpha: 0.6),
-              width: HikariShape.borderWidth,
+              width: HikariRadius.borderWidth,
             ),
           ),
           clipBehavior: Clip.antiAlias,
@@ -117,8 +115,8 @@ class _HeroCarouselState extends State<HeroCarousel> {
               ),
               if (widget.entries.length > 1) ...[
                 Positioned(
-                  top: HikariSpace.compact,
-                  right: HikariSpace.content,
+                  top: HikariSpacing.md,
+                  right: HikariSpacing.lg,
                   child: ExcludeSemantics(
                     child: _PageCounter(
                       current: _currentPage + 1,
@@ -128,7 +126,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                 ),
                 if (!isCompact) ...[
                   Positioned(
-                    left: HikariSpace.compact,
+                    left: HikariSpacing.md,
                     top: 0,
                     bottom: 0,
                     child: Center(
@@ -147,7 +145,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
                     ),
                   ),
                   Positioned(
-                    right: HikariSpace.compact,
+                    right: HikariSpacing.md,
                     top: 0,
                     bottom: 0,
                     child: Center(
@@ -193,7 +191,8 @@ class _HeroSlide extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final width = MediaQuery.sizeOf(context).width;
-    final isCompact = HikariLayout.classify(width) == HikariLayoutClass.compact;
+    final isCompact =
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final typeLabel = mediaTypeLabel(entry.type);
     final metadata = [typeLabel, ...entry.genres.take(2)].join(' · ');
     final artworkUrl = entry.bannerUrl?.isNotEmpty == true
@@ -260,9 +259,9 @@ class _HeroSlide extends StatelessWidget {
               ),
             ),
           Positioned(
-            left: HikariSpace.content,
-            right: HikariSpace.content,
-            bottom: HikariSpace.content,
+            left: HikariSpacing.lg,
+            right: HikariSpacing.lg,
+            bottom: HikariSpacing.lg,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
               child: Column(
@@ -272,12 +271,12 @@ class _HeroSlide extends StatelessWidget {
                   DecoratedBox(
                     decoration: ShapeDecoration(
                       color: colors.primaryContainer.withValues(alpha: 0.9),
-                      shape: HikariShape.pill,
+                      shape: HikariRadius.pill,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: HikariSpace.compact,
-                        vertical: HikariSpace.micro,
+                        horizontal: HikariSpacing.md,
+                        vertical: HikariSpacing.xs,
                       ),
                       child: Text(
                         'Featured',
@@ -290,7 +289,7 @@ class _HeroSlide extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: HikariSpace.inline),
+                  const SizedBox(height: HikariSpacing.sm),
                   Text(
                     entry.title,
                     maxLines: 2,
@@ -315,7 +314,7 @@ class _HeroSlide extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                   ),
-                  const SizedBox(height: HikariSpace.micro),
+                  const SizedBox(height: HikariSpacing.xs),
                   Text(
                     metadata,
                     maxLines: 1,
@@ -326,16 +325,16 @@ class _HeroSlide extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                   ),
-                  const SizedBox(height: HikariSpace.compact),
+                  const SizedBox(height: HikariSpacing.md),
                   FilledButton.icon(
                     onPressed: () => openDetail(entry),
                     icon: const Icon(Icons.info_outline_rounded, size: 18),
                     label: const Text('View details'),
                     style: FilledButton.styleFrom(
-                      shape: HikariShape.pill,
+                      shape: HikariRadius.pill,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: HikariSpace.content,
-                        vertical: HikariSpace.compact,
+                        horizontal: HikariSpacing.lg,
+                        vertical: HikariSpacing.md,
                       ),
                     ),
                   ),
@@ -393,12 +392,12 @@ class _PageCounter extends StatelessWidget {
     return DecoratedBox(
       decoration: ShapeDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: 0.75),
-        shape: HikariShape.pill,
+        shape: HikariRadius.pill,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: HikariSpace.compact,
-          vertical: HikariSpace.micro,
+          horizontal: HikariSpacing.md,
+          vertical: HikariSpacing.xs,
         ),
         child: Text(
           '$current / $total',
@@ -418,21 +417,22 @@ class HeroCarouselSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final isCompact = HikariLayout.classify(width) == HikariLayoutClass.compact;
+    final isCompact =
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final colors = Theme.of(context).colorScheme;
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? HikariSpace.content : HikariSpace.section,
+        horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
       ),
       child: AspectRatio(
         aspectRatio: isCompact ? (16 / 10) : (16 / 7),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: HikariShape.large,
+            borderRadius: HikariRadius.borderLg,
             border: Border.all(
               color: colors.outlineVariant.withValues(alpha: 0.6),
-              width: HikariShape.borderWidth,
+              width: HikariRadius.borderWidth,
             ),
             gradient: LinearGradient(
               begin: Alignment.topLeft,

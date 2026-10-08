@@ -12,7 +12,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `AGENT_WORKFLOW.md` | Claude Code skill orchestration for Superpowers, Graphify, Firecrawl, UI UX Pro Max, and Ponytail | Non-trivial coding, refactor, debugging, architecture, or UI work |
 | `GIT_WORKFLOW.md` | Branches, commits, merge policy, verification, patch/diff rules | Git, branch, commit, PR, merge, or task closure |
 | `architecture/LOCAL_MEDIA.md` | Android local scan, classification, playback/readers and device checks | Working on the local-media walking skeleton |
-| `architecture/DESIGN_SYSTEM.md` | Canonical unwired design foundation, audit, semantic tokens, component contracts and migration rules | New or migrated UI styling |
+| `architecture/DESIGN_SYSTEM.md` | Canonical root theme, semantic Hikari tokens, component contracts and outstanding UI verification | New or migrated UI styling |
 | `architecture/UI_ARCHITECTURE.md` | Shared/feature UI ownership and current presentation conventions | UI component placement and boundaries |
 | `architecture/PRESENTATION.md` | View/ViewModel state ownership, UI dependency rules and player surface boundary | Working on feature UI/state or player presentation |
 | `architecture/SOURCES.md` | Capability contracts, SourceRegistry, application open workflows and source extension seam | Adding/refactoring a source or application workflow |

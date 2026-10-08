@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -28,7 +28,7 @@ class CatalogDiscoverySections extends StatelessWidget {
     final current = discovery;
     if (error != null && current == null) {
       return Padding(
-        padding: const EdgeInsets.all(HikariSpace.content),
+        padding: const EdgeInsets.all(HikariSpacing.lg),
         child: AsyncStateView(
           status: AsyncViewStatus.error,
           contentBuilder: (_) => const SizedBox.shrink(),
@@ -73,10 +73,10 @@ class CatalogDiscoverySections extends StatelessWidget {
               (sections[section] ?? []).isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                HikariSpace.content,
-                HikariSpace.section,
-                HikariSpace.content,
-                HikariSpace.inline,
+                HikariSpacing.lg,
+                HikariSpacing.xl,
+                HikariSpacing.lg,
+                HikariSpacing.sm,
               ),
               child: Semantics(
                 headingLevel: 2,
@@ -96,13 +96,13 @@ class CatalogDiscoverySections extends StatelessWidget {
                   height: posterWidth * 1.5 + 46.0,
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: HikariSpace.content,
+                      horizontal: HikariSpacing.lg,
                     ),
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     itemCount: sections[section]!.length,
                     separatorBuilder: (_, _) =>
-                        const SizedBox(width: HikariSpace.compact),
+                        const SizedBox(width: HikariSpacing.md),
                     itemBuilder: (context, index) {
                       final entry = sections[section]![index];
                       return SizedBox(
@@ -129,7 +129,7 @@ class CatalogDiscoverySections extends StatelessWidget {
           ],
         if (sections.values.every((items) => items.isEmpty))
           const Padding(
-            padding: EdgeInsets.all(HikariSpace.content),
+            padding: EdgeInsets.all(HikariSpacing.lg),
             child: Text('No catalog results available.'),
           ),
       ],
@@ -148,11 +148,11 @@ String _sectionTitle(CatalogSection section) => switch (section) {
 
 double _catalogPosterWidth(BuildContext context) {
   final width = MediaQuery.sizeOf(context).width;
-  final layout = HikariLayout.classify(width);
+  final layout = HikariBreakpoints.classify(width);
   return switch (layout) {
-    HikariLayoutClass.compact => 132.0,
-    HikariLayoutClass.medium => 144.0,
-    HikariLayoutClass.expanded || HikariLayoutClass.wide => 156.0,
+    HikariWidthClass.compact => 132.0,
+    HikariWidthClass.medium => 144.0,
+    HikariWidthClass.expanded || HikariWidthClass.wide => 156.0,
   };
 }
 
@@ -164,7 +164,8 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final isCompact = HikariLayout.classify(width) == HikariLayoutClass.compact;
+    final isCompact =
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final colors = Theme.of(context).colorScheme;
     final posterWidth = _catalogPosterWidth(context);
 
@@ -179,15 +180,13 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
             if (!excludeFeatured)
               Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isCompact
-                      ? HikariSpace.content
-                      : HikariSpace.section,
+                  horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
                 ),
                 child: AspectRatio(
                   aspectRatio: isCompact ? (16 / 10) : (16 / 7),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: HikariShape.large,
+                      borderRadius: HikariRadius.borderLg,
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -204,17 +203,17 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
             for (var section = 0; section < 2; section++) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  HikariSpace.content,
-                  HikariSpace.section,
-                  HikariSpace.content,
-                  HikariSpace.inline,
+                  HikariSpacing.lg,
+                  HikariSpacing.xl,
+                  HikariSpacing.lg,
+                  HikariSpacing.sm,
                 ),
                 child: Container(
                   width: section == 0 ? 112 : 148,
                   height: 18,
                   decoration: ShapeDecoration(
                     color: colors.surfaceContainerHighest,
-                    shape: HikariShape.pill,
+                    shape: HikariRadius.pill,
                   ),
                 ),
               ),
@@ -222,13 +221,13 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
                 height: posterWidth * 1.5 + 46.0,
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: HikariSpace.content,
+                    horizontal: HikariSpacing.lg,
                   ),
                   scrollDirection: Axis.horizontal,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: 4,
                   separatorBuilder: (_, _) =>
-                      const SizedBox(width: HikariSpace.compact),
+                      const SizedBox(width: HikariSpacing.md),
                   itemBuilder: (_, _) => SizedBox(
                     width: posterWidth,
                     child: const MediaPoster(title: '', isLoading: true),

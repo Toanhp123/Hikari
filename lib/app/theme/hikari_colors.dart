@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Semantic Dark Cinema & OLED Theme color palette for the Cinematic Neo-Material design system.
+import 'hikari_status_colors.dart';
+
+/// Legacy semantic role adapter for Hikari's canonical Material ColorScheme.
 @immutable
 class HikariColors extends ThemeExtension<HikariColors> {
   const HikariColors({
@@ -32,63 +34,40 @@ class HikariColors extends ThemeExtension<HikariColors> {
     required this.isOled,
   });
 
-  /// Deep Obsidian dark palette (standard).
-  const HikariColors.dark()
-    : background = const Color(0xFF0B0F17),
-      surface = const Color(0xFF121620),
-      surfaceContainer = const Color(0xFF161B26),
-      surfaceElevated = const Color(0xFF1F293D),
-      surfaceHighlight = const Color(0xFF2A3752),
-      border = const Color(0xFF26334D),
-      borderSubtle = const Color(0x14FFFFFF),
-      glassSurface = const Color(0xD9121826),
-      glassBorder = const Color(0x1FFFFFFF),
-      scrimMedium = const Color(0x990B0F17),
-      scrimStrong = const Color(0xCC0B0F17),
-      primary = const Color(0xFF8B5CF6),
-      primaryGlow = const Color(0xFFA78BFA),
-      secondary = const Color(0xFFEC4899),
-      badgeVideo = const Color(0xFFEC4899),
-      badgeManga = const Color(0xFF06B6D4),
-      badgeNovel = const Color(0xFFF59E0B),
-      textPrimary = const Color(0xFFF8FAFC),
-      textSecondary = const Color(0xFF94A3B8),
-      textMuted = const Color(0xFF64748B),
-      onPrimary = const Color(0xFFFFFFFF),
-      success = const Color(0xFF10B981),
-      warning = const Color(0xFFF59E0B),
-      error = const Color(0xFFEF4444),
-      info = const Color(0xFF3B82F6),
-      isOled = false;
-
-  /// Pure OLED Black palette for maximum battery savings and infinite contrast.
-  const HikariColors.oled()
-    : background = const Color(0xFF000000),
-      surface = const Color(0xFF05080E),
-      surfaceContainer = const Color(0xFF0D111A),
-      surfaceElevated = const Color(0xFF141924),
-      surfaceHighlight = const Color(0xFF1F2738),
-      border = const Color(0xFF1E283D),
-      borderSubtle = const Color(0x1AFFFFFF),
-      glassSurface = const Color(0xEB0B0F17),
-      glassBorder = const Color(0x1FFFFFFF),
-      scrimMedium = const Color(0x990B0F17),
-      scrimStrong = const Color(0xCC0B0F17),
-      primary = const Color(0xFF8B5CF6),
-      primaryGlow = const Color(0xFFA78BFA),
-      secondary = const Color(0xFFEC4899),
-      badgeVideo = const Color(0xFFEC4899),
-      badgeManga = const Color(0xFF06B6D4),
-      badgeNovel = const Color(0xFFF59E0B),
-      textPrimary = const Color(0xFFF8FAFC),
-      textSecondary = const Color(0xFF94A3B8),
-      textMuted = const Color(0xFF64748B),
-      onPrimary = const Color(0xFFFFFFFF),
-      success = const Color(0xFF10B981),
-      warning = const Color(0xFFF59E0B),
-      error = const Color(0xFFEF4444),
-      info = const Color(0xFF3B82F6),
-      isOled = true;
+  /// Legacy-facing roles are derived from the same semantic ColorScheme
+  /// that drives all native controls. No independent legacy color palette.
+  factory HikariColors.fromScheme(
+    ColorScheme scheme, {
+    required HikariStatusColors statusColors,
+    required bool oled,
+  }) => HikariColors(
+    background: scheme.surface,
+    surface: scheme.surfaceContainerLow,
+    surfaceContainer: scheme.surfaceContainer,
+    surfaceElevated: scheme.surfaceContainerHigh,
+    surfaceHighlight: scheme.surfaceContainerHighest,
+    border: scheme.outline,
+    borderSubtle: scheme.outlineVariant,
+    glassSurface: scheme.surface.withValues(alpha: oled ? 0.92 : 0.85),
+    glassBorder: scheme.outlineVariant.withValues(alpha: 0.4),
+    scrimMedium: scheme.scrim.withValues(alpha: 0.6),
+    scrimStrong: scheme.scrim.withValues(alpha: 0.8),
+    primary: scheme.primary,
+    primaryGlow: scheme.primary.withValues(alpha: 0.8),
+    secondary: scheme.secondary,
+    badgeVideo: scheme.primary,
+    badgeManga: statusColors.onWarningContainer,
+    badgeNovel: statusColors.onInfoContainer,
+    textPrimary: scheme.onSurface,
+    textSecondary: scheme.onSurfaceVariant,
+    textMuted: scheme.onSurfaceVariant,
+    onPrimary: scheme.onPrimary,
+    success: const Color(0xFFA6E3A1),
+    warning: statusColors.onWarningContainer,
+    error: scheme.error,
+    info: statusColors.onInfoContainer,
+    isOled: oled,
+  );
 
   final Color background;
   final Color surface;

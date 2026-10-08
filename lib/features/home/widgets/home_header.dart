@@ -1,7 +1,7 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/design_system/design_system.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 
 /// Pinned glassmorphic header for Home with dynamic gradient blur on scroll.
 class HomeHeader extends StatelessWidget {
@@ -57,19 +57,17 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
         border: Border(
           bottom: BorderSide(
             color: colors.outlineVariant.withValues(alpha: 0.35 * progress),
-            width: HikariShape.borderWidth,
+            width: HikariRadius.borderWidth,
           ),
         ),
       ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: HikariLayout.contentMaxWidth,
+            maxWidth: HikariBreakpoints.maxContentWidth,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpace.content,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -86,7 +84,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: HikariShape.medium,
+                          borderRadius: HikariRadius.borderMd,
                           boxShadow: [
                             BoxShadow(
                               color: colors.primary.withValues(alpha: 0.22),
@@ -101,7 +99,7 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
                           size: 20,
                         ),
                       ),
-                      const SizedBox(width: HikariSpace.compact),
+                      const SizedBox(width: HikariSpacing.md),
                       Text(
                         'Hikari',
                         style: (theme.textTheme.titleLarge ?? const TextStyle())
