@@ -25,7 +25,8 @@ class _FakeNovelSeriesSource implements NovelSeriesSource {
 
 Widget _buildTestPage({
   required NovelDetails details,
-  Future<void> Function(BuildContext, NovelChapter, List<NovelChapter>)? openChapter,
+  Future<void> Function(BuildContext, NovelChapter, List<NovelChapter>)?
+  openChapter,
 }) {
   final source = _FakeNovelSeriesSource(details);
   final target = NovelSeriesOpenTarget(
@@ -95,7 +96,11 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(opened?.source.itemId, 'ch1');
-        expect(openedSequence?.map((c) => c.source.itemId), ['ch1', 'ch2', 'ch3']);
+        expect(openedSequence?.map((c) => c.source.itemId), [
+          'ch1',
+          'ch2',
+          'ch3',
+        ]);
       },
     );
 
@@ -212,22 +217,23 @@ void main() {
       },
     );
 
-    testWidgets('Empty chapter list displays "No readable chapters found." and no CTA', (
-      tester,
-    ) async {
-      final details = NovelDetails(
-        metadata: MediaMetadata(title: 'Test Novel'),
-        chapterListOrder: ChapterListOrder.readingOrder,
-        chapters: [],
-      );
+    testWidgets(
+      'Empty chapter list displays "No readable chapters found." and no CTA',
+      (tester) async {
+        final details = NovelDetails(
+          metadata: MediaMetadata(title: 'Test Novel'),
+          chapterListOrder: ChapterListOrder.readingOrder,
+          chapters: [],
+        );
 
-      await tester.pumpWidget(_buildTestPage(details: details));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_buildTestPage(details: details));
+        await tester.pumpAndSettle();
 
-      expect(find.text('No readable chapters found.'), findsOneWidget);
-      expect(find.byType(PrimaryReadingCta), findsNothing);
-      expect(find.byType(ChapterControlBar), findsNothing);
-    });
+        expect(find.text('No readable chapters found.'), findsOneWidget);
+        expect(find.byType(PrimaryReadingCta), findsNothing);
+        expect(find.byType(ChapterControlBar), findsNothing);
+      },
+    );
 
     testWidgets(
       'Desktop width centers content within HikariBreakpoints.maxContentWidth',
@@ -253,12 +259,22 @@ void main() {
           find.byType(ConstrainedBox),
         );
         final contentBox = constrainedBoxes.firstWhere(
-          (box) => box.constraints.maxWidth == HikariBreakpoints.maxContentWidth,
+          (box) =>
+              box.constraints.maxWidth == HikariBreakpoints.maxContentWidth,
         );
-        expect(contentBox.constraints.maxWidth, HikariBreakpoints.maxContentWidth);
+        expect(
+          contentBox.constraints.maxWidth,
+          HikariBreakpoints.maxContentWidth,
+        );
 
         // The parent or ancestor should be a Center widget
-        expect(find.ancestor(of: find.byWidget(contentBox), matching: find.byType(Center)), findsOneWidget);
+        expect(
+          find.ancestor(
+            of: find.byWidget(contentBox),
+            matching: find.byType(Center),
+          ),
+          findsOneWidget,
+        );
       },
     );
   });

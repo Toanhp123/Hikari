@@ -110,7 +110,8 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
                     openingChapter: _isOpeningChapter,
                     readArtwork: widget.readArtwork,
                     onRefresh: _viewModel.load,
-                    onOpenChapter: (chapter) => unawaited(_openChapter(chapter)),
+                    onOpenChapter: (chapter) =>
+                        unawaited(_openChapter(chapter)),
                   ),
                 ),
               ),

@@ -10,7 +10,8 @@ import 'package:hikari/features/remote_manga/manga_series_page.dart';
 
 Widget _buildTestPage({
   required MangaSeriesDetails details,
-  Future<void> Function(BuildContext, MangaChapter, List<MangaChapter>)? openChapter,
+  Future<void> Function(BuildContext, MangaChapter, List<MangaChapter>)?
+  openChapter,
 }) {
   return MaterialApp(
     theme: HikariTheme.darkTheme(),
@@ -80,7 +81,11 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(opened?.source.itemId, 'ch1');
-        expect(openedSequence?.map((c) => c.source.itemId), ['ch1', 'ch2', 'ch3']);
+        expect(openedSequence?.map((c) => c.source.itemId), [
+          'ch1',
+          'ch2',
+          'ch3',
+        ]);
       },
     );
 
@@ -283,12 +288,22 @@ void main() {
           find.byType(ConstrainedBox),
         );
         final contentBox = constrainedBoxes.firstWhere(
-          (box) => box.constraints.maxWidth == HikariBreakpoints.maxContentWidth,
+          (box) =>
+              box.constraints.maxWidth == HikariBreakpoints.maxContentWidth,
         );
-        expect(contentBox.constraints.maxWidth, HikariBreakpoints.maxContentWidth);
+        expect(
+          contentBox.constraints.maxWidth,
+          HikariBreakpoints.maxContentWidth,
+        );
 
         // The parent or ancestor should be a Center widget
-        expect(find.ancestor(of: find.byWidget(contentBox), matching: find.byType(Center)), findsOneWidget);
+        expect(
+          find.ancestor(
+            of: find.byWidget(contentBox),
+            matching: find.byType(Center),
+          ),
+          findsOneWidget,
+        );
       },
     );
   });

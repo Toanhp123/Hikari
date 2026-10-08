@@ -113,7 +113,9 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
               ),
               const Spacer(),
               IconButton(
-                tooltip: widget.isReversed ? 'Sort ascending' : 'Sort descending',
+                tooltip: widget.isReversed
+                    ? 'Sort ascending'
+                    : 'Sort descending',
                 onPressed: widget.onToggleSort,
                 icon: Icon(
                   widget.isReversed
@@ -125,7 +127,9 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
                 ),
               ),
               IconButton(
-                tooltip: widget.isSearching ? 'Close search' : 'Search chapters',
+                tooltip: widget.isSearching
+                    ? 'Close search'
+                    : 'Search chapters',
                 onPressed: widget.onToggleSearch,
                 icon: Icon(
                   widget.isSearching
@@ -162,13 +166,14 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
                   minHeight: 40,
                 ),
                 suffixIcon:
-                    (_controller.text.isNotEmpty || widget.searchQuery.isNotEmpty)
-                        ? IconButton(
-                            tooltip: 'Clear search',
-                            icon: const Icon(Icons.clear_rounded, size: 18),
-                            onPressed: _handleClear,
-                          )
-                        : null,
+                    (_controller.text.isNotEmpty ||
+                        widget.searchQuery.isNotEmpty)
+                    ? IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: _handleClear,
+                      )
+                    : null,
                 suffixIconConstraints: const BoxConstraints(
                   minWidth: 40,
                   minHeight: 40,

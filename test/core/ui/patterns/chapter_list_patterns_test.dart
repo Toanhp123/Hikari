@@ -176,48 +176,47 @@ void main() {
       },
     );
 
-    testWidgets(
-      'tapping clear button in search input triggers onClearSearch',
-      (tester) async {
-        var clearCalled = false;
-        var query = 'existing query';
+    testWidgets('tapping clear button in search input triggers onClearSearch', (
+      tester,
+    ) async {
+      var clearCalled = false;
+      var query = 'existing query';
 
-        await tester.pumpWidget(
-          StatefulBuilder(
-            builder: (context, setState) {
-              return _app(
-                ChapterControlBar(
-                  totalChapters: 10,
-                  isReversed: false,
-                  onToggleSort: () {},
-                  isSearching: true,
-                  onToggleSearch: () {},
-                  searchQuery: query,
-                  onSearchChanged: (val) {
-                    setState(() {
-                      query = val;
-                    });
-                  },
-                  onClearSearch: () {
-                    setState(() {
-                      clearCalled = true;
-                      query = '';
-                    });
-                  },
-                ),
-              );
-            },
-          ),
-        );
+      await tester.pumpWidget(
+        StatefulBuilder(
+          builder: (context, setState) {
+            return _app(
+              ChapterControlBar(
+                totalChapters: 10,
+                isReversed: false,
+                onToggleSort: () {},
+                isSearching: true,
+                onToggleSearch: () {},
+                searchQuery: query,
+                onSearchChanged: (val) {
+                  setState(() {
+                    query = val;
+                  });
+                },
+                onClearSearch: () {
+                  setState(() {
+                    clearCalled = true;
+                    query = '';
+                  });
+                },
+              ),
+            );
+          },
+        ),
+      );
 
-        expect(find.byTooltip('Clear search'), findsOneWidget);
-        await tester.tap(find.byTooltip('Clear search'));
-        await tester.pump();
+      expect(find.byTooltip('Clear search'), findsOneWidget);
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pump();
 
-        expect(clearCalled, isTrue);
-        expect(query, '');
-      },
-    );
+      expect(clearCalled, isTrue);
+      expect(query, '');
+    });
   });
 
   group('PrimaryReadingCta', () {
@@ -226,11 +225,7 @@ void main() {
       (tester) async {
         var pressed = false;
         await tester.pumpWidget(
-          _app(
-            PrimaryReadingCta(
-              onPressed: () => pressed = true,
-            ),
-          ),
+          _app(PrimaryReadingCta(onPressed: () => pressed = true)),
         );
 
         expect(find.text('Start reading'), findsOneWidget);
@@ -246,10 +241,7 @@ void main() {
       var pressed = false;
       await tester.pumpWidget(
         _app(
-          PrimaryReadingCta(
-            enabled: false,
-            onPressed: () => pressed = true,
-          ),
+          PrimaryReadingCta(enabled: false, onPressed: () => pressed = true),
         ),
       );
 
@@ -262,12 +254,7 @@ void main() {
 
     testWidgets('renders custom label when provided', (tester) async {
       await tester.pumpWidget(
-        _app(
-          PrimaryReadingCta(
-            label: 'Continue Chapter 4',
-            onPressed: () {},
-          ),
-        ),
+        _app(PrimaryReadingCta(label: 'Continue Chapter 4', onPressed: () {})),
       );
 
       expect(find.text('Continue Chapter 4'), findsOneWidget);

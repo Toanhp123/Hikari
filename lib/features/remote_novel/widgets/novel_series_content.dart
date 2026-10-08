@@ -69,8 +69,9 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
             if (c.title.toLowerCase().contains(query)) return true;
             if (c.chapterNumber != null) {
               final num = c.chapterNumber!;
-              final numStr =
-                  (num % 1 == 0) ? num.toInt().toString() : num.toString();
+              final numStr = (num % 1 == 0)
+                  ? num.toInt().toString()
+                  : num.toString();
               if (numStr.contains(query)) return true;
               if (num.toString().contains(query)) return true;
             }
@@ -119,17 +120,20 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
                 if (allChapters.isNotEmpty)
                   ChapterControlBar(
                     totalChapters: allChapters.length,
-                    filteredChapters:
-                        query.isNotEmpty ? filteredChapters.length : null,
+                    filteredChapters: query.isNotEmpty
+                        ? filteredChapters.length
+                        : null,
                     isReversed: _isReversed,
-                    onToggleSort: () => setState(() => _isReversed = !_isReversed),
+                    onToggleSort: () =>
+                        setState(() => _isReversed = !_isReversed),
                     isSearching: _isSearching,
                     onToggleSearch: () => setState(() {
                       _isSearching = !_isSearching;
                       if (!_isSearching) _searchQuery = '';
                     }),
                     searchQuery: _searchQuery,
-                    onSearchChanged: (val) => setState(() => _searchQuery = val),
+                    onSearchChanged: (val) =>
+                        setState(() => _searchQuery = val),
                     onClearSearch: () => setState(() => _searchQuery = ''),
                   ),
                 if (allChapters.isEmpty)
