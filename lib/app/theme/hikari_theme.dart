@@ -12,7 +12,6 @@ export 'hikari_breakpoints.dart';
 export 'hikari_colors.dart';
 export 'hikari_motion.dart';
 export 'hikari_radius.dart';
-export 'hikari_reading.dart';
 export 'hikari_size.dart';
 export 'hikari_spacing.dart';
 export 'hikari_status_colors.dart';
@@ -20,10 +19,22 @@ export 'hikari_typography.dart';
 
 /// Canonical Material 3 theme for Hikari, including legacy-facing semantic roles.
 abstract final class HikariTheme {
+  /// The null appearance selection resolves to this canonical seed.
+  static const defaultAccentSeed = Color(0xFFB4BEFE);
+
+  /// User-facing preset names and raw seeds; generated primary is not a seed.
+  static const accentPresets = <(String, Color)>[
+    ('Violet', Color(0xFF8B5CF6)),
+    ('Pink', Color(0xFFEC4899)),
+    ('Cyan', Color(0xFF06B6D4)),
+    ('Green', Color(0xFF10B981)),
+    ('Amber', Color(0xFFF59E0B)),
+  ];
+
   static ThemeData darkTheme({bool oled = false, Color? accentColor}) {
     final colors =
         ColorScheme.fromSeed(
-          seedColor: accentColor ?? const Color(0xFFB4BEFE),
+          seedColor: accentColor ?? defaultAccentSeed,
           brightness: Brightness.dark,
         ).copyWith(
           surface: oled ? Colors.black : const Color(0xFF181825),

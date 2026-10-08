@@ -13,7 +13,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
     required this.surfaceHighlight,
     required this.border,
     required this.borderSubtle,
-    required this.glassSurface,
     required this.glassBorder,
     required this.scrimMedium,
     required this.scrimStrong,
@@ -27,7 +26,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
     required this.textSecondary,
     required this.textMuted,
     required this.onPrimary,
-    required this.success,
     required this.warning,
     required this.error,
     required this.info,
@@ -48,7 +46,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
     surfaceHighlight: scheme.surfaceContainerHighest,
     border: scheme.outline,
     borderSubtle: scheme.outlineVariant,
-    glassSurface: scheme.surface.withValues(alpha: oled ? 0.92 : 0.85),
     glassBorder: scheme.outlineVariant.withValues(alpha: 0.4),
     scrimMedium: scheme.scrim.withValues(alpha: 0.6),
     scrimStrong: scheme.scrim.withValues(alpha: 0.8),
@@ -62,7 +59,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
     textSecondary: scheme.onSurfaceVariant,
     textMuted: scheme.onSurfaceVariant,
     onPrimary: scheme.onPrimary,
-    success: const Color(0xFFA6E3A1),
     warning: statusColors.onWarningContainer,
     error: scheme.error,
     info: statusColors.onInfoContainer,
@@ -76,7 +72,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
   final Color surfaceHighlight;
   final Color border;
   final Color borderSubtle;
-  final Color glassSurface;
   final Color glassBorder;
   final Color scrimMedium;
   final Color scrimStrong;
@@ -90,7 +85,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
   final Color textSecondary;
   final Color textMuted;
   final Color onPrimary;
-  final Color success;
   final Color warning;
   final Color error;
   final Color info;
@@ -105,7 +99,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
     Color? surfaceHighlight,
     Color? border,
     Color? borderSubtle,
-    Color? glassSurface,
     Color? glassBorder,
     Color? scrimMedium,
     Color? scrimStrong,
@@ -119,7 +112,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
     Color? textSecondary,
     Color? textMuted,
     Color? onPrimary,
-    Color? success,
     Color? warning,
     Color? error,
     Color? info,
@@ -133,7 +125,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
       surfaceHighlight: surfaceHighlight ?? this.surfaceHighlight,
       border: border ?? this.border,
       borderSubtle: borderSubtle ?? this.borderSubtle,
-      glassSurface: glassSurface ?? this.glassSurface,
       glassBorder: glassBorder ?? this.glassBorder,
       scrimMedium: scrimMedium ?? this.scrimMedium,
       scrimStrong: scrimStrong ?? this.scrimStrong,
@@ -147,7 +138,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
       textSecondary: textSecondary ?? this.textSecondary,
       textMuted: textMuted ?? this.textMuted,
       onPrimary: onPrimary ?? this.onPrimary,
-      success: success ?? this.success,
       warning: warning ?? this.warning,
       error: error ?? this.error,
       info: info ?? this.info,
@@ -173,8 +163,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
       border: Color.lerp(border, other.border, t) ?? border,
       borderSubtle:
           Color.lerp(borderSubtle, other.borderSubtle, t) ?? borderSubtle,
-      glassSurface:
-          Color.lerp(glassSurface, other.glassSurface, t) ?? glassSurface,
       glassBorder: Color.lerp(glassBorder, other.glassBorder, t) ?? glassBorder,
       scrimMedium: Color.lerp(scrimMedium, other.scrimMedium, t) ?? scrimMedium,
       scrimStrong: Color.lerp(scrimStrong, other.scrimStrong, t) ?? scrimStrong,
@@ -189,7 +177,6 @@ class HikariColors extends ThemeExtension<HikariColors> {
           Color.lerp(textSecondary, other.textSecondary, t) ?? textSecondary,
       textMuted: Color.lerp(textMuted, other.textMuted, t) ?? textMuted,
       onPrimary: Color.lerp(onPrimary, other.onPrimary, t) ?? onPrimary,
-      success: Color.lerp(success, other.success, t) ?? success,
       warning: Color.lerp(warning, other.warning, t) ?? warning,
       error: Color.lerp(error, other.error, t) ?? error,
       info: Color.lerp(info, other.info, t) ?? info,

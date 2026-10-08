@@ -482,10 +482,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     return MaterialApp(
       title: 'Hikari',
       theme: HikariTheme.darkTheme(oled: _isOled, accentColor: _accentColor),
-      darkTheme: HikariTheme.darkTheme(
-        oled: _isOled,
-        accentColor: _accentColor,
-      ),
       home: Builder(
         builder: (context) => AppNavigationShell(
           controller: _navigationController,

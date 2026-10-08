@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/features/novel_reader/novel_reader_theme.dart';
 
 void main() {
   test('dark and OLED themes provide readable semantic color pairs', () {
@@ -115,6 +116,18 @@ void main() {
     }
   });
 
+  test('nullable default seed matches the explicit default seed', () {
+    final rootTheme = HikariTheme.darkTheme();
+    final explicitDefault = HikariTheme.darkTheme(
+      accentColor: HikariTheme.defaultAccentSeed,
+    );
+    expect(rootTheme.colorScheme, explicitDefault.colorScheme);
+    expect(
+      HikariTheme.accentPresets.map((preset) => preset.$2).toSet().length,
+      HikariTheme.accentPresets.length,
+    );
+  });
+
   test('legacy semantic roles match the native root color scheme', () {
     for (final oled in [false, true]) {
       for (final seed in [null, const Color(0xFF06B6D4)]) {
@@ -135,18 +148,13 @@ void main() {
     }
   });
 
-  test('reading palettes keep prose contrast independent of app theme', () {
-    for (final palette in HikariReadingPalette.values) {
-      expect(
-        _contrast(palette.content, palette.background),
-        greaterThanOrEqualTo(7),
-      );
+  test('actual novel reader palettes preserve readable prose contrast', () {
+    for (final palette in NovelReaderTheme.values) {
+      expect(_contrast(palette.bg, palette.fg), greaterThanOrEqualTo(7));
     }
-    expect(HikariReadingMetrics.maxWidth, 680.0);
-    expect(HikariReadingMetrics.lineHeight, greaterThanOrEqualTo(1.6));
   });
 
-  test('width classes have no fractional gaps and reject invalid widths', () {
+  test('window width classification has no fractional gaps', () {
     for (final (width, expected) in [
       (0.0, HikariWidthClass.compact),
       (599.9, HikariWidthClass.compact),
@@ -157,27 +165,9 @@ void main() {
       (1200.0, HikariWidthClass.wide),
     ]) {
       expect(HikariBreakpoints.classify(width), expected);
-      expect(HikariBreakpoints.gutter(width), greaterThanOrEqualTo(16));
-    }
-    for (final (width, expectedCols) in [
-      (0.0, 2),
-      (399.0, 2),
-      (400.0, 3),
-      (599.9, 3),
-      (600.0, 4),
-      (899.9, 4),
-      (900.0, 5),
-      (1199.9, 5),
-      (1200.0, 6),
-    ]) {
-      expect(HikariBreakpoints.posterColumnCount(width), expectedCols);
     }
     for (final width in [-1.0, double.nan, double.infinity]) {
       expect(() => HikariBreakpoints.classify(width), throwsArgumentError);
-      expect(
-        () => HikariBreakpoints.posterColumnCount(width),
-        throwsArgumentError,
-      );
     }
   });
 

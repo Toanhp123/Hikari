@@ -193,7 +193,7 @@ class CatalogDetailContent extends StatelessWidget {
                 overflow: descriptionExpanded
                     ? TextOverflow.visible
                     : TextOverflow.fade,
-                style: HikariTypography.bodyMedium.copyWith(
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                   color: context.hikariColors.textSecondary,
                   height: 1.6,
                 ),

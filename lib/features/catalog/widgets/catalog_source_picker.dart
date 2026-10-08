@@ -117,9 +117,7 @@ class CatalogSourcePicker extends StatelessWidget {
         onSecondary: viewModel.chooseAnotherSource,
       ),
     };
-    final duration = MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : HikariMotion.fast;
+    final duration = HikariMotion.duration(context, HikariMotion.fast);
     return AnimatedSwitcher(
       duration: duration,
       switchInCurve: HikariMotion.curveStandard,
@@ -164,7 +162,10 @@ class _Header extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text('Read from', style: HikariTypography.titleLarge),
+              child: Text(
+                'Read from',
+                style: Theme.of(context).textTheme.titleLarge!,
+              ),
             ),
             IconButton(
               tooltip: 'Close',
@@ -178,9 +179,8 @@ class _Header extends StatelessWidget {
           title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: HikariTypography.bodyMedium.copyWith(
-            color: colors.textSecondary,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium!
+              .copyWith(color: colors.textSecondary),
         ),
       ],
     );
@@ -227,7 +227,10 @@ class _SourceList extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded),
             label: const Text('Back'),
           ),
-          Text('Choose language', style: HikariTypography.titleMedium),
+          Text(
+            'Choose language',
+            style: Theme.of(context).textTheme.titleMedium!,
+          ),
           Text(viewModel.state.selectedGroup!.displayName),
           Expanded(
             child: ListView(
@@ -258,10 +261,8 @@ class _SourceList extends StatelessWidget {
         children: [
           Text(
             'Choose an installed source. Hikari will match this catalog title automatically.',
-            style: HikariTypography.bodyMedium.copyWith(
-              color: colors.textSecondary,
-              height: 1.45,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium!
+                .copyWith(color: colors.textSecondary, height: 1.45),
           ),
           const SizedBox(height: HikariSpacing.md),
           if (showLanguageFilter) ...[
@@ -372,7 +373,8 @@ class _SourceTile extends StatelessWidget {
         source.displayName,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: HikariTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+        style: Theme.of(context).textTheme.bodyLarge!
+            .copyWith(fontWeight: FontWeight.w600),
       ),
       subtitle: groupedCount != null ? Text('$groupedCount languages') : null,
       trailing: Row(
@@ -383,7 +385,7 @@ class _SourceTile extends StatelessWidget {
               source.languageCode == 'all'
                   ? 'Multiple languages'
                   : source.languageCode?.toUpperCase() ?? 'Unspecified',
-              style: HikariTypography.caption,
+              style: Theme.of(context).textTheme.bodySmall!,
             ),
           Icon(Icons.chevron_right_rounded, color: colors.textMuted),
         ],
@@ -414,15 +416,14 @@ class _ResolvingState extends StatelessWidget {
             Text(
               'Finding “$title” on $sourceName…',
               textAlign: TextAlign.center,
-              style: HikariTypography.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium!,
             ),
             const SizedBox(height: HikariSpacing.xs),
             Text(
               'Checking the catalog title and known aliases.',
               textAlign: TextAlign.center,
-              style: HikariTypography.bodyMedium.copyWith(
-                color: colors.textSecondary,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium!
+                  .copyWith(color: colors.textSecondary),
             ),
           ],
         ),
@@ -455,15 +456,16 @@ class _CandidateList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Is this the right title?', style: HikariTypography.titleMedium),
+          Text(
+            'Is this the right title?',
+            style: Theme.of(context).textTheme.titleMedium!,
+          ),
           const SizedBox(height: HikariSpacing.xs),
           Text(
             'Hikari found possible matches on ${source.contextLabel}, but none was safe '
             'to open automatically.',
-            style: HikariTypography.bodyMedium.copyWith(
-              color: colors.textSecondary,
-              height: 1.45,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium!
+                .copyWith(color: colors.textSecondary, height: 1.45),
           ),
           const SizedBox(height: HikariSpacing.md),
           Material(
@@ -535,7 +537,8 @@ class _CandidateTile extends StatelessWidget {
         candidate.media.title,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: HikariTypography.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+        style: Theme.of(context).textTheme.bodyLarge!
+            .copyWith(fontWeight: FontWeight.w600),
       ),
       subtitle: authors.isEmpty
           ? null
@@ -543,9 +546,8 @@ class _CandidateTile extends StatelessWidget {
               authors.first,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: HikariTypography.caption.copyWith(
-                color: colors.textSecondary,
-              ),
+              style: Theme.of(context).textTheme.bodySmall!
+                  .copyWith(color: colors.textSecondary),
             ),
       trailing: Icon(Icons.arrow_forward_rounded, color: colors.textMuted),
       onTap: onTap,
@@ -648,16 +650,14 @@ class _MessageState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: HikariTypography.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium!,
             ),
             const SizedBox(height: HikariSpacing.xs),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: HikariTypography.bodyMedium.copyWith(
-                color: colors.textSecondary,
-                height: 1.45,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium!
+                  .copyWith(color: colors.textSecondary, height: 1.45),
             ),
             const SizedBox(height: HikariSpacing.lg),
             HikariButton(

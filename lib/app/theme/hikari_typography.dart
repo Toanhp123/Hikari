@@ -94,18 +94,4 @@ abstract final class HikariTypography {
       letterSpacing: 0.35,
     ),
   );
-
-  // Existing feature accessors are views of the SAME native text scale.
-  static TextStyle get display => textTheme.displayLarge!;
-  static TextStyle get headline => textTheme.headlineMedium!;
-  static TextStyle get titleLarge => textTheme.titleLarge!;
-  static TextStyle get titleMedium => textTheme.titleMedium!;
-  static TextStyle get titleSmall => textTheme.titleSmall!;
-  static TextStyle get bodyLarge => textTheme.bodyLarge!;
-  static TextStyle get bodyMedium => textTheme.bodyMedium!;
-  static TextStyle get bodySmall => textTheme.bodySmall!;
-  static TextStyle get labelLarge => textTheme.labelLarge!;
-  static TextStyle get labelMedium => textTheme.labelMedium!;
-  static TextStyle get labelSmall => textTheme.labelSmall!;
-  static TextStyle get caption => textTheme.bodySmall!;
 }

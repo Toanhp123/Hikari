@@ -632,18 +632,35 @@ void main() {
         .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
         .controller!;
     scroll.jumpTo(scroll.position.maxScrollExtent * 0.4);
-    writes.clear();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(writes, isEmpty);
     pendingReload.complete(
       RichReadingContent(
         html: '<p>${List.filled(250, 'fresh body').join(' ')}</p>',
       ),
     );
-    await tester.pumpAndSettle();
+    // Render reload and restore without settling unrelated button animations.
+    await tester.pump();
+    await tester.pump();
+    expect(
+      tester
+          .widget<NovelContentView>(find.byType(NovelContentView))
+          .content
+          .html,
+      contains('fresh body'),
+    );
     expect(scroll.offset / scroll.position.maxScrollExtent, closeTo(0.4, 0.02));
+    await tester.pump(const Duration(milliseconds: 399));
     expect(writes, isEmpty);
-    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 1));
     expect(writes, hasLength(1));
     expect((writes.single.$1 as TextPosition).progression, closeTo(0.4, 0.02));
+    expect(writes.single.$2, isFalse);
+    scroll.jumpTo(scroll.position.maxScrollExtent * 0.6);
+    await tester.pumpWidget(const SizedBox());
+    expect(writes, hasLength(2));
+    expect((writes.last.$1 as TextPosition).progression, closeTo(0.6, 0.02));
+    expect(writes.last.$2, isFalse);
   });
 
   testWidgets('novel failed reload retains content and progress state', (

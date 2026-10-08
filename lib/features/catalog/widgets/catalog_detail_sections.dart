@@ -236,13 +236,12 @@ class CatalogDetailNotice extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: HikariTypography.titleSmall),
+                Text(title, style: Theme.of(context).textTheme.titleSmall!),
                 const SizedBox(height: 3),
                 Text(
                   message,
-                  style: HikariTypography.bodySmall.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall!
+                      .copyWith(color: colors.textSecondary),
                 ),
               ],
             ),
@@ -277,9 +276,8 @@ class CatalogDetailWarning extends StatelessWidget {
           Expanded(
             child: Text(
               messages.join(' '),
-              style: HikariTypography.bodySmall.copyWith(
-                color: colors.textSecondary,
-              ),
+              style: Theme.of(context).textTheme.bodySmall!
+                  .copyWith(color: colors.textSecondary),
             ),
           ),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
@@ -304,9 +302,8 @@ class CatalogDetailProvenance extends StatelessWidget {
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: HikariTypography.bodySmall.copyWith(
-                  color: colors.textSecondary,
-                ),
+                style: Theme.of(context).textTheme.bodySmall!
+                    .copyWith(color: colors.textSecondary),
                 children: [
                   TextSpan(
                     text: 'Metadata by AniList. ',
@@ -344,7 +341,7 @@ class CatalogDetailSection extends StatelessWidget {
     children: [
       Text(
         title,
-        style: HikariTypography.titleMedium.copyWith(
+        style: Theme.of(context).textTheme.titleMedium!.copyWith(
           color: context.hikariColors.textPrimary,
           fontWeight: FontWeight.w700,
         ),
@@ -396,14 +393,14 @@ class _LabeledValue extends StatelessWidget {
       children: [
         Text(
           label,
-          style: HikariTypography.labelMedium.copyWith(color: colors.textMuted),
+          style: Theme.of(context).textTheme.labelMedium!
+              .copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: 3),
         Text(
           value,
-          style: HikariTypography.bodyMedium.copyWith(
-            color: colors.textSecondary,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium!
+              .copyWith(color: colors.textSecondary),
         ),
       ],
     );
@@ -442,7 +439,7 @@ class _FactTile extends StatelessWidget {
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: HikariTypography.titleSmall.copyWith(
+            style: Theme.of(context).textTheme.titleSmall!.copyWith(
               color: colors.textPrimary,
               fontWeight: FontWeight.w700,
             ),
@@ -450,7 +447,8 @@ class _FactTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: HikariTypography.caption.copyWith(color: colors.textMuted),
+            style: Theme.of(context).textTheme.bodySmall!
+                .copyWith(color: colors.textMuted),
           ),
         ],
       ),
@@ -476,7 +474,7 @@ class _StaticTag extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         child: Text(
           label,
-          style: HikariTypography.labelMedium.copyWith(
+          style: Theme.of(context).textTheme.labelMedium!.copyWith(
             color: colors.textSecondary,
             fontWeight: FontWeight.w600,
           ),
@@ -502,16 +500,15 @@ class _MetadataRow extends StatelessWidget {
           width: 92,
           child: Text(
             label,
-            style: HikariTypography.labelMedium.copyWith(
-              color: colors.textMuted,
-            ),
+            style: Theme.of(context).textTheme.labelMedium!
+                .copyWith(color: colors.textMuted),
           ),
         ),
         Expanded(
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: HikariTypography.bodySmall.copyWith(
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
               color: colors.textSecondary,
               fontWeight: FontWeight.w600,
             ),

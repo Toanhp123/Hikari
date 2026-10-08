@@ -129,7 +129,7 @@ class _ScopedSourceLabel extends StatelessWidget {
               'Searching in $sourceName',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: HikariTypography.caption.copyWith(
+              style: Theme.of(context).textTheme.bodySmall!.copyWith(
                 color: colors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),

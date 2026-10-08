@@ -64,7 +64,8 @@ class AsyncStateView extends StatelessWidget {
           const SizedBox(height: HikariSpacing.md),
           Text(
             'Loading content...',
-            style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: colors.textSecondary),
           ),
         ],
       ),
@@ -92,21 +93,15 @@ class AsyncStateView extends StatelessWidget {
             const SizedBox(height: HikariSpacing.lg),
             Text(
               emptyTitle,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: colors.textPrimary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: HikariSpacing.xs),
             Text(
               emptyMessage,
-              style: TextStyle(
-                fontSize: 13,
-                color: colors.textSecondary,
-                height: 1.4,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: colors.textSecondary),
               textAlign: TextAlign.center,
             ),
             if (emptyAction != null) ...[
@@ -144,21 +139,15 @@ class AsyncStateView extends StatelessWidget {
             const SizedBox(height: HikariSpacing.lg),
             Text(
               errorTitle,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: colors.textPrimary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: HikariSpacing.xs),
             Text(
               errorMessage ?? 'An error occurred while loading data.',
-              style: TextStyle(
-                fontSize: 13,
-                color: colors.textSecondary,
-                height: 1.4,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: colors.textSecondary),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[

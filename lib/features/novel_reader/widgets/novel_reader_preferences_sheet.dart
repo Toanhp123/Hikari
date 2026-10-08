@@ -37,9 +37,8 @@ class _NovelReaderPreferencesSheetState
         children: [
           Text(
             'Reading Preferences',
-            style: HikariTypography.titleMedium.copyWith(
-              color: colors.textPrimary,
-            ),
+            style: Theme.of(context).textTheme.titleMedium!
+                .copyWith(color: colors.textPrimary),
           ),
           const SizedBox(height: HikariSpacing.md),
           Text(

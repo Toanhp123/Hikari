@@ -76,10 +76,10 @@ void main() {
     expect(HikariRadius.xs, 4.0);
     expect(HikariRadius.sm, 8.0);
     expect(HikariRadius.lg, 16.0);
-    expect(HikariRadius.capsule, 24.0);
+    expect(HikariRadius.pill, isA<StadiumBorder>());
     expect(HikariRadius.md, 14.0);
     expect(HikariRadius.xl, 24.0);
-    expect(HikariTypography.labelSmall.fontSize, 12.0);
+    expect(HikariTypography.textTheme.labelSmall!.fontSize, 12.0);
     expect(HikariMotion.standard, const Duration(milliseconds: 300));
   });
 }

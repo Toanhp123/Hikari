@@ -42,7 +42,7 @@ class _LibraryPageState extends State<LibraryPage> {
           appBar: AppBar(
             title: Text(
               'Library',
-              style: HikariTypography.titleLarge.copyWith(
+              style: Theme.of(context).textTheme.titleLarge!.copyWith(
                 color: colors.textPrimary,
                 fontWeight: FontWeight.w700,
               ),

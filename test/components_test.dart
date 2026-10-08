@@ -138,6 +138,78 @@ void main() {
     });
   });
 
+  group('native shared control contracts', () {
+    testWidgets('filter chip exposes selected semantics and keyboard action', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      var activations = 0;
+      await tester.pumpWidget(
+        testWrapper(
+          HikariChip(
+            label: 'Manga',
+            isSelected: true,
+            onTap: () => activations++,
+          ),
+        ),
+      );
+      final filter = find.byType(FilterChip);
+      expect(filter, findsOneWidget);
+      expect(tester.widget<FilterChip>(filter).selected, isTrue);
+      await tester.tap(find.text('Manga'));
+      expect(activations, 1);
+      final focus = Focus.of(tester.element(find.text('Manga')));
+      focus.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pump();
+      expect(activations, 2);
+      semantics.dispose();
+    });
+
+    testWidgets('disabled icon control remains a native disabled action', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        testWrapper(
+          const HikariIconButton(
+            icon: Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: null,
+          ),
+        ),
+      );
+      expect(
+        tester.widget<IconButton>(find.byType(IconButton)).onPressed,
+        isNull,
+      );
+    });
+
+    testWidgets('icon button exposes native semantics and keyboard action', (
+      tester,
+    ) async {
+      var activations = 0;
+      await tester.pumpWidget(
+        testWrapper(
+          HikariIconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search',
+            onPressed: () => activations++,
+          ),
+        ),
+      );
+      final button = find.byType(IconButton);
+      expect(button, findsOneWidget);
+      expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+      final focus = Focus.of(tester.element(find.byIcon(Icons.search)));
+      focus.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(activations, 1);
+    });
+  });
+
   group('HikariSearchBar', () {
     testWidgets('inherits canonical theme and preserves search behavior', (
       tester,

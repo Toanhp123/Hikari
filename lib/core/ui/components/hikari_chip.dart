@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 
-/// A filter pill / badge chip component for category selection and media tags.
+/// Native selection semantics and keyboard/focus behavior for feature filters.
 class HikariChip extends StatelessWidget {
   const HikariChip({
     super.key,
@@ -20,81 +20,41 @@ class HikariChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-
-    final Color bg = isSelected
-        ? colors.primary.withValues(alpha: 0.18)
-        : colors.surfaceContainer;
-
-    final Color fg = isSelected ? colors.primaryGlow : colors.textSecondary;
-
-    final Border border = Border.all(
-      color: isSelected ? colors.primary.withValues(alpha: 0.6) : colors.border,
-      width: isSelected ? 1.5 : 1.0,
-    );
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48), // accessible tap area
-        child: Center(
-          child: AnimatedContainer(
-            duration: HikariMotion.fast,
-            curve: HikariMotion.curveStandard,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    final colors = Theme.of(context).colorScheme;
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (customBadgeColor != null) ...[
+          DecoratedBox(
             decoration: BoxDecoration(
-              color: bg,
-              borderRadius: HikariRadius.borderCapsule,
-              border: border,
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: colors.primary.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
+              color: customBadgeColor,
+              shape: BoxShape.circle,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (customBadgeColor != null) ...[
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: customBadgeColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: HikariSpacing.xs),
-                ] else if (leading != null) ...[
-                  leading!,
-                  const SizedBox(width: HikariSpacing.xs),
-                ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: fg,
-                  ),
-                ),
-              ],
-            ),
+            child: const SizedBox.square(dimension: 6),
           ),
-        ),
-      ),
+          const SizedBox(width: HikariSpacing.xs),
+        ] else if (leading != null) ...[
+          leading!,
+          const SizedBox(width: HikariSpacing.xs),
+        ],
+        Text(label),
+      ],
+    );
+    if (onTap == null) {
+      return Chip(label: content, shape: HikariRadius.pill);
+    }
+    return FilterChip(
+      label: content,
+      selected: isSelected,
+      onSelected: (_) => onTap!(),
+      showCheckmark: false,
+      shape: HikariRadius.pill,
+      selectedColor: colors.secondaryContainer,
     );
   }
 }
 
-/// Horizontal row for feature-owned filter chips.
-///
-/// The row owns only scrolling and spacing; features still own chip labels,
-/// selection semantics and actions.
+/// Horizontal row for feature-owned filter chips; selection stays with features.
 class HikariChipRow extends StatelessWidget {
   const HikariChipRow({
     super.key,

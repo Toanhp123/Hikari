@@ -21,18 +21,10 @@ class SettingsContent extends StatelessWidget {
   final bool isClearingCache;
   final bool isChoosingFolder;
   final ValueChanged<bool>? onToggleOled;
-  final ValueChanged<Color>? onSelectAccent;
+  final ValueChanged<Color?>? onSelectAccent;
   final VoidCallback? onClearCache;
   final String? cacheSizeLabel;
   final VoidCallback? onChooseLocalFolder;
-
-  static const _accentColors = <(String, Color)>[
-    ('Violet', Color(0xFF8B5CF6)),
-    ('Pink', Color(0xFFEC4899)),
-    ('Cyan', Color(0xFF06B6D4)),
-    ('Green', Color(0xFF10B981)),
-    ('Amber', Color(0xFFF59E0B)),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -60,30 +52,26 @@ class SettingsContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Accent Color',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: HikariSpacing.sm),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: _accentColors.map((accent) {
-                          final (name, color) = accent;
-                          final selected = selectedAccent == color;
-                          return Padding(
+                        children: [
+                          Padding(
                             padding: const EdgeInsets.only(
                               right: HikariSpacing.sm,
                             ),
                             child: Semantics(
-                              label: '$name accent',
-                              selected: selected,
+                              label: 'Default accent',
+                              selected: selectedAccent == null,
                               button: true,
                               child: InkWell(
-                                onTap: () => onSelectAccent!(color),
+                                onTap: () => onSelectAccent!(null),
                                 customBorder: const CircleBorder(),
                                 child: SizedBox(
                                   width: 48,
@@ -92,29 +80,74 @@ class SettingsContent extends StatelessWidget {
                                     child: Container(
                                       width: 36,
                                       height: 36,
+                                      alignment: Alignment.center,
                                       decoration: BoxDecoration(
-                                        color: color,
                                         shape: BoxShape.circle,
-                                        border: selected
+                                        color: HikariTheme.defaultAccentSeed,
+                                        border: selectedAccent == null
                                             ? Border.all(
                                                 color: colors.textPrimary,
                                                 width: 2.5,
                                               )
                                             : null,
                                       ),
+                                      child: const Icon(
+                                        Icons.restart_alt_rounded,
+                                        size: 21,
+                                        color: Colors.black87,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          );
-                        }).toList(),
+                          ),
+                          ...HikariTheme.accentPresets.map((accent) {
+                            final (name, color) = accent;
+                            final selected = selectedAccent == color;
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                right: HikariSpacing.sm,
+                              ),
+                              child: Semantics(
+                                label: '$name accent',
+                                selected: selected,
+                                button: true,
+                                child: InkWell(
+                                  onTap: () => onSelectAccent!(color),
+                                  customBorder: const CircleBorder(),
+                                  child: SizedBox(
+                                    width: 48,
+                                    height: 48,
+                                    child: Center(
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                          border: selected
+                                              ? Border.all(
+                                                  color: colors.textPrimary,
+                                                  width: 2.5,
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
                       ),
                     ),
                     const SizedBox(height: HikariSpacing.xs),
                     Text(
                       'Appearance preferences currently apply to this app session.',
-                      style: TextStyle(fontSize: 11, color: colors.textMuted),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: colors.textMuted),
                     ),
                   ],
                 ),

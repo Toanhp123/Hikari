@@ -59,6 +59,31 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('default accent restores nullable raw seed', (tester) async {
+    final semantics = tester.ensureSemantics();
+    Color? latest = const Color(0xFF8B5CF6);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(accentColor: latest),
+        home: SettingsPage(
+          selectedAccent: latest,
+          onSelectAccent: (value) => latest = value,
+        ),
+      ),
+    );
+    final reset = find.bySemanticsLabel('Default accent');
+    expect(reset, findsOneWidget);
+    expect(tester.getSize(reset).width, greaterThanOrEqualTo(48));
+    expect(
+      tester.getSemantics(reset).flagsCollection.isSelected,
+      Tristate.isFalse,
+    );
+    await tester.tap(reset);
+    await tester.pump();
+    expect(latest, isNull);
+    semantics.dispose();
+  });
+
   testWidgets('SettingsPage renders sections and handles clear cache', (
     tester,
   ) async {

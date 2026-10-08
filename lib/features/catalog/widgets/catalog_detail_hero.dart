@@ -106,8 +106,12 @@ class CatalogDetailHero extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style:
                                 (context.isCompact
-                                        ? HikariTypography.headline
-                                        : HikariTypography.display)
+                                        ? Theme.of(context)
+                                              .textTheme
+                                              .headlineMedium!
+                                        : Theme.of(context)
+                                              .textTheme
+                                              .displayLarge!)
                                     .copyWith(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w800,
@@ -125,10 +129,11 @@ class CatalogDetailHero extends StatelessWidget {
                               metadata.join(' · '),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: HikariTypography.labelMedium.copyWith(
-                                color: Colors.white.withValues(alpha: 0.82),
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: Theme.of(context).textTheme.labelMedium!
+                                  .copyWith(
+                                    color: Colors.white.withValues(alpha: 0.82),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                           ],
                           if (details?.averageScore != null) ...[
@@ -144,9 +149,8 @@ class CatalogDetailHero extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   '${details!.averageScore}%',
-                                  style: HikariTypography.labelLarge.copyWith(
-                                    color: Colors.white,
-                                  ),
+                                  style: Theme.of(context).textTheme.labelLarge!
+                                      .copyWith(color: Colors.white),
                                 ),
                               ],
                             ),
@@ -171,9 +175,10 @@ class CatalogDetailHero extends StatelessWidget {
                             entry.type == MediaType.anime
                                 ? 'Choose a source to continue'
                                 : 'Choose where to read',
-                            style: HikariTypography.caption.copyWith(
-                              color: Colors.white.withValues(alpha: 0.72),
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall!
+                                .copyWith(
+                                  color: Colors.white.withValues(alpha: 0.72),
+                                ),
                           ),
                         ],
                       ),
@@ -309,7 +314,7 @@ class _TypePill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           catalogMediaTypeLabel(type),
-          style: HikariTypography.labelSmall.copyWith(
+          style: Theme.of(context).textTheme.labelSmall!.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.6,

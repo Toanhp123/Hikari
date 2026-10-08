@@ -22,7 +22,7 @@ class SettingsPage extends StatefulWidget {
   final bool isOled;
   final Color? selectedAccent;
   final ValueChanged<bool>? onToggleOled;
-  final ValueChanged<Color>? onSelectAccent;
+  final ValueChanged<Color?>? onSelectAccent;
   final Future<void> Function()? onClearCache;
   final String? cacheSizeLabel;
   final Future<void> Function()? onChooseLocalFolder;
@@ -101,10 +101,8 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(
         title: Text(
           'Settings',
-          style: HikariTypography.titleLarge.copyWith(
-            color: colors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(context).textTheme.titleLarge!
+              .copyWith(color: colors.textPrimary, fontWeight: FontWeight.w700),
         ),
       ),
       body: SettingsContent(

@@ -130,9 +130,8 @@ class LocalMediaContent extends StatelessWidget {
             children: [
               Text(
                 'Local',
-                style: HikariTypography.titleLarge.copyWith(
-                  color: colors.textPrimary,
-                ),
+                style: Theme.of(context).textTheme.titleLarge!
+                    .copyWith(color: colors.textPrimary),
               ),
               if (supported)
                 Row(
