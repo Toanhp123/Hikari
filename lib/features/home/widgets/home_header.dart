@@ -1,6 +1,8 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+
 import 'package:hikari/app/theme/hikari_theme.dart';
 
 /// Pinned glassmorphic header for Home with dynamic gradient blur on scroll.
@@ -11,25 +13,36 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final title = TextPainter(
+      text: TextSpan(
+        text: 'Hikari',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    // Keep the original 58dp chrome at normal scale; grow for accessible text.
+    final extent = math.max(58.0, title.height + HikariSpacing.xl);
+    title.dispose();
     return SliverPersistentHeader(
       pinned: true,
-      delegate: _HomeHeaderDelegate(onSearch: onSearch),
+      delegate: _HomeHeaderDelegate(onSearch: onSearch, extent: extent),
     );
   }
 }
 
 class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _HomeHeaderDelegate({this.onSearch});
+  const _HomeHeaderDelegate({this.onSearch, required this.extent});
 
   final VoidCallback? onSearch;
-
-  static const double _headerHeight = 58.0;
-
-  @override
-  double get minExtent => _headerHeight;
+  final double extent;
 
   @override
-  double get maxExtent => _headerHeight;
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
 
   @override
   Widget build(
@@ -154,6 +167,6 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _HomeHeaderDelegate oldDelegate) {
-    return oldDelegate.onSearch != onSearch;
+    return oldDelegate.onSearch != onSearch || oldDelegate.extent != extent;
   }
 }

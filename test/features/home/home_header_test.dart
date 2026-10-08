@@ -41,6 +41,30 @@ void main() {
     expect(searchTapped, isTrue);
   });
 
+  testWidgets('HomeHeader grows for large text and keeps search reachable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
+          child: Scaffold(
+            body: CustomScrollView(
+              slivers: [
+                HomeHeader(onSearch: () {}),
+                const SliverToBoxAdapter(child: SizedBox(height: 500)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Hikari'), findsOneWidget);
+    expect(find.byTooltip('Search'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('HomeHeader remains pinned when scrolling', (tester) async {
     await tester.pumpWidget(buildHeaderTest());
 

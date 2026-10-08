@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
@@ -30,6 +31,54 @@ void main() {
       await tester.tap(find.text('Click Me'));
       await tester.pumpAndSettle();
       expect(tapped, isTrue);
+    });
+
+    testWidgets('native action supports focus and keyboard activation', (
+      tester,
+    ) async {
+      var activations = 0;
+      await tester.pumpWidget(
+        testWrapper(
+          HikariButton(
+            label: 'Keyboard Action',
+            onPressed: () => activations++,
+          ),
+        ),
+      );
+      expect(find.byType(FilledButton), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(FilledButton)).height,
+        greaterThanOrEqualTo(48),
+      );
+      final focus = Focus.of(tester.element(find.text('Keyboard Action')));
+      focus.requestFocus();
+      await tester.pump();
+      expect(focus.hasFocus, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(activations, 1);
+    });
+
+    testWidgets('loading blocks native action while keeping its label', (
+      tester,
+    ) async {
+      var activations = 0;
+      await tester.pumpWidget(
+        testWrapper(
+          HikariButton(
+            label: 'Retry',
+            isLoading: true,
+            onPressed: () => activations++,
+          ),
+        ),
+      );
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+      );
+      expect(activations, 0);
     });
 
     testWidgets('shows loading indicator when isLoading is true', (

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -84,56 +86,71 @@ class _HeroCarouselState extends State<HeroCarousel> {
         HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final horizontalPadding = isCompact ? HikariSpacing.lg : HikariSpacing.xl;
+    final minimumHeight = _scaledSlideMinimumHeight(
+      context,
+      math.max(1.0, width - 2 * horizontalPadding),
+      isCompact,
+    );
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
-      ),
-      child: AspectRatio(
-        aspectRatio: isCompact ? (16 / 10) : (16 / 7),
-        child: Material(
-          color: colors.surfaceContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: HikariRadius.borderLg,
-            side: BorderSide(
-              color: colors.outlineVariant.withValues(alpha: 0.6),
-              width: HikariRadius.borderWidth,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              PageView.builder(
-                clipBehavior: Clip.none,
-                controller: _pageController,
-                itemCount: widget.entries.length,
-                onPageChanged: (page) => setState(() => _currentPage = page),
-                itemBuilder: (context, index) => _HeroSlide(
-                  entry: widget.entries[index],
-                  position: index + 1,
-                  total: widget.entries.length,
-                  isCompact: isCompact,
-                  openDetail: widget.openDetail,
-                ),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minimumHeight),
+        child: AspectRatio(
+          aspectRatio: isCompact ? (16 / 10) : (16 / 7),
+          child: Material(
+            color: colors.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: HikariRadius.borderLg,
+              side: BorderSide(
+                color: colors.outlineVariant.withValues(alpha: 0.6),
+                width: HikariRadius.borderWidth,
               ),
-              if (widget.entries.length > 1) ...[
-                Positioned(
-                  top: HikariSpacing.md,
-                  right: HikariSpacing.lg,
-                  child: ExcludeSemantics(
-                    child: _PageCounter(
-                      current: _currentPage + 1,
-                      total: widget.entries.length,
-                    ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                PageView.builder(
+                  clipBehavior: Clip.none,
+                  controller: _pageController,
+                  itemCount: widget.entries.length,
+                  onPageChanged: (page) => setState(() => _currentPage = page),
+                  itemBuilder: (context, index) => _HeroSlide(
+                    entry: widget.entries[index],
+                    position: index + 1,
+                    total: widget.entries.length,
+                    isCompact: isCompact,
+                    openDetail: widget.openDetail,
                   ),
                 ),
-                if (!isCompact) ...[
+                if (widget.entries.length > 1) ...[
+                  Positioned(
+                    top: HikariSpacing.md,
+                    right: isCompact ? 0 : HikariSpacing.lg,
+                    left: isCompact ? 0 : null,
+                    child: Align(
+                      alignment: isCompact
+                          ? Alignment.topCenter
+                          : Alignment.topRight,
+                      child: ExcludeSemantics(
+                        child: _PageCounter(
+                          current: _currentPage + 1,
+                          total: widget.entries.length,
+                        ),
+                      ),
+                    ),
+                  ),
                   Positioned(
                     left: HikariSpacing.md,
                     top: 0,
                     bottom: 0,
-                    child: Center(
+                    width: HikariSize.touchTarget,
+                    child: Align(
+                      alignment: isCompact
+                          ? Alignment.topCenter
+                          : Alignment.center,
                       child: IconButton.filledTonal(
                         tooltip: 'Previous featured item',
                         style: IconButton.styleFrom(
@@ -152,7 +169,11 @@ class _HeroCarouselState extends State<HeroCarousel> {
                     right: HikariSpacing.md,
                     top: 0,
                     bottom: 0,
-                    child: Center(
+                    width: HikariSize.touchTarget,
+                    child: Align(
+                      alignment: isCompact
+                          ? Alignment.topCenter
+                          : Alignment.center,
                       child: IconButton.filledTonal(
                         tooltip: 'Next featured item',
                         style: IconButton.styleFrom(
@@ -169,11 +190,73 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   ),
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  double _scaledSlideMinimumHeight(
+    BuildContext context,
+    double cardWidth,
+    bool isCompact,
+  ) {
+    final scaler = MediaQuery.textScalerOf(context);
+    // Preserve the original artwork geometry at normal text sizes.
+    if (scaler.scale(12) <= 15) return 0;
+
+    final textTheme = Theme.of(context).textTheme;
+    final titleStyle = isCompact
+        ? textTheme.headlineSmall
+        : textTheme.headlineMedium;
+    final contentWidth = math.max(
+      1.0,
+      math.min(620.0, cardWidth - 2 * HikariSpacing.lg),
+    );
+
+    double measure(String value, TextStyle? style, int lines) {
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: style),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+        maxLines: lines,
+        ellipsis: '…',
+      )..layout(maxWidth: contentWidth);
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    var maxTitle = 0.0;
+    var maxMetadata = 0.0;
+    for (final entry in widget.entries) {
+      maxTitle = math.max(maxTitle, measure(entry.title, titleStyle, 2));
+      final metadata = [
+        mediaTypeLabel(entry.type),
+        ...entry.genres.take(2),
+      ].join(' · ');
+      maxMetadata = math.max(
+        maxMetadata,
+        measure(metadata, textTheme.bodySmall, 1),
+      );
+    }
+    final badge =
+        measure('Featured', textTheme.labelSmall, 1) + 2 * HikariSpacing.xs;
+    final button = math.max(
+      HikariSize.touchTarget,
+      measure('View details', textTheme.labelLarge, 1) + 2 * HikariSpacing.md,
+    );
+    // Keep the header paging controls separate from the bottom CTA at high scale.
+    return 60 +
+        badge +
+        HikariSpacing.sm +
+        maxTitle +
+        HikariSpacing.xs +
+        maxMetadata +
+        HikariSpacing.md +
+        button +
+        HikariSpacing.lg;
   }
 }
 
@@ -204,7 +287,8 @@ class _HeroSlide extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: 'Featured $position of $total: ${entry.title}',
+      explicitChildNodes: true,
+      label: 'Item $position of $total',
       child: Stack(
         fit: StackFit.expand,
         children: [

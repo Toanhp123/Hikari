@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 
@@ -19,8 +21,12 @@ enum HikariButtonSize {
   final double fontSize;
 }
 
-/// A tactile button component with press-scale feedback for Cinematic Neo-Material design.
-class HikariButton extends StatefulWidget {
+/// Compatibility action API backed by native Material buttons.
+///
+/// Native controls own keyboard activation, focus, disabled semantics and
+/// Material interaction states. Size variants retain their text/padding scale;
+/// every enabled action has at least the canonical 48dp touch target.
+class HikariButton extends StatelessWidget {
   const HikariButton({
     super.key,
     required this.label,
@@ -41,153 +47,94 @@ class HikariButton extends StatefulWidget {
   final bool isFullWidth;
 
   @override
-  State<HikariButton> createState() => _HikariButtonState();
-}
-
-class _HikariButtonState extends State<HikariButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: HikariMotion.fast,
-      reverseDuration: HikariMotion.fast,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.97,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(TapDownDetails _) {
-    if (widget.onPressed != null && !widget.isLoading) {
-      _controller.forward();
-    }
-  }
-
-  void _onTapUp(TapUpDetails _) {
-    if (widget.onPressed != null && !widget.isLoading) {
-      _controller.reverse();
-    }
-  }
-
-  void _onTapCancel() {
-    if (widget.onPressed != null && !widget.isLoading) {
-      _controller.reverse();
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    final isEnabled = widget.onPressed != null && !widget.isLoading;
-
-    Color bg;
-    Color fg;
-    Border? border;
-    List<BoxShadow>? shadows;
-
-    switch (widget.variant) {
-      case HikariButtonVariant.primary:
-        bg = isEnabled ? colors.primary : colors.surfaceElevated;
-        fg = isEnabled ? colors.onPrimary : colors.textMuted;
-        if (isEnabled) {
-          shadows = [
-            BoxShadow(
-              color: colors.primary.withValues(alpha: 0.35),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ];
-        }
-        break;
-      case HikariButtonVariant.secondary:
-        bg = isEnabled ? colors.surfaceContainer : colors.surface;
-        fg = isEnabled ? colors.textPrimary : colors.textMuted;
-        border = Border.all(color: colors.border);
-        break;
-      case HikariButtonVariant.ghost:
-        bg = Colors.transparent;
-        fg = isEnabled ? colors.textSecondary : colors.textMuted;
-        break;
-      case HikariButtonVariant.danger:
-        bg = isEnabled ? colors.error : colors.surfaceElevated;
-        fg = Colors.white;
-        break;
-    }
+    final colors = Theme.of(context).colorScheme;
+    final effectiveOnPressed = isLoading ? null : onPressed;
+    final commonStyle = ButtonStyle(
+      minimumSize: WidgetStatePropertyAll(
+        Size(
+          HikariSize.touchTarget,
+          math.max(size.height, HikariSize.touchTarget),
+        ),
+      ),
+      padding: WidgetStatePropertyAll(
+        EdgeInsets.symmetric(
+          horizontal: size.horizontalPadding,
+          vertical: HikariSpacing.sm,
+        ),
+      ),
+      shape: const WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: HikariRadius.borderMd),
+      ),
+    );
 
     final content = Row(
-      mainAxisSize: widget.isFullWidth ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (widget.isLoading) ...[
-          SizedBox(
-            width: widget.size.fontSize + 2,
-            height: widget.size.fontSize + 2,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(fg),
+        if (isLoading) ...[
+          ExcludeSemantics(
+            child: SizedBox(
+              width: size.fontSize + 2,
+              height: size.fontSize + 2,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(width: HikariSpacing.xs),
-        ] else if (widget.icon != null) ...[
-          widget.icon!,
+        ] else if (icon != null) ...[
+          ExcludeSemantics(child: icon!),
           const SizedBox(width: HikariSpacing.xs),
         ],
         Flexible(
           child: Text(
-            widget.label,
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: widget.size.fontSize,
+              fontSize: size.fontSize,
               fontWeight: FontWeight.w600,
-              color: fg,
             ),
           ),
         ),
       ],
     );
 
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: GestureDetector(
-        onTapDown: _onTapDown,
-        onTapUp: _onTapUp,
-        onTapCancel: _onTapCancel,
-        onTap: isEnabled ? widget.onPressed : null,
-        behavior: HitTestBehavior.opaque,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: 48, // ensure accessible touch target
-            minWidth: widget.isFullWidth ? double.infinity : 48,
-          ),
-          child: Container(
-            height: widget.size.height,
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.size.horizontalPadding,
-            ),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: HikariRadius.borderMd,
-              border: border,
-              boxShadow: shadows,
-            ),
-            alignment: Alignment.center,
-            child: content,
-          ),
-        ),
+    final Widget button = switch (variant) {
+      HikariButtonVariant.primary => FilledButton(
+        onPressed: effectiveOnPressed,
+        style: commonStyle,
+        child: content,
       ),
+      HikariButtonVariant.secondary => OutlinedButton(
+        onPressed: effectiveOnPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: colors.surfaceContainer,
+          foregroundColor: colors.onSurface,
+          side: BorderSide(color: colors.outline),
+        ).merge(commonStyle),
+        child: content,
+      ),
+      HikariButtonVariant.ghost => TextButton(
+        onPressed: effectiveOnPressed,
+        style: TextButton.styleFrom(foregroundColor: colors.onSurfaceVariant)
+            .merge(commonStyle),
+        child: content,
+      ),
+      HikariButtonVariant.danger => FilledButton(
+        onPressed: effectiveOnPressed,
+        style: HikariTheme.destructiveAction(colors).merge(commonStyle),
+        child: content,
+      ),
+    };
+
+    return Semantics(
+      value: isLoading ? 'Loading' : null,
+      child: isFullWidth
+          ? SizedBox(width: double.infinity, child: button)
+          : button,
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -148,6 +149,19 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final labelMetrics = TextPainter(
+      text: TextSpan(
+        text: 'Settings',
+        style: (textTheme.labelSmall ?? const TextStyle()).copyWith(
+          fontSize: 12,
+        ),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final barHeight = math.max(72.0, 32 + 4 + labelMetrics.height + 16);
+    labelMetrics.dispose();
 
     return RepaintBoundary(
       child: ClipRect(
@@ -166,7 +180,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
             child: SafeArea(
               top: false,
               child: SizedBox(
-                height: 72,
+                height: barHeight,
                 child: Row(
                   children: AppTab.values.map((tab) {
                     final isSelected = tab.index == _currentIndex;
@@ -175,66 +189,73 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                         button: true,
                         selected: isSelected,
                         label: tab.label,
-                        child: Tooltip(
-                          message: tab.label,
-                          child: InkWell(
-                            onTap: () => _selectTab(tab),
-                            splashColor: colors.primary.withValues(alpha: 0.12),
-                            highlightColor: Colors.transparent,
-                            child: SizedBox(
-                              height: 72,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  AnimatedContainer(
-                                    duration: HikariMotion.duration(
-                                      context,
-                                      HikariMotion.standard,
+                        onTap: () => _selectTab(tab),
+                        child: ExcludeSemantics(
+                          child: Tooltip(
+                            message: tab.label,
+                            child: InkWell(
+                              onTap: () => _selectTab(tab),
+                              splashColor: colors.primary.withValues(
+                                alpha: 0.12,
+                              ),
+                              highlightColor: Colors.transparent,
+                              child: SizedBox(
+                                height: barHeight,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: HikariMotion.duration(
+                                        context,
+                                        HikariMotion.standard,
+                                      ),
+                                      curve: HikariMotion.curveStandard,
+                                      width: isSelected ? 60 : 40,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? colors.secondaryContainer
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        isSelected
+                                            ? tab.selectedIcon
+                                            : tab.icon,
+                                        size: 22,
+                                        color: isSelected
+                                            ? colors.onSecondaryContainer
+                                            : colors.onSurfaceVariant,
+                                      ),
                                     ),
-                                    curve: HikariMotion.curveStandard,
-                                    width: isSelected ? 60 : 40,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? colors.secondaryContainer
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(16),
+                                    const SizedBox(height: 4),
+                                    AnimatedDefaultTextStyle(
+                                      duration: HikariMotion.duration(
+                                        context,
+                                        HikariMotion.standard,
+                                      ),
+                                      curve: HikariMotion.curveStandard,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style:
+                                          (textTheme.labelSmall ??
+                                                  const TextStyle())
+                                              .copyWith(
+                                                fontSize: 12,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w500,
+                                                letterSpacing: 0.2,
+                                                color: isSelected
+                                                    ? colors.onSurface
+                                                    : colors.onSurfaceVariant,
+                                              ),
+                                      child: Text(tab.label),
                                     ),
-                                    alignment: Alignment.center,
-                                    child: Icon(
-                                      isSelected ? tab.selectedIcon : tab.icon,
-                                      size: 22,
-                                      color: isSelected
-                                          ? colors.onSecondaryContainer
-                                          : colors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  AnimatedDefaultTextStyle(
-                                    duration: HikariMotion.duration(
-                                      context,
-                                      HikariMotion.standard,
-                                    ),
-                                    curve: HikariMotion.curveStandard,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        (textTheme.labelSmall ??
-                                                const TextStyle())
-                                            .copyWith(
-                                              fontSize: 12,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w600
-                                                  : FontWeight.w500,
-                                              letterSpacing: 0.2,
-                                              color: isSelected
-                                                  ? colors.onSurface
-                                                  : colors.onSurfaceVariant,
-                                            ),
-                                    child: Text(tab.label),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:hikari/app/theme/hikari_theme.dart';
@@ -37,6 +39,28 @@ class ContinueShelf extends StatelessWidget {
     final isCompact =
         HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final cardWidth = isCompact ? 172.0 : 208.0;
+    final textScaler = MediaQuery.textScalerOf(context);
+    double lineHeight(TextStyle? style) {
+      final painter = TextPainter(
+        text: TextSpan(text: 'Ag', style: style),
+        textDirection: Directionality.of(context),
+        textScaler: textScaler,
+        maxLines: 1,
+      )..layout();
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    final cardHeight = math.max(
+      142.0,
+      64 +
+          lineHeight(theme.textTheme.titleSmall) +
+          lineHeight(theme.textTheme.bodySmall) +
+          2 +
+          6 +
+          HikariSpacing.sm,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +101,7 @@ class ContinueShelf extends StatelessWidget {
         ),
         const SizedBox(height: HikariSpacing.md),
         SizedBox(
-          height: 142,
+          height: cardHeight,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             scrollDirection: Axis.horizontal,
@@ -130,127 +154,134 @@ class _ContinueCard extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Continue ${item.media.title}, $progressLabel',
-      child: Material(
-        color: colors.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderLg,
-          side: BorderSide(
-            color: colors.outlineVariant.withValues(alpha: 0.6),
-            width: HikariRadius.borderWidth,
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: Material(
+          color: colors.surfaceContainer,
+          shape: RoundedRectangleBorder(
+            borderRadius: HikariRadius.borderLg,
+            side: BorderSide(
+              color: colors.outlineVariant.withValues(alpha: 0.6),
+              width: HikariRadius.borderWidth,
+            ),
           ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          splashColor: colors.primary.withValues(alpha: 0.12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            badgeColor.withValues(alpha: 0.16),
-                            colors.surfaceContainerHigh,
-                            colors.surfaceContainer,
-                          ],
-                        ),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: badgeColor.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            splashColor: colors.primary.withValues(alpha: 0.12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              badgeColor.withValues(alpha: 0.16),
+                              colors.surfaceContainerHigh,
+                              colors.surfaceContainer,
+                            ],
                           ),
-                          child: Icon(actionIcon, size: 22, color: badgeColor),
                         ),
-                      ),
-                    ),
-                    Positioned(
-                      left: HikariSpacing.sm,
-                      top: HikariSpacing.sm,
-                      child: DecoratedBox(
-                        decoration: ShapeDecoration(
-                          color: badgeColor.withValues(alpha: 0.18),
-                          shape: HikariRadius.pill,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          child: Text(
-                            badgeText,
-                            style:
-                                (theme.textTheme.labelSmall ??
-                                        const TextStyle())
-                                    .copyWith(
-                                      color: badgeColor,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.4,
-                                    ),
+                        child: Center(
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: badgeColor.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              actionIcon,
+                              size: 22,
+                              color: badgeColor,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Semantics(
-                        label: 'Progress',
-                        value:
-                            '${(item.progress.clamp(0.0, 1.0) * 100).round()}%',
-                        child: MediaProgressBar(
-                          progress: item.progress,
-                          height: 3,
-                          showGlow: false,
+                      Positioned(
+                        left: HikariSpacing.sm,
+                        top: HikariSpacing.sm,
+                        child: DecoratedBox(
+                          decoration: ShapeDecoration(
+                            color: badgeColor.withValues(alpha: 0.18),
+                            shape: HikariRadius.pill,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              badgeText,
+                              style:
+                                  (theme.textTheme.labelSmall ??
+                                          const TextStyle())
+                                      .copyWith(
+                                        color: badgeColor,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.4,
+                                      ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Semantics(
+                          label: 'Progress',
+                          value:
+                              '${(item.progress.clamp(0.0, 1.0) * 100).round()}%',
+                          child: MediaProgressBar(
+                            progress: item.progress,
+                            height: 3,
+                            showGlow: false,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  HikariSpacing.sm,
-                  6,
-                  HikariSpacing.sm,
-                  HikariSpacing.sm,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    HikariSpacing.sm,
+                    6,
+                    HikariSpacing.sm,
+                    HikariSpacing.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.media.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: (theme.textTheme.titleSmall ?? const TextStyle())
+                            .copyWith(
+                              color: colors.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        progressLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: (theme.textTheme.bodySmall ?? const TextStyle())
+                            .copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.media.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: (theme.textTheme.titleSmall ?? const TextStyle())
-                          .copyWith(
-                            color: colors.onSurface,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      progressLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: (theme.textTheme.bodySmall ?? const TextStyle())
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

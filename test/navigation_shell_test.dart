@@ -161,6 +161,26 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('compact navigation grows for large text without overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
+          child: AppNavigationShell(tabs: tabs),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byTooltip('Home')).height, greaterThan(72));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('missing destination fails explicitly', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -228,6 +248,7 @@ void main() {
     final handle = tester.ensureSemantics();
     final semantics = tester.getSemantics(homeTooltip);
     expect(semantics.flagsCollection.isSelected, Tristate.isTrue);
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
     handle.dispose();
 
     // Verify touch target height is at least 48dp (is 64dp)
