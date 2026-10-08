@@ -350,7 +350,7 @@ class _MetadataTag extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: isTag ? colors.surfaceContainer : colors.surfaceContainerHigh,
-        borderRadius: HikariRadius.borderCapsule,
+        borderRadius: HikariRadius.borderXl,
         border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Padding(

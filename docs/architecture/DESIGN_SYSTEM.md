@@ -36,7 +36,7 @@ Use local `LayoutBuilder` constraints for a component's responsive content decis
 - Action types: native FilledButton, OutlinedButton, TextButton; minimum 48dp touch targets; preserve focus, keyboard and disabled state semantics. Shared filter/icon actions delegate focus, semantics and keyboard behavior to native Material controls.
 - Sections: semantic TextTheme slots, feature-owned heading/metadata and actions. No generic shelf DSL or mega-card component.
 - Cards: stable artwork aspect ratio, separate scaled title area, useful error/fallback imagery, no default shadow; full labels available to assistive technology even when visual copy truncates.
-- Search: native `SearchBar` theme is root-owned. Existing query controller and debounce behavior remain owned by `HikariSearchBar`.
+- Search: native `SearchBar` theme is root-owned. `HikariSearchBar` debounces edits, while Catalog and Source searches run only on explicit submit (Enter or Search action); source results may stream in while slower providers are pending.
 - Loading/empty/error states: preserve feature state snapshots and retries; keep paired semantic status colors.
 - Dialogs/sheets: use native component styling, safe area and content scrolling. Routes and focus restoration remain feature-owned.
 - Navigation: the current custom docked bar/rail remains in this pass; separately evaluate native presentation against visual fidelity and accessibility, not by assumption.
@@ -58,7 +58,7 @@ The earlier parallel foundation was intentionally separate for its first milesto
 
 ## Theme hygiene (2026-10-08)
 
-- `HikariTheme.defaultAccentSeed` and `HikariTheme.accentPresets` own the raw appearance choices. Settings offers a Default swatch to restore a nullable seed; appearance remains session-only by product policy.
+- `HikariTheme.defaultAccentSeed` and `HikariTheme.accentPresets` own the raw appearance choices. Settings offers a Default swatch to restore a nullable seed; OLED/accent preferences persist in an app-support JSON file loaded before `runApp`, with no added package dependency.
 - `MaterialApp` creates one active dark `ThemeData`, and Home/navbar/SearchBar inherit that root without scoped reconstruction.
 - `HikariChip` delegates interactive filter selection to `FilterChip`; `HikariIconButton` delegates action handling to native `IconButton`. Both retain their existing feature call signatures.
 - The dormant global `HikariReadingPalette` was removed. Novel prose continues to use its existing `NovelReaderTheme` without changes to rendered reading colors.

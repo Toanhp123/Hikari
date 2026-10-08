@@ -19,6 +19,7 @@ class SourceSearchContent extends StatelessWidget {
     required this.controller,
     required this.state,
     required this.onQueryChanged,
+    required this.onSubmitted,
     required this.onSelectFilter,
     required this.onRetry,
     required this.openMedia,
@@ -32,6 +33,7 @@ class SourceSearchContent extends StatelessWidget {
   final TextEditingController controller;
   final SourceSearchUiState state;
   final ValueChanged<String> onQueryChanged;
+  final ValueChanged<String> onSubmitted;
   final ValueChanged<SourceSearchFilter> onSelectFilter;
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
@@ -56,8 +58,9 @@ class SourceSearchContent extends StatelessWidget {
             children: [
               HikariSearchBar(
                 controller: controller,
-                initialQuery: state.query,
+                initialQuery: state.inputQuery,
                 onChanged: onQueryChanged,
+                onSubmitted: onSubmitted,
               ),
               const SizedBox(height: HikariSpacing.sm),
               if (catalogScopeLabel != null)
@@ -95,6 +98,9 @@ class SourceSearchContent extends StatelessWidget {
               ),
             ),
           ),
+        if (state.status == SourceSearchStatus.loading &&
+            state.results.isNotEmpty)
+          const LinearProgressIndicator(minHeight: 2),
         Expanded(
           child: _SourceSearchResults(
             state: state,
@@ -171,7 +177,10 @@ class _SourceSearchResults extends StatelessWidget {
     final scope = catalogScopeLabel ?? scopedSourceName;
     final status = switch (state.status) {
       SourceSearchStatus.idle => AsyncViewStatus.empty,
-      SourceSearchStatus.loading => AsyncViewStatus.loading,
+      SourceSearchStatus.loading =>
+        state.results.isEmpty
+            ? AsyncViewStatus.loading
+            : AsyncViewStatus.content,
       SourceSearchStatus.ready => AsyncViewStatus.content,
       SourceSearchStatus.empty => AsyncViewStatus.empty,
       SourceSearchStatus.error => AsyncViewStatus.error,
@@ -179,13 +188,15 @@ class _SourceSearchResults extends StatelessWidget {
 
     return AsyncStateView(
       status: status,
-      emptyTitle: state.query.isEmpty ? 'Find a source' : 'No results found',
-      emptyMessage: state.query.isEmpty
-          ? 'Type a title above to search your configured media sources.'
+      emptyTitle: state.status == SourceSearchStatus.idle
+          ? 'Find a source'
+          : 'No results found',
+      emptyMessage: state.status == SourceSearchStatus.idle
+          ? 'Enter a title and press Search to search your configured sources.'
           : scope == null
           ? 'No matches found for "${state.query}".'
           : 'No matches found for "${state.query}" in $scope.',
-      emptyIcon: state.query.isEmpty
+      emptyIcon: state.status == SourceSearchStatus.idle
           ? Icons.search_rounded
           : Icons.search_off_rounded,
       errorMessage: scope == null

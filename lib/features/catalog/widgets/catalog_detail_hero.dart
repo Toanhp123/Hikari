@@ -355,7 +355,7 @@ class _TypePill extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: badge.background,
-        borderRadius: HikariRadius.borderCapsule,
+        borderRadius: HikariRadius.borderXl,
         border: Border.all(color: badge.foreground.withValues(alpha: 0.48)),
       ),
       child: Padding(

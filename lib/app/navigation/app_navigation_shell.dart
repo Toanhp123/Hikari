@@ -73,10 +73,14 @@ class AppNavigationShell extends StatefulWidget {
 }
 
 class _AppNavigationShellState extends State<AppNavigationShell> {
-  late final AppNavigationController _controller;
-  late final bool _ownsController;
+  late AppNavigationController _controller;
+  late bool _ownsController;
   late int _currentIndex;
   late final Set<int> _loadedIndices;
+  TextStyle? _barLabelStyle;
+  TextScaler? _barTextScaler;
+  TextDirection? _barTextDirection;
+  double? _barHeight;
 
   @override
   void initState() {
@@ -87,6 +91,21 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
         AppNavigationController(initialTab: widget.initialTab);
     _currentIndex = _controller.currentTab.index;
     _loadedIndices = {_currentIndex};
+    _controller.addListener(_handleControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(AppNavigationShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) return;
+    _controller.removeListener(_handleControllerChanged);
+    if (_ownsController) _controller.dispose();
+    _ownsController = widget.controller == null;
+    _controller =
+        widget.controller ??
+        AppNavigationController(initialTab: widget.initialTab);
+    _currentIndex = _controller.currentTab.index;
+    _loadedIndices.add(_currentIndex);
     _controller.addListener(_handleControllerChanged);
   }
 
@@ -149,14 +168,25 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
-    final labelMetrics = TextPainter(
-      text: TextSpan(text: 'Settings', style: textTheme.labelSmall),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-      maxLines: 1,
-    )..layout();
-    final barHeight = math.max(72.0, 32 + 4 + labelMetrics.height + 16);
-    labelMetrics.dispose();
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    if (_barHeight == null ||
+        _barLabelStyle != textTheme.labelSmall ||
+        _barTextScaler != scaler ||
+        _barTextDirection != direction) {
+      final metrics = TextPainter(
+        text: TextSpan(text: 'Settings', style: textTheme.labelSmall),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      _barHeight = math.max(72.0, 32 + 4 + metrics.height + 16);
+      metrics.dispose();
+      _barLabelStyle = textTheme.labelSmall;
+      _barTextScaler = scaler;
+      _barTextDirection = direction;
+    }
+    final barHeight = _barHeight!;
 
     return RepaintBoundary(
       child: ClipRect(

@@ -4,8 +4,8 @@ import 'package:hikari/features/settings/widgets/settings_content.dart';
 
 /// Settings exposes only capabilities backed by real application callbacks.
 ///
-/// Appearance remains app-session state until Hikari introduces a persisted
-/// preferences contract. Cache UI is hidden when no cache service is composed.
+/// Appearance is controlled by the app composition root and saved when its
+/// persistence repository is configured. Cache UI is hidden without a service.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,

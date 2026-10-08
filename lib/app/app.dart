@@ -14,6 +14,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/settings/appearance_settings.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/catalog/catalog_search_page.dart';
 import 'package:hikari/features/home/home_page.dart';
@@ -36,9 +37,16 @@ import 'package:hikari/features/source_search/source_search_view_model.dart'
 import 'package:hikari/features/settings/settings_page.dart';
 
 class HikariApp extends StatefulWidget {
-  const HikariApp({super.key, required this.dependencies});
+  const HikariApp({
+    super.key,
+    required this.dependencies,
+    this.initialAppearance = const AppearanceSettings(),
+    this.appearanceRepository,
+  });
 
   final AppDependencies dependencies;
+  final AppearanceSettings initialAppearance;
+  final AppearanceSettingsRepository? appearanceRepository;
 
   @override
   State<HikariApp> createState() => _HikariAppState();
@@ -48,10 +56,36 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   late final AppDependencies _dependencies;
   final _navigationController = AppNavigationController();
   bool _isOpeningMedia = false;
-  bool _isOled = false;
+  late bool _isOled;
   Color? _accentColor;
+  Future<void> _pendingAppearanceSave = Future<void>.value();
   int _homeRefreshRevision = 0;
   int _localScanRevision = 0;
+
+  void _setAppearance({bool? oled, Color? accent, bool updateAccent = false}) {
+    setState(() {
+      if (oled != null) _isOled = oled;
+      if (updateAccent) _accentColor = accent;
+    });
+    final repository = widget.appearanceRepository;
+    if (repository == null) return;
+    final snapshot = AppearanceSettings(
+      isOled: _isOled,
+      accentArgb: _accentColor?.toARGB32(),
+    );
+    // Serialize writes so a slow older write cannot overwrite a newer choice.
+    _pendingAppearanceSave = _pendingAppearanceSave
+        .then((_) => repository.save(snapshot))
+        .catchError((Object error, StackTrace stack) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stack,
+              context: ErrorDescription('persisting appearance settings'),
+            ),
+          );
+        });
+  }
 
   Future<bool> _chooseLocalRoot({bool fromSettings = false}) async {
     final selected = await _dependencies.localMediaSource.chooseRoot();
@@ -69,6 +103,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _dependencies = widget.dependencies;
+    _isOled = widget.initialAppearance.isOled;
+    final accent = widget.initialAppearance.accentArgb;
+    _accentColor = accent == null ? null : Color(accent);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -518,8 +555,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.settings: SettingsPage(
               isOled: _isOled,
               selectedAccent: _accentColor,
-              onToggleOled: (value) => setState(() => _isOled = value),
-              onSelectAccent: (value) => setState(() => _accentColor = value),
+              onToggleOled: (value) => _setAppearance(oled: value),
+              onSelectAccent: (value) =>
+                  _setAppearance(accent: value, updateAccent: true),
               onChooseLocalFolder: localSource.isAvailable
                   ? () => _chooseLocalRoot(fromSettings: true)
                   : null,

@@ -202,6 +202,30 @@ void main() {
     expect(find.text('Local View'), findsOneWidget);
   });
 
+  testWidgets('controller replacement detaches previous owner', (tester) async {
+    final previous = AppNavigationController();
+    final next = AppNavigationController(initialTab: AppTab.library);
+    addTearDown(previous.dispose);
+    addTearDown(next.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppNavigationShell(tabs: tabs, controller: previous),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppNavigationShell(tabs: tabs, controller: next),
+      ),
+    );
+    expect(find.text('Library View'), findsOneWidget);
+    previous.selectTab(AppTab.search);
+    await tester.pump();
+    expect(find.text('Library View'), findsOneWidget);
+    next.selectTab(AppTab.local);
+    await tester.pump();
+    expect(find.text('Local View'), findsOneWidget);
+  });
+
   testWidgets('docked bottom bar adheres to design system contracts', (
     tester,
   ) async {

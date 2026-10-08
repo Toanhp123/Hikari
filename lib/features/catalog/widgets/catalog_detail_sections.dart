@@ -494,7 +494,7 @@ class _StaticTag extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surfaceContainer,
-        borderRadius: HikariRadius.borderCapsule,
+        borderRadius: HikariRadius.borderXl,
         border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.6)),
       ),
       child: Padding(

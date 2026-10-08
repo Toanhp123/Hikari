@@ -40,6 +40,8 @@ void main() {
       // Enter search query
       await tester.enterText(find.byType(SearchBar), 'Solo');
       await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Solo Leveling'), findsNothing);
+      await tester.tap(find.byTooltip('Submit search'));
       await tester.pumpAndSettle();
 
       expect(find.text('Solo Leveling'), findsOneWidget);

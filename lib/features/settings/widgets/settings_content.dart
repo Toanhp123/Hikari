@@ -144,7 +144,7 @@ class SettingsContent extends StatelessWidget {
                     ),
                     const SizedBox(height: HikariSpacing.xs),
                     Text(
-                      'Appearance preferences currently apply to this app session.',
+                      'Appearance preferences are saved on this device.',
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: colors.onSurfaceVariant),
                     ),

@@ -252,6 +252,25 @@ void main() {
     });
   });
 
+  testWidgets('HikariSearchBar replaces a changing external controller', (
+    tester,
+  ) async {
+    final original = TextEditingController(text: 'Old');
+    final replacement = TextEditingController(text: 'New');
+    addTearDown(original.dispose);
+    addTearDown(replacement.dispose);
+    Widget app(TextEditingController controller) => MaterialApp(
+      home: Scaffold(
+        body: HikariSearchBar(controller: controller, onChanged: (_) {}),
+      ),
+    );
+    await tester.pumpWidget(app(original));
+    expect(find.text('Old'), findsOneWidget);
+    await tester.pumpWidget(app(replacement));
+    expect(find.text('New'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   group('AsyncStateView', () {
     testWidgets('renders loading state', (tester) async {
       await tester.pumpWidget(

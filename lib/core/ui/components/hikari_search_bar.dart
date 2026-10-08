@@ -29,12 +29,22 @@ class HikariSearchBar extends StatefulWidget {
 }
 
 class _HikariSearchBarState extends State<HikariSearchBar> {
-  late final TextEditingController _controller;
+  late TextEditingController _controller;
   Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
+    _controller =
+        widget.controller ?? TextEditingController(text: widget.initialQuery);
+  }
+
+  @override
+  void didUpdateWidget(HikariSearchBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) return;
+    _debounceTimer?.cancel();
+    if (oldWidget.controller == null) _controller.dispose();
     _controller =
         widget.controller ?? TextEditingController(text: widget.initialQuery);
   }
@@ -56,6 +66,12 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
     setState(() {});
   }
 
+  void _submit(String value) {
+    _debounceTimer?.cancel();
+    widget.onChanged(value);
+    widget.onSubmitted?.call(value);
+  }
+
   void _onClear() {
     _controller.clear();
     _debounceTimer?.cancel();
@@ -73,11 +89,17 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
           ? null
           : TextInputAction.search,
       onChanged: _onTextChange,
-      onSubmitted: widget.onSubmitted,
+      onSubmitted: widget.onSubmitted == null ? null : _submit,
       leading: const Icon(Icons.search_rounded),
       trailing: _controller.text.isEmpty
           ? null
           : [
+              if (widget.onSubmitted != null)
+                IconButton(
+                  tooltip: 'Submit search',
+                  onPressed: () => _submit(_controller.text),
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                ),
               IconButton(
                 tooltip: 'Clear search',
                 onPressed: _onClear,

@@ -20,16 +20,30 @@ TextStyle _posterTitleStyle(ThemeData theme) =>
       height: 1.25,
     );
 
+// Shared, bounded metrics cache: hundreds of posters often share the same
+// effective typography, direction and text scaler on a single screen.
+final _posterTitleHeights =
+    <({TextStyle style, TextDirection direction, TextScaler scaler}), double>{};
+
 /// Height of two real text lines under the active (possibly nonlinear) scaler.
 double mediaPosterTitleReserveHeight(BuildContext context) {
+  final key = (
+    style: _posterTitleStyle(Theme.of(context)),
+    direction: Directionality.of(context),
+    scaler: MediaQuery.textScalerOf(context),
+  );
+  final cached = _posterTitleHeights[key];
+  if (cached != null) return cached;
   final painter = TextPainter(
-    text: TextSpan(text: 'Hg\nHg', style: _posterTitleStyle(Theme.of(context))),
-    textDirection: Directionality.of(context),
-    textScaler: MediaQuery.textScalerOf(context),
+    text: TextSpan(text: 'Hg\nHg', style: key.style),
+    textDirection: key.direction,
+    textScaler: key.scaler,
     maxLines: 2,
   )..layout();
   final height = painter.height;
   painter.dispose();
+  if (_posterTitleHeights.length >= 24) _posterTitleHeights.clear();
+  _posterTitleHeights[key] = height;
   return height;
 }
 
