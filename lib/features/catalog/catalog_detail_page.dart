@@ -181,8 +181,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final heroHeight =
-        (context.isCompact ? 430.0 : 390.0) +
-        (textScale - 1).clamp(0.0, 1.0).toDouble() * 120;
+        (context.isCompact ? 440.0 : 400.0) +
+        (textScale - 1.0).clamp(0.0, 1.0) * 160.0;
 
     return ListenableBuilder(
       listenable: _viewModel,

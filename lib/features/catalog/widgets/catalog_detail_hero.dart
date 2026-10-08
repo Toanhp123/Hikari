@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -22,6 +21,9 @@ class CatalogDetailHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isCompact = context.isCompact;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final topPadding = textScale > 1.25 ? 44.0 : 72.0;
     final imageUrl = (entry.bannerUrl?.isNotEmpty ?? false)
         ? entry.bannerUrl
         : entry.coverUrl;
@@ -74,9 +76,9 @@ class CatalogDetailHero extends StatelessWidget {
                 maxWidth: HikariBreakpoints.maxContentWidth,
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   HikariSpacing.lg,
-                  72,
+                  topPadding,
                   HikariSpacing.lg,
                   HikariSpacing.xl,
                 ),
@@ -84,7 +86,9 @@ class CatalogDetailHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     SizedBox(
-                      width: context.isCompact ? 104 : 132,
+                      width: isCompact
+                          ? (textScale > 1.3 ? 92.0 : 104.0)
+                          : 132.0,
                       child: AspectRatio(
                         aspectRatio: 2 / 3,
                         child: _CoverArtwork(
@@ -103,13 +107,17 @@ class CatalogDetailHero extends StatelessWidget {
                           const SizedBox(height: HikariSpacing.sm),
                           Text(
                             entry.title,
-                            maxLines: context.isCompact ? 3 : 2,
+                            maxLines: isCompact ? (textScale > 1.3 ? 2 : 3) : 2,
                             overflow: TextOverflow.ellipsis,
                             style:
-                                (context.isCompact
-                                        ? Theme.of(context)
-                                              .textTheme
-                                              .headlineMedium!
+                                (isCompact
+                                        ? (textScale > 1.25
+                                              ? Theme.of(context)
+                                                    .textTheme
+                                                    .titleLarge!
+                                              : Theme.of(context)
+                                                    .textTheme
+                                                    .headlineMedium!)
                                         : Theme.of(context)
                                               .textTheme
                                               .displayLarge!)
@@ -147,9 +155,7 @@ class CatalogDetailHero extends StatelessWidget {
                                 Icon(
                                   Icons.star_rounded,
                                   size: 17,
-                                  color: context
-                                      .hikariStatusColors
-                                      .onWarningContainer,
+                                  color: colors.primary,
                                 ),
                                 const SizedBox(width: HikariSpacing.xs),
                                 Text(
@@ -164,15 +170,28 @@ class CatalogDetailHero extends StatelessWidget {
                           Semantics(
                             button: true,
                             label: '$actionLabel ${entry.title}',
-                            child: HikariButton(
-                              label: actionLabel,
+                            child: FilledButton.icon(
+                              onPressed: onPrimaryAction,
                               icon: Icon(
                                 entry.type == MediaType.anime
                                     ? Icons.play_arrow_rounded
                                     : Icons.menu_book_rounded,
                                 size: 19,
                               ),
-                              onPressed: onPrimaryAction,
+                              label: Text(actionLabel),
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(
+                                  HikariSize.touchTarget,
+                                  44,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: HikariSpacing.lg,
+                                  vertical: HikariSpacing.sm,
+                                ),
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: HikariRadius.borderMd,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: HikariSpacing.xs),

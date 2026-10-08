@@ -750,6 +750,52 @@ void main() {
     expect(searched, isNull);
     expect(find.text('Read from'), findsNothing);
   });
+
+  testWidgets(
+    'catalog detail hero layout remains resilient at 200% text scale with long title',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final longTitleEntry = CatalogEntry(
+        id: const CatalogEntryId(provider: 'test', value: 'long-title'),
+        title: 'A Very Extremely Long Anime Title That Takes Multiple Lines In English And Japanese',
+        type: MediaType.anime,
+        genres: ['Action', 'Fantasy'],
+      );
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+          child: _app(
+            CatalogDetailPage(
+              initialEntry: longTitleEntry,
+              loadDetails: LoadCatalogEntryDetails(
+                _Provider(
+                  onLoadDetails: (_) async => CatalogEntryDetails(
+                    entry: longTitleEntry,
+                    averageScore: 95,
+                    format: CatalogFormat.tv,
+                    year: 2026,
+                  ),
+                ),
+              ),
+              resolveCatalogSource: _resolver(),
+              openMedia: (_, _) async {},
+              openRelated: (_) {},
+              openSourceSearch: (_, _, _, _, _) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Watch'), findsOneWidget);
+      expect(find.byType(FilledButton), findsOneWidget);
+    },
+  );
 }
 
 Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
