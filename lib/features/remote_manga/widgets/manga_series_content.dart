@@ -3,12 +3,22 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/patterns/chapter_list_patterns.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/remote_manga/manga_series_view_model.dart';
 
-class MangaSeriesContent extends StatelessWidget {
+extension on Iterable<MangaChapter> {
+  MangaChapter? firstWhereOrNull(bool Function(MangaChapter) test) {
+    for (final element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}
+
+class MangaSeriesContent extends StatefulWidget {
   const MangaSeriesContent({
     super.key,
     required this.state,
@@ -27,11 +37,20 @@ class MangaSeriesContent extends StatelessWidget {
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
 
   @override
+  State<MangaSeriesContent> createState() => _MangaSeriesContentState();
+}
+
+class _MangaSeriesContentState extends State<MangaSeriesContent> {
+  bool _isReversed = false;
+  bool _isSearching = false;
+  String _searchQuery = '';
+
+  @override
   Widget build(BuildContext context) {
-    if (state.initialLoading) {
+    if (widget.state.initialLoading) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
-    if (state.failed) {
+    if (widget.state.failed) {
       return Center(
         child: SingleChildScrollView(
           child: Column(
@@ -41,7 +60,7 @@ class MangaSeriesContent extends StatelessWidget {
                 'Could not load chapters. Check source access or rate limits.',
               ),
               TextButton(
-                onPressed: () => unawaited(onRefresh()),
+                onPressed: () => unawaited(widget.onRefresh()),
                 child: const Text('Try again'),
               ),
             ],
@@ -50,58 +69,136 @@ class MangaSeriesContent extends StatelessWidget {
       );
     }
 
-    final details = state.details!;
-    final chapters = details.chapters;
+    final details = widget.state.details!;
+    final allChapters = details.chapters;
+    final firstReadable = details.chaptersInReadingOrder.firstWhereOrNull(
+      (c) => c.canReadPages,
+    );
+
+    final query = _searchQuery.trim().toLowerCase();
+    final filteredChapters = query.isEmpty
+        ? allChapters
+        : allChapters.where((c) {
+            if (c.title.toLowerCase().contains(query)) return true;
+            if (c.chapterNumber != null) {
+              final num = c.chapterNumber!;
+              final numStr =
+                  (num % 1 == 0) ? num.toInt().toString() : num.toString();
+              if (numStr.contains(query)) return true;
+              if (num.toString().contains(query)) return true;
+            }
+            return false;
+          }).toList();
+
+    final displayChapters = _isReversed
+        ? filteredChapters.reversed.toList()
+        : filteredChapters;
+
+    final colorScheme = Theme.of(context).colorScheme;
+
     return RefreshIndicator.adaptive(
-      onRefresh: onRefresh,
+      onRefresh: widget.onRefresh,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: chapters.length + 1,
+        itemCount: displayChapters.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (state.refreshFailed)
+                if (widget.state.refreshFailed)
                   MaterialBanner(
                     content: const Text(
                       'Could not refresh chapters. Showing the last loaded list.',
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () => unawaited(onRefresh()),
+                        onPressed: () => unawaited(widget.onRefresh()),
                         child: const Text('Retry'),
                       ),
                     ],
                   ),
                 MediaMetadataView(
                   metadata: details.metadata,
-                  sourceName: sourceName,
-                  readArtwork: readArtwork,
+                  sourceName: widget.sourceName,
+                  readArtwork: widget.readArtwork,
                 ),
-                if (chapters.isEmpty)
+                if (firstReadable != null)
+                  PrimaryReadingCta(
+                    enabled: !widget.openingChapter,
+                    onPressed: () => widget.onOpenChapter(firstReadable),
+                  ),
+                if (allChapters.isNotEmpty)
+                  ChapterControlBar(
+                    totalChapters: allChapters.length,
+                    filteredChapters:
+                        query.isNotEmpty ? filteredChapters.length : null,
+                    isReversed: _isReversed,
+                    onToggleSort: () => setState(() => _isReversed = !_isReversed),
+                    isSearching: _isSearching,
+                    onToggleSearch: () => setState(() {
+                      _isSearching = !_isSearching;
+                      if (!_isSearching) _searchQuery = '';
+                    }),
+                    searchQuery: _searchQuery,
+                    onSearchChanged: (val) => setState(() => _searchQuery = val),
+                    onClearSearch: () => setState(() => _searchQuery = ''),
+                  ),
+                if (allChapters.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(HikariSpacing.lg),
                     child: Text('No readable chapters found.'),
+                  )
+                else if (filteredChapters.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(HikariSpacing.lg),
+                    child: Column(
+                      children: [
+                        Text('No chapters matching "$_searchQuery"'),
+                        TextButton(
+                          onPressed: () => setState(() => _searchQuery = ''),
+                          child: const Text('Clear filter'),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             );
           }
 
-          final chapter = chapters[index - 1];
+          final chapter = displayChapters[index - 1];
           final subtitle = <String>[
-            chapter.scanlator ?? sourceName,
+            chapter.scanlator ?? widget.sourceName,
             if (chapter.chapterNumber != null)
               'Chapter ${chapter.chapterNumber}',
             if (chapter.uploadedAt != null)
               chapter.uploadedAt!.toIso8601String().split('T').first,
             if (!chapter.canReadPages) 'Not readable in Hikari',
           ].join(' · ');
-          return ListTile(
-            key: ValueKey(chapter.source),
-            title: Text(chapter.title),
-            subtitle: Text(subtitle),
-            enabled: !openingChapter && chapter.canReadPages,
-            onTap: chapter.canReadPages ? () => onOpenChapter(chapter) : null,
+
+          final isInteractive = !widget.openingChapter && chapter.canReadPages;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: HikariSpacing.md,
+              vertical: HikariSpacing.xs,
+            ),
+            child: ListTile(
+              key: ValueKey(chapter.source),
+              shape: const RoundedRectangleBorder(
+                borderRadius: HikariRadius.borderMd,
+              ),
+              tileColor: colorScheme.surfaceContainerLow,
+              title: Text(chapter.title),
+              subtitle: Text(subtitle),
+              trailing: isInteractive
+                  ? const Icon(Icons.chevron_right_rounded)
+                  : null,
+              enabled: isInteractive,
+              onTap: chapter.canReadPages
+                  ? () => widget.onOpenChapter(chapter)
+                  : null,
+            ),
           );
         },
       ),

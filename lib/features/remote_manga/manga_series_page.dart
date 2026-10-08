@@ -93,27 +93,30 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
       ],
     ),
     body: SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(HikariSpacing.lg),
-            child: Text(widget.sourceName),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: HikariBreakpoints.maxContentWidth,
           ),
-          if (_isOpeningChapter) const LinearProgressIndicator(),
-          Expanded(
-            child: ListenableBuilder(
-              listenable: _viewModel,
-              builder: (context, _) => MangaSeriesContent(
-                state: _viewModel.state,
-                sourceName: widget.sourceName,
-                openingChapter: _isOpeningChapter,
-                readArtwork: widget.readArtwork,
-                onRefresh: _viewModel.load,
-                onOpenChapter: (chapter) => unawaited(_openChapter(chapter)),
+          child: Column(
+            children: [
+              if (_isOpeningChapter) const LinearProgressIndicator(),
+              Expanded(
+                child: ListenableBuilder(
+                  listenable: _viewModel,
+                  builder: (context, _) => MangaSeriesContent(
+                    state: _viewModel.state,
+                    sourceName: widget.sourceName,
+                    openingChapter: _isOpeningChapter,
+                    readArtwork: widget.readArtwork,
+                    onRefresh: _viewModel.load,
+                    onOpenChapter: (chapter) => unawaited(_openChapter(chapter)),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     ),
   );
