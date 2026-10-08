@@ -71,3 +71,29 @@ The earlier parallel foundation was intentionally separate for its first milesto
 - `mediaTypeBadgeColors(context, MediaType)` is the only resolver for Anime/Manga/Novel badge background + foreground colors; feature pages may vary placement and geometry, not their semantic role pairing.
 - Fixed image/video scrims and NovelReaderTheme prose canvases are intentional media-surface exceptions; app controls inside readers and player still inherit Material colors/text styles.
 - No additional UI color/palette abstraction or third-party theme package is necessary. [ADR-015](../decisions/ADR-015-native-color-scheme-consumers.md) records this API cleanup.
+
+## Interactive artwork and scrollable collections (2026-10-08)
+
+- Interactive artwork uses a **local Material ink plane above opaque image layers**;
+  a page-level ancestor Material cannot guarantee visible ripples through image
+  paints. The ink plane's clip and artwork stroke share the poster radius.
+- Draw poster outlines on top of artwork, with one anti-aliased clip for the
+  image, badges and progress. Do not assume a `DecoratedBox` border beneath a
+  clipped opaque child will stay visible.
+- Do not add an unconditional `RepaintBoundary` to every reusable poster;
+  slivers already manage boundaries for their lazy items. Verify unusual
+  custom animated layers in DevTools before adding more.
+- Poster/banner decode widths are rounded to a small physical-pixel bucket
+  based on the actual layout width and device pixel ratio, capped at 2048 px.
+  Keep loading/error fallback content and independent hero identity intact.
+- Source and candidate menus use lazy builders when data size can grow with
+  installed extensions. Each interactive row owns its Material and clip.
+- Glass blur remains a deliberate product effect. No performance claim or
+  blanket replacement is authorized without real-device profile measurements.
+
+References:
+
+- [Flutter InkWell clipping and opaque graphics](https://api.flutter.dev/flutter/material/InkWell-class.html)
+- [Flutter Ink paint order](https://api.flutter.dev/flutter/material/Ink-class.html)
+- [Flutter performance best practices](https://docs.flutter.dev/perf/best-practices)
+- [Flutter ListView.builder](https://api.flutter.dev/flutter/widgets/ListView/ListView.builder.html)

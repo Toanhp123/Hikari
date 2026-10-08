@@ -110,4 +110,108 @@ void main() {
     expect(heights, hasLength(2));
     expect(heights[1], greaterThan(heights[0]));
   });
+
+  testWidgets('poster owns a transparent ink surface above opaque artwork', (
+    tester,
+  ) async {
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 160,
+              height: 300,
+              child: MediaPoster(title: 'Tap target', onTap: () => taps++),
+            ),
+          ),
+        ),
+      ),
+    );
+    final poster = find.byType(MediaPoster);
+    expect(
+      find.descendant(of: poster, matching: find.byType(MergeSemantics)),
+      findsOneWidget,
+    );
+    final materials = find.descendant(
+      of: poster,
+      matching: find.byType(Material),
+    );
+    expect(
+      tester
+          .widgetList<Material>(materials)
+          .where((surface) => surface.type == MaterialType.transparency),
+      hasLength(1),
+    );
+    final artworkRect = tester.getRect(
+      find.descendant(of: poster, matching: find.byType(AspectRatio)).first,
+    );
+    await tester.tapAt(artworkRect.topLeft + const Offset(8, 8));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tap target'));
+    await tester.pumpAndSettle();
+    expect(taps, 2);
+  });
+
+  testWidgets('poster image decode width follows physical pixel density', (
+    tester,
+  ) async {
+    final results = <int?>[];
+    for (final dpr in [1.0, 3.0]) {
+      tester.view.devicePixelRatio = dpr;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: const Scaffold(
+            body: SizedBox(
+              width: 160,
+              height: 300,
+              child: MediaPoster(
+                title: 'Artwork',
+                imageUrl: 'https://example.invalid/poster.png',
+              ),
+            ),
+          ),
+        ),
+      );
+      final posterImage = tester.widget<Image>(
+        find
+            .descendant(
+              of: find.byType(MediaPoster),
+              matching: find.byType(Image),
+            )
+            .first,
+      );
+      results.add((posterImage.image as ResizeImage).width);
+    }
+    addTearDown(tester.view.resetDevicePixelRatio);
+    expect(results[0], isNotNull);
+    expect(results[1], greaterThan(results[0]!));
+  });
+
+  testWidgets('compact grid poster accommodates scaled title and subtitle', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: GridView.builder(
+              gridDelegate: mediaPosterGridDelegate,
+              itemCount: 1,
+              itemBuilder: (_, _) => const MediaPoster(
+                title: 'A very long name for a small poster',
+                subtitle: 'Source subtitle',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('A very long name for a small poster'), findsOneWidget);
+  });
 }

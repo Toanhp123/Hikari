@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
@@ -208,14 +209,17 @@ class _HeroArtwork extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final url = imageUrl;
     if (url == null || url.isEmpty) return _fallback(colors);
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      alignment: Alignment.center,
-      excludeFromSemantics: true,
-      errorBuilder: (_, _, _) => _fallback(colors),
-      loadingBuilder: (_, child, progress) =>
-          progress == null ? child : _fallback(colors),
+    return LayoutBuilder(
+      builder: (context, constraints) => Image.network(
+        url,
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+        cacheWidth: mediaArtworkCacheWidth(context, constraints.maxWidth),
+        excludeFromSemantics: true,
+        errorBuilder: (_, _, _) => _fallback(colors),
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : _fallback(colors),
+      ),
     );
   }
 
@@ -248,13 +252,16 @@ class _CoverArtwork extends StatelessWidget {
     final url = imageUrl;
     final artwork = url == null || url.isEmpty
         ? _fallback(colors)
-        : Image.network(
-            url,
-            fit: BoxFit.cover,
-            excludeFromSemantics: true,
-            errorBuilder: (_, _, _) => _fallback(colors),
-            loadingBuilder: (_, image, progress) =>
-                progress == null ? image : _fallback(colors),
+        : LayoutBuilder(
+            builder: (context, constraints) => Image.network(
+              url,
+              fit: BoxFit.cover,
+              cacheWidth: mediaArtworkCacheWidth(context, constraints.maxWidth),
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => _fallback(colors),
+              loadingBuilder: (_, image, progress) =>
+                  progress == null ? image : _fallback(colors),
+            ),
           );
 
     return Semantics(
@@ -263,9 +270,6 @@ class _CoverArtwork extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: HikariRadius.borderMd,
-          border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: 0.4),
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.42),
@@ -274,7 +278,27 @@ class _CoverArtwork extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipRRect(borderRadius: HikariRadius.borderMd, child: artwork),
+        child: ClipRRect(
+          borderRadius: HikariRadius.borderMd,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              artwork,
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: HikariRadius.borderMd,
+                      border: Border.all(
+                        color: colors.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

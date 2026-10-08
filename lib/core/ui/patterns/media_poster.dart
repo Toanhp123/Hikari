@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 
 /// Shared poster-grid geometry; features still own scroll and padding.
@@ -80,43 +81,58 @@ class MediaPoster extends StatelessWidget {
 
     Widget artwork = AspectRatio(
       aspectRatio: 2 / 3,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surfaceContainer,
-          borderRadius: HikariRadius.borderMd,
-          border: Border.all(
-            color: colors.outlineVariant.withValues(alpha: 0.6),
-            width: 1,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: HikariRadius.borderMd,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildArtwork(colors),
-              if (badgeText != null && badgeText!.isNotEmpty)
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: _MediaBadge(
-                    label: badgeText!,
-                    color: badgeColor ?? colors.primaryContainer,
-                    foregroundColor:
-                        badgeForegroundColor ??
-                        (badgeColor == null ? colors.onPrimaryContainer : null),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final decodeWidth = mediaArtworkCacheWidth(
+            context,
+            constraints.maxWidth,
+          );
+          return ClipRRect(
+            borderRadius: HikariRadius.borderMd,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColoredBox(color: colors.surfaceContainer),
+                _buildArtwork(colors, cacheWidth: decodeWidth),
+                if (badgeText != null && badgeText!.isNotEmpty)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: _MediaBadge(
+                      label: badgeText!,
+                      color: badgeColor ?? colors.primaryContainer,
+                      foregroundColor:
+                          badgeForegroundColor ??
+                          (badgeColor == null
+                              ? colors.onPrimaryContainer
+                              : null),
+                    ),
+                  ),
+                if (progress != null && progress! > 0)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: MediaProgressBar(progress: progress!, height: 3),
+                  ),
+                // The stroke paints above opaque images, not behind them.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: HikariRadius.borderMd,
+                        border: Border.all(
+                          color: colors.outlineVariant.withValues(alpha: 0.6),
+                          width: 1,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              if (progress != null && progress! > 0)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: MediaProgressBar(progress: progress!, height: 3),
-                ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
 
@@ -209,19 +225,33 @@ class MediaPoster extends StatelessWidget {
     );
 
     if (onTap != null) {
-      content = InkWell(
-        onTap: onTap,
-        borderRadius: HikariRadius.borderMd,
-        child: content,
+      // Ink is painted on this local, transparent Material *above* artwork.
+      // A page-level Material would paint the splash beneath opaque images.
+      content = MergeSemantics(
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            content,
+            Positioned.fill(
+              child: Material(
+                type: MaterialType.transparency,
+                borderRadius: HikariRadius.borderMd,
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: HikariRadius.borderMd,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    return RepaintBoundary(
-      child: SizedBox(width: width, height: height, child: content),
-    );
+    return SizedBox(width: width, height: height, child: content);
   }
 
-  Widget _buildArtwork(ColorScheme colors) {
+  Widget _buildArtwork(ColorScheme colors, {int? cacheWidth}) {
     if (isLoading) {
       return _PosterSkeleton(
         baseColor: colors.surfaceContainerHigh,
@@ -234,7 +264,7 @@ class MediaPoster extends StatelessWidget {
       return Image.memory(
         bytes,
         fit: BoxFit.cover,
-        cacheWidth: 360,
+        cacheWidth: cacheWidth,
         errorBuilder: (_, _, _) => _fallbackPlaceholder(colors),
       );
     }
@@ -244,7 +274,7 @@ class MediaPoster extends StatelessWidget {
       return Image.network(
         url,
         fit: BoxFit.cover,
-        cacheWidth: 360,
+        cacheWidth: cacheWidth,
         errorBuilder: (_, _, _) => _fallbackPlaceholder(colors),
         loadingBuilder: (_, child, loadingProgress) {
           if (loadingProgress == null) return child;

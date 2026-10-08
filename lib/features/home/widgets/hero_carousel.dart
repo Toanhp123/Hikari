@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 
@@ -294,13 +295,19 @@ class _HeroSlide extends StatelessWidget {
         children: [
           _buildFallbackArtwork(colors),
           if (artworkUrl != null && artworkUrl.isNotEmpty)
-            Image.network(
-              artworkUrl,
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-              filterQuality: FilterQuality.medium,
-              excludeFromSemantics: true,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            LayoutBuilder(
+              builder: (context, constraints) => Image.network(
+                artworkUrl,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                filterQuality: FilterQuality.medium,
+                cacheWidth: mediaArtworkCacheWidth(
+                  context,
+                  constraints.maxWidth,
+                ),
+                excludeFromSemantics: true,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
             ),
           DecoratedBox(
             decoration: BoxDecoration(

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -219,6 +220,7 @@ class _SourceList extends StatelessWidget {
     final onSelect = this.onSelect;
     final onSearchAll = this.onSearchAll;
     if (viewModel.state.status == CatalogSourcePickerStatus.choosingLanguage) {
+      final variants = viewModel.variantsForSelectedGroup;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -233,11 +235,15 @@ class _SourceList extends StatelessWidget {
           ),
           Text(viewModel.state.selectedGroup!.displayName),
           Expanded(
-            child: ListView(
-              children: [
-                for (final variant in viewModel.variantsForSelectedGroup)
-                  _SourceTile(source: variant, onTap: () => onSelect(variant)),
-              ],
+            child: ListView.builder(
+              itemCount: variants.length,
+              itemBuilder: (context, index) {
+                final variant = variants[index];
+                return _SourceTile(
+                  source: variant,
+                  onTap: () => onSelect(variant),
+                );
+              },
             ),
           ),
         ],
@@ -255,99 +261,138 @@ class _SourceList extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Choose an installed source. Hikari will match this catalog title automatically.',
-            style: Theme.of(context).textTheme.bodyMedium!
-                .copyWith(color: colors.onSurfaceVariant, height: 1.45),
-          ),
-          const SizedBox(height: HikariSpacing.md),
-          if (showLanguageFilter) ...[
-            MenuAnchor(
-              style: const MenuStyle(
-                maximumSize: WidgetStatePropertyAll(Size(double.infinity, 320)),
+    return ListView.builder(
+      // Small pickers stay compact; large extension catalogs remain lazy.
+      shrinkWrap: groups.length <= 8,
+      itemCount: groups.length + 2,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Choose an installed source. Hikari will match this catalog title automatically.',
+                style: Theme.of(context).textTheme.bodyMedium!
+                    .copyWith(color: colors.onSurfaceVariant, height: 1.45),
               ),
-              builder: (context, controller, child) => OutlinedButton.icon(
-                onPressed: () =>
-                    controller.isOpen ? controller.close() : controller.open(),
-                icon: const Icon(Icons.language_rounded),
-                label: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Language: ${selectedLanguage?.toUpperCase() ?? 'All'}',
+              const SizedBox(height: HikariSpacing.md),
+              if (showLanguageFilter) ...[
+                MenuAnchor(
+                  style: const MenuStyle(
+                    maximumSize: WidgetStatePropertyAll(
+                      Size(double.infinity, 320),
                     ),
-                    const SizedBox(width: HikariSpacing.xs),
-                    const Icon(Icons.arrow_drop_down_rounded),
+                  ),
+                  builder: (context, controller, child) => OutlinedButton.icon(
+                    onPressed: () => controller.isOpen
+                        ? controller.close()
+                        : controller.open(),
+                    icon: const Icon(Icons.language_rounded),
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Language: ${selectedLanguage?.toUpperCase() ?? 'All'}',
+                        ),
+                        const SizedBox(width: HikariSpacing.xs),
+                        const Icon(Icons.arrow_drop_down_rounded),
+                      ],
+                    ),
+                  ),
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: () => onSelectLanguage(null),
+                      trailingIcon: selectedLanguage == null
+                          ? const Icon(Icons.check_rounded)
+                          : null,
+                      child: const Text('All languages'),
+                    ),
+                    for (final language in languageCodes)
+                      MenuItemButton(
+                        onPressed: () => onSelectLanguage(language),
+                        trailingIcon: selectedLanguage == language
+                            ? const Icon(Icons.check_rounded)
+                            : null,
+                        child: Text(language.toUpperCase()),
+                      ),
                   ],
                 ),
-              ),
-              menuChildren: [
-                MenuItemButton(
-                  onPressed: () => onSelectLanguage(null),
-                  trailingIcon: selectedLanguage == null
-                      ? const Icon(Icons.check_rounded)
-                      : null,
-                  child: const Text('All languages'),
-                ),
-                for (final language in languageCodes)
-                  MenuItemButton(
-                    onPressed: () => onSelectLanguage(language),
-                    trailingIcon: selectedLanguage == language
-                        ? const Icon(Icons.check_rounded)
-                        : null,
-                    child: Text(language.toUpperCase()),
-                  ),
+                const SizedBox(height: HikariSpacing.md),
               ],
-            ),
-            const SizedBox(height: HikariSpacing.md),
-          ],
-          Material(
-            color: colors.surfaceContainer,
-            shape: RoundedRectangleBorder(
-              side: BorderSide(color: colors.outline),
-              borderRadius: HikariRadius.borderLg,
-            ),
-            clipBehavior: Clip.antiAlias,
+            ],
+          );
+        }
+        if (index == groups.length + 1) {
+          return Padding(
+            padding: const EdgeInsets.only(top: HikariSpacing.md),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (var index = 0; index < groups.length; index++) ...[
-                  _SourceTile(
-                    source: groups[index].first,
-                    groupedCount: groups[index].length > 1
-                        ? groups[index].length
-                        : null,
-                    onTap: groups[index].length > 1
-                        ? () => viewModel.chooseGroup(groups[index].first)
-                        : () => onSelect(groups[index].single),
+                HikariButton(
+                  label: selectedLanguage == null
+                      ? 'Search all sources'
+                      : 'Search ${selectedLanguage.toUpperCase()} sources',
+                  variant: HikariButtonVariant.ghost,
+                  isFullWidth: true,
+                  onPressed: onSearchAll,
+                ),
+                if (selectedLanguage != null) ...[
+                  const SizedBox(height: HikariSpacing.xs),
+                  TextButton(
+                    onPressed: () => onSelectLanguage(null),
+                    child: const Text('Show all languages'),
                   ),
-                  if (index != groups.length - 1)
-                    Divider(height: 1, color: colors.outline),
                 ],
               ],
             ),
+          );
+        }
+        final group = groups[index - 1];
+        return _PickerListSurface(
+          index: index - 1,
+          count: groups.length,
+          child: _SourceTile(
+            source: group.first,
+            groupedCount: group.length > 1 ? group.length : null,
+            onTap: group.length > 1
+                ? () => viewModel.chooseGroup(group.first)
+                : () => onSelect(group.single),
           ),
-          const SizedBox(height: HikariSpacing.md),
-          HikariButton(
-            label: selectedLanguage == null
-                ? 'Search all sources'
-                : 'Search ${selectedLanguage.toUpperCase()} sources',
-            variant: HikariButtonVariant.ghost,
-            isFullWidth: true,
-            onPressed: onSearchAll,
-          ),
-          if (selectedLanguage != null) ...[
-            const SizedBox(height: HikariSpacing.xs),
-            TextButton(
-              onPressed: () => onSelectLanguage(null),
-              child: const Text('Show all languages'),
-            ),
-          ],
-        ],
+        );
+      },
+    );
+  }
+}
+
+/// Rows remain lazy and each InkWell paints on its own rounded Material.
+class _PickerListSurface extends StatelessWidget {
+  const _PickerListSurface({
+    required this.index,
+    required this.count,
+    required this.child,
+  });
+
+  final int index;
+  final int count;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final radius = BorderRadius.vertical(
+      top: index == 0 ? const Radius.circular(HikariRadius.lg) : Radius.zero,
+      bottom: index == count - 1
+          ? const Radius.circular(HikariRadius.lg)
+          : Radius.zero,
+    );
+    return Material(
+      color: colors.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: colors.outlineVariant, width: 0.5),
       ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
     );
   }
 }
@@ -452,59 +497,63 @@ class _CandidateList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Is this the right title?',
-            style: Theme.of(context).textTheme.titleMedium!,
-          ),
-          const SizedBox(height: HikariSpacing.xs),
-          Text(
-            'Hikari found possible matches on ${source.contextLabel}, but none was safe '
-            'to open automatically.',
-            style: Theme.of(context).textTheme.bodyMedium!
-                .copyWith(color: colors.onSurfaceVariant, height: 1.45),
-          ),
-          const SizedBox(height: HikariSpacing.md),
-          Material(
-            color: colors.surfaceContainer,
-            shape: RoundedRectangleBorder(
-              side: BorderSide(color: colors.outline),
-              borderRadius: HikariRadius.borderLg,
-            ),
-            clipBehavior: Clip.antiAlias,
+    return ListView.builder(
+      shrinkWrap: candidates.length <= 8,
+      itemCount: candidates.length + 2,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Is this the right title?',
+                style: Theme.of(context).textTheme.titleMedium!,
+              ),
+              const SizedBox(height: HikariSpacing.xs),
+              Text(
+                'Hikari found possible matches on ${source.contextLabel}, but none was safe '
+                'to open automatically.',
+                style: Theme.of(context).textTheme.bodyMedium!
+                    .copyWith(color: colors.onSurfaceVariant, height: 1.45),
+              ),
+              const SizedBox(height: HikariSpacing.md),
+            ],
+          );
+        }
+        if (index == candidates.length + 1) {
+          return Padding(
+            padding: const EdgeInsets.only(top: HikariSpacing.md),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (var index = 0; index < candidates.length; index++) ...[
-                  _CandidateTile(
-                    candidate: candidates[index],
-                    readArtwork: readArtwork,
-                    onTap: () => onSelect(candidates[index]),
-                  ),
-                  if (index != candidates.length - 1)
-                    Divider(height: 1, color: colors.outline),
-                ],
+                HikariButton(
+                  label: 'Search manually in ${source.contextLabel}',
+                  variant: HikariButtonVariant.secondary,
+                  isFullWidth: true,
+                  onPressed: onManualSearch,
+                ),
+                const SizedBox(height: HikariSpacing.sm),
+                HikariButton(
+                  label: 'Choose another source',
+                  variant: HikariButtonVariant.ghost,
+                  isFullWidth: true,
+                  onPressed: onChooseAnother,
+                ),
               ],
             ),
+          );
+        }
+        final candidate = candidates[index - 1];
+        return _PickerListSurface(
+          index: index - 1,
+          count: candidates.length,
+          child: _CandidateTile(
+            candidate: candidate,
+            readArtwork: readArtwork,
+            onTap: () => onSelect(candidate),
           ),
-          const SizedBox(height: HikariSpacing.md),
-          HikariButton(
-            label: 'Search manually in ${source.contextLabel}',
-            variant: HikariButtonVariant.secondary,
-            isFullWidth: true,
-            onPressed: onManualSearch,
-          ),
-          const SizedBox(height: HikariSpacing.sm),
-          HikariButton(
-            label: 'Choose another source',
-            variant: HikariButtonVariant.ghost,
-            isFullWidth: true,
-            onPressed: onChooseAnother,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -575,7 +624,7 @@ class _CandidateArtwork extends StatelessWidget {
           child: Image.memory(
             bytes,
             fit: BoxFit.cover,
-            cacheWidth: 132,
+            cacheWidth: mediaArtworkCacheWidth(context, 44),
             errorBuilder: (_, _, _) => _placeholder(colors),
           ),
         );

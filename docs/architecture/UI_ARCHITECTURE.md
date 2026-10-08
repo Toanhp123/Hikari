@@ -57,12 +57,11 @@ Prefer small stable primitives that features compose into their own product UI.
 
 Features should consume semantic roles such as:
 
-- `textPrimary`
-- `textSecondary`
-- `surface`
-- `surfaceContainer`
-- `border`
-- `error`
+- `ColorScheme.onSurface` for primary text
+- `ColorScheme.onSurfaceVariant` for secondary text
+- `ColorScheme.surface` / `surfaceContainer` for backgrounds
+- `ColorScheme.outlineVariant` for subtle borders
+- `ColorScheme.error` for errors
 
 Features should not depend directly on arbitrary palette values such as
 `grey700`, `blue500`, or one-off `Color(...)` literals.
@@ -132,7 +131,8 @@ lib/
 ├─ app/
 │  ├─ theme/
 │  │  ├─ hikari_theme.dart
-│  │  ├─ hikari_colors.dart
+│  │  ├─ hikari_status_colors.dart
+│  │  ├─ hikari_size.dart
 │  │  ├─ hikari_typography.dart
 │  │  ├─ hikari_spacing.dart
 │  │  ├─ hikari_radius.dart
@@ -154,6 +154,7 @@ lib/
 │     └─ patterns/
 │        ├─ async_state_view.dart
 │        ├─ media_metadata_view.dart
+│        ├─ media_artwork_decode.dart
 │        ├─ media_poster.dart
 │        ├─ media_progress_bar.dart
 │        └─ media_type_presentation.dart
@@ -184,8 +185,9 @@ Only add a token or component when the product actually uses it.
 `app/theme` owns global visual language.
 
 The canonical application theme is `HikariTheme.darkTheme()` in
-`app/theme/hikari_theme.dart`, using semantic Material 3 roles plus the
-existing `HikariColors` compatibility view of the same `ColorScheme`.
+`app/theme/hikari_theme.dart`. App chrome uses the Material 3 `ColorScheme`
+and `TextTheme` directly. Only non-Material warning/info pairs require the
+`HikariStatusColors` extension.
 [Design System](DESIGN_SYSTEM.md) owns the current token and component contracts.
 [ADR-014](../decisions/ADR-014-canonical-theme-consolidation.md) explains
 why the formerly separate `design_system/` implementation was consolidated.
@@ -237,54 +239,21 @@ red600
 
 Feature UI should not consume these directly.
 
-### 6.2 Semantic tokens
+### 6.2 Semantic colors
 
-Semantic tokens describe purpose:
-
-```text
-background
-surface
-surfaceContainer
-
-textPrimary
-textSecondary
-textMuted
-
-iconPrimary
-iconSecondary
-
-border
-
-glassSurface
-glassBorder
-scrimMedium
-scrimStrong
-
-primary
-onPrimary
-
-success
-warning
-error
-```
+Common chrome uses `Theme.of(context).colorScheme` roles, not a parallel color
+adapter. Use `onSurface`, `onSurfaceVariant`, tonal `surfaceContainer*`,
+`outlineVariant`, and `error` according to meaning; do not create local hex
+alternatives. Warning/info have dedicated theme-extension pairs, and
+`mediaTypeBadgeColors` resolves media identity badges.
 
 Prefer:
 
 ```dart
-color: context.hikariColors.textSecondary
+color: Theme.of(context).colorScheme.onSurfaceVariant,
 ```
 
-over:
-
-```dart
-color: Colors.grey.shade600
-```
-
-or:
-
-```dart
-color: HikariPrimitiveColors.grey600
-```
+over literal gray palettes or adding a redundant adapter.
 
 ### 6.3 Spacing
 

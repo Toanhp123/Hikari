@@ -17,6 +17,39 @@ import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 
 void main() {
+  testWidgets('large source lists build only visible rows', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        CatalogDetailPage(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver([
+            for (var i = 0; i < 80; i++)
+              _PickerMangaSource(
+                id: SourceId('source:$i'),
+                displayName: 'Source $i',
+                languageCode: 'en',
+                presentationGroupId: 'group:$i',
+              ),
+          ]),
+          openMedia: (_, _) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    final tiles = find.descendant(
+      of: find.byType(CatalogSourcePicker),
+      matching: find.byType(ListTile),
+    );
+    expect(tiles.evaluate().length, lessThan(80));
+    expect(find.text('Source 0'), findsOneWidget);
+    expect(find.text('Source 79'), findsNothing);
+  });
+
   testWidgets(
     'same-name grouped sources stay separate without exposing opaque IDs',
     (tester) async {

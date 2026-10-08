@@ -107,18 +107,11 @@ class CatalogDiscoverySections extends StatelessWidget {
                       final entry = sections[section]![index];
                       return SizedBox(
                         width: posterWidth,
-                        child: Semantics(
-                          button: true,
-                          label: 'View details for ${entry.title}',
-                          child: Material(
-                            color: Colors.transparent,
-                            child: MediaPoster(
-                              title: entry.title,
-                              imageUrl: entry.coverUrl,
-                              badgeText: mediaTypeBadgeLabel(entry.type),
-                              onTap: () => openDetail(entry),
-                            ),
-                          ),
+                        child: MediaPoster(
+                          title: entry.title,
+                          imageUrl: entry.coverUrl,
+                          badgeText: mediaTypeBadgeLabel(entry.type),
+                          onTap: () => openDetail(entry),
                         ),
                       );
                     },
