@@ -150,12 +150,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
     final labelMetrics = TextPainter(
-      text: TextSpan(
-        text: 'Settings',
-        style: (textTheme.labelSmall ?? const TextStyle()).copyWith(
-          fontSize: 12,
-        ),
-      ),
+      text: TextSpan(text: 'Settings', style: textTheme.labelSmall),
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
       maxLines: 1,
@@ -217,7 +212,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                         color: isSelected
                                             ? colors.secondaryContainer
                                             : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(16),
+                                        borderRadius: HikariRadius.borderLg,
                                       ),
                                       alignment: Alignment.center,
                                       child: Icon(
@@ -230,7 +225,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                             : colors.onSurfaceVariant,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: HikariSpacing.xs),
                                     AnimatedDefaultTextStyle(
                                       duration: HikariMotion.duration(
                                         context,
@@ -243,7 +238,6 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                           (textTheme.labelSmall ??
                                                   const TextStyle())
                                               .copyWith(
-                                                fontSize: 12,
                                                 fontWeight: isSelected
                                                     ? FontWeight.w600
                                                     : FontWeight.w500,
@@ -358,7 +352,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                 color: isSelected
                                     ? colors.secondaryContainer
                                     : Colors.transparent,
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: HikariRadius.borderLg,
                               ),
                               alignment: Alignment.center,
                               child: Icon(
@@ -369,7 +363,7 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                                     : colors.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: HikariSpacing.xs),
                             AnimatedDefaultTextStyle(
                               duration: HikariMotion.duration(
                                 context,
@@ -380,7 +374,6 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
                               overflow: TextOverflow.ellipsis,
                               style: (textTheme.labelSmall ?? const TextStyle())
                                   .copyWith(
-                                    fontSize: 12,
                                     fontWeight: isSelected
                                         ? FontWeight.w600
                                         : FontWeight.w500,

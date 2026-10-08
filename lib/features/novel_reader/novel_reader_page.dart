@@ -267,7 +267,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   void _showPreferencesSheet() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: context.hikariColors.surfaceElevated,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       builder: (context) => NovelReaderPreferencesSheet(
         theme: _readerTheme,
         fontSize: _fontSize,

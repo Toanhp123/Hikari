@@ -117,7 +117,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: context.hikariColors.surfaceElevated,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       builder: (sheetContext) => ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.78,
@@ -151,7 +151,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     return showDialog<_CatalogSourcePickerResult>(
       context: context,
       builder: (dialogContext) => Dialog(
-        backgroundColor: context.hikariColors.surfaceElevated,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
         clipBehavior: Clip.antiAlias,
         child: CatalogSourcePicker(
           viewModel: picker,
@@ -178,7 +178,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final heroHeight =
         (context.isCompact ? 430.0 : 390.0) +
@@ -197,7 +197,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                 pinned: true,
                 stretch: true,
                 expandedHeight: heroHeight,
-                backgroundColor: colors.background.withValues(alpha: 0.96),
+                backgroundColor: colors.surface.withValues(alpha: 0.96),
                 surfaceTintColor: Colors.transparent,
                 title: Text(
                   state.entry.title,

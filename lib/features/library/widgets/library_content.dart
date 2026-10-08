@@ -28,7 +28,7 @@ class LibraryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     if (state.status == LibraryStatus.loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -45,9 +45,7 @@ class LibraryContent extends StatelessWidget {
       );
     }
     if (state.entries.isEmpty) {
-      return const Center(
-        child: Text('Your library is empty.', style: TextStyle(fontSize: 14)),
-      );
+      return const Center(child: Text('Your library is empty.'));
     }
 
     return Column(
@@ -62,7 +60,8 @@ class LibraryContent extends StatelessWidget {
               ? Center(
                   child: Text(
                     'No items match the selected media type.',
-                    style: TextStyle(color: colors.textMuted),
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: colors.onSurfaceVariant),
                   ),
                 )
               : state.viewMode == LibraryViewMode.grid
@@ -92,7 +91,6 @@ class _LibraryFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: HikariSpacing.lg,
@@ -109,7 +107,7 @@ class _LibraryFilters extends StatelessWidget {
           for (final type in MediaType.values)
             HikariChip(
               label: mediaTypeLabel(type),
-              customBadgeColor: mediaTypeBadgeColor(colors, type),
+              customBadgeColor: mediaTypeBadgeColors(context, type).foreground,
               isSelected: selectedType == type,
               onTap: () => onSelect(type),
             ),
@@ -134,7 +132,6 @@ class _LibraryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
     return GridView.builder(
       padding: const EdgeInsets.all(HikariSpacing.lg),
       physics: const BouncingScrollPhysics(),
@@ -142,12 +139,14 @@ class _LibraryGrid extends StatelessWidget {
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final media = entries[index].media;
+        final badge = mediaTypeBadgeColors(context, media.type);
         return Stack(
           children: [
             MediaPoster(
               title: media.title,
               badgeText: mediaTypeBadgeLabel(media.type),
-              badgeColor: mediaTypeBadgeColor(colors, media.type),
+              badgeColor: badge.background,
+              badgeForegroundColor: badge.foreground,
               onTap: () => openMedia(context, media),
             ),
             Positioned(
@@ -181,7 +180,7 @@ class _LibraryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       physics: const BouncingScrollPhysics(),
@@ -194,20 +193,21 @@ class _LibraryList extends StatelessWidget {
           color: colors.surfaceContainer,
           shape: RoundedRectangleBorder(
             borderRadius: HikariRadius.borderSm,
-            side: BorderSide(color: colors.border),
+            side: BorderSide(color: colors.outline),
           ),
           clipBehavior: Clip.antiAlias,
           child: ListTile(
             title: Text(
               media.title,
-              style: TextStyle(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                color: colors.onSurface,
               ),
             ),
             subtitle: Text(
               mediaTypeLabel(media.type),
-              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: colors.onSurfaceVariant),
             ),
             onTap: () => openMedia(context, media),
             trailing: LibraryButton(

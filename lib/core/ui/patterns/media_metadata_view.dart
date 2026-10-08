@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 
@@ -16,7 +17,7 @@ class MediaMetadataView extends StatelessWidget {
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(HikariSpacing.lg),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

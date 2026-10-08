@@ -32,7 +32,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, _) {
@@ -43,7 +43,7 @@ class _LibraryPageState extends State<LibraryPage> {
             title: Text(
               'Library',
               style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                color: colors.textPrimary,
+                color: colors.onSurface,
                 fontWeight: FontWeight.w700,
               ),
             ),

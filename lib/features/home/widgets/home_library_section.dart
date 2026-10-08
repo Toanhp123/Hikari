@@ -122,16 +122,14 @@ class HomeRecentShelf extends StatelessWidget {
                   const SizedBox(width: HikariSpacing.md),
               itemBuilder: (context, index) {
                 final item = items[index];
+                final badge = mediaTypeBadgeColors(context, item.type);
                 return SizedBox(
                   width: posterWidth,
                   child: MediaPoster(
                     title: item.title,
                     badgeText: mediaTypeBadgeLabel(item.type),
-                    badgeColor: _mediaTypeBadgeColor(theme, item.type),
-                    badgeForegroundColor: _mediaTypeBadgeForeground(
-                      theme,
-                      item.type,
-                    ),
+                    badgeColor: badge.background,
+                    badgeForegroundColor: badge.foreground,
                     onTap: () => openMedia(context, item),
                   ),
                 );
@@ -141,30 +139,6 @@ class HomeRecentShelf extends StatelessWidget {
       ],
     );
   }
-}
-
-Color _mediaTypeBadgeColor(ThemeData theme, MediaType type) {
-  final colors = theme.colorScheme;
-  final statusColors = theme.extension<HikariStatusColors>();
-  return switch (type) {
-    MediaType.anime => colors.primaryContainer,
-    MediaType.manga =>
-      statusColors?.warningContainer ?? const Color(0xFF453026),
-    MediaType.lightNovel =>
-      statusColors?.infoContainer ?? const Color(0xFF1E3547),
-  };
-}
-
-Color _mediaTypeBadgeForeground(ThemeData theme, MediaType type) {
-  final colors = theme.colorScheme;
-  final statusColors = theme.extension<HikariStatusColors>();
-  return switch (type) {
-    MediaType.anime => colors.onPrimaryContainer,
-    MediaType.manga =>
-      statusColors?.onWarningContainer ?? const Color(0xFFFAB387),
-    MediaType.lightNovel =>
-      statusColors?.onInfoContainer ?? const Color(0xFF89DCEB),
-  };
 }
 
 class HomeRecentShelfSkeleton extends StatelessWidget {

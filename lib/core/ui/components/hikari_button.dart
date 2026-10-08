@@ -6,22 +6,20 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 enum HikariButtonVariant { primary, secondary, ghost, danger }
 
 enum HikariButtonSize {
-  small(height: 36, horizontalPadding: 12, fontSize: 12),
-  medium(height: 44, horizontalPadding: 16, fontSize: 14),
-  large(height: 52, horizontalPadding: 24, fontSize: 16);
+  small(height: 36, horizontalPadding: 12),
+  medium(height: 44, horizontalPadding: 16),
+  large(height: 52, horizontalPadding: 24);
 
   const HikariButtonSize({
     required this.height,
     required this.horizontalPadding,
-    required this.fontSize,
   });
 
   final double height;
   final double horizontalPadding;
-  final double fontSize;
 }
 
-/// Compatibility action API backed by native Material buttons.
+/// Shared Hikari actions backed by native Material buttons.
 ///
 /// Native controls own keyboard activation, focus, disabled semantics and
 /// Material interaction states. Size variants retain their text/padding scale;
@@ -50,6 +48,12 @@ class HikariButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final effectiveOnPressed = isLoading ? null : onPressed;
+    final text = Theme.of(context).textTheme;
+    final labelStyle = switch (size) {
+      HikariButtonSize.small => text.labelMedium,
+      HikariButtonSize.medium => text.labelLarge,
+      HikariButtonSize.large => text.titleMedium,
+    };
     final commonStyle = ButtonStyle(
       minimumSize: WidgetStatePropertyAll(
         Size(
@@ -75,8 +79,8 @@ class HikariButton extends StatelessWidget {
         if (isLoading) ...[
           ExcludeSemantics(
             child: SizedBox(
-              width: size.fontSize + 2,
-              height: size.fontSize + 2,
+              width: labelStyle?.fontSize ?? 14,
+              height: labelStyle?.fontSize ?? 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: colors.onSurfaceVariant,
@@ -93,10 +97,7 @@ class HikariButton extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: size.fontSize,
-              fontWeight: FontWeight.w600,
-            ),
+            style: labelStyle,
           ),
         ),
       ],

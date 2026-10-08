@@ -75,15 +75,15 @@ void main() {
       expect(navTheme.colorScheme.surface, Colors.black);
       expect(homeTheme.colorScheme.primary, canonical.colorScheme.primary);
       expect(navTheme.colorScheme.primary, canonical.colorScheme.primary);
-      expect(homeTheme.extension<HikariColors>()!.isOled, isTrue);
-      expect(navTheme.extension<HikariColors>()!.isOled, isTrue);
+      expect(homeTheme.colorScheme.surface, Colors.black);
+      expect(navTheme.colorScheme.surface, Colors.black);
 
       await tester.tap(find.byTooltip('Search'));
       await tester.pumpAndSettle();
       final searchTheme = Theme.of(tester.element(find.byType(SearchBar)));
       expect(searchTheme.colorScheme.surface, Colors.black);
       expect(searchTheme.colorScheme.primary, canonical.colorScheme.primary);
-      expect(searchTheme.extension<HikariColors>()!.isOled, isTrue);
+      expect(searchTheme.colorScheme.surface, Colors.black);
     },
   );
 

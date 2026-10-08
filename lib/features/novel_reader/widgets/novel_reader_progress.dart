@@ -17,7 +17,7 @@ class NovelReaderProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 24,
+      constraints: const BoxConstraints(minHeight: HikariSpacing.xl),
       padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.md),
       color: backgroundColor,
       child: Row(
@@ -32,11 +32,8 @@ class NovelReaderProgress extends StatelessWidget {
           const SizedBox(width: HikariSpacing.sm),
           Text(
             '${(progress * 100).toInt()}%',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: foregroundColor.withValues(alpha: 0.6),
-            ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: foregroundColor.withValues(alpha: 0.6)),
           ),
         ],
       ),

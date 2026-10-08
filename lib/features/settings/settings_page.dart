@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/features/settings/widgets/settings_content.dart';
 
@@ -95,14 +94,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return HikariScaffold(
       useSafeArea: true,
       appBar: AppBar(
         title: Text(
           'Settings',
           style: Theme.of(context).textTheme.titleLarge!
-              .copyWith(color: colors.textPrimary, fontWeight: FontWeight.w700),
+              .copyWith(color: colors.onSurface, fontWeight: FontWeight.w700),
         ),
       ),
       body: SettingsContent(

@@ -32,7 +32,7 @@ class LocalMediaContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final media = state.media;
     final scrollView = CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -131,7 +131,7 @@ class LocalMediaContent extends StatelessWidget {
               Text(
                 'Local',
                 style: Theme.of(context).textTheme.titleLarge!
-                    .copyWith(color: colors.textPrimary),
+                    .copyWith(color: colors.onSurface),
               ),
               if (supported)
                 Row(

@@ -48,7 +48,7 @@ class AsyncStateView extends StatelessWidget {
   }
 
   Widget _defaultLoadingShimmer(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -65,7 +65,7 @@ class AsyncStateView extends StatelessWidget {
           Text(
             'Loading content...',
             style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: colors.textSecondary),
+                ?.copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -73,7 +73,7 @@ class AsyncStateView extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(HikariSpacing.xl),
@@ -86,22 +86,22 @@ class AsyncStateView extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colors.surfaceContainer,
                 shape: BoxShape.circle,
-                border: Border.all(color: colors.border),
+                border: Border.all(color: colors.outline),
               ),
-              child: Icon(emptyIcon, size: 36, color: colors.textMuted),
+              child: Icon(emptyIcon, size: 36, color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: HikariSpacing.lg),
             Text(
               emptyTitle,
               style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: colors.textPrimary),
+                  ?.copyWith(color: colors.onSurface),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: HikariSpacing.xs),
             Text(
               emptyMessage,
               style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: colors.textSecondary),
+                  ?.copyWith(color: colors.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             if (emptyAction != null) ...[
@@ -115,7 +115,7 @@ class AsyncStateView extends StatelessWidget {
   }
 
   Widget _buildErrorState(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(HikariSpacing.xl),
@@ -140,14 +140,14 @@ class AsyncStateView extends StatelessWidget {
             Text(
               errorTitle,
               style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: colors.textPrimary),
+                  ?.copyWith(color: colors.onSurface),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: HikariSpacing.xs),
             Text(
               errorMessage ?? 'An error occurred while loading data.',
               style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: colors.textSecondary),
+                  ?.copyWith(color: colors.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             if (onRetry != null) ...[

@@ -14,7 +14,6 @@ const mediaPosterGridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
 
 TextStyle _posterTitleStyle(ThemeData theme) =>
     (theme.textTheme.labelMedium ?? const TextStyle()).copyWith(
-      fontSize: 12,
       fontWeight: FontWeight.w600,
       color: theme.colorScheme.onSurface,
       height: 1.25,
@@ -161,7 +160,7 @@ class MediaPoster extends StatelessWidget {
                 shape: const StadiumBorder(),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: HikariSpacing.xs),
             Container(
               height: 10,
               width: 60,

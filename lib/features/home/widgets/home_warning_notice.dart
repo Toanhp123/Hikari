@@ -17,12 +17,9 @@ class HomeWarningNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final statusColors = theme.extension<HikariStatusColors>();
-    final warningColor =
-        statusColors?.onWarningContainer ?? const Color(0xFFFAB387);
-    final warningBg =
-        statusColors?.warningContainer ?? warningColor.withValues(alpha: 0.12);
+    final statusColors = context.hikariStatusColors;
+    final warningColor = statusColors.onWarningContainer;
+    final warningBg = statusColors.warningContainer;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
@@ -45,11 +42,7 @@ class HomeWarningNotice extends StatelessWidget {
                 child: Text(
                   message,
                   style: (theme.textTheme.bodySmall ?? const TextStyle())
-                      .copyWith(
-                        color:
-                            statusColors?.onWarningContainer ??
-                            colors.onSurface,
-                      ),
+                      .copyWith(color: statusColors.onWarningContainer),
                 ),
               ),
               TextButton(onPressed: onRetry, child: const Text('Retry')),

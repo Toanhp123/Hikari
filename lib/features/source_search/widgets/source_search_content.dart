@@ -43,7 +43,6 @@ class SourceSearchContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
     return Column(
       children: [
         Padding(
@@ -91,7 +90,9 @@ class SourceSearchContent extends StatelessWidget {
             ),
             child: Text(
               'Some configured sources could not be searched.',
-              style: TextStyle(color: colors.warning, fontSize: 12),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.hikariStatusColors.onWarningContainer,
+              ),
             ),
           ),
         Expanded(
@@ -117,12 +118,16 @@ class _ScopedSourceLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Searching in $sourceName',
       child: Row(
         children: [
-          Icon(Icons.extension_outlined, size: 16, color: colors.textMuted),
+          Icon(
+            Icons.extension_outlined,
+            size: 16,
+            color: colors.onSurfaceVariant,
+          ),
           const SizedBox(width: HikariSpacing.xs),
           Expanded(
             child: Text(
@@ -130,7 +135,7 @@ class _ScopedSourceLabel extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                color: colors.textSecondary,
+                color: colors.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -162,7 +167,7 @@ class _SourceSearchResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final scope = catalogScopeLabel ?? scopedSourceName;
     final status = switch (state.status) {
       SourceSearchStatus.idle => AsyncViewStatus.empty,
@@ -192,7 +197,8 @@ class _SourceSearchResults extends StatelessWidget {
           return Center(
             child: Text(
               'No matches for the selected media type.',
-              style: TextStyle(color: colors.textMuted),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: colors.onSurfaceVariant),
             ),
           );
         }
@@ -222,7 +228,6 @@ class _SourceSearchGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
     return GridView.builder(
       padding: const EdgeInsets.all(HikariSpacing.lg),
       physics: const BouncingScrollPhysics(),
@@ -231,6 +236,7 @@ class _SourceSearchGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final result = results[index];
         final media = result.media;
+        final badge = mediaTypeBadgeColors(context, media.type);
         final authors = result.metadata?.authors ?? const <String>[];
         final subtitle = [
           result.sourceName ?? 'Local media',
@@ -244,7 +250,8 @@ class _SourceSearchGrid extends StatelessWidget {
               isLoading: loading,
               subtitle: subtitle,
               badgeText: mediaTypeBadgeLabel(media.type),
-              badgeColor: mediaTypeBadgeColor(colors, media.type),
+              badgeColor: badge.background,
+              badgeForegroundColor: badge.foreground,
               onTap: () => openMedia(context, media),
             );
 

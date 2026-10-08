@@ -24,7 +24,7 @@ class MangaReaderTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
@@ -36,8 +36,8 @@ class MangaReaderTopBar extends StatelessWidget {
             right: HikariSpacing.sm,
           ),
           decoration: BoxDecoration(
-            color: colors.background.withValues(alpha: 0.85),
-            border: Border(bottom: BorderSide(color: colors.borderSubtle)),
+            color: colors.surface.withValues(alpha: 0.85),
+            border: Border(bottom: BorderSide(color: colors.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -80,21 +80,16 @@ class MangaReaderTopBar extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(color: colors.onSurface),
                     ),
                     if (credit != null)
                       Text(
                         credit!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colors.textSecondary,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: colors.onSurfaceVariant),
                       ),
                   ],
                 ),
@@ -144,7 +139,7 @@ class _MangaReaderPageControlsState extends State<MangaReaderPageControls> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
@@ -156,8 +151,8 @@ class _MangaReaderPageControlsState extends State<MangaReaderPageControls> {
             right: HikariSpacing.md,
           ),
           decoration: BoxDecoration(
-            color: colors.background.withValues(alpha: 0.85),
-            border: Border(top: BorderSide(color: colors.borderSubtle)),
+            color: colors.surface.withValues(alpha: 0.85),
+            border: Border(top: BorderSide(color: colors.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -174,40 +169,27 @@ class _MangaReaderPageControlsState extends State<MangaReaderPageControls> {
                   children: [
                     Text(
                       'Page ${widget.pageIndex + 1} of ${widget.pageCount}',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
+                        color: colors.onSurface,
                       ),
                     ),
-                    SliderTheme(
-                      data: SliderThemeData(
-                        activeTrackColor: colors.primary,
-                        inactiveTrackColor: colors.surfaceHighlight,
-                        thumbColor: colors.primaryGlow,
-                        overlayColor: colors.primary.withValues(alpha: 0.2),
-                        trackHeight: 3,
-                        thumbShape: const RoundSliderThumbShape(
-                          enabledThumbRadius: 6,
-                        ),
-                      ),
-                      child: Slider(
-                        value: _dragPage ?? (widget.pageIndex + 1).toDouble(),
-                        min: 1,
-                        max: widget.pageCount.toDouble(),
-                        divisions: widget.pageCount > 1
-                            ? widget.pageCount - 1
-                            : 1,
-                        onChanged: widget.loading
-                            ? null
-                            : (value) => setState(() => _dragPage = value),
-                        onChangeEnd: widget.loading
-                            ? null
-                            : (value) {
-                                setState(() => _dragPage = null);
-                                widget.onJumpToPage(value.round() - 1);
-                              },
-                      ),
+                    Slider(
+                      value: _dragPage ?? (widget.pageIndex + 1).toDouble(),
+                      min: 1,
+                      max: widget.pageCount.toDouble(),
+                      divisions: widget.pageCount > 1
+                          ? widget.pageCount - 1
+                          : 1,
+                      onChanged: widget.loading
+                          ? null
+                          : (value) => setState(() => _dragPage = value),
+                      onChangeEnd: widget.loading
+                          ? null
+                          : (value) {
+                              setState(() => _dragPage = null);
+                              widget.onJumpToPage(value.round() - 1);
+                            },
                     ),
                   ],
                 ),
@@ -247,7 +229,8 @@ class MangaReaderFailure extends StatelessWidget {
           children: [
             Text(
               message,
-              style: TextStyle(color: context.hikariColors.textPrimary),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
             ),
             const SizedBox(height: HikariSpacing.sm),
             TextButton(onPressed: onRetry, child: const Text('Try again')),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -95,7 +96,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(HikariSpacing.lg),
             child: Text(widget.sourceName),
           ),
           if (_isOpeningChapter) const LinearProgressIndicator(),

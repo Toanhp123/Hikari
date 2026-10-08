@@ -28,7 +28,7 @@ class _PlayerControlsState extends State<PlayerControls> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final controls = widget.controls;
     final duration = controls.duration;
     final progress =
@@ -83,7 +83,7 @@ class _PlayerControlsState extends State<PlayerControls> {
           left: 0,
           right: 0,
           child: ColoredBox(
-            color: colors.background.withValues(alpha: 0.88),
+            color: colors.surface.withValues(alpha: 0.88),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: HikariSpacing.lg,
@@ -109,11 +109,8 @@ class _PlayerControlsState extends State<PlayerControls> {
                     children: [
                       Text(
                         '${_formatDuration(controls.position)} / ${_formatDuration(duration)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: colors.onSurfaceVariant),
                       ),
                       if (widget.onNextEpisode != null)
                         TextButton.icon(

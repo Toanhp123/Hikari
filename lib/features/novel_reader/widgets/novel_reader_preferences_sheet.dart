@@ -28,7 +28,7 @@ class _NovelReaderPreferencesSheetState
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(HikariSpacing.lg),
       child: Column(
@@ -38,12 +38,13 @@ class _NovelReaderPreferencesSheetState
           Text(
             'Reading Preferences',
             style: Theme.of(context).textTheme.titleMedium!
-                .copyWith(color: colors.textPrimary),
+                .copyWith(color: colors.onSurface),
           ),
           const SizedBox(height: HikariSpacing.md),
           Text(
             'Color Theme',
-            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: HikariSpacing.xs),
           Row(
@@ -63,16 +64,17 @@ class _NovelReaderPreferencesSheetState
                       color: theme.bg,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: selected ? colors.primaryGlow : colors.border,
+                        color: selected
+                            ? colors.primary.withValues(alpha: 0.8)
+                            : colors.outline,
                         width: selected ? 2.5 : 1.0,
                       ),
                     ),
                     child: Center(
                       child: Text(
                         'Aa',
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: theme.fg,
-                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -88,13 +90,13 @@ class _NovelReaderPreferencesSheetState
             children: [
               Text(
                 'Font Size',
-                style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: colors.onSurfaceVariant),
               ),
               Text(
                 '${_fontSize.toInt()}sp',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colors.textPrimary,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -105,8 +107,6 @@ class _NovelReaderPreferencesSheetState
             min: 12,
             max: 26,
             divisions: 7,
-            activeColor: colors.primary,
-            inactiveColor: colors.surfaceHighlight,
             onChanged: (value) {
               setState(() => _fontSize = value);
               widget.onFontSizeChanged(value);

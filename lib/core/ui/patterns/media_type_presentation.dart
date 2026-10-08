@@ -20,9 +20,26 @@ String mediaTypeBadgeLabel(MediaType type) => switch (type) {
   MediaType.lightNovel => 'NOVEL',
 };
 
-Color mediaTypeBadgeColor(HikariColors colors, MediaType type) =>
-    switch (type) {
-      MediaType.anime => colors.badgeVideo,
-      MediaType.manga => colors.badgeManga,
-      MediaType.lightNovel => colors.badgeNovel,
-    };
+/// Canonical container/on-container pair for media identity badges.
+/// Controls that display only a small indicator should use [foreground].
+({Color background, Color foreground}) mediaTypeBadgeColors(
+  BuildContext context,
+  MediaType type,
+) {
+  final scheme = Theme.of(context).colorScheme;
+  final status = context.hikariStatusColors;
+  return switch (type) {
+    MediaType.anime => (
+      background: scheme.primaryContainer,
+      foreground: scheme.onPrimaryContainer,
+    ),
+    MediaType.manga => (
+      background: status.warningContainer,
+      foreground: status.onWarningContainer,
+    ),
+    MediaType.lightNovel => (
+      background: status.infoContainer,
+      foreground: status.onInfoContainer,
+    ),
+  };
+}

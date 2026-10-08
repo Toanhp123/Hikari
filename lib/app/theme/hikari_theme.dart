@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'hikari_radius.dart';
 import 'hikari_size.dart';
 import 'hikari_spacing.dart';
-import 'hikari_colors.dart';
 import 'hikari_breakpoints.dart';
 import 'hikari_status_colors.dart';
 import 'hikari_typography.dart';
 
 export 'hikari_breakpoints.dart';
-export 'hikari_colors.dart';
 export 'hikari_motion.dart';
 export 'hikari_radius.dart';
 export 'hikari_size.dart';
@@ -17,7 +15,7 @@ export 'hikari_spacing.dart';
 export 'hikari_status_colors.dart';
 export 'hikari_typography.dart';
 
-/// Canonical Material 3 theme for Hikari, including legacy-facing semantic roles.
+/// Single Material 3 theme owner for Hikari.
 abstract final class HikariTheme {
   /// The null appearance selection resolves to this canonical seed.
   static const defaultAccentSeed = Color(0xFFB4BEFE);
@@ -83,10 +81,7 @@ abstract final class HikariTheme {
     );
 
     return base.copyWith(
-      extensions: [
-        statusColors,
-        HikariColors.fromScheme(colors, statusColors: statusColors, oled: oled),
-      ],
+      extensions: [statusColors],
       scaffoldBackgroundColor: colors.surface,
       textTheme: text,
       iconTheme: IconThemeData(
@@ -232,7 +227,9 @@ abstract final class HikariTheme {
           maxWidth: HikariBreakpoints.sheetMaxWidth,
         ),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(HikariRadius.xl),
+          ),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
@@ -244,6 +241,14 @@ abstract final class HikariTheme {
         backgroundColor: colors.surfaceContainerLow,
         indicatorColor: colors.secondaryContainer,
         useIndicator: true,
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: colors.primary,
+        inactiveTrackColor: colors.surfaceContainerHighest,
+        thumbColor: colors.primary.withValues(alpha: 0.8),
+        overlayColor: colors.primary.withValues(alpha: 0.2),
+        trackHeight: 3,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
@@ -268,17 +273,9 @@ abstract final class HikariTheme {
 
 /// Existing feature API backed by the canonical theme extension.
 extension HikariThemeContext on BuildContext {
-  HikariColors get hikariColors {
-    final theme = Theme.of(this);
-    return theme.extension<HikariColors>() ??
-        HikariColors.fromScheme(
-          theme.colorScheme,
-          statusColors:
-              theme.extension<HikariStatusColors>() ?? HikariStatusColors.dark,
-          oled: false,
-        );
-  }
-
-  ThemeData get theme => Theme.of(this);
-  TextTheme get textTheme => Theme.of(this).textTheme;
+  /// Status roles are required from the canonical application theme.
+  /// Missing extensions are configuration errors, never silent color fallbacks.
+  HikariStatusColors get hikariStatusColors =>
+      Theme.of(this).extension<HikariStatusColors>() ??
+      (throw StateError('HikariTheme is required above this widget'));
 }

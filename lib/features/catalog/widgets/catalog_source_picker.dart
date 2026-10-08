@@ -155,7 +155,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -180,7 +180,7 @@ class _Header extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium!
-              .copyWith(color: colors.textSecondary),
+              .copyWith(color: colors.onSurfaceVariant),
         ),
       ],
     );
@@ -210,7 +210,7 @@ class _SourceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final groups = this.groups;
     final languageCodes = this.languageCodes;
     final showLanguageFilter = this.showLanguageFilter;
@@ -262,7 +262,7 @@ class _SourceList extends StatelessWidget {
           Text(
             'Choose an installed source. Hikari will match this catalog title automatically.',
             style: Theme.of(context).textTheme.bodyMedium!
-                .copyWith(color: colors.textSecondary, height: 1.45),
+                .copyWith(color: colors.onSurfaceVariant, height: 1.45),
           ),
           const SizedBox(height: HikariSpacing.md),
           if (showLanguageFilter) ...[
@@ -308,7 +308,7 @@ class _SourceList extends StatelessWidget {
           Material(
             color: colors.surfaceContainer,
             shape: RoundedRectangleBorder(
-              side: BorderSide(color: colors.border),
+              side: BorderSide(color: colors.outline),
               borderRadius: HikariRadius.borderLg,
             ),
             clipBehavior: Clip.antiAlias,
@@ -325,7 +325,7 @@ class _SourceList extends StatelessWidget {
                         : () => onSelect(groups[index].single),
                   ),
                   if (index != groups.length - 1)
-                    Divider(height: 1, color: colors.border),
+                    Divider(height: 1, color: colors.outline),
                 ],
               ],
             ),
@@ -365,7 +365,7 @@ class _SourceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: HikariSpacing.md),
       leading: const Icon(Icons.extension_outlined),
@@ -387,7 +387,7 @@ class _SourceTile extends StatelessWidget {
                   : source.languageCode?.toUpperCase() ?? 'Unspecified',
               style: Theme.of(context).textTheme.bodySmall!,
             ),
-          Icon(Icons.chevron_right_rounded, color: colors.textMuted),
+          Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant),
         ],
       ),
       onTap: onTap,
@@ -403,7 +403,7 @@ class _ResolvingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Finding $title on $sourceName',
       child: Padding(
@@ -423,7 +423,7 @@ class _ResolvingState extends StatelessWidget {
               'Checking the catalog title and known aliases.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium!
-                  .copyWith(color: colors.textSecondary),
+                  .copyWith(color: colors.onSurfaceVariant),
             ),
           ],
         ),
@@ -451,7 +451,7 @@ class _CandidateList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -465,13 +465,13 @@ class _CandidateList extends StatelessWidget {
             'Hikari found possible matches on ${source.contextLabel}, but none was safe '
             'to open automatically.',
             style: Theme.of(context).textTheme.bodyMedium!
-                .copyWith(color: colors.textSecondary, height: 1.45),
+                .copyWith(color: colors.onSurfaceVariant, height: 1.45),
           ),
           const SizedBox(height: HikariSpacing.md),
           Material(
             color: colors.surfaceContainer,
             shape: RoundedRectangleBorder(
-              side: BorderSide(color: colors.border),
+              side: BorderSide(color: colors.outline),
               borderRadius: HikariRadius.borderLg,
             ),
             clipBehavior: Clip.antiAlias,
@@ -484,7 +484,7 @@ class _CandidateList extends StatelessWidget {
                     onTap: () => onSelect(candidates[index]),
                   ),
                   if (index != candidates.length - 1)
-                    Divider(height: 1, color: colors.border),
+                    Divider(height: 1, color: colors.outline),
                 ],
               ],
             ),
@@ -522,7 +522,7 @@ class _CandidateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final authors = candidate.metadata?.authors ?? const <String>[];
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
@@ -547,9 +547,12 @@ class _CandidateTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall!
-                  .copyWith(color: colors.textSecondary),
+                  .copyWith(color: colors.onSurfaceVariant),
             ),
-      trailing: Icon(Icons.arrow_forward_rounded, color: colors.textMuted),
+      trailing: Icon(
+        Icons.arrow_forward_rounded,
+        color: colors.onSurfaceVariant,
+      ),
       onTap: onTap,
     );
   }
@@ -563,7 +566,7 @@ class _CandidateArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final artwork = candidate.metadata?.cover;
     Widget content(Uint8List? bytes, {bool loading = false}) {
       if (bytes != null) {
@@ -593,12 +596,12 @@ class _CandidateArtwork extends StatelessWidget {
     return SizedBox(width: 44, height: 58, child: image);
   }
 
-  Widget _placeholder(HikariColors colors, {bool loading = false}) {
+  Widget _placeholder(ColorScheme colors, {bool loading = false}) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surfaceElevated,
+        color: colors.surfaceContainerHigh,
         borderRadius: HikariRadius.borderXs,
-        border: Border.all(color: colors.border),
+        border: Border.all(color: colors.outline),
       ),
       child: Center(
         child: loading
@@ -610,7 +613,7 @@ class _CandidateArtwork extends StatelessWidget {
                 candidate.media.type == MediaType.lightNovel
                     ? Icons.auto_stories_outlined
                     : Icons.menu_book_outlined,
-                color: colors.primaryGlow,
+                color: colors.primary.withValues(alpha: 0.8),
               ),
       ),
     );
@@ -638,14 +641,14 @@ class _MessageState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: HikariSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(icon, size: 40, color: colors.textMuted),
+            Icon(icon, size: 40, color: colors.onSurfaceVariant),
             const SizedBox(height: HikariSpacing.md),
             Text(
               title,
@@ -657,7 +660,7 @@ class _MessageState extends StatelessWidget {
               message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium!
-                  .copyWith(color: colors.textSecondary, height: 1.45),
+                  .copyWith(color: colors.onSurfaceVariant, height: 1.45),
             ),
             const SizedBox(height: HikariSpacing.lg),
             HikariButton(

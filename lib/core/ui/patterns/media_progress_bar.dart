@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
 
 /// An elegant glowing progress bar showing reading or playback completion.
 class MediaProgressBar extends StatelessWidget {
@@ -17,7 +16,7 @@ class MediaProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final clamped = progress.clamp(0.0, 1.0);
 
     return LayoutBuilder(
@@ -30,7 +29,7 @@ class MediaProgressBar extends StatelessWidget {
           child: Container(
             height: height,
             width: totalWidth,
-            color: colors.surfaceHighlight.withValues(alpha: 0.6),
+            color: colors.surfaceContainerHighest.withValues(alpha: 0.6),
             alignment: Alignment.centerLeft,
             child: Container(
               width: progressWidth,

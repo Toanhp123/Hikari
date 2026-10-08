@@ -11,7 +11,7 @@ class CatalogDetailLoadingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Loading catalog details for $title',
       child: ExcludeSemantics(
@@ -194,7 +194,7 @@ class CatalogDetailContent extends StatelessWidget {
                     ? TextOverflow.visible
                     : TextOverflow.fade,
                 style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  color: context.hikariColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.6,
                 ),
               ),

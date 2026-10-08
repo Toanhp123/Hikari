@@ -20,7 +20,7 @@ class CatalogDetailHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final imageUrl = (entry.bannerUrl?.isNotEmpty ?? false)
         ? entry.bannerUrl
         : entry.coverUrl;
@@ -41,10 +41,10 @@ class CatalogDetailHero extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                colors.background.withValues(alpha: 0.04),
-                colors.scrimMedium,
-                colors.scrimStrong,
-                colors.background,
+                colors.surface.withValues(alpha: 0.04),
+                colors.scrim.withValues(alpha: 0.6),
+                colors.scrim.withValues(alpha: 0.8),
+                colors.surface,
               ],
               stops: const [0, 0.44, 0.76, 1],
             ),
@@ -56,8 +56,8 @@ class CatalogDetailHero extends StatelessWidget {
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
               colors: [
-                colors.scrimStrong,
-                colors.scrimMedium,
+                colors.scrim.withValues(alpha: 0.8),
+                colors.scrim.withValues(alpha: 0.6),
                 Colors.transparent,
               ],
               stops: const [0, 0.5, 0.9],
@@ -117,7 +117,9 @@ class CatalogDetailHero extends StatelessWidget {
                                       fontWeight: FontWeight.w800,
                                       shadows: [
                                         Shadow(
-                                          color: colors.scrimStrong,
+                                          color: colors.scrim.withValues(
+                                            alpha: 0.8,
+                                          ),
                                           blurRadius: 12,
                                         ),
                                       ],
@@ -141,12 +143,14 @@ class CatalogDetailHero extends StatelessWidget {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.star_rounded,
                                   size: 17,
-                                  color: Color(0xFFFACC15),
+                                  color: context
+                                      .hikariStatusColors
+                                      .onWarningContainer,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: HikariSpacing.xs),
                                 Text(
                                   '${details!.averageScore}%',
                                   style: Theme.of(context).textTheme.labelLarge!
@@ -201,7 +205,7 @@ class _HeroArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final url = imageUrl;
     if (url == null || url.isEmpty) return _fallback(colors);
     return Image.network(
@@ -215,16 +219,16 @@ class _HeroArtwork extends StatelessWidget {
     );
   }
 
-  Widget _fallback(HikariColors colors) => DecoratedBox(
+  Widget _fallback(ColorScheme colors) => DecoratedBox(
     decoration: BoxDecoration(
       gradient: RadialGradient(
         center: const Alignment(0.4, -0.35),
         radius: 1.15,
         colors: [
           colors.primary.withValues(alpha: 0.34),
-          colors.surfaceElevated,
+          colors.surfaceContainerHigh,
           colors.surfaceContainer,
-          colors.background,
+          colors.surface,
         ],
         stops: const [0, 0.38, 0.72, 1],
       ),
@@ -240,7 +244,7 @@ class _CoverArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final url = imageUrl;
     final artwork = url == null || url.isEmpty
         ? _fallback(colors)
@@ -259,7 +263,9 @@ class _CoverArtwork extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: HikariRadius.borderMd,
-          border: Border.all(color: colors.glassBorder),
+          border: Border.all(
+            color: colors.outlineVariant.withValues(alpha: 0.4),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.42),
@@ -273,14 +279,14 @@ class _CoverArtwork extends StatelessWidget {
     );
   }
 
-  Widget _fallback(HikariColors colors) => DecoratedBox(
+  Widget _fallback(ColorScheme colors) => DecoratedBox(
     decoration: BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          colors.surfaceHighlight,
-          colors.surfaceElevated,
+          colors.surfaceContainerHighest,
+          colors.surfaceContainerHigh,
           colors.surfaceContainer,
         ],
       ),
@@ -289,7 +295,7 @@ class _CoverArtwork extends StatelessWidget {
       child: Icon(
         Icons.movie_filter_rounded,
         size: 30,
-        color: colors.primaryGlow.withValues(alpha: 0.8),
+        color: colors.primary.withValues(alpha: 0.8),
       ),
     ),
   );
@@ -302,20 +308,19 @@ class _TypePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    final color = mediaTypeBadgeColor(colors, type);
+    final badge = mediaTypeBadgeColors(context, type);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
+        color: badge.background,
         borderRadius: HikariRadius.borderCapsule,
-        border: Border.all(color: color.withValues(alpha: 0.48)),
+        border: Border.all(color: badge.foreground.withValues(alpha: 0.48)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           catalogMediaTypeLabel(type),
           style: Theme.of(context).textTheme.labelSmall!.copyWith(
-            color: Colors.white,
+            color: badge.foreground,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.6,
           ),

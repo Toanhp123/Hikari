@@ -395,11 +395,7 @@ class _HeroSlide extends StatelessWidget {
                                 ),
                               ],
                             ) ??
-                        const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        theme.textTheme.headlineSmall,
                   ),
                   const SizedBox(height: HikariSpacing.xs),
                   Text(

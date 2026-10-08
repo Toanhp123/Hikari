@@ -134,15 +134,11 @@ class _ContinueCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final statusColors = theme.extension<HikariStatusColors>();
     final badgeText = mediaTypeBadgeLabel(item.media.type);
-    final badgeColor = switch (item.media.type) {
-      MediaType.anime => colors.primary,
-      MediaType.manga =>
-        statusColors?.onWarningContainer ?? const Color(0xFFFAB387),
-      MediaType.lightNovel =>
-        statusColors?.onInfoContainer ?? const Color(0xFF89DCEB),
-    };
+    final badgeColor = mediaTypeBadgeColors(
+      context,
+      item.media.type,
+    ).foreground;
     final actionIcon = switch (item.media.type) {
       MediaType.anime => Icons.play_arrow_rounded,
       MediaType.manga => Icons.auto_stories_rounded,

@@ -223,14 +223,20 @@ class CatalogDetailNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return _InfoSurface(
-      borderColor: colors.warning.withValues(alpha: 0.32),
-      backgroundColor: colors.warning.withValues(alpha: 0.07),
+      borderColor: context.hikariStatusColors.onWarningContainer.withValues(
+        alpha: 0.32,
+      ),
+      backgroundColor: context.hikariStatusColors.warningContainer,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: colors.warning, size: 22),
+          Icon(
+            icon,
+            color: context.hikariStatusColors.onWarningContainer,
+            size: 22,
+          ),
           const SizedBox(width: HikariSpacing.md),
           Expanded(
             child: Column(
@@ -241,7 +247,7 @@ class CatalogDetailNotice extends StatelessWidget {
                 Text(
                   message,
                   style: Theme.of(context).textTheme.bodySmall!
-                      .copyWith(color: colors.textSecondary),
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
               ],
             ),
@@ -265,19 +271,25 @@ class CatalogDetailWarning extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return _InfoSurface(
-      borderColor: colors.warning.withValues(alpha: 0.28),
-      backgroundColor: colors.warning.withValues(alpha: 0.06),
+      borderColor: context.hikariStatusColors.onWarningContainer.withValues(
+        alpha: 0.28,
+      ),
+      backgroundColor: context.hikariStatusColors.warningContainer,
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: 20, color: colors.warning),
+          Icon(
+            Icons.info_outline_rounded,
+            size: 20,
+            color: context.hikariStatusColors.onWarningContainer,
+          ),
           const SizedBox(width: HikariSpacing.sm),
           Expanded(
             child: Text(
               messages.join(' '),
               style: Theme.of(context).textTheme.bodySmall!
-                  .copyWith(color: colors.textSecondary),
+                  .copyWith(color: colors.onSurfaceVariant),
             ),
           ),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
@@ -292,23 +304,27 @@ class CatalogDetailProvenance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return _InfoSurface(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.hub_outlined, size: 20, color: colors.info),
+          Icon(
+            Icons.hub_outlined,
+            size: 20,
+            color: context.hikariStatusColors.onInfoContainer,
+          ),
           const SizedBox(width: HikariSpacing.sm),
           Expanded(
             child: Text.rich(
               TextSpan(
                 style: Theme.of(context).textTheme.bodySmall!
-                    .copyWith(color: colors.textSecondary),
+                    .copyWith(color: colors.onSurfaceVariant),
                 children: [
                   TextSpan(
                     text: 'Metadata by AniList. ',
-                    style: TextStyle(
-                      color: colors.textPrimary,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -342,7 +358,7 @@ class CatalogDetailSection extends StatelessWidget {
       Text(
         title,
         style: Theme.of(context).textTheme.titleMedium!.copyWith(
-          color: context.hikariColors.textPrimary,
+          color: Theme.of(context).colorScheme.onSurface,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -365,14 +381,14 @@ class _InfoSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(HikariSpacing.lg),
       decoration: BoxDecoration(
         color: backgroundColor ?? colors.surfaceContainer,
         borderRadius: HikariRadius.borderLg,
-        border: Border.all(color: borderColor ?? colors.borderSubtle),
+        border: Border.all(color: borderColor ?? colors.outlineVariant),
       ),
       child: child,
     );
@@ -387,20 +403,20 @@ class _LabeledValue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: Theme.of(context).textTheme.labelMedium!
-              .copyWith(color: colors.textMuted),
+              .copyWith(color: colors.onSurfaceVariant),
         ),
         const SizedBox(height: 3),
         Text(
           value,
           style: Theme.of(context).textTheme.bodyMedium!
-              .copyWith(color: colors.textSecondary),
+              .copyWith(color: colors.onSurfaceVariant),
         ),
       ],
     );
@@ -420,7 +436,7 @@ class _FactTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Container(
       width: context.isCompact ? 104 : 120,
       constraints: const BoxConstraints(minHeight: 72),
@@ -428,27 +444,25 @@ class _FactTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceContainer,
         borderRadius: HikariRadius.borderMd,
-        border: Border.all(color: colors.borderSubtle),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: colors.primaryGlow),
+          Icon(icon, size: 18, color: colors.primary.withValues(alpha: 0.8)),
           const SizedBox(height: HikariSpacing.sm),
           Text(
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleSmall!.copyWith(
-              color: colors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(context).textTheme.titleSmall!
+                .copyWith(color: colors.onSurface, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 2),
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall!
-                .copyWith(color: colors.textMuted),
+                .copyWith(color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -463,19 +477,19 @@ class _StaticTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surfaceContainer,
         borderRadius: HikariRadius.borderCapsule,
-        border: Border.all(color: colors.borderSubtle),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelMedium!.copyWith(
-            color: colors.textSecondary,
+            color: colors.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -492,7 +506,7 @@ class _MetadataRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -501,7 +515,7 @@ class _MetadataRow extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium!
-                .copyWith(color: colors.textMuted),
+                .copyWith(color: colors.onSurfaceVariant),
           ),
         ),
         Expanded(
@@ -509,7 +523,7 @@ class _MetadataRow extends StatelessWidget {
             value,
             textAlign: TextAlign.end,
             style: Theme.of(context).textTheme.bodySmall!.copyWith(
-              color: colors.textSecondary,
+              color: colors.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),

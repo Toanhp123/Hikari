@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/features/library/library_page.dart';
@@ -27,6 +28,7 @@ void main() {
       Media? opened;
       await tester.pumpWidget(
         MaterialApp(
+          theme: HikariTheme.darkTheme(),
           home: LibraryPage(
             repository: library,
             openMedia: (_, item) {
@@ -43,6 +45,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(
         MaterialApp(
+          theme: HikariTheme.darkTheme(),
           home: LibraryPage(
             repository: library,
             openMedia: (_, item) {
@@ -72,6 +75,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: LocalMediaPage(
           library: library,
           scanSelectedRoot: () async => [media],
@@ -96,6 +100,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: LibraryPage(repository: library, openMedia: (_, _) {}),
       ),
     );

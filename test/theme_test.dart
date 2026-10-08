@@ -3,69 +3,61 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 
 void main() {
-  test('HikariTheme builds dark and OLED themes with extensions', () {
-    final dark = HikariTheme.darkTheme();
-    expect(dark.brightness, Brightness.dark);
-    final darkColors = dark.extension<HikariColors>();
-    expect(darkColors, isNotNull);
-    expect(darkColors!.isOled, isFalse);
-    expect(darkColors.background, dark.colorScheme.surface);
-    expect(darkColors.primary, dark.colorScheme.primary);
-    expect(darkColors.secondary, dark.colorScheme.secondary);
+  test('HikariTheme uses a single Material 3 scheme and status extension', () {
+    final theme = HikariTheme.darkTheme();
+    expect(theme.brightness, Brightness.dark);
+    expect(theme.extension<HikariStatusColors>(), isNotNull);
+    expect(theme.scaffoldBackgroundColor, theme.colorScheme.surface);
+    expect(theme.colorScheme.primary, isNotNull);
 
     final oled = HikariTheme.darkTheme(oled: true);
-    expect(oled.brightness, Brightness.dark);
-    final oledColors = oled.extension<HikariColors>();
-    expect(oledColors, isNotNull);
-    expect(oledColors!.isOled, isTrue);
-    expect(oledColors.background, const Color(0xFF000000));
+    expect(oled.colorScheme.surface, Colors.black);
+    expect(oled.colorScheme.surfaceContainerLowest, Colors.black);
   });
 
-  test('HikariTheme respects custom accent color', () {
-    final customTheme = HikariTheme.darkTheme(
-      accentColor: const Color(0xFF06B6D4),
-    );
-    final colors = customTheme.extension<HikariColors>()!;
-    expect(colors.primary, customTheme.colorScheme.primary);
-    expect(colors.primary, isNot(const Color(0xFF8B5CF6)));
+  test('custom accent changes scheme without changing surface tokens', () {
+    final custom = HikariTheme.darkTheme(accentColor: const Color(0xFF06B6D4));
+    final standard = HikariTheme.darkTheme();
+    expect(custom.colorScheme.primary, isNot(standard.colorScheme.primary));
+    expect(custom.colorScheme.surface, standard.colorScheme.surface);
+    expect(custom.extension<HikariStatusColors>(), isNotNull);
   });
 
-  test('HikariColors lerps smoothly', () {
-    final start = HikariTheme.darkTheme().extension<HikariColors>()!;
-    final end = HikariTheme.darkTheme(oled: true).extension<HikariColors>()!;
-    final midway = start.lerp(end, 0.5);
-    expect(
-      midway.background,
-      Color.lerp(start.background, end.background, 0.5),
-    );
-    expect(midway.primary, start.primary);
-  });
-
-  testWidgets('HikariThemeContext extension provides easy context access', (
+  testWidgets('custom semantic status roles resolve from the canonical theme', (
     tester,
   ) async {
-    late HikariColors resolvedColors;
+    late HikariStatusColors resolved;
     await tester.pumpWidget(
       MaterialApp(
         theme: HikariTheme.darkTheme(),
         home: Builder(
           builder: (context) {
-            resolvedColors = context.hikariColors;
-            return const SizedBox();
+            resolved = context.hikariStatusColors;
+            return const SizedBox.shrink();
           },
         ),
       ),
     );
-
-    final theme = HikariTheme.darkTheme();
-    expect(resolvedColors.primary, theme.colorScheme.primary);
-    expect(resolvedColors.badgeVideo, theme.colorScheme.primary);
-    final statuses = theme.extension<HikariStatusColors>()!;
-    expect(resolvedColors.badgeManga, statuses.onWarningContainer);
-    expect(resolvedColors.badgeNovel, statuses.onInfoContainer);
+    expect(resolved.onInfoContainer, HikariStatusColors.dark.onInfoContainer);
   });
 
-  test('HikariSpacing and HikariRadius tokens are correct', () {
+  testWidgets('custom semantic status roles require the canonical root theme', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            context.hikariStatusColors;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    expect(tester.takeException(), isA<StateError>());
+  });
+
+  test('Hikari geometry and typography tokens remain centralized', () {
     expect(HikariSpacing.xs, 4.0);
     expect(HikariSpacing.sm, 8.0);
     expect(HikariSpacing.md, 12.0);

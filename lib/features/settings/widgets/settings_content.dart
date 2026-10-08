@@ -28,7 +28,7 @@ class SettingsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(HikariSpacing.lg),
       children: [
@@ -39,7 +39,6 @@ class SettingsContent extends StatelessWidget {
               title: const Text('OLED Pure Black'),
               subtitle: const Text(
                 'Use a pure-black background on OLED displays.',
-                style: TextStyle(fontSize: 12),
               ),
               value: isOled,
               activeThumbColor: colors.primary,
@@ -86,7 +85,7 @@ class SettingsContent extends StatelessWidget {
                                         color: HikariTheme.defaultAccentSeed,
                                         border: selectedAccent == null
                                             ? Border.all(
-                                                color: colors.textPrimary,
+                                                color: colors.onSurface,
                                                 width: 2.5,
                                               )
                                             : null,
@@ -128,7 +127,7 @@ class SettingsContent extends StatelessWidget {
                                           shape: BoxShape.circle,
                                           border: selected
                                               ? Border.all(
-                                                  color: colors.textPrimary,
+                                                  color: colors.onSurface,
                                                   width: 2.5,
                                                 )
                                               : null,
@@ -147,7 +146,7 @@ class SettingsContent extends StatelessWidget {
                     Text(
                       'Appearance preferences currently apply to this app session.',
                       style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: colors.textMuted),
+                          ?.copyWith(color: colors.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -166,7 +165,6 @@ class SettingsContent extends StatelessWidget {
                   title: const Text('Local Media Folder'),
                   subtitle: const Text(
                     'Change Hikari\'s persisted local-media root.',
-                    style: TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: isChoosingFolder ? null : onChooseLocalFolder,
@@ -181,7 +179,6 @@ class SettingsContent extends StatelessWidget {
                     cacheSizeLabel == null
                         ? 'Clear temporary cached content.'
                         : 'Cached content: $cacheSizeLabel',
-                    style: const TextStyle(fontSize: 12),
                   ),
                   trailing: SizedBox(
                     width: 96,
@@ -204,10 +201,7 @@ class SettingsContent extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.auto_awesome),
               title: Text('Hikari'),
-              subtitle: Text(
-                'Anime, manga, and light-novel media client.',
-                style: TextStyle(fontSize: 12),
-              ),
+              subtitle: Text('Anime, manga, and light-novel media client.'),
             ),
           ],
         ),
@@ -224,7 +218,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(
         left: HikariSpacing.xs,
@@ -232,10 +226,9 @@ class _SectionHeader extends StatelessWidget {
       ),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: 12,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: colors.primary.withValues(alpha: 0.8),
           fontWeight: FontWeight.w600,
-          color: colors.primaryGlow,
           letterSpacing: 0.5,
         ),
       ),
@@ -250,12 +243,12 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Material(
       color: colors.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: HikariRadius.borderMd,
-        side: BorderSide(color: colors.border),
+        side: BorderSide(color: colors.outline),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),

@@ -128,22 +128,20 @@ void main() {
     );
   });
 
-  test('legacy semantic roles match the native root color scheme', () {
+  test('the app has only one canonical Material scheme', () {
     for (final oled in [false, true]) {
       for (final seed in [null, const Color(0xFF06B6D4)]) {
         final theme = HikariTheme.darkTheme(oled: oled, accentColor: seed);
         final colors = theme.colorScheme;
-        final legacy = theme.extension<HikariColors>()!;
-        expect(legacy.isOled, oled);
-        expect(legacy.background, colors.surface);
-        expect(legacy.surface, colors.surfaceContainerLow);
-        expect(legacy.surfaceContainer, colors.surfaceContainer);
-        expect(legacy.surfaceElevated, colors.surfaceContainerHigh);
-        expect(legacy.textPrimary, colors.onSurface);
-        expect(legacy.textSecondary, colors.onSurfaceVariant);
-        expect(legacy.primary, colors.primary);
-        expect(legacy.secondary, colors.secondary);
-        expect(legacy.error, colors.error);
+        final status = theme.extension<HikariStatusColors>()!;
+        expect(theme.scaffoldBackgroundColor, colors.surface);
+        expect(theme.textTheme.labelSmall?.fontSize, 12);
+        expect(
+          status.warningContainer,
+          HikariStatusColors.dark.warningContainer,
+        );
+        expect(status.infoContainer, HikariStatusColors.dark.infoContainer);
+        if (oled) expect(colors.surface, Colors.black);
       }
     }
   });
