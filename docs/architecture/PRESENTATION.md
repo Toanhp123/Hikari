@@ -87,6 +87,16 @@ Remote manga/novel series routes keep feature-local state holders for chapter lo
 Their chapter collections support adaptive pull-to-refresh plus an explicit refresh action,
 and retain the last usable chapter list if refresh fails. Chapter selection passes an immutable
 snapshot in declared reading order; each reader route keeps that sequence fixed for its lifetime.
+The series ViewModels own cached query matching and source-order reversal; neither changes
+canonical reading order. Detail CTAs resolve the existing `SeriesContinuationRepository`
+through `LoadSeriesReadingTarget`, falling back to the first readable chapter when a saved
+chapter is absent. Both detail loading and strict continuation opening share
+`validateSeriesChapterSequence`: malformed or duplicate references reject the entire fresh
+sequence rather than silently filtering it. Same-source parent membership comes from the
+source's series response, not from parsing opaque chapter IDs. Pages own navigation locks;
+load/resume generations and page identity checks discard stale completions. A missing or
+pending target leaves the CTA disabled. Metadata keeps its lazy header alive to retain
+synopsis expansion, search state and artwork without keeping all chapter tiles alive.
 Feature-local chapter reader routes own adjacent-navigation ViewModels; those ViewModels use injected
 open workflows and stable source references, publish a new chapter only after a successful open,
 and ignore stale completions after route close. Each successful open supplies a fresh

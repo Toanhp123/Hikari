@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -19,9 +20,12 @@ class MangaSeriesPage extends StatefulWidget {
     required this.sourceName,
     required this.loadDetails,
     this.readArtwork,
+    this.loadReadingTarget,
     this.library,
     required this.openChapter,
   });
+  final Future<SeriesReadingTarget> Function(List<SourceMediaRef>)?
+  loadReadingTarget;
   final Media media;
   final String sourceName;
   final Future<MangaSeriesDetails> Function() loadDetails;
@@ -34,8 +38,10 @@ class MangaSeriesPage extends StatefulWidget {
 }
 
 class _MangaSeriesPageState extends State<MangaSeriesPage> {
-  late final MangaSeriesViewModel _viewModel = MangaSeriesViewModel(
+  late MangaSeriesViewModel _viewModel = MangaSeriesViewModel(
     widget.loadDetails,
+    loadReadingTarget: widget.loadReadingTarget,
+    series: widget.media.source,
   );
   bool _isOpeningChapter = false;
 
@@ -46,20 +52,36 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
   }
 
   @override
+  void didUpdateWidget(MangaSeriesPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.media.source != widget.media.source) {
+      _viewModel.dispose();
+      _viewModel = MangaSeriesViewModel(
+        widget.loadDetails,
+        loadReadingTarget: widget.loadReadingTarget,
+        series: widget.media.source,
+      );
+      _isOpeningChapter = false;
+      unawaited(_viewModel.load());
+    }
+  }
+
+  @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
 
   Future<void> _openChapter(MangaChapter chapter) async {
-    if (_isOpeningChapter) return;
-    final sequence = _viewModel.state.details?.chaptersInReadingOrder;
-    if (sequence == null) return;
+    if (!mounted || _isOpeningChapter) return;
+    final viewModel = _viewModel;
+    final sequence = viewModel.readingSequence;
+    if (!chapter.canReadPages || !sequence.contains(chapter)) return;
     setState(() => _isOpeningChapter = true);
     try {
       await widget.openChapter(context, chapter, List.unmodifiable(sequence));
     } catch (_) {
-      if (mounted) {
+      if (mounted && identical(viewModel, _viewModel)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -69,7 +91,10 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isOpeningChapter = false);
+      if (mounted && identical(viewModel, _viewModel)) {
+        setState(() => _isOpeningChapter = false);
+        unawaited(viewModel.refreshReadingTarget());
+      }
     }
   }
 
@@ -105,7 +130,8 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
                 child: ListenableBuilder(
                   listenable: _viewModel,
                   builder: (context, _) => MangaSeriesContent(
-                    state: _viewModel.state,
+                    key: ValueKey(widget.media.source),
+                    viewModel: _viewModel,
                     sourceName: widget.sourceName,
                     openingChapter: _isOpeningChapter,
                     readArtwork: widget.readArtwork,

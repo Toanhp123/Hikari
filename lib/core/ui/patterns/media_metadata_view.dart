@@ -23,11 +23,15 @@ class MediaMetadataView extends StatefulWidget {
   State<MediaMetadataView> createState() => _MediaMetadataViewState();
 }
 
-class _MediaMetadataViewState extends State<MediaMetadataView> {
+class _MediaMetadataViewState extends State<MediaMetadataView>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   bool _summaryExpanded = false;
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final metadata = widget.metadata;
     final hasArtwork = metadata.cover != null && widget.readArtwork != null;
 
@@ -181,11 +185,13 @@ class _MediaMetadataViewState extends State<MediaMetadataView> {
                 children: [
                   Icon(Icons.star_rounded, size: 15, color: colors.primary),
                   const SizedBox(width: 3),
-                  Text(
-                    'Rating: ${metadata.rating}${metadata.ratingMax == null ? '' : ' / ${metadata.ratingMax}'}',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.onSurface,
-                      fontWeight: FontWeight.w700,
+                  Flexible(
+                    child: Text(
+                      'Rating: ${metadata.rating}${metadata.ratingMax == null ? '' : ' / ${metadata.ratingMax}'}',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -233,19 +239,10 @@ class _MediaMetadataViewState extends State<MediaMetadataView> {
         if (canExpand)
           Padding(
             padding: const EdgeInsets.only(top: HikariSpacing.xs),
-            child: InkWell(
-              onTap: () => setState(() => _summaryExpanded = !_summaryExpanded),
-              borderRadius: HikariRadius.borderSm,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                child: Text(
-                  _summaryExpanded ? 'Show less' : 'Show more',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+            child: TextButton(
+              onPressed: () =>
+                  setState(() => _summaryExpanded = !_summaryExpanded),
+              child: Text(_summaryExpanded ? 'Show less' : 'Show more'),
             ),
           ),
       ],
@@ -265,29 +262,23 @@ class _InfoLine extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(top: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Text(
-            '$label: ',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
+      child: Text.rich(
+        TextSpan(
+          text: '$label: ',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
           ),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          children: [
+            TextSpan(
+              text: value,
+              style: TextStyle(
                 color: colors.onSurface,
                 fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/chapter_list_patterns.dart';
+import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 
 Widget _app(Widget child) {
   return MaterialApp(
@@ -19,10 +20,10 @@ void main() {
         _app(
           ChapterControlBar(
             totalChapters: 24,
-            isReversed: false,
-            onToggleSort: () {},
-            isSearching: false,
-            onToggleSearch: () {},
+            reverseSourceOrder: false,
+            onToggleSourceOrder: () {},
+            isSearchExpanded: false,
+            onToggleSearchExpanded: () {},
             searchQuery: '',
             onSearchChanged: (_) {},
             onClearSearch: () {},
@@ -40,10 +41,10 @@ void main() {
         _app(
           ChapterControlBar(
             totalChapters: 1,
-            isReversed: false,
-            onToggleSort: () {},
-            isSearching: false,
-            onToggleSearch: () {},
+            reverseSourceOrder: false,
+            onToggleSourceOrder: () {},
+            isSearchExpanded: false,
+            onToggleSearchExpanded: () {},
             searchQuery: '',
             onSearchChanged: (_) {},
             onClearSearch: () {},
@@ -60,10 +61,10 @@ void main() {
           ChapterControlBar(
             totalChapters: 40,
             filteredChapters: 5,
-            isReversed: false,
-            onToggleSort: () {},
-            isSearching: true,
-            onToggleSearch: () {},
+            reverseSourceOrder: false,
+            onToggleSourceOrder: () {},
+            isSearchExpanded: true,
+            onToggleSearchExpanded: () {},
             searchQuery: 'ch',
             onSearchChanged: (_) {},
             onClearSearch: () {},
@@ -74,29 +75,7 @@ void main() {
       expect(find.text('5 of 40 chapters'), findsOneWidget);
     });
 
-    testWidgets('tapping sort button calls onToggleSort', (tester) async {
-      var sortToggled = false;
-      await tester.pumpWidget(
-        _app(
-          ChapterControlBar(
-            totalChapters: 10,
-            isReversed: false,
-            onToggleSort: () => sortToggled = true,
-            isSearching: false,
-            onToggleSearch: () {},
-            searchQuery: '',
-            onSearchChanged: (_) {},
-            onClearSearch: () {},
-          ),
-        ),
-      );
-
-      expect(find.byTooltip('Sort descending'), findsOneWidget);
-      await tester.tap(find.byTooltip('Sort descending'));
-      expect(sortToggled, isTrue);
-    });
-
-    testWidgets('shows "Sort ascending" tooltip when isReversed is true', (
+    testWidgets('tapping sort button calls onToggleSourceOrder', (
       tester,
     ) async {
       var sortToggled = false;
@@ -104,10 +83,10 @@ void main() {
         _app(
           ChapterControlBar(
             totalChapters: 10,
-            isReversed: true,
-            onToggleSort: () => sortToggled = true,
-            isSearching: false,
-            onToggleSearch: () {},
+            reverseSourceOrder: false,
+            onToggleSourceOrder: () => sortToggled = true,
+            isSearchExpanded: false,
+            onToggleSearchExpanded: () {},
             searchQuery: '',
             onSearchChanged: (_) {},
             onClearSearch: () {},
@@ -115,15 +94,40 @@ void main() {
         ),
       );
 
-      expect(find.byTooltip('Sort ascending'), findsOneWidget);
-      await tester.tap(find.byTooltip('Sort ascending'));
+      expect(find.byTooltip('Reverse chapter order'), findsOneWidget);
+      await tester.tap(find.byTooltip('Reverse chapter order'));
       expect(sortToggled, isTrue);
     });
 
     testWidgets(
+      'shows "Restore source order" tooltip when reverseSourceOrder is true',
+      (tester) async {
+        var sortToggled = false;
+        await tester.pumpWidget(
+          _app(
+            ChapterControlBar(
+              totalChapters: 10,
+              reverseSourceOrder: true,
+              onToggleSourceOrder: () => sortToggled = true,
+              isSearchExpanded: false,
+              onToggleSearchExpanded: () {},
+              searchQuery: '',
+              onSearchChanged: (_) {},
+              onClearSearch: () {},
+            ),
+          ),
+        );
+
+        expect(find.byTooltip('Restore source order'), findsOneWidget);
+        await tester.tap(find.byTooltip('Restore source order'));
+        expect(sortToggled, isTrue);
+      },
+    );
+
+    testWidgets(
       'tapping search icon reveals search input; typing calls onSearchChanged',
       (tester) async {
-        var isSearching = false;
+        var isSearchExpanded = false;
         var query = '';
 
         await tester.pumpWidget(
@@ -132,12 +136,12 @@ void main() {
               return _app(
                 ChapterControlBar(
                   totalChapters: 10,
-                  isReversed: false,
-                  onToggleSort: () {},
-                  isSearching: isSearching,
-                  onToggleSearch: () {
+                  reverseSourceOrder: false,
+                  onToggleSourceOrder: () {},
+                  isSearchExpanded: isSearchExpanded,
+                  onToggleSearchExpanded: () {
                     setState(() {
-                      isSearching = !isSearching;
+                      isSearchExpanded = !isSearchExpanded;
                     });
                   },
                   searchQuery: query,
@@ -188,10 +192,10 @@ void main() {
             return _app(
               ChapterControlBar(
                 totalChapters: 10,
-                isReversed: false,
-                onToggleSort: () {},
-                isSearching: true,
-                onToggleSearch: () {},
+                reverseSourceOrder: false,
+                onToggleSourceOrder: () {},
+                isSearchExpanded: true,
+                onToggleSearchExpanded: () {},
                 searchQuery: query,
                 onSearchChanged: (val) {
                   setState(() {

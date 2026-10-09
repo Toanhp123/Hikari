@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
@@ -163,6 +164,49 @@ void main() {
     progress = SqliteProgressRepository(db);
     library = SqliteLibraryRepository(db);
     continuations = SqliteSeriesContinuationRepository(db);
+
+    final detailResolver = LoadSeriesReadingTarget(continuations);
+    final mangaDetails = await mangaSource.loadDetails(_mangaSeriesRef);
+    final mangaCta = await detailResolver.execute(
+      _mangaSeriesRef,
+      mangaDetails.chaptersInReadingOrder
+          .map((chapter) => chapter.source)
+          .toList(),
+    );
+    expect(mangaCta.isContinuation, isTrue);
+    final detailMangaOpen = await OpenMangaChapter(registry, progress).execute(
+      mangaDetails.chapters.singleWhere(
+        (chapter) => chapter.source == mangaCta.chapter,
+      ),
+    );
+    expect(
+      (detailMangaOpen.progress.initialProgress!.position as PagePosition)
+          .pageIndex,
+      2,
+    );
+    final novelDetails = await novelSource.loadDetails(_novelSeriesRef);
+    final novelCta = await detailResolver.execute(
+      _novelSeriesRef,
+      novelDetails.chaptersInReadingOrder
+          .map((chapter) => chapter.source)
+          .toList(),
+    );
+    expect(novelCta.isContinuation, isTrue);
+    final detailNovelOpen =
+        await OpenNovelChapter(
+          registry,
+          progress,
+          ReadNovelChapterContent(_NoCache()),
+        ).execute(
+          novelDetails.chapters.singleWhere(
+            (chapter) => chapter.source == novelCta.chapter,
+          ),
+        );
+    expect(
+      (detailNovelOpen.progress.initialProgress!.position as TextPosition)
+          .progression,
+      .42,
+    );
 
     final home = await LoadContinueReading(
       progress,

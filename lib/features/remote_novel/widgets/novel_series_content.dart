@@ -3,7 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/chapter_list_patterns.dart';
+import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -12,7 +13,7 @@ import 'package:hikari/features/remote_novel/novel_series_view_model.dart';
 class NovelSeriesContent extends StatefulWidget {
   const NovelSeriesContent({
     super.key,
-    required this.state,
+    required this.viewModel,
     required this.sourceName,
     required this.openingChapter,
     required this.onRefresh,
@@ -20,7 +21,7 @@ class NovelSeriesContent extends StatefulWidget {
     this.readArtwork,
   });
 
-  final NovelSeriesUiState state;
+  final NovelSeriesViewModel viewModel;
   final String sourceName;
   final bool openingChapter;
   final Future<void> Function() onRefresh;
@@ -32,16 +33,15 @@ class NovelSeriesContent extends StatefulWidget {
 }
 
 class _NovelSeriesContentState extends State<NovelSeriesContent> {
-  bool _isReversed = false;
-  bool _isSearching = false;
-  String _searchQuery = '';
+  bool _isSearchExpanded = false;
 
   @override
   Widget build(BuildContext context) {
-    if (widget.state.initialLoading) {
+    final state = widget.viewModel.state;
+    if (state.initialLoading) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
-    if (widget.state.failed) {
+    if (state.failed) {
       return Center(
         child: SingleChildScrollView(
           child: Column(
@@ -58,30 +58,11 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
       );
     }
 
-    final details = widget.state.details!;
+    final details = state.details!;
     final allChapters = details.chapters;
-    final firstReadable = details.chaptersInReadingOrder.firstOrNull;
-
-    final query = _searchQuery.trim().toLowerCase();
-    final filteredChapters = query.isEmpty
-        ? allChapters
-        : allChapters.where((c) {
-            if (c.title.toLowerCase().contains(query)) return true;
-            if (c.chapterNumber != null) {
-              final num = c.chapterNumber!;
-              final numStr = (num % 1 == 0)
-                  ? num.toInt().toString()
-                  : num.toString();
-              if (numStr.contains(query)) return true;
-              if (num.toString().contains(query)) return true;
-            }
-            return false;
-          }).toList();
-
-    final displayChapters = _isReversed
-        ? filteredChapters.reversed.toList()
-        : filteredChapters;
-
+    final primaryChapter = widget.viewModel.primaryChapter;
+    final searchQuery = widget.viewModel.searchQuery;
+    final displayChapters = widget.viewModel.displayChapters;
     final colorScheme = Theme.of(context).colorScheme;
 
     return RefreshIndicator.adaptive(
@@ -94,7 +75,7 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (widget.state.refreshFailed)
+                if (state.refreshFailed)
                   MaterialBanner(
                     content: const Text(
                       'Could not refresh chapters. Showing the last loaded list.',
@@ -111,44 +92,47 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
                   sourceName: widget.sourceName,
                   readArtwork: widget.readArtwork,
                 ),
-                if (widget.openingChapter) const LinearProgressIndicator(),
-                if (firstReadable != null)
-                  PrimaryReadingCta(
-                    enabled: !widget.openingChapter,
-                    onPressed: () => widget.onOpenChapter(firstReadable),
-                  ),
+                PrimaryReadingCta(
+                  label: widget.viewModel.isContinuation
+                      ? 'Continue reading'
+                      : 'Start reading',
+                  enabled: !widget.openingChapter,
+                  onPressed: primaryChapter == null
+                      ? null
+                      : () => widget.onOpenChapter(primaryChapter),
+                ),
                 if (allChapters.isNotEmpty)
                   ChapterControlBar(
                     totalChapters: allChapters.length,
-                    filteredChapters: query.isNotEmpty
-                        ? filteredChapters.length
+                    filteredChapters: searchQuery.trim().isNotEmpty
+                        ? displayChapters.length
                         : null,
-                    isReversed: _isReversed,
-                    onToggleSort: () =>
-                        setState(() => _isReversed = !_isReversed),
-                    isSearching: _isSearching,
-                    onToggleSearch: () => setState(() {
-                      _isSearching = !_isSearching;
-                      if (!_isSearching) _searchQuery = '';
+                    reverseSourceOrder: widget.viewModel.reverseSourceOrder,
+                    onToggleSourceOrder: widget.viewModel.toggleSourceOrder,
+                    isSearchExpanded: _isSearchExpanded,
+                    onToggleSearchExpanded: () => setState(() {
+                      _isSearchExpanded = !_isSearchExpanded;
+                      if (!_isSearchExpanded) {
+                        widget.viewModel.setSearchQuery('');
+                      }
                     }),
-                    searchQuery: _searchQuery,
-                    onSearchChanged: (val) =>
-                        setState(() => _searchQuery = val),
-                    onClearSearch: () => setState(() => _searchQuery = ''),
+                    searchQuery: searchQuery,
+                    onSearchChanged: widget.viewModel.setSearchQuery,
+                    onClearSearch: () => widget.viewModel.setSearchQuery(''),
                   ),
                 if (allChapters.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(HikariSpacing.lg),
                     child: Text('No readable chapters found.'),
                   )
-                else if (filteredChapters.isEmpty)
+                else if (displayChapters.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(HikariSpacing.lg),
                     child: Column(
                       children: [
-                        Text('No chapters matching "$_searchQuery"'),
+                        Text('No chapters matching "$searchQuery"'),
                         TextButton(
-                          onPressed: () => setState(() => _searchQuery = ''),
+                          onPressed: () => widget.viewModel.setSearchQuery(''),
                           child: const Text('Clear filter'),
                         ),
                       ],
@@ -157,7 +141,6 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
               ],
             );
           }
-
           final chapter = displayChapters[index - 1];
           final subtitle = [
             if (chapter.chapterNumber != null)
@@ -168,9 +151,7 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
             else if (chapter.releaseDate != null)
               chapter.releaseDate!.toIso8601String().split('T').first,
           ].join(' · ');
-
           final isInteractive = !widget.openingChapter;
-
           return Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: HikariSpacing.md,
@@ -188,7 +169,7 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
                   ? const Icon(Icons.chevron_right_rounded)
                   : null,
               enabled: isInteractive,
-              onTap: () => widget.onOpenChapter(chapter),
+              onTap: isInteractive ? () => widget.onOpenChapter(chapter) : null,
             ),
           );
         },

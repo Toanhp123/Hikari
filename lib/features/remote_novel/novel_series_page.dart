@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -19,7 +20,10 @@ class NovelSeriesPage extends StatefulWidget {
     required this.openChapter,
     this.library,
     this.readArtwork,
+    this.loadReadingTarget,
   });
+  final Future<SeriesReadingTarget> Function(List<SourceMediaRef>)?
+  loadReadingTarget;
   final NovelSeriesOpenTarget target;
   final Future<void> Function(BuildContext, NovelChapter, List<NovelChapter>)
   openChapter;
@@ -30,10 +34,12 @@ class NovelSeriesPage extends StatefulWidget {
 }
 
 class _NovelSeriesPageState extends State<NovelSeriesPage> {
-  late final NovelSeriesViewModel _viewModel = NovelSeriesViewModel(
+  late NovelSeriesViewModel _viewModel = NovelSeriesViewModel(
     widget.target.loadDetails,
+    loadReadingTarget: widget.loadReadingTarget,
+    series: widget.target.media.source,
   );
-  bool _opening = false;
+  bool _isOpeningChapter = false;
 
   @override
   void initState() {
@@ -42,20 +48,36 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
   }
 
   @override
+  void didUpdateWidget(NovelSeriesPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.target.media.source != widget.target.media.source) {
+      _viewModel.dispose();
+      _viewModel = NovelSeriesViewModel(
+        widget.target.loadDetails,
+        loadReadingTarget: widget.loadReadingTarget,
+        series: widget.target.media.source,
+      );
+      _isOpeningChapter = false;
+      unawaited(_viewModel.load());
+    }
+  }
+
+  @override
   void dispose() {
     _viewModel.dispose();
     super.dispose();
   }
 
-  Future<void> _open(NovelChapter chapter) async {
-    if (_opening) return;
-    final sequence = _viewModel.state.details?.chaptersInReadingOrder;
-    if (sequence == null) return;
-    setState(() => _opening = true);
+  Future<void> _openChapter(NovelChapter chapter) async {
+    if (!mounted || _isOpeningChapter) return;
+    final viewModel = _viewModel;
+    final sequence = viewModel.readingSequence;
+    if (!sequence.contains(chapter)) return;
+    setState(() => _isOpeningChapter = true);
     try {
       await widget.openChapter(context, chapter, List.unmodifiable(sequence));
     } catch (_) {
-      if (mounted) {
+      if (mounted && identical(viewModel, _viewModel)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -65,7 +87,10 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _opening = false);
+      if (mounted && identical(viewModel, _viewModel)) {
+        setState(() => _isOpeningChapter = false);
+        unawaited(viewModel.refreshReadingTarget());
+      }
     }
   }
 
@@ -99,16 +124,25 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
             constraints: const BoxConstraints(
               maxWidth: HikariBreakpoints.maxContentWidth,
             ),
-            child: ListenableBuilder(
-              listenable: _viewModel,
-              builder: (context, _) => NovelSeriesContent(
-                state: _viewModel.state,
-                sourceName: source.name,
-                openingChapter: _opening,
-                readArtwork: widget.readArtwork,
-                onRefresh: _viewModel.load,
-                onOpenChapter: (chapter) => unawaited(_open(chapter)),
-              ),
+            child: Column(
+              children: [
+                if (_isOpeningChapter) const LinearProgressIndicator(),
+                Expanded(
+                  child: ListenableBuilder(
+                    listenable: _viewModel,
+                    builder: (context, _) => NovelSeriesContent(
+                      key: ValueKey(widget.target.media.source),
+                      viewModel: _viewModel,
+                      sourceName: source.name,
+                      openingChapter: _isOpeningChapter,
+                      readArtwork: widget.readArtwork,
+                      onRefresh: _viewModel.load,
+                      onOpenChapter: (chapter) =>
+                          unawaited(_openChapter(chapter)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

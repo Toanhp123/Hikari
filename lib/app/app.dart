@@ -5,6 +5,7 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
 import 'package:hikari/application/progress/save_series_chapter_progress.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
@@ -252,6 +253,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
       NovelSeriesOpenTarget novel => NovelSeriesPage(
         target: novel,
+        loadReadingTarget: (chapters) =>
+            LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
+                .execute(novel.media.source, chapters),
         openChapter: (context, chapter, sequence) => _openNovelChapter(
           context,
           chapter,
@@ -292,6 +296,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     media: target.media,
     sourceName: target.seriesSource.name,
     loadDetails: target.loadDetails,
+    loadReadingTarget: (chapters) =>
+        LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
+            .execute(target.media.source, chapters),
     readArtwork: target.seriesSource is ArtworkSource
         ? _dependencies.readSourceArtwork.execute
         : null,

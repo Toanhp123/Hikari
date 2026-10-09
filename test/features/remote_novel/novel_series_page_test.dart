@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/media/open_media.dart';
-import 'package:hikari/core/ui/patterns/chapter_list_patterns.dart';
+import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -124,7 +125,7 @@ void main() {
       expect(ch1InitialY, lessThan(ch3InitialY));
 
       // Tap sort descending
-      await tester.tap(find.byTooltip('Sort descending'));
+      await tester.tap(find.byTooltip('Reverse chapter order'));
       await tester.pumpAndSettle();
 
       // Reversed: ch3 is now displayed before ch1.
@@ -133,7 +134,7 @@ void main() {
       expect(ch3ReversedY, lessThan(ch1ReversedY));
 
       // Tap sort ascending
-      await tester.tap(find.byTooltip('Sort ascending'));
+      await tester.tap(find.byTooltip('Restore source order'));
       await tester.pumpAndSettle();
 
       // Restored: ch1 is displayed before ch3 again.
@@ -218,7 +219,7 @@ void main() {
     );
 
     testWidgets(
-      'Empty chapter list displays "No readable chapters found." and no CTA',
+      'Empty chapter list displays "No readable chapters found." and disabled CTA',
       (tester) async {
         final details = NovelDetails(
           metadata: MediaMetadata(title: 'Test Novel'),
@@ -230,7 +231,11 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('No readable chapters found.'), findsOneWidget);
-        expect(find.byType(PrimaryReadingCta), findsNothing);
+        expect(find.byType(PrimaryReadingCta), findsOneWidget);
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
         expect(find.byType(ChapterControlBar), findsNothing);
       },
     );

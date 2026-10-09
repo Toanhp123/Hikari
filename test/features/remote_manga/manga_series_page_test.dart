@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/chapter_list_patterns.dart';
+import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -10,11 +11,17 @@ import 'package:hikari/features/remote_manga/manga_series_page.dart';
 
 Widget _buildTestPage({
   required MangaSeriesDetails details,
+  double textScale = 1,
   Future<void> Function(BuildContext, MangaChapter, List<MangaChapter>)?
   openChapter,
 }) {
   return MaterialApp(
     theme: HikariTheme.darkTheme(),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(textScale)),
+      child: child!,
+    ),
     home: MangaSeriesPage(
       media: const Media(
         title: 'Test Manga',
@@ -29,6 +36,51 @@ Widget _buildTestPage({
 }
 
 void main() {
+  testWidgets('expanded header survives deep lazy scrolling at large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final details = MangaSeriesDetails(
+      metadata: MediaMetadata(
+        title: 'Long series',
+        summary: List.filled(40, 'Long synopsis sentence.').join(' '),
+      ),
+      chapterListOrder: ChapterListOrder.readingOrder,
+      chapters: List.generate(
+        1000,
+        (i) => MangaChapter(
+          title: 'Chapter $i',
+          source: SourceMediaRef(
+            sourceId: const SourceId('fake'),
+            itemId: '$i',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(_buildTestPage(details: details, textScale: 2));
+    await tester.pumpAndSettle();
+    expect(
+      MediaQuery.textScalerOf(tester.element(find.byType(ListView))).scale(10),
+      20,
+    );
+    await tester.ensureVisible(find.text('Show more'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show more'));
+    await tester.pumpAndSettle();
+    final scrollable = tester.state<ScrollableState>(
+      find.byType(Scrollable).first,
+    );
+    scrollable.position.jumpTo(10000);
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile).evaluate().length, lessThan(100));
+    scrollable.position.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(find.text('Show less'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   final ch1 = MangaChapter(
     title: 'Chapter 1',
     source: const SourceMediaRef(sourceId: SourceId('fake'), itemId: 'ch1'),
@@ -139,7 +191,7 @@ void main() {
       expect(ch1InitialY, lessThan(ch3InitialY));
 
       // Tap sort descending
-      await tester.tap(find.byTooltip('Sort descending'));
+      await tester.tap(find.byTooltip('Reverse chapter order'));
       await tester.pumpAndSettle();
 
       // Reversed: ch3 is now displayed before ch1.
@@ -148,7 +200,7 @@ void main() {
       expect(ch3ReversedY, lessThan(ch1ReversedY));
 
       // Tap sort ascending
-      await tester.tap(find.byTooltip('Sort ascending'));
+      await tester.tap(find.byTooltip('Restore source order'));
       await tester.pumpAndSettle();
 
       // Restored: ch1 is displayed before ch3 again.
@@ -253,8 +305,11 @@ void main() {
         expect(find.text('Chapter 2'), findsOneWidget);
         expect(find.textContaining('Not readable in Hikari'), findsOneWidget);
 
-        // Primary reading CTA should NOT be present since no readable chapters exist
-        expect(find.byType(PrimaryReadingCta), findsNothing);
+        expect(find.byType(PrimaryReadingCta), findsOneWidget);
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
 
         // Tapping the unreadable chapter tile does nothing
         await tester.tap(find.text('Chapter 2'));

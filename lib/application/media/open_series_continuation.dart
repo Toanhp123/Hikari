@@ -70,11 +70,8 @@ final class OpenSeriesContinuation {
     SourceMediaRef series,
   ) {
     final list = refs.toList(growable: false);
-    if (list.any(
-          (ref) => ref.sourceId != series.sourceId || ref.itemId.isEmpty,
-        ) ||
-        list.toSet().length != list.length ||
-        list.where((ref) => ref == chapter).length != 1) {
+    validateSeriesChapterSequence(series, list);
+    if (!list.contains(chapter)) {
       throw StateError(
         'Saved chapter is missing or duplicated in fresh sequence.',
       );

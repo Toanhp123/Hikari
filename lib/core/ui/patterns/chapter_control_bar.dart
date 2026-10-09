@@ -7,10 +7,10 @@ class ChapterControlBar extends StatefulWidget {
     super.key,
     required this.totalChapters,
     this.filteredChapters,
-    required this.isReversed,
-    required this.onToggleSort,
-    required this.isSearching,
-    required this.onToggleSearch,
+    required this.reverseSourceOrder,
+    required this.onToggleSourceOrder,
+    required this.isSearchExpanded,
+    required this.onToggleSearchExpanded,
     required this.searchQuery,
     required this.onSearchChanged,
     required this.onClearSearch,
@@ -22,10 +22,10 @@ class ChapterControlBar extends StatefulWidget {
 
   final int totalChapters;
   final int? filteredChapters;
-  final bool isReversed;
-  final VoidCallback onToggleSort;
-  final bool isSearching;
-  final VoidCallback onToggleSearch;
+  final bool reverseSourceOrder;
+  final VoidCallback onToggleSourceOrder;
+  final bool isSearchExpanded;
+  final VoidCallback onToggleSearchExpanded;
   final String searchQuery;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
@@ -92,7 +92,9 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -111,38 +113,37 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
                   ),
                 ),
               ),
-              const Spacer(),
               IconButton(
-                tooltip: widget.isReversed
-                    ? 'Sort ascending'
-                    : 'Sort descending',
-                onPressed: widget.onToggleSort,
+                tooltip: widget.reverseSourceOrder
+                    ? 'Restore source order'
+                    : 'Reverse chapter order',
+                onPressed: widget.onToggleSourceOrder,
                 icon: Icon(
-                  widget.isReversed
+                  widget.reverseSourceOrder
                       ? Icons.arrow_upward_rounded
                       : Icons.arrow_downward_rounded,
-                  color: widget.isReversed
+                  color: widget.reverseSourceOrder
                       ? colorScheme.primary
                       : colorScheme.onSurfaceVariant,
                 ),
               ),
               IconButton(
-                tooltip: widget.isSearching
+                tooltip: widget.isSearchExpanded
                     ? 'Close search'
                     : 'Search chapters',
-                onPressed: widget.onToggleSearch,
+                onPressed: widget.onToggleSearchExpanded,
                 icon: Icon(
-                  widget.isSearching
+                  widget.isSearchExpanded
                       ? Icons.close_rounded
                       : Icons.search_rounded,
-                  color: widget.isSearching
+                  color: widget.isSearchExpanded
                       ? colorScheme.primary
                       : colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
           ),
-          if (widget.isSearching) ...[
+          if (widget.isSearchExpanded) ...[
             const SizedBox(height: HikariSpacing.xs),
             TextField(
               controller: _controller,
@@ -163,7 +164,7 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
                 ),
                 prefixIconConstraints: const BoxConstraints(
                   minWidth: 40,
-                  minHeight: 40,
+                  minHeight: 48,
                 ),
                 suffixIcon:
                     (_controller.text.isNotEmpty ||
@@ -176,7 +177,7 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
                     : null,
                 suffixIconConstraints: const BoxConstraints(
                   minWidth: 40,
-                  minHeight: 40,
+                  minHeight: 48,
                 ),
                 isDense: true,
                 filled: true,
@@ -205,49 +206,6 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// Prominent primary call-to-action button for starting or continuing reading.
-class PrimaryReadingCta extends StatelessWidget {
-  const PrimaryReadingCta({
-    super.key,
-    this.label = 'Start reading',
-    required this.onPressed,
-    this.enabled = true,
-    this.padding = const EdgeInsets.symmetric(
-      horizontal: HikariSpacing.md,
-      vertical: HikariSpacing.sm,
-    ),
-  });
-
-  final String label;
-  final VoidCallback? onPressed;
-  final bool enabled;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: padding,
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: enabled ? onPressed : null,
-          icon: const Icon(Icons.play_arrow_rounded),
-          label: Text(label),
-          style: FilledButton.styleFrom(
-            shape: const RoundedRectangleBorder(
-              borderRadius: HikariRadius.borderMd,
-            ),
-            padding: const EdgeInsets.symmetric(
-              vertical: HikariSpacing.md,
-              horizontal: HikariSpacing.lg,
-            ),
-          ),
-        ),
       ),
     );
   }

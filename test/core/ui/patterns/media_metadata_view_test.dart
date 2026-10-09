@@ -46,8 +46,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('MangaPlus'), findsOneWidget);
-    expect(find.text('Eiichiro Oda'), findsOneWidget);
-    expect(find.text('Oda Studio'), findsOneWidget);
+    expect(find.text('Author: Eiichiro Oda'), findsOneWidget);
+    expect(find.text('Artist: Oda Studio'), findsOneWidget);
     expect(
       find.text('Pirate adventure across the grand line.'),
       findsOneWidget,
@@ -58,8 +58,8 @@ void main() {
     expect(find.text('Shounen'), findsOneWidget);
     expect(find.text('Ongoing'), findsOneWidget);
     expect(find.text('Rating: 9.2 / 10.0'), findsOneWidget);
-    expect(find.text('Japanese'), findsOneWidget);
-    expect(find.text('Shueisha'), findsOneWidget);
+    expect(find.text('Language: Japanese'), findsOneWidget);
+    expect(find.text('Publisher: Shueisha'), findsOneWidget);
   });
 
   testWidgets('long summary expands and collapses predictably', (tester) async {
