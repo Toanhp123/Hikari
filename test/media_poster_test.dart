@@ -149,7 +149,7 @@ void main() {
     );
     await tester.tapAt(artworkRect.topLeft + const Offset(8, 8));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Tap target'));
+    await tester.tapAt(tester.getCenter(find.text('Tap target')));
     await tester.pumpAndSettle();
     expect(taps, 2);
   });

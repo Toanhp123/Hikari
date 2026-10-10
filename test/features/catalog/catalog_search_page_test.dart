@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(provider.calls.last, ('Bleach', MediaType.manga));
 
-    await tester.tap(find.text('Manga result'));
+    await tester.tapAt(tester.getCenter(find.text('Manga result')));
     expect(opened?.title, 'Manga result');
   });
 }

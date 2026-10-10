@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/local_media_scan_result.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
@@ -55,7 +56,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Saved book'));
+      await tester.tapAt(tester.getCenter(find.text('Saved book')));
       expect(opened!.source, media.source);
       await tester.tap(find.byTooltip('Remove from library'));
       await tester.pumpAndSettle();
@@ -78,7 +79,8 @@ void main() {
         theme: HikariTheme.darkTheme(),
         home: LocalMediaPage(
           library: library,
-          scanSelectedRoot: () async => [media],
+          scanSelectedRoot: () async =>
+              LocalMediaScanResult(rootName: 'Saved', media: [media]),
           chooseRoot: () async => false,
           openMedia: (_, _) {},
         ),

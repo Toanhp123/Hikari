@@ -61,7 +61,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Persisted book'));
+      await tester.tapAt(tester.getCenter(find.text('Persisted book')));
       await tester.pump();
       await tester.runAsync(
         () async => Future<void>.delayed(const Duration(milliseconds: 100)),
@@ -107,7 +107,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Saved manga'));
+    await tester.tapAt(tester.getCenter(find.text('Saved manga')));
     await tester.pumpAndSettle();
     expect(find.byType(MangaReaderPage), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
@@ -200,7 +200,7 @@ void main() {
     expect(find.text('Book 2'), findsOneWidget);
     await tester.tap(find.byTooltip('Local'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Book 2'));
+    await tester.tapAt(tester.getCenter(find.text('Book 2')));
     await tester.pump();
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 200)),

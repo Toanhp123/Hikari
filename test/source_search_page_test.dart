@@ -46,7 +46,7 @@ void main() {
 
       expect(find.text('Solo Leveling'), findsOneWidget);
 
-      await tester.tap(find.text('Solo Leveling'));
+      await tester.tapAt(tester.getCenter(find.text('Solo Leveling')));
       await tester.pumpAndSettle();
       expect(tappedMedia, item1);
     },

@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:hikari/domain/media/local_media_scan_result.dart';
 import 'package:hikari/domain/media/media.dart';
 
 enum LocalMediaStatus { initial, loading, ready, error }
+
+enum LocalMediaFailure { unavailable, accessLost, pickerFailed }
 
 @immutable
 final class LocalMediaUiState {
@@ -9,11 +12,23 @@ final class LocalMediaUiState {
     this.status = LocalMediaStatus.initial,
     this.media = const [],
     this.hasScanResult = false,
+    this.rootName,
+    this.artwork = const {},
+    this.failure,
+    this.filter,
   });
 
   final LocalMediaStatus status;
   final List<Media> media;
   final bool hasScanResult;
+  final String? rootName;
+  final Map<SourceMediaRef, SourceMediaRef> artwork;
+  final LocalMediaFailure? failure;
+  final MediaType? filter;
+
+  List<Media> get visibleMedia => filter == null
+      ? media
+      : media.where((item) => item.type == filter).toList();
 
   bool get refreshing => status == LocalMediaStatus.loading && hasScanResult;
   bool get refreshFailed => status == LocalMediaStatus.error && hasScanResult;
@@ -24,7 +39,7 @@ final class LocalMediaUiState {
 final class LocalMediaViewModel extends ChangeNotifier {
   LocalMediaViewModel(this._scanSelectedRoot, this._chooseRoot);
 
-  final Future<List<Media>?> Function() _scanSelectedRoot;
+  final Future<LocalMediaScanResult?> Function() _scanSelectedRoot;
   final Future<bool> Function() _chooseRoot;
 
   LocalMediaUiState _state = const LocalMediaUiState();
@@ -42,6 +57,9 @@ final class LocalMediaViewModel extends ChangeNotifier {
         status: LocalMediaStatus.loading,
         media: staleState.media,
         hasScanResult: staleState.hasScanResult,
+        rootName: staleState.rootName,
+        artwork: staleState.artwork,
+        filter: staleState.filter,
       ),
     );
     await _loadSelectedRoot(generation, staleState: staleState);
@@ -57,6 +75,9 @@ final class LocalMediaViewModel extends ChangeNotifier {
         status: LocalMediaStatus.loading,
         media: _state.media,
         hasScanResult: _state.hasScanResult,
+        rootName: _state.rootName,
+        artwork: _state.artwork,
+        filter: _state.filter,
       ),
     );
     try {
@@ -74,10 +95,37 @@ final class LocalMediaViewModel extends ChangeNotifier {
         generation,
         staleState: const LocalMediaUiState(),
       );
-    } catch (_) {
+    } catch (error) {
       if (_disposed || generation != _generation) return;
-      _publish(const LocalMediaUiState(status: LocalMediaStatus.error));
+      // The picker failed before committing a replacement root. Keep the
+      // previous root snapshot, exactly as on user cancellation.
+      _publish(
+        LocalMediaUiState(
+          status: LocalMediaStatus.error,
+          media: previousState.media,
+          hasScanResult: previousState.hasScanResult,
+          rootName: previousState.rootName,
+          artwork: previousState.artwork,
+          filter: _state.filter,
+          failure: LocalMediaFailure.pickerFailed,
+        ),
+      );
     }
+  }
+
+  void selectFilter(MediaType? type) {
+    if (_state.filter == type) return;
+    _publish(
+      LocalMediaUiState(
+        status: _state.status,
+        media: _state.media,
+        hasScanResult: _state.hasScanResult,
+        rootName: _state.rootName,
+        artwork: _state.artwork,
+        failure: _state.failure,
+        filter: type,
+      ),
+    );
   }
 
   Future<void> _loadSelectedRoot(
@@ -92,11 +140,14 @@ final class LocalMediaViewModel extends ChangeNotifier {
             ? const LocalMediaUiState()
             : LocalMediaUiState(
                 status: LocalMediaStatus.ready,
-                media: List.unmodifiable(result),
+                media: result.media,
                 hasScanResult: true,
+                rootName: result.rootName,
+                artwork: result.artwork,
+                filter: _state.filter,
               ),
       );
-    } catch (_) {
+    } catch (error) {
       if (_disposed || generation != _generation) return;
       _publish(
         staleState.hasScanResult
@@ -104,11 +155,23 @@ final class LocalMediaViewModel extends ChangeNotifier {
                 status: LocalMediaStatus.error,
                 media: staleState.media,
                 hasScanResult: true,
+                rootName: staleState.rootName,
+                artwork: staleState.artwork,
+                filter: _state.filter,
+                failure: _failureForError(error),
               )
-            : const LocalMediaUiState(status: LocalMediaStatus.error),
+            : LocalMediaUiState(
+                status: LocalMediaStatus.error,
+                failure: _failureForError(error),
+              ),
       );
     }
   }
+
+  static LocalMediaFailure _failureForError(Object error) =>
+      error is LocalMediaAccessException
+      ? LocalMediaFailure.accessLost
+      : LocalMediaFailure.unavailable;
 
   void _publish(LocalMediaUiState state) {
     if (_disposed) return;

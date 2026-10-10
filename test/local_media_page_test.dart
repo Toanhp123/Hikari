@@ -1,9 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/domain/media/local_media_scan_result.dart';
 
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 
@@ -25,14 +29,28 @@ void main() {
     required void Function(BuildContext, Media) openMedia,
     bool supported = true,
     int scanRevision = 0,
+    String rootName = 'Media folder',
+    Map<SourceMediaRef, SourceMediaRef> artwork = const {},
+    Future<Uint8List?> Function(SourceMediaRef)? readArtwork,
   }) {
     return MaterialApp(
+      theme: HikariTheme.darkTheme(),
       home: LocalMediaPage(
-        scanSelectedRoot: scanSelectedRoot,
+        scanSelectedRoot: () async {
+          final media = await scanSelectedRoot();
+          return media == null
+              ? null
+              : LocalMediaScanResult(
+                  rootName: rootName,
+                  media: media,
+                  artwork: artwork,
+                );
+        },
         chooseRoot: chooseRoot,
         openMedia: openMedia,
         supported: supported,
         scanRevision: scanRevision,
+        readArtwork: readArtwork,
       ),
     );
   }
@@ -157,7 +175,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Spirited Away'), findsOneWidget);
-    expect(find.text('Anime'), findsOneWidget);
+    expect(find.text('Media folder'), findsOneWidget);
+    expect(find.text('Anime'), findsWidgets);
     expect(find.text('Choose folder'), findsOneWidget);
     expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(find.byTooltip('Rescan folder'), findsOneWidget);
@@ -180,7 +199,7 @@ void main() {
 
     expect(find.text('Spirited Away'), findsNothing);
     expect(find.text('Chapter one'), findsOneWidget);
-    expect(find.text('Light Novel'), findsOneWidget);
+    expect(find.text('Light Novel'), findsWidgets);
   });
 
   testWidgets('picker cancellation preserves previous results', (tester) async {
@@ -429,7 +448,7 @@ void main() {
     await tester.pumpAndSettle();
 
     for (final label in ['Anime', 'Manga', 'Light Novel']) {
-      expect(find.text(label), findsOneWidget);
+      expect(find.text(label), findsWidgets);
     }
   });
 
@@ -475,7 +494,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Spirited Away'));
+    await tester.tapAt(tester.getCenter(find.text('Spirited Away')));
 
     expect(openedContext, isNotNull);
     expect(openedMedia, media);
@@ -505,5 +524,207 @@ void main() {
     );
     expect(find.text('Choose folder'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'media filter keeps the root context and recovers from no match',
+    (tester) async {
+      await tester.pumpWidget(
+        host(
+          rootName: 'Comics & books',
+          scanSelectedRoot: () async => [media, replacement],
+          chooseRoot: () async => false,
+          openMedia: (_, _) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Comics & books'), findsOneWidget);
+      await tester.tap(find.byType(FilterChip).at(2)); // Manga has no match.
+      await tester.pumpAndSettle();
+      expect(find.text('No matching local media'), findsOneWidget);
+      expect(find.text('Spirited Away'), findsNothing);
+      await tester.tap(find.text('Show all types'));
+      await tester.pumpAndSettle();
+      expect(find.text('Spirited Away'), findsOneWidget);
+      expect(find.text('Chapter one'), findsOneWidget);
+    },
+  );
+
+  testWidgets('access loss asks to choose the folder again', (tester) async {
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async => throw const LocalMediaAccessException(),
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Folder access lost'), findsOneWidget);
+    expect(find.byTooltip('Rescan folder'), findsNothing);
+    expect(find.text('Try Again'), findsNothing);
+    expect(find.text('Choose folder'), findsOneWidget);
+  });
+
+  testWidgets('scan errors retain the last root name and media filter', (
+    tester,
+  ) async {
+    var scans = 0;
+    await tester.pumpWidget(
+      host(
+        rootName: 'Offline comics',
+        scanSelectedRoot: () async {
+          if (scans++ == 0) return [media, replacement];
+          throw StateError('Provider temporarily unavailable');
+        },
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FilterChip).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Rescan folder'));
+    await tester.pumpAndSettle();
+    expect(find.text('Offline comics'), findsOneWidget);
+    expect(find.text('Chapter one'), findsOneWidget);
+    expect(find.text('Spirited Away'), findsNothing);
+    expect(
+      find.textContaining('Could not rescan this folder.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'picker error retains last scanned root instead of losing its media',
+    (tester) async {
+      await tester.pumpWidget(
+        host(
+          rootName: 'Offline library',
+          scanSelectedRoot: () async => [media],
+          chooseRoot: () async => throw PlatformException(
+            code: 'storage',
+            message: 'Provider is busy',
+          ),
+          openMedia: (_, _) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose folder'));
+      await tester.pumpAndSettle();
+      expect(find.text('Offline library'), findsOneWidget);
+      expect(find.text('Spirited Away'), findsOneWidget);
+      expect(
+        find.textContaining('Could not choose another folder.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'changing the filter during refresh is not overwritten by its result',
+    (tester) async {
+      final rescan = Completer<List<Media>?>();
+      var scans = 0;
+      await tester.pumpWidget(
+        host(
+          scanSelectedRoot: () =>
+              scans++ == 0 ? Future.value([media, replacement]) : rescan.future,
+          chooseRoot: () async => false,
+          openMedia: (_, _) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Rescan folder'));
+      await tester.pump();
+      await tester.tap(find.byType(FilterChip).last);
+      await tester.pump();
+      rescan.complete([media, replacement]);
+      await tester.pumpAndSettle();
+      expect(find.text('Chapter one'), findsOneWidget);
+      expect(find.text('Spirited Away'), findsNothing);
+    },
+  );
+
+  testWidgets('local cards use shared artwork and poster widgets', (
+    tester,
+  ) async {
+    const previewA = SourceMediaRef(
+      sourceId: SourceId.local,
+      itemId: 'preview-a',
+    );
+    const previewB = SourceMediaRef(
+      sourceId: SourceId.local,
+      itemId: 'preview-b',
+    );
+    final reads = <SourceMediaRef>[];
+    Future<Uint8List?> read(SourceMediaRef ref) async {
+      reads.add(ref);
+      return null; // Missing artwork keeps the standard poster fallback.
+    }
+
+    Widget page(SourceMediaRef preview, int revision) => host(
+      scanSelectedRoot: () async => [media],
+      chooseRoot: () async => false,
+      openMedia: (_, _) {},
+      artwork: {media.source: preview},
+      // Mimics a new closure on a normal parent rebuild.
+      readArtwork: (ref) => read(ref),
+      scanRevision: revision,
+    );
+
+    await tester.pumpWidget(page(previewA, 0));
+    await tester.pumpAndSettle();
+    expect(find.byType(SourceArtwork), findsOneWidget);
+    expect(find.byType(MediaPoster), findsOneWidget);
+    expect(find.text('Spirited Away'), findsOneWidget);
+    expect(reads, [previewA]);
+
+    // Rebuilding the parent with the same preview should retain its Future.
+    await tester.pumpWidget(page(previewA, 0));
+    await tester.pumpAndSettle();
+    expect(reads, [previewA]);
+
+    // Replacing the selected scan changes the preview without changing Media.
+    await tester.pumpWidget(page(previewB, 1));
+    await tester.pumpAndSettle();
+    expect(reads, [previewA, previewB]);
+  });
+
+  testWidgets('only lazily built posters request artwork', (tester) async {
+    final items = List<Media>.generate(
+      300,
+      (index) => Media(
+        title: 'Comic $index',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId.local,
+          itemId: 'comic-$index',
+        ),
+      ),
+    );
+    final artwork = <SourceMediaRef, SourceMediaRef>{
+      for (var index = 0; index < items.length; index++)
+        items[index].source: SourceMediaRef(
+          sourceId: SourceId.local,
+          itemId: 'preview-$index',
+        ),
+    };
+    var reads = 0;
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async => items,
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+        artwork: artwork,
+        readArtwork: (_) async {
+          reads++;
+          return null;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, greaterThan(0));
+    expect(reads, lessThan(items.length));
+    expect(find.text('Comic 299'), findsNothing);
   });
 }

@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:hikari/domain/media/local_media_scan_result.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
+import 'package:hikari/infrastructure/local_media/local_artwork_ref.dart';
 import 'package:hikari/infrastructure/local_media/archive_copy_pool.dart';
 import 'package:hikari/infrastructure/local_media/classifier.dart';
 import 'package:hikari/infrastructure/local_media/comic_info.dart';
@@ -41,6 +43,7 @@ RichReadingContent _opaqueEpubContent(
 class LocalMediaSource
     implements
         DirectVideoSource,
+        ArtworkSource,
         MangaPageSource,
         NovelTextSource,
         PublicationSource,
@@ -82,10 +85,36 @@ class LocalMediaSource
     return media.itemId;
   }
 
+  /// Legacy list contract remains available to source-search callers.
   Future<List<Media>?> scanSelectedRoot() async {
     final root = await _root('selectedTree');
     if (root == null) return null;
-    return _scan(root);
+    return (await _scan(root, includeArtwork: false)).media;
+  }
+
+  /// UI-facing snapshot: the root display name is never used as an identity.
+  Future<LocalMediaScanResult?> scanSelectedRootSnapshot() async {
+    try {
+      final root = await _root('selectedTree');
+      if (root == null) return null;
+      return await _scan(root);
+    } on PlatformException catch (error) {
+      if (error.code == 'access') throw const LocalMediaAccessException();
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Uint8List> readArtwork(SourceMediaRef artwork) {
+    if (artwork.sourceId != id) throw ArgumentError('Wrong source.');
+    final imageDocument = LocalArtworkRef.tryDecode(artwork.itemId);
+    if (imageDocument == null) return Future.value(Uint8List(0));
+    // The preview prefix is not proof of provenance; ContentResolver enforces
+    // access to this URI just as it does for other SAF reads.
+    return _read(
+      SourceMediaRef(sourceId: id, itemId: imageDocument),
+      8 * 1024 * 1024,
+    );
   }
 
   Future<bool> chooseRoot() async => await _root('pickTree') != null;
@@ -101,7 +130,10 @@ class LocalMediaSource
     );
   }
 
-  Future<List<Media>> _scan(LocalEntry root) async {
+  Future<LocalMediaScanResult> _scan(
+    LocalEntry root, {
+    bool includeArtwork = true,
+  }) async {
     final entries = <LocalEntry>[root];
     final pending = <String>[root.id];
     final visited = <String>{};
@@ -117,7 +149,40 @@ class LocalMediaSource
       }
       pending.addAll(children.where((e) => e.isDirectory).map((e) => e.id));
     }
-    return compute(classifyLocalEntries, entries);
+    final media = await compute(classifyLocalEntries, entries);
+    if (!includeArtwork) {
+      return LocalMediaScanResult(rootName: root.name, media: media);
+    }
+    final pagesByParent = <String, List<LocalEntry>>{};
+    for (final entry in entries.where(isPage)) {
+      final parent = entry.parentId;
+      if (parent != null) {
+        pagesByParent.putIfAbsent(parent, () => []).add(entry);
+      }
+    }
+    final artwork = <SourceMediaRef, SourceMediaRef>{};
+    for (final item in media.where((item) => item.type == MediaType.manga)) {
+      final pages = pagesByParent[item.source.itemId];
+      if (pages == null || pages.isEmpty) continue;
+      pages.sort((a, b) {
+        final aCover = a.name.toLowerCase().startsWith('cover.');
+        final bCover = b.name.toLowerCase().startsWith('cover.');
+        if (aCover != bCover) return aCover ? -1 : 1;
+        final nameOrder = compareLocalNames(a.name, b.name);
+        return nameOrder != 0 ? nameOrder : a.id.compareTo(b.id);
+      });
+      final preview = LocalArtworkRef.tryEncode(pages.first.id);
+      if (preview == null) continue; // Preview failure must not discard media.
+      artwork[item.source] = SourceMediaRef(
+        sourceId: SourceId.local,
+        itemId: preview,
+      );
+    }
+    return LocalMediaScanResult(
+      rootName: root.name,
+      media: media,
+      artwork: artwork,
+    );
   }
 
   Future<List<LocalEntry>> _children(String id) async {

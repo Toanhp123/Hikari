@@ -346,7 +346,7 @@ void main() {
 
     await _scrollTo(tester, find.text('Related series'));
     expect(find.text('Side story'), findsOneWidget);
-    await tester.tap(find.text('Related series'));
+    await tester.tapAt(tester.getCenter(find.text('Related series')));
     expect(related, _related);
 
     await _scrollTo(tester, find.text('Details'));

@@ -17,10 +17,17 @@ Library snapshots and reader progress are now persisted separately; see
 - `infrastructure/playback/`: media-kit player/session ownership, errors and lifecycle.
 - `features/`: list, player/video surface, manga and text presentation. Constructor callbacks
   and an injected playback widget keep concrete infrastructure out of features.
-- `application/`: source resolution and media/chapter opening workflows. Local scan itself
-  remains a feature-to-source operation because it does not coordinate multiple domains.
+- `domain/media/local_media_scan_result.dart`: a pure immutable scan-result value
+  shared by infrastructure and Local presentation. It is not a persisted media
+  entity; the root display name never becomes an identity.
+- `application/`: source resolution and media/chapter opening workflows. Local
+  scanning remains a feature-to-source operation, not a new use case.
 - `app/`: composition, lifecycle ownership and ordinary Flutter navigation. Concrete source
   wiring lives here; content-opening policy does not.
+
+The scan-snapshot adapter maps platform `access` errors to the pure Dart
+`LocalMediaAccessException`; the view model never imports Flutter services.
+Other scan errors retain their original type for the generic retry path.
 
 The existing architecture guard is unchanged.
 

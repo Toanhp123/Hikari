@@ -147,9 +147,9 @@ void main() {
     expect(posterTitles, isNot(contains('Chainsaw Man')));
 
     await tester.tap(
-      find.descendant(
-        of: find.byType(MediaPoster),
-        matching: find.text('One Piece'),
+      find.ancestor(
+        of: find.text('One Piece'),
+        matching: find.byType(MediaPoster),
       ),
     );
     await tester.pumpAndSettle();

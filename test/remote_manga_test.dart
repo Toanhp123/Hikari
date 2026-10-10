@@ -522,7 +522,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await _openCatalogSourceSearch(tester);
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
       await tester.pumpAndSettle();
@@ -560,7 +560,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.byType(MangaReaderPage), findsNothing);
@@ -608,7 +608,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       expect(
         tester.getTopLeft(find.text('Chapter C')).dy,
@@ -680,7 +680,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter A'));
     await tester.pumpAndSettle();
@@ -763,7 +763,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter A'));
       for (var i = 0; i < 10; i++) {
@@ -863,7 +863,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       final prefetchedPage = cache.writeSignals.putIfAbsent(
         'manga-page-v1/["fake","page-1"]',
@@ -927,7 +927,7 @@ void main() {
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
@@ -993,7 +993,7 @@ void main() {
       await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
       await _openCatalogSourceSearch(tester);
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
       await tester.pumpAndSettle();
@@ -1080,7 +1080,7 @@ void main() {
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
@@ -1153,13 +1153,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Local pages'));
+    await tester.tapAt(tester.getCenter(find.text('Local pages')));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Next page'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Local pages'));
+    await tester.tapAt(tester.getCenter(find.text('Local pages')));
     await tester.pumpAndSettle();
     expect(reads, 3);
     expect(cache.reads, isEmpty);
@@ -1200,7 +1200,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
     await tester.pump();

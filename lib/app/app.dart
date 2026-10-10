@@ -561,7 +561,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               openDetail: _openCatalogDetail,
             ),
             AppTab.local: LocalMediaPage(
-              scanSelectedRoot: localSource.scanSelectedRoot,
+              scanSelectedRoot: localSource.scanSelectedRootSnapshot,
+              readArtwork: _dependencies.readSourceArtwork.execute,
               chooseRoot: _chooseLocalRoot,
               openMedia: _openMedia,
               library: libraryRepository,

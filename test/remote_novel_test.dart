@@ -316,7 +316,7 @@ void main() {
       await _openCatalogSourceSearch(tester);
       await tester.tap(find.byTooltip('Add to library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Novel 1'));
+      await tester.tapAt(tester.getCenter(find.text('Novel 1')));
       await tester.pumpAndSettle();
       expect(
         tester.getTopLeft(find.text('Chapter C')).dy,
@@ -441,7 +441,7 @@ void main() {
     await _openCatalogSourceSearch(tester);
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Novel 1'));
+    await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();
     expect(find.text('Real summary'), findsOneWidget);
     expect(find.textContaining('Group A · Group B'), findsOneWidget);
@@ -480,7 +480,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Novel 1'));
+    await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter rich'));
     await tester.pumpAndSettle();
@@ -510,7 +510,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Novel 1'));
+    await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Could not open this item'), findsOneWidget);
     expect(
