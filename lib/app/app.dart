@@ -253,6 +253,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
       NovelSeriesOpenTarget novel => NovelSeriesPage(
         target: novel,
+        dependencyOwner: (
+          novel.source,
+          _dependencies.seriesContinuationRepository,
+        ),
         loadReadingTarget: (chapters) =>
             LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
                 .execute(novel.media.source, chapters),
@@ -294,6 +298,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
 
   Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) => MangaSeriesPage(
     media: target.media,
+    dependencyOwner: (
+      target.seriesSource,
+      _dependencies.seriesContinuationRepository,
+    ),
     sourceName: target.seriesSource.name,
     loadDetails: target.loadDetails,
     loadReadingTarget: (chapters) =>

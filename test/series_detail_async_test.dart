@@ -43,6 +43,115 @@ void main() {
             loadReadingTarget: resolve,
           );
 
+    test(
+      '$kind details refresh completes while continuation is pending',
+      () async {
+        final continuation = Completer<SeriesReadingTarget>();
+        final started = Completer<void>();
+        final dynamic vm = model(
+          () async => [_ref('one'), _ref('two')],
+          resolve: (_) {
+            if (!started.isCompleted) started.complete();
+            return continuation.future;
+          },
+        );
+        addTearDown(() => vm.dispose());
+        var completed = false;
+        final load = (vm.load() as Future<void>).then((_) => completed = true);
+        await started.future;
+        await Future<void>.value();
+        expect(completed, isTrue);
+        expect(vm.state.refreshing, isFalse);
+        expect(vm.primaryChapter.source, _ref('one'));
+        continuation.complete(
+          SeriesReadingTarget(_ref('two'), isContinuation: true),
+        );
+        await load;
+      },
+    );
+
+    test('$kind storage failure preserves ready chapters', () async {
+      final dynamic vm = model(
+        () async => [_ref('one')],
+        resolve: (_) async => throw StateError('storage unavailable'),
+      );
+      addTearDown(() => vm.dispose());
+      await (vm.load() as Future<void>);
+      await Future<void>.value();
+      expect(vm.state.failed, isFalse);
+      expect(vm.state.refreshFailed, isFalse);
+      expect(vm.primaryChapter.source, _ref('one'));
+    });
+
+    test('$kind new snapshot rejects old continuation completion', () async {
+      final pending = <Completer<SeriesReadingTarget>>[];
+      var refs = [_ref('old')];
+      final dynamic vm = model(
+        () async => refs,
+        resolve: (_) {
+          final result = Completer<SeriesReadingTarget>();
+          pending.add(result);
+          return result.future;
+        },
+      );
+      addTearDown(() => vm.dispose());
+      await (vm.load() as Future<void>);
+      refs = [_ref('new')];
+      await (vm.load() as Future<void>);
+      pending.first.complete(
+        SeriesReadingTarget(_ref('old'), isContinuation: true),
+      );
+      await Future<void>.value();
+      expect(vm.primaryChapter.source, _ref('new'));
+      pending.last.completeError(StateError('storage'));
+      await Future<void>.value();
+      expect(vm.primaryChapter.source, _ref('new'));
+      expect(vm.state.refreshFailed, isFalse);
+    });
+
+    test('$kind provider replacement rejects old pending details', () async {
+      final oldDetails = Completer<List<SourceMediaRef>>();
+      final dynamic vm = model(() => oldDetails.future);
+      addTearDown(() => vm.dispose());
+      final oldLoad = vm.load() as Future<void>;
+      vm.setSearchQuery('new');
+      vm.toggleSourceOrder();
+      final replacementReady = Completer<void>();
+      Future<SeriesReadingTarget> resolve(List<SourceMediaRef> refs) async {
+        replacementReady.complete();
+        return SeriesReadingTarget(refs.first);
+      }
+
+      if (manga) {
+        (vm as MangaSeriesViewModel).updateDependencies(
+          () async => MangaSeriesDetails(
+            metadata: MediaMetadata(title: 'New'),
+            chapters: [MangaChapter(title: 'new', source: _ref('new'))],
+            chapterListOrder: ChapterListOrder.readingOrder,
+          ),
+          resolve,
+          ownerChanged: true,
+        );
+      } else {
+        (vm as NovelSeriesViewModel).updateDependencies(
+          () async => NovelDetails(
+            metadata: MediaMetadata(title: 'New'),
+            chapters: [NovelChapter(title: 'new', source: _ref('new'))],
+            chapterListOrder: ChapterListOrder.readingOrder,
+          ),
+          resolve,
+          ownerChanged: true,
+        );
+      }
+      await replacementReady.future;
+      oldDetails.complete([_ref('old')]);
+      await oldLoad;
+      expect(vm.primaryChapter.source, _ref('new'));
+      expect(vm.searchQuery, 'new');
+      expect(vm.reverseSourceOrder, isTrue);
+      expect(vm.state.refreshing, isFalse);
+    });
+
     test('$kind latest overlapping details load wins', () async {
       final pending = <Completer<List<SourceMediaRef>>>[];
       final dynamic vm = model(() {
@@ -79,7 +188,8 @@ void main() {
         SeriesReadingTarget(_ref('one'), isContinuation: true),
       );
       await resume;
-      expect(resolving.primaryChapter, isNull);
+      expect(resolving.primaryChapter.source, _ref('one'));
+      expect(resolving.isContinuation, isFalse);
     });
     test(
       '$kind rejects invalid whole sequence and keeps last valid snapshot',

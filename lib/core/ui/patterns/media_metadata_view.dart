@@ -13,8 +13,10 @@ class MediaMetadataView extends StatefulWidget {
     required this.metadata,
     required this.sourceName,
     this.readArtwork,
+    this.artworkOwner,
   });
 
+  final Object? artworkOwner;
   final MediaMetadata metadata;
   final String sourceName;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
@@ -129,7 +131,7 @@ class _MediaMetadataViewState extends State<MediaMetadataView>
       width: width,
       height: height,
       child: SourceArtwork(
-        key: ValueKey(widget.metadata.cover),
+        key: ValueKey((widget.metadata.cover, widget.artworkOwner)),
         resource: widget.metadata.cover!,
         read: widget.readArtwork!,
       ),

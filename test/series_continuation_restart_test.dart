@@ -270,26 +270,31 @@ void main() {
     await openedNovel.release();
   });
 
-  test('resume rejects missing chapter and unavailable source', () async {
-    const manga = Media(
-      title: 'Manga',
-      type: MediaType.manga,
-      source: _mangaSeriesRef,
-    );
-    const missing = SourceMediaRef(sourceId: _id, itemId: 'missing');
-    final openSeries = OpenSeriesContinuation(OpenMedia(registry, progress));
-    await expectLater(openSeries.execute(manga, missing), throwsStateError);
+  test(
+    'resume falls back for missing chapter but rejects unavailable source',
+    () async {
+      const manga = Media(
+        title: 'Manga',
+        type: MediaType.manga,
+        source: _mangaSeriesRef,
+      );
+      const missing = SourceMediaRef(sourceId: _id, itemId: 'missing');
+      final openSeries = OpenSeriesContinuation(OpenMedia(registry, progress));
+      final fallback = await openSeries.execute(manga, missing);
+      expect(fallback.chapter, _mangaChapterRef);
+      await fallback.release();
 
-    final unavailableRegistry = SourceRegistry([
-      _MangaSource(available: false),
-      novelSource,
-    ]);
-    await expectLater(
-      OpenSeriesContinuation(OpenMedia(unavailableRegistry, progress))
-          .execute(manga, _mangaChapterRef),
-      throwsStateError,
-    );
-  });
+      final unavailableRegistry = SourceRegistry([
+        _MangaSource(available: false),
+        novelSource,
+      ]);
+      await expectLater(
+        OpenSeriesContinuation(OpenMedia(unavailableRegistry, progress))
+            .execute(manga, _mangaChapterRef),
+        throwsStateError,
+      );
+    },
+  );
 
   test(
     'resume rejects duplicate chapter sequence and releases acquired lease',

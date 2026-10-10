@@ -23,9 +23,19 @@ final class LoadSeriesReadingTarget {
     } catch (_) {
       // An unavailable or malformed continuation must not block a new read.
     }
-    if (saved != null && readableChapters.contains(saved)) {
-      return SeriesReadingTarget(saved, isContinuation: true);
-    }
-    return SeriesReadingTarget(readableChapters.firstOrNull);
+    return resolveSeriesReadingTarget(series, readableChapters, saved);
   }
+}
+
+/// Selects only from a validated canonical readable sequence.
+SeriesReadingTarget resolveSeriesReadingTarget(
+  SourceMediaRef series,
+  List<SourceMediaRef> readableChapters,
+  SourceMediaRef? saved,
+) {
+  validateSeriesChapterSequence(series, readableChapters);
+  if (saved != null && readableChapters.contains(saved)) {
+    return SeriesReadingTarget(saved, isContinuation: true);
+  }
+  return SeriesReadingTarget(readableChapters.firstOrNull);
 }

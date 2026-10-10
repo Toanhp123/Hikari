@@ -19,8 +19,10 @@ class NovelSeriesContent extends StatefulWidget {
     required this.onRefresh,
     required this.onOpenChapter,
     this.readArtwork,
+    this.artworkOwner,
   });
 
+  final Object? artworkOwner;
   final NovelSeriesViewModel viewModel;
   final String sourceName;
   final bool openingChapter;
@@ -91,6 +93,7 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
                   metadata: details.metadata,
                   sourceName: widget.sourceName,
                   readArtwork: widget.readArtwork,
+                  artworkOwner: widget.artworkOwner,
                 ),
                 PrimaryReadingCta(
                   label: widget.viewModel.isContinuation

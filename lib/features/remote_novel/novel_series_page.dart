@@ -18,12 +18,16 @@ class NovelSeriesPage extends StatefulWidget {
     super.key,
     required this.target,
     required this.openChapter,
+    this.dependencyOwner,
     this.library,
     this.readArtwork,
     this.loadReadingTarget,
   });
   final Future<SeriesReadingTarget> Function(List<SourceMediaRef>)?
   loadReadingTarget;
+
+  /// Stable provider/repository identity; defaults to the target source.
+  final Object? dependencyOwner;
   final NovelSeriesOpenTarget target;
   final Future<void> Function(BuildContext, NovelChapter, List<NovelChapter>)
   openChapter;
@@ -40,6 +44,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
     series: widget.target.media.source,
   );
   bool _isOpeningChapter = false;
+  int _openingGeneration = 0;
 
   @override
   void initState() {
@@ -59,6 +64,19 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
       );
       _isOpeningChapter = false;
       unawaited(_viewModel.load());
+    } else {
+      final ownerChanged =
+          (oldWidget.dependencyOwner ?? oldWidget.target.source) !=
+          (widget.dependencyOwner ?? widget.target.source);
+      if (ownerChanged) {
+        _openingGeneration++;
+        _isOpeningChapter = false;
+      }
+      _viewModel.updateDependencies(
+        widget.target.loadDetails,
+        widget.loadReadingTarget,
+        ownerChanged: ownerChanged,
+      );
     }
   }
 
@@ -71,13 +89,16 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
   Future<void> _openChapter(NovelChapter chapter) async {
     if (!mounted || _isOpeningChapter) return;
     final viewModel = _viewModel;
+    final generation = _openingGeneration;
     final sequence = viewModel.readingSequence;
     if (!sequence.contains(chapter)) return;
     setState(() => _isOpeningChapter = true);
     try {
       await widget.openChapter(context, chapter, List.unmodifiable(sequence));
     } catch (_) {
-      if (mounted && identical(viewModel, _viewModel)) {
+      if (mounted &&
+          identical(viewModel, _viewModel) &&
+          generation == _openingGeneration) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -87,7 +108,9 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         );
       }
     } finally {
-      if (mounted && identical(viewModel, _viewModel)) {
+      if (mounted &&
+          identical(viewModel, _viewModel) &&
+          generation == _openingGeneration) {
         setState(() => _isOpeningChapter = false);
         unawaited(viewModel.refreshReadingTarget());
       }
@@ -136,6 +159,8 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
                       sourceName: source.name,
                       openingChapter: _isOpeningChapter,
                       readArtwork: widget.readArtwork,
+                      artworkOwner:
+                          widget.dependencyOwner ?? widget.target.source,
                       onRefresh: _viewModel.load,
                       onOpenChapter: (chapter) =>
                           unawaited(_openChapter(chapter)),

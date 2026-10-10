@@ -8,6 +8,39 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 
 void main() {
+  testWidgets('artwork owner replacement preserves expanded synopsis', (
+    tester,
+  ) async {
+    var reads = 0;
+    final metadata = MediaMetadata(
+      title: 'Series',
+      summary: List.filled(20, 'Long synopsis text.').join(' '),
+      cover: const SourceMediaRef(sourceId: SourceId('fake'), itemId: 'cover'),
+    );
+    Widget page(Object owner) => _app(
+      MediaMetadataView(
+        metadata: metadata,
+        sourceName: 'Source',
+        artworkOwner: owner,
+        readArtwork: (_) async {
+          reads++;
+          return null;
+        },
+      ),
+    );
+    await tester.pumpWidget(page('first'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show more'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(page('first'));
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    await tester.pumpWidget(page('second'));
+    await tester.pumpAndSettle();
+    expect(reads, 2);
+    expect(find.text('Show less'), findsOneWidget);
+  });
+
   testWidgets('renders minimal metadata without crashing or empty gaps', (
     tester,
   ) async {

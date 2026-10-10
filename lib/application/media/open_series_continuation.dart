@@ -1,4 +1,5 @@
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -42,39 +43,40 @@ final class OpenSeriesContinuation {
         case MangaSeriesOpenTarget():
           final details = await parent.loadDetails();
           final sequence = details.chaptersInReadingOrder;
-          _validate(sequence.map((item) => item.source), chapter, media.source);
-          if (sequence
-                  .singleWhere((item) => item.source == chapter)
-                  .canReadPages ==
-              false) {
-            throw StateError('Saved manga chapter is not readable.');
+          validateSeriesChapterSequence(
+            media.source,
+            sequence.map((item) => item.source),
+          );
+          final selected = resolveSeriesReadingTarget(
+            media.source,
+            sequence
+                .where((item) => item.canReadPages)
+                .map((item) => item.source)
+                .toList(),
+            chapter,
+          ).chapter;
+          if (selected == null) {
+            throw StateError('Series has no readable chapters.');
           }
-          return MangaContinuationOpenTarget(parent, chapter, sequence);
+          return MangaContinuationOpenTarget(parent, selected, sequence);
         case NovelSeriesOpenTarget():
           final details = await parent.loadDetails();
           final sequence = details.chaptersInReadingOrder;
-          _validate(sequence.map((item) => item.source), chapter, media.source);
-          return NovelContinuationOpenTarget(parent, chapter, sequence);
+          final selected = resolveSeriesReadingTarget(
+            media.source,
+            sequence.map((item) => item.source).toList(),
+            chapter,
+          ).chapter;
+          if (selected == null) {
+            throw StateError('Series has no readable chapters.');
+          }
+          return NovelContinuationOpenTarget(parent, selected, sequence);
         default:
           throw StateError('Saved continuation requires a remote series.');
       }
     } catch (_) {
       await parent.release();
       rethrow;
-    }
-  }
-
-  static void _validate(
-    Iterable<SourceMediaRef> refs,
-    SourceMediaRef chapter,
-    SourceMediaRef series,
-  ) {
-    final list = refs.toList(growable: false);
-    validateSeriesChapterSequence(series, list);
-    if (!list.contains(chapter)) {
-      throw StateError(
-        'Saved chapter is missing or duplicated in fresh sequence.',
-      );
     }
   }
 }

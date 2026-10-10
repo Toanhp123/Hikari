@@ -10,6 +10,8 @@ import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
+import 'package:hikari/features/remote_manga/widgets/manga_series_content.dart';
+import 'package:hikari/features/remote_novel/widgets/novel_series_content.dart';
 
 const _source = SourceId('fake');
 SourceMediaRef _ref(String id) => SourceMediaRef(sourceId: _source, itemId: id);
@@ -29,7 +31,12 @@ class _NovelSource implements NovelSeriesSource {
   );
 }
 
-Widget _page(bool manga, String id, Future<void> Function() open) {
+Widget _page(
+  bool manga,
+  String id,
+  Future<void> Function() open, {
+  Object? owner,
+}) {
   final media = Media(
     title: 'Series',
     type: manga ? MediaType.manga : MediaType.lightNovel,
@@ -39,6 +46,7 @@ Widget _page(bool manga, String id, Future<void> Function() open) {
     home: manga
         ? MangaSeriesPage(
             media: media,
+            dependencyOwner: owner,
             sourceName: 'Source',
             loadDetails: () async => MangaSeriesDetails(
               metadata: MediaMetadata(title: 'Series'),
@@ -50,6 +58,7 @@ Widget _page(bool manga, String id, Future<void> Function() open) {
             openChapter: (_, _, _) => open(),
           )
         : NovelSeriesPage(
+            dependencyOwner: owner,
             target: NovelSeriesOpenTarget(media, source: _NovelSource()),
             openChapter: (_, _, _) => open(),
           ),
@@ -91,6 +100,80 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+    testWidgets('$kind owner replacement ignores pending old open', (
+      tester,
+    ) async {
+      final oldOpen = Completer<void>();
+      final newOpen = Completer<void>();
+      await tester.pumpWidget(
+        _page(manga, 'one', () => oldOpen.future, owner: 'old'),
+      );
+      await tester.pumpAndSettle();
+      tester.widget<ListTile>(find.byType(ListTile)).onTap!();
+      await tester.pump();
+      await tester.pumpWidget(
+        _page(manga, 'one', () => newOpen.future, owner: 'new'),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(tester.widget<ListTile>(find.byType(ListTile)).onTap, isNotNull);
+      tester.widget<ListTile>(find.byType(ListTile)).onTap!();
+      await tester.pump();
+      oldOpen.completeError(StateError('old provider'));
+      await tester.pump();
+      expect(find.byType(SnackBar), findsNothing);
+      expect(tester.widget<ListTile>(find.byType(ListTile)).onTap, isNull);
+      newOpen.complete();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('$kind rebuild updates callbacks without resetting state', (
+      tester,
+    ) async {
+      var oldCalls = 0;
+      var newCalls = 0;
+      await tester.pumpWidget(
+        _page(manga, 'one', () async {
+          oldCalls++;
+        }, owner: 'same'),
+      );
+      await tester.pumpAndSettle();
+      dynamic viewModel() => manga
+          ? tester
+                .widget<MangaSeriesContent>(find.byType(MangaSeriesContent))
+                .viewModel
+          : tester
+                .widget<NovelSeriesContent>(find.byType(NovelSeriesContent))
+                .viewModel;
+      final dynamic before = viewModel();
+      before.setSearchQuery('Chapter');
+      before.toggleSourceOrder();
+      await tester.pump();
+      final Object sequence = before.readingSequence as Object;
+      await tester.pumpWidget(
+        _page(manga, 'one', () async {
+          newCalls++;
+        }, owner: 'same'),
+      );
+      await tester.pumpAndSettle();
+      expect(identical(viewModel(), before), isTrue);
+      expect(identical(viewModel().readingSequence, sequence), isTrue);
+      expect(viewModel().searchQuery, 'Chapter');
+      expect(viewModel().reverseSourceOrder, isTrue);
+      tester.widget<ListTile>(find.byType(ListTile)).onTap!();
+      await tester.pumpAndSettle();
+      expect(oldCalls, 0);
+      expect(newCalls, 1);
+      await tester.pumpWidget(
+        _page(manga, 'one', () async {}, owner: 'replacement'),
+      );
+      await tester.pumpAndSettle();
+      expect(identical(viewModel(), before), isTrue);
+      expect(viewModel().searchQuery, 'Chapter');
+      expect(viewModel().reverseSourceOrder, isTrue);
+    });
+
     testWidgets('$kind ignores stale callbacks after disposal', (tester) async {
       var calls = 0;
       await tester.pumpWidget(
