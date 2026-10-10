@@ -98,7 +98,7 @@ abstract final class HikariTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: text.titleLarge,
+        titleTextStyle: text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -215,7 +215,7 @@ abstract final class HikariTheme {
         shape: const RoundedRectangleBorder(
           borderRadius: HikariRadius.borderXl,
         ),
-        titleTextStyle: text.titleLarge,
+        titleTextStyle: text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         contentTextStyle: text.bodyMedium,
       ),
       bottomSheetTheme: BottomSheetThemeData(

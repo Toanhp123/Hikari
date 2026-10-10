@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:hikari/app/theme/hikari_theme.dart';
 
-/// Pinned glassmorphic header for Home with dynamic gradient blur on scroll.
+/// Pinned Home chrome with a gradual scroll-under glass surface.
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key, this.onSearch});
 
@@ -53,7 +53,9 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    // Smooth transition over the first 32 pixels of scroll
+    // Flutter passes pinned scroll offset into this delegate even when its
+    // min/max geometry is fixed. Unlike overlapsContent, this changes for the
+    // first sliver in an ordinary CustomScrollView.
     final progress = (shrinkOffset / 32.0).clamp(0.0, 1.0);
     final isScrolled = progress > 0.0;
 
@@ -84,45 +86,53 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Semantics(
-                  headingLevel: 1,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [colors.primary, colors.secondary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                Expanded(
+                  child: Semantics(
+                    headingLevel: 1,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [colors.primary, colors.secondary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: HikariRadius.borderMd,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors.primary.withValues(alpha: 0.22),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
-                          borderRadius: HikariRadius.borderMd,
-                          boxShadow: [
-                            BoxShadow(
-                              color: colors.primary.withValues(alpha: 0.22),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+                          child: Icon(
+                            Icons.auto_awesome,
+                            color: colors.onPrimary,
+                            size: 20,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.auto_awesome,
-                          color: colors.onPrimary,
-                          size: 20,
+                        const SizedBox(width: HikariSpacing.md),
+                        Flexible(
+                          child: Text(
+                            'Hikari',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                (theme.textTheme.titleLarge ??
+                                        const TextStyle())
+                                    .copyWith(
+                                      color: colors.onSurface,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: HikariSpacing.md),
-                      Text(
-                        'Hikari',
-                        style: (theme.textTheme.titleLarge ?? const TextStyle())
-                            .copyWith(
-                              color: colors.onSurface,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 if (onSearch != null)

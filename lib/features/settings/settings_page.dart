@@ -94,16 +94,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return HikariScaffold(
       useSafeArea: true,
-      appBar: AppBar(
-        title: Text(
-          'Settings',
-          style: Theme.of(context).textTheme.titleLarge!
-              .copyWith(color: colors.onSurface, fontWeight: FontWeight.w700),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: SettingsContent(
         isOled: _isOled,
         selectedAccent: widget.selectedAccent,

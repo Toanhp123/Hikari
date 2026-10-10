@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
-import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -32,7 +31,6 @@ class LocalMediaContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final media = state.media;
     final scrollView = CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -105,7 +103,9 @@ class LocalMediaContent extends StatelessWidget {
                     : 'Choose a folder to find local media.',
                 emptyIcon: Icons.folder_open_rounded,
                 errorTitle: 'Folder unavailable',
-                errorMessage: 'Could not scan local media. Try again or choose the folder again.',
+                errorMessage:
+                    'Could not scan local media. '
+                    'Try again or choose the folder again.',
                 onRetry: () => unawaited(onScan()),
                 contentBuilder: (_) => const SizedBox.shrink(),
               ),
@@ -113,53 +113,30 @@ class LocalMediaContent extends StatelessWidget {
           ),
       ],
     );
-    final canRescan =
-        state.hasScanResult || state.status == LocalMediaStatus.error;
     final content = state.hasScanResult
         ? RefreshIndicator.adaptive(onRefresh: onScan, child: scrollView)
         : scrollView;
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(HikariSpacing.lg),
-          child: Wrap(
-            spacing: HikariSpacing.lg,
-            runSpacing: HikariSpacing.sm,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                'Local',
-                style: Theme.of(context).textTheme.titleLarge!
-                    .copyWith(color: colors.onSurface),
+        if (supported)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              HikariSpacing.lg,
+              HikariSpacing.sm,
+              HikariSpacing.lg,
+              HikariSpacing.sm,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: HikariButton(
+                label: 'Choose folder',
+                icon: const Icon(Icons.folder_open_rounded, size: 18),
+                variant: HikariButtonVariant.secondary,
+                onPressed: state.busy ? null : onChooseRoot,
               ),
-              if (supported)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (canRescan) ...[
-                      HikariRefreshAction(
-                        refreshing: state.refreshing,
-                        tooltip: 'Rescan folder',
-                        onPressed: state.busy
-                            ? null
-                            : () => unawaited(onScan()),
-                      ),
-                      const SizedBox(width: HikariSpacing.sm),
-                    ],
-                    Flexible(
-                      child: HikariButton(
-                        label: 'Choose folder',
-                        icon: const Icon(Icons.folder_open_rounded, size: 18),
-                        variant: HikariButtonVariant.secondary,
-                        onPressed: state.busy ? null : onChooseRoot,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
+            ),
           ),
-        ),
         Expanded(
           child: supported
               ? content

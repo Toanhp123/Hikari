@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -58,19 +60,39 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
 
   @override
   Widget build(BuildContext context) {
-    return HikariScaffold(
-      useSafeArea: true,
-      body: ListenableBuilder(
-        listenable: _viewModel,
-        builder: (context, _) => LocalMediaContent(
-          state: _viewModel.state,
-          supported: widget.supported,
-          openMedia: widget.openMedia,
-          onChooseRoot: _viewModel.chooseRoot,
-          onScan: _viewModel.scan,
-          library: widget.library,
-        ),
-      ),
+    return ListenableBuilder(
+      listenable: _viewModel,
+      builder: (context, _) {
+        final state = _viewModel.state;
+        final canRescan =
+            state.hasScanResult || state.status == LocalMediaStatus.error;
+        return HikariScaffold(
+          useSafeArea: true,
+          appBar: AppBar(
+            title: const Text('Local'),
+            actions: [
+              if (widget.supported && canRescan) ...[
+                HikariRefreshAction(
+                  refreshing: state.refreshing,
+                  tooltip: 'Rescan folder',
+                  onPressed: state.busy
+                      ? null
+                      : () => unawaited(_viewModel.scan()),
+                ),
+                const SizedBox(width: HikariSpacing.xs),
+              ],
+            ],
+          ),
+          body: LocalMediaContent(
+            state: state,
+            supported: widget.supported,
+            openMedia: widget.openMedia,
+            onChooseRoot: _viewModel.chooseRoot,
+            onScan: _viewModel.scan,
+            library: widget.library,
+          ),
+        );
+      },
     );
   }
 }

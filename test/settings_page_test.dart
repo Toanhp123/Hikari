@@ -116,4 +116,19 @@ void main() {
     expect(cacheCleared, isTrue);
     expect(find.text('Cache cleared.'), findsOneWidget);
   });
+  testWidgets('Settings uses the canonical app bar title style', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: HikariTheme.darkTheme(), home: const SettingsPage()),
+    );
+    expect(find.text('Settings'), findsOneWidget);
+    expect(
+      Theme.of(tester.element(find.text('Settings')))
+          .appBarTheme
+          .titleTextStyle
+          ?.fontWeight,
+      FontWeight.w700,
+    );
+  });
 }

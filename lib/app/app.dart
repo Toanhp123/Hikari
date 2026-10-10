@@ -571,6 +571,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.library: LibraryPage(
               repository: libraryRepository,
               openMedia: _openMedia,
+              onNavigateToSearch: () =>
+                  _navigationController.selectTab(AppTab.search),
             ),
             AppTab.settings: SettingsPage(
               isOled: _isOled,

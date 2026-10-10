@@ -12,10 +12,12 @@ class LibraryPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.openMedia,
+    this.onNavigateToSearch,
   });
 
   final LibraryRepository repository;
   final void Function(BuildContext, Media) openMedia;
+  final VoidCallback? onNavigateToSearch;
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -32,7 +34,6 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, _) {
@@ -40,26 +41,23 @@ class _LibraryPageState extends State<LibraryPage> {
         return HikariScaffold(
           useSafeArea: true,
           appBar: AppBar(
-            title: Text(
-              'Library',
-              style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                color: colors.onSurface,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            title: const Text('Library'),
             actions: [
-              HikariIconButton(
-                icon: Icon(
-                  state.viewMode == LibraryViewMode.grid
-                      ? Icons.view_list_rounded
-                      : Icons.grid_view_rounded,
+              if (state.status == LibraryStatus.ready &&
+                  state.entries.isNotEmpty) ...[
+                HikariIconButton(
+                  icon: Icon(
+                    state.viewMode == LibraryViewMode.grid
+                        ? Icons.view_list_rounded
+                        : Icons.grid_view_rounded,
+                  ),
+                  tooltip: state.viewMode == LibraryViewMode.grid
+                      ? 'Switch to list view'
+                      : 'Switch to grid view',
+                  onPressed: _viewModel.toggleViewMode,
                 ),
-                tooltip: state.viewMode == LibraryViewMode.grid
-                    ? 'Switch to list view'
-                    : 'Switch to grid view',
-                onPressed: _viewModel.toggleViewMode,
-              ),
-              const SizedBox(width: HikariSpacing.xs),
+                const SizedBox(width: HikariSpacing.xs),
+              ],
             ],
           ),
           body: LibraryContent(
@@ -69,6 +67,7 @@ class _LibraryPageState extends State<LibraryPage> {
             onReload: _viewModel.reload,
             onSelectMediaType: _viewModel.selectMediaType,
             onRepositoryChanged: _viewModel.repositoryChanged,
+            onBrowseCatalog: widget.onNavigateToSearch,
           ),
         );
       },

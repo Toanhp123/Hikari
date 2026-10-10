@@ -480,4 +480,30 @@ void main() {
     expect(openedContext, isNotNull);
     expect(openedMedia, media);
   });
+  testWidgets('Local uses one standard app bar with contextual rescan', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async => <Media>[media],
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Local'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('Local'), matching: find.byType(AppBar)),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.byTooltip('Rescan folder'),
+        matching: find.byType(AppBar),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Choose folder'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

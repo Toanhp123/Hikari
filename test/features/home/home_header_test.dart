@@ -70,6 +70,10 @@ void main() {
 
     final initialTop = tester.getTopLeft(find.text('Hikari')).dy;
 
+    // The fixed-height pinned header still receives a scroll-dependent
+    // shrinkOffset from Flutter's render sliver and fades in its glass surface.
+    expect(find.byType(BackdropFilter), findsNothing);
+
     // Scroll down 200 pixels
     final scrollable = find.byType(Scrollable);
     await tester.drag(scrollable, const Offset(0, -200));
@@ -79,7 +83,37 @@ void main() {
     final scrolledTop = tester.getTopLeft(find.text('Hikari')).dy;
     expect(scrolledTop, equals(initialTop));
 
-    // BackdropFilter is present in the tree
     expect(find.byType(BackdropFilter), findsOneWidget);
+
+    await tester.drag(scrollable, const Offset(0, 250));
+    await tester.pumpAndSettle();
+    expect(find.byType(BackdropFilter), findsNothing);
+  });
+
+  testWidgets('compact HomeHeader keeps search reachable with scaled text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+          child: Scaffold(
+            body: CustomScrollView(
+              slivers: [
+                HomeHeader(onSearch: () {}),
+                const SliverToBoxAdapter(child: SizedBox(height: 800)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Search'), findsOneWidget);
   });
 }

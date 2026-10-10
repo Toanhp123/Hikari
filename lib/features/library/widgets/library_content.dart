@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_view_model.dart';
 import 'package:hikari/features/library/widgets/library_button.dart';
+
+Widget _emptyContent(BuildContext context) => const SizedBox.shrink();
 
 class LibraryContent extends StatelessWidget {
   const LibraryContent({
@@ -17,6 +21,7 @@ class LibraryContent extends StatelessWidget {
     required this.onReload,
     required this.onSelectMediaType,
     required this.onRepositoryChanged,
+    this.onBrowseCatalog,
   });
 
   final LibraryUiState state;
@@ -25,58 +30,117 @@ class LibraryContent extends StatelessWidget {
   final VoidCallback onReload;
   final ValueChanged<MediaType?> onSelectMediaType;
   final VoidCallback onRepositoryChanged;
+  final VoidCallback? onBrowseCatalog;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     if (state.status == LibraryStatus.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return AsyncStateView(
+        status: AsyncViewStatus.loading,
+        contentBuilder: (_) => const SizedBox.shrink(),
+      );
     }
     if (state.status == LibraryStatus.error) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Could not load your library.'),
-            const SizedBox(height: HikariSpacing.sm),
-            TextButton(onPressed: onReload, child: const Text('Try again')),
-          ],
-        ),
+      return AsyncStateView(
+        status: AsyncViewStatus.error,
+        errorTitle: 'Could not load your library.',
+        errorMessage: 'Please try loading your saved titles again.',
+        onRetry: onReload,
+        contentBuilder: (_) => const SizedBox.shrink(),
       );
     }
     if (state.entries.isEmpty) {
-      return const Center(child: Text('Your library is empty.'));
+      return AsyncStateView(
+        status: AsyncViewStatus.empty,
+        emptyTitle: 'Your library is empty.',
+        emptyMessage: 'Save titles from their details to find them here.',
+        emptyIcon: Icons.bookmark_border_rounded,
+        emptyAction: onBrowseCatalog == null
+            ? null
+            : HikariButton(
+                label: 'Explore titles',
+                icon: const Icon(Icons.explore_outlined),
+                onPressed: onBrowseCatalog,
+              ),
+        contentBuilder: _emptyContent,
+      );
     }
 
+    final visibleEntries = state.visibleEntries;
+    final savedCountLabel = visibleEntries.length == 1
+        ? '1 saved title'
+        : '${visibleEntries.length} saved titles';
     return Column(
       children: [
-        _LibraryFilters(
-          selectedType: state.mediaType,
-          onSelect: onSelectMediaType,
-        ),
-        const SizedBox(height: HikariSpacing.sm),
-        Expanded(
-          child: state.visibleEntries.isEmpty
-              ? Center(
-                  child: Text(
-                    'No items match the selected media type.',
-                    style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(color: colors.onSurfaceVariant),
-                  ),
-                )
-              : state.viewMode == LibraryViewMode.grid
-              ? _LibraryGrid(
-                  entries: state.visibleEntries,
-                  repository: repository,
-                  openMedia: openMedia,
-                  onRepositoryChanged: onRepositoryChanged,
-                )
-              : _LibraryList(
-                  entries: state.visibleEntries,
-                  repository: repository,
-                  openMedia: openMedia,
-                  onRepositoryChanged: onRepositoryChanged,
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: HikariBreakpoints.maxContentWidth,
+            ),
+            child: Column(
+              children: [
+                _LibraryFilters(
+                  selectedType: state.mediaType,
+                  onSelect: onSelectMediaType,
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    HikariSpacing.lg,
+                    HikariSpacing.xs,
+                    HikariSpacing.lg,
+                    HikariSpacing.sm,
+                  ),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      state.mediaType == null
+                          ? savedCountLabel
+                          : '${visibleEntries.length} of '
+                                '${state.entries.length} titles',
+                      style: Theme.of(context).textTheme.labelMedium
+                          ?.copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: HikariBreakpoints.maxContentWidth,
+              ),
+              child: visibleEntries.isEmpty
+                  ? AsyncStateView(
+                      status: AsyncViewStatus.empty,
+                      emptyTitle: 'No matching titles',
+                      emptyMessage:
+                          'Try another media type or show all titles.',
+                      emptyIcon: Icons.filter_list_off_rounded,
+                      emptyAction: TextButton(
+                        onPressed: () => onSelectMediaType(null),
+                        child: const Text('Show all types'),
+                      ),
+                      contentBuilder: _emptyContent,
+                    )
+                  : state.viewMode == LibraryViewMode.grid
+                  ? _LibraryGrid(
+                      entries: visibleEntries,
+                      repository: repository,
+                      openMedia: openMedia,
+                      onRepositoryChanged: onRepositoryChanged,
+                    )
+                  : _LibraryList(
+                      entries: visibleEntries,
+                      repository: repository,
+                      openMedia: openMedia,
+                      onRepositoryChanged: onRepositoryChanged,
+                    ),
+            ),
+          ),
         ),
       ],
     );
@@ -197,6 +261,20 @@ class _LibraryList extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: ListTile(
+            leading: DecoratedBox(
+              decoration: BoxDecoration(
+                color: mediaTypeBadgeColors(context, media.type).background,
+                borderRadius: HikariRadius.borderSm,
+              ),
+              child: SizedBox.square(
+                dimension: HikariSize.touchTarget,
+                child: Icon(switch (media.type) {
+                  MediaType.anime => Icons.movie_outlined,
+                  MediaType.manga => Icons.menu_book_rounded,
+                  MediaType.lightNovel => Icons.auto_stories_rounded,
+                }, color: mediaTypeBadgeColors(context, media.type).foreground),
+              ),
+            ),
             title: Text(
               media.title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
