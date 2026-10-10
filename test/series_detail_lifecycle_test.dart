@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -9,8 +11,8 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
-import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_manga/widgets/manga_series_content.dart';
+import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_novel/widgets/novel_series_content.dart';
 
 const _source = SourceId('fake');
@@ -36,6 +38,7 @@ Widget _page(
   String id,
   Future<void> Function() open, {
   Object? owner,
+  Future<void> Function(BuildContext, bool Function())? guardedOpen,
 }) {
   final media = Media(
     title: 'Series',
@@ -55,12 +58,14 @@ Widget _page(
                 MangaChapter(title: 'Chapter', source: _ref('$id/chapter')),
               ],
             ),
-            openChapter: (_, _, _) => open(),
+            openChapter: (context, _, _, canNavigate) =>
+                guardedOpen?.call(context, canNavigate) ?? open(),
           )
         : NovelSeriesPage(
             dependencyOwner: owner,
             target: NovelSeriesOpenTarget(media, source: _NovelSource()),
-            openChapter: (_, _, _) => open(),
+            openChapter: (context, _, _, canNavigate) =>
+                guardedOpen?.call(context, canNavigate) ?? open(),
           ),
   );
 }
@@ -125,6 +130,75 @@ void main() {
       expect(tester.widget<ListTile>(find.byType(ListTile)).onTap, isNull);
       newOpen.complete();
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('$kind old provider cannot navigate after successful open', (
+      tester,
+    ) async {
+      final pendingOldOpen = Completer<void>();
+      final pendingNewOpen = Completer<void>();
+
+      Future<void> openReader(
+        BuildContext context,
+        bool Function() canNavigate,
+        Future<void> pending,
+        String title,
+      ) async {
+        await pending;
+        if (!context.mounted || !canNavigate()) return;
+        unawaited(
+          Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => Scaffold(body: Text(title)),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(
+        _page(
+          manga,
+          'one',
+          () async {},
+          owner: 'old',
+          guardedOpen: (context, canNavigate) => openReader(
+            context,
+            canNavigate,
+            pendingOldOpen.future,
+            'Stale reader',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      tester.widget<ListTile>(find.byType(ListTile)).onTap!();
+      await tester.pump();
+
+      await tester.pumpWidget(
+        _page(
+          manga,
+          'one',
+          () async {},
+          owner: 'new',
+          guardedOpen: (context, canNavigate) => openReader(
+            context,
+            canNavigate,
+            pendingNewOpen.future,
+            'Current reader',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<ListTile>(find.byType(ListTile)).onTap, isNotNull);
+
+      pendingOldOpen.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Stale reader'), findsNothing);
+      tester.widget<ListTile>(find.byType(ListTile)).onTap!();
+      await tester.pump();
+      pendingNewOpen.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Current reader'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

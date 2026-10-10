@@ -35,7 +35,15 @@ class MangaSeriesPage extends StatefulWidget {
   final Future<MangaSeriesDetails> Function() loadDetails;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final LibraryRepository? library;
-  final Future<void> Function(BuildContext, MangaChapter, List<MangaChapter>)
+
+  /// [canNavigate] is rechecked after asynchronous chapter opening,
+  /// before pushing a reader route, to reject stale provider completions.
+  final Future<void> Function(
+    BuildContext,
+    MangaChapter,
+    List<MangaChapter>,
+    bool Function() canNavigate,
+  )
   openChapter;
   @override
   State<MangaSeriesPage> createState() => _MangaSeriesPageState();
@@ -66,6 +74,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
         loadReadingTarget: widget.loadReadingTarget,
         series: widget.media.source,
       );
+      _openingGeneration++;
       _isOpeningChapter = false;
       unawaited(_viewModel.load());
     } else {
@@ -94,9 +103,18 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
     final generation = _openingGeneration;
     final sequence = viewModel.readingSequence;
     if (!chapter.canReadPages || !sequence.contains(chapter)) return;
+    bool canNavigate() =>
+        mounted &&
+        identical(viewModel, _viewModel) &&
+        generation == _openingGeneration;
     setState(() => _isOpeningChapter = true);
     try {
-      await widget.openChapter(context, chapter, List.unmodifiable(sequence));
+      await widget.openChapter(
+        context,
+        chapter,
+        List.unmodifiable(sequence),
+        canNavigate,
+      );
     } catch (_) {
       if (mounted &&
           identical(viewModel, _viewModel) &&

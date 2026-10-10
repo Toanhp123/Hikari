@@ -277,7 +277,10 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
-        home: NovelSeriesPage(target: target, openChapter: (_, _, _) async {}),
+        home: NovelSeriesPage(
+          target: target,
+          openChapter: (_, _, _, _) async {},
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -393,7 +396,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: NovelSeriesPage(target: target, openChapter: (_, _, _) async {}),
+        home: NovelSeriesPage(
+          target: target,
+          openChapter: (_, _, _, _) async {},
+        ),
       ),
     );
     await tester.pumpAndSettle();

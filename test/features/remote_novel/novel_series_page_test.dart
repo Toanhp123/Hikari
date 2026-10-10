@@ -26,7 +26,12 @@ class _FakeNovelSeriesSource implements NovelSeriesSource {
 
 Widget _buildTestPage({
   required NovelDetails details,
-  Future<void> Function(BuildContext, NovelChapter, List<NovelChapter>)?
+  Future<void> Function(
+    BuildContext,
+    NovelChapter,
+    List<NovelChapter>,
+    bool Function(),
+  )?
   openChapter,
 }) {
   final source = _FakeNovelSeriesSource(details);
@@ -42,7 +47,7 @@ Widget _buildTestPage({
     theme: HikariTheme.darkTheme(),
     home: NovelSeriesPage(
       target: target,
-      openChapter: openChapter ?? (_, _, _) async {},
+      openChapter: openChapter ?? (_, _, _, _) async {},
     ),
   );
 }
@@ -82,7 +87,7 @@ void main() {
         await tester.pumpWidget(
           _buildTestPage(
             details: details,
-            openChapter: (_, chapter, sequence) async {
+            openChapter: (_, chapter, sequence, _) async {
               opened = chapter;
               openedSequence = sequence;
             },

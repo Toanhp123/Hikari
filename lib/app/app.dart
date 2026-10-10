@@ -260,12 +260,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         loadReadingTarget: (chapters) =>
             LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
                 .execute(novel.media.source, chapters),
-        openChapter: (context, chapter, sequence) => _openNovelChapter(
-          context,
-          chapter,
-          sequence,
-          seriesRef: novel.media.source,
-        ),
+        openChapter: (context, chapter, sequence, canNavigate) =>
+            _openNovelChapter(
+              context,
+              chapter,
+              sequence,
+              seriesRef: novel.media.source,
+              canNavigate: canNavigate,
+            ),
         library: _dependencies.libraryRepository,
         readArtwork: _dependencies.readSourceArtwork.execute,
       ),
@@ -311,11 +313,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         ? _dependencies.readSourceArtwork.execute
         : null,
     library: _dependencies.libraryRepository,
-    openChapter: (context, chapter, sequence) => _openMangaChapter(
+    openChapter: (context, chapter, sequence, canNavigate) => _openMangaChapter(
       context,
       chapter,
       sequence,
       seriesRef: target.media.source,
+      canNavigate: canNavigate,
     ),
   );
 
@@ -413,9 +416,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     NovelChapter chapter,
     List<NovelChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
+    bool Function()? canNavigate,
   }) async {
     final initialTarget = await _dependencies.openNovelChapter.execute(chapter);
-    if (!context.mounted) return;
+    if (!context.mounted || (canNavigate != null && !canNavigate())) return;
     final saveProgress = seriesRef == null
         ? null
         : SaveSeriesChapterProgress(
@@ -471,9 +475,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     MangaChapter chapter,
     List<MangaChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
+    bool Function()? canNavigate,
   }) async {
     final initialTarget = await _dependencies.openMangaChapter.execute(chapter);
-    if (!context.mounted) return;
+    if (!context.mounted || (canNavigate != null && !canNavigate())) return;
     final chapterPrefetch = _dependencies.createMangaChapterPrefetch();
     final saveProgress = seriesRef == null
         ? null

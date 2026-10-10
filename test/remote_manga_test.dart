@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/core/ui/patterns/media_poster.dart';
 
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -1241,7 +1242,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Series'));
+    await tester.tap(find.widgetWithText(MediaPoster, 'Series'));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.text('Chapter'), findsOneWidget);
@@ -1275,7 +1276,7 @@ void main() {
                     ),
                   );
           },
-          openChapter: (_, _, _) async {},
+          openChapter: (_, _, _, _) async {},
         ),
       ),
     );
@@ -1308,7 +1309,7 @@ void main() {
               chapters: [MangaChapter(title: 'Chapter 1', source: ref)],
             );
           },
-          openChapter: (_, _, _) async {},
+          openChapter: (_, _, _, _) async {},
         ),
       ),
     );
@@ -1352,7 +1353,7 @@ void main() {
               ),
             ],
           ),
-          openChapter: (_, _, _) async {
+          openChapter: (_, _, _, _) async {
             opens++;
           },
         ),
@@ -1397,7 +1398,7 @@ void main() {
               ),
             ],
           ),
-          openChapter: (_, chapter, _) async {
+          openChapter: (_, chapter, _, _) async {
             selected = chapter;
           },
         ),

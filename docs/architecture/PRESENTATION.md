@@ -100,7 +100,13 @@ readable sequence leaves the CTA disabled. Details refresh does not await contin
 persistence; the first readable canonical chapter remains actionable while it resolves.
 Pages update callback bindings in place. A stable dependency owner identifies actual
 provider/repository replacement, invalidating old requests without resetting search or
-source-order preferences; artwork is keyed separately from synopsis state.
+source-order preferences; artwork is keyed separately from synopsis state. Provider
+replacement discards the previous provider's detail snapshot, including on failure,
+while ordinary same-provider refreshes retain their last successful snapshot.
+Chapter-opening callbacks receive a navigation permission check; they must recheck it
+after any asynchronous open operation and immediately before pushing a reader route.
+Changing the series/provider revokes outstanding permission, even while the page remains
+mounted.
 Metadata keeps its lazy header alive to retain
 synopsis expansion, search state and artwork without keeping all chapter tiles alive.
 Feature-local chapter reader routes own adjacent-navigation ViewModels; those ViewModels use injected

@@ -29,7 +29,15 @@ class NovelSeriesPage extends StatefulWidget {
   /// Stable provider/repository identity; defaults to the target source.
   final Object? dependencyOwner;
   final NovelSeriesOpenTarget target;
-  final Future<void> Function(BuildContext, NovelChapter, List<NovelChapter>)
+
+  /// [canNavigate] is rechecked after asynchronous chapter opening,
+  /// before pushing a reader route, to reject stale provider completions.
+  final Future<void> Function(
+    BuildContext,
+    NovelChapter,
+    List<NovelChapter>,
+    bool Function() canNavigate,
+  )
   openChapter;
   final LibraryRepository? library;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
@@ -62,6 +70,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         loadReadingTarget: widget.loadReadingTarget,
         series: widget.target.media.source,
       );
+      _openingGeneration++;
       _isOpeningChapter = false;
       unawaited(_viewModel.load());
     } else {
@@ -92,9 +101,18 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
     final generation = _openingGeneration;
     final sequence = viewModel.readingSequence;
     if (!sequence.contains(chapter)) return;
+    bool canNavigate() =>
+        mounted &&
+        identical(viewModel, _viewModel) &&
+        generation == _openingGeneration;
     setState(() => _isOpeningChapter = true);
     try {
-      await widget.openChapter(context, chapter, List.unmodifiable(sequence));
+      await widget.openChapter(
+        context,
+        chapter,
+        List.unmodifiable(sequence),
+        canNavigate,
+      );
     } catch (_) {
       if (mounted &&
           identical(viewModel, _viewModel) &&

@@ -12,7 +12,12 @@ import 'package:hikari/features/remote_manga/manga_series_page.dart';
 Widget _buildTestPage({
   required MangaSeriesDetails details,
   double textScale = 1,
-  Future<void> Function(BuildContext, MangaChapter, List<MangaChapter>)?
+  Future<void> Function(
+    BuildContext,
+    MangaChapter,
+    List<MangaChapter>,
+    bool Function(),
+  )?
   openChapter,
 }) {
   return MaterialApp(
@@ -30,7 +35,7 @@ Widget _buildTestPage({
       ),
       sourceName: 'Fake Source',
       loadDetails: () async => details,
-      openChapter: openChapter ?? (_, _, _) async {},
+      openChapter: openChapter ?? (_, _, _, _) async {},
     ),
   );
 }
@@ -118,7 +123,7 @@ void main() {
         await tester.pumpWidget(
           _buildTestPage(
             details: details,
-            openChapter: (_, chapter, sequence) async {
+            openChapter: (_, chapter, sequence, _) async {
               opened = chapter;
               openedSequence = sequence;
             },
@@ -156,7 +161,7 @@ void main() {
         await tester.pumpWidget(
           _buildTestPage(
             details: details,
-            openChapter: (_, chapter, _) async {
+            openChapter: (_, chapter, _, _) async {
               opened = chapter;
             },
           ),
@@ -297,7 +302,7 @@ void main() {
         await tester.pumpWidget(
           _buildTestPage(
             details: details,
-            openChapter: (_, _, _) async => opens++,
+            openChapter: (_, _, _, _) async => opens++,
           ),
         );
         await tester.pumpAndSettle();

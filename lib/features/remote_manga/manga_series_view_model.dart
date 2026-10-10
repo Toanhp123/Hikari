@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:hikari/domain/progress/series_continuation.dart';
+
 import 'package:hikari/application/media/load_series_reading_target.dart';
-import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/core/ui/patterns/chapter_list_filter.dart';
 import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
 
 enum MangaSeriesStatus { loading, ready, error }
 
@@ -28,13 +29,16 @@ final class MangaSeriesUiState {
 final class MangaSeriesViewModel extends ChangeNotifier {
   MangaSeriesViewModel(
     this._loadDetails, {
-    this.loadReadingTarget,
+    this._loadReadingTarget,
     this.series,
   });
   final SourceMediaRef? series;
-  Future<SeriesReadingTarget> Function(List<SourceMediaRef>)? loadReadingTarget;
-  MangaChapter? primaryChapter;
-  bool isContinuation = false;
+  Future<SeriesReadingTarget> Function(List<SourceMediaRef>)?
+  _loadReadingTarget;
+  MangaChapter? _primaryChapter;
+  MangaChapter? get primaryChapter => _primaryChapter;
+  bool _isContinuation = false;
+  bool get isContinuation => _isContinuation;
   int _continuationGeneration = 0;
 
   Future<void> refreshReadingTarget() async {
@@ -45,12 +49,12 @@ final class MangaSeriesViewModel extends ChangeNotifier {
         .where((chapter) => chapter.canReadPages)
         .toList(growable: false);
     final fallback = readable.firstOrNull;
-    if (primaryChapter != fallback || isContinuation) {
-      primaryChapter = fallback;
-      isContinuation = false;
+    if (_primaryChapter != fallback || _isContinuation) {
+      _primaryChapter = fallback;
+      _isContinuation = false;
       notifyListeners();
     }
-    final resolver = loadReadingTarget;
+    final resolver = _loadReadingTarget;
     SeriesReadingTarget target;
     try {
       target = resolver == null
@@ -71,9 +75,9 @@ final class MangaSeriesViewModel extends ChangeNotifier {
         .firstOrNull;
     final selected = matched ?? fallback;
     final continuation = matched != null && target.isContinuation;
-    if (primaryChapter == selected && isContinuation == continuation) return;
-    primaryChapter = selected;
-    isContinuation = continuation;
+    if (_primaryChapter == selected && _isContinuation == continuation) return;
+    _primaryChapter = selected;
+    _isContinuation = continuation;
     notifyListeners();
   }
 
@@ -86,12 +90,15 @@ final class MangaSeriesViewModel extends ChangeNotifier {
   }) {
     if (_disposed) return;
     _loadDetails = loadDetails;
-    loadReadingTarget = readingTarget;
+    _loadReadingTarget = readingTarget;
     if (ownerChanged) {
+      // A new provider must not retain the previous provider's metadata,
+      // even if its first request fails. Ordinary refreshes keep their snapshot.
+      _state = const MangaSeriesUiState();
       _readingSequence = const [];
       _displayChapters = const [];
-      primaryChapter = null;
-      isContinuation = false;
+      _primaryChapter = null;
+      _isContinuation = false;
       unawaited(load());
     }
   }
@@ -147,8 +154,8 @@ final class MangaSeriesViewModel extends ChangeNotifier {
     if (_disposed) return;
     final generation = ++_generation;
     _continuationGeneration++;
-    primaryChapter = null;
-    isContinuation = false;
+    _primaryChapter = null;
+    _isContinuation = false;
     _publish(
       MangaSeriesUiState(
         status: MangaSeriesStatus.loading,
@@ -170,8 +177,8 @@ final class MangaSeriesViewModel extends ChangeNotifier {
       );
       _readingSequence = details.chaptersInReadingOrder;
       _deriveChapters();
-      primaryChapter = null;
-      isContinuation = false;
+      _primaryChapter = null;
+      _isContinuation = false;
       notifyListeners();
       unawaited(refreshReadingTarget());
     } catch (_) {

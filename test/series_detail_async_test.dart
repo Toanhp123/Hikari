@@ -152,6 +152,53 @@ void main() {
       expect(vm.state.refreshing, isFalse);
     });
 
+    test('$kind replacing provider clears stale details on failure', () async {
+      final dynamic vm = model(() async => [_ref('old')]);
+      addTearDown(() => vm.dispose());
+      await (vm.load() as Future<void>);
+      expect(vm.state.details, isNotNull);
+      expect(vm.primaryChapter.source, _ref('old'));
+      vm.setSearchQuery('keep');
+      vm.toggleSourceOrder();
+
+      final replacement = Completer<void>();
+      if (manga) {
+        (vm as MangaSeriesViewModel).updateDependencies(
+          () async {
+            await replacement.future;
+            throw StateError('new provider unavailable');
+          },
+          null,
+          ownerChanged: true,
+        );
+      } else {
+        (vm as NovelSeriesViewModel).updateDependencies(
+          () async {
+            await replacement.future;
+            throw StateError('new provider unavailable');
+          },
+          null,
+          ownerChanged: true,
+        );
+      }
+
+      // The old provider snapshot must disappear *before* the new load ends.
+      expect(vm.state.initialLoading, isTrue);
+      expect(vm.state.details, isNull);
+      expect(vm.primaryChapter, isNull);
+      expect(vm.readingSequence, isEmpty);
+      expect(vm.displayChapters, isEmpty);
+      expect(vm.searchQuery, 'keep');
+      expect(vm.reverseSourceOrder, isTrue);
+
+      replacement.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(vm.state.failed, isTrue);
+      expect(vm.state.refreshFailed, isFalse);
+      expect(vm.state.details, isNull);
+      expect(vm.primaryChapter, isNull);
+    });
+
     test('$kind latest overlapping details load wins', () async {
       final pending = <Completer<List<SourceMediaRef>>>[];
       final dynamic vm = model(() {
