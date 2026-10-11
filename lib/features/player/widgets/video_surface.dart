@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 /// Renders the current media-kit output while playback ownership stays outside UI.
@@ -31,7 +32,7 @@ class VideoSurface extends StatelessWidget {
             Center(
               child: Material(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(HikariSpacing.xl),
                   child: Text('$playbackError\nLeave and reopen to try again.'),
                 ),
               ),

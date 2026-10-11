@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
 
-/// A debounced search bar with glassmorphic styling and clear action.
+/// Search behavior wrapper using the canonical Material 3 SearchBar.
+/// Debounce remains behavior-owned; styling is inherited from the root theme.
 class HikariSearchBar extends StatefulWidget {
   const HikariSearchBar({
     super.key,
@@ -29,12 +29,22 @@ class HikariSearchBar extends StatefulWidget {
 }
 
 class _HikariSearchBarState extends State<HikariSearchBar> {
-  late final TextEditingController _controller;
+  late TextEditingController _controller;
   Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
+    _controller =
+        widget.controller ?? TextEditingController(text: widget.initialQuery);
+  }
+
+  @override
+  void didUpdateWidget(HikariSearchBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) return;
+    _debounceTimer?.cancel();
+    if (oldWidget.controller == null) _controller.dispose();
     _controller =
         widget.controller ?? TextEditingController(text: widget.initialQuery);
   }
@@ -56,6 +66,12 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
     setState(() {});
   }
 
+  void _submit(String value) {
+    _debounceTimer?.cancel();
+    widget.onChanged(value);
+    widget.onSubmitted?.call(value);
+  }
+
   void _onClear() {
     _controller.clear();
     _debounceTimer?.cancel();
@@ -65,54 +81,37 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: colors.surfaceContainer,
-        borderRadius: HikariRadius.borderMd,
-        border: Border.all(color: colors.border),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.md),
-      alignment: Alignment.center,
-      child: Row(
-        children: [
-          Icon(Icons.search_rounded, size: 20, color: colors.textSecondary),
-          const SizedBox(width: HikariSpacing.sm),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              autofocus: widget.autofocus,
-              textInputAction: widget.onSubmitted == null
-                  ? null
-                  : TextInputAction.search,
-              onChanged: _onTextChange,
-              onSubmitted: widget.onSubmitted,
-              style: TextStyle(fontSize: 14, color: colors.textPrimary),
-              decoration: InputDecoration(
-                hintText: widget.hintText,
-                hintStyle: TextStyle(fontSize: 14, color: colors.textMuted),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-          if (_controller.text.isNotEmpty)
-            GestureDetector(
-              onTap: _onClear,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.all(4.0),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 18,
-                  color: colors.textSecondary,
+    // The app-wide input decoration minimum height would also apply to the
+    // TextField inside SearchBar. Let that inner field size to its text so the
+    // SearchBar's Row can center it vertically within the 48dp touch target.
+    return InputDecorationTheme(
+      data: InputDecorationTheme.of(context)
+          .copyWith(constraints: const BoxConstraints()),
+      child: SearchBar(
+        controller: _controller,
+        autoFocus: widget.autofocus,
+        hintText: widget.hintText,
+        textInputAction: widget.onSubmitted == null
+            ? null
+            : TextInputAction.search,
+        onChanged: _onTextChange,
+        onSubmitted: widget.onSubmitted == null ? null : _submit,
+        leading: const Icon(Icons.search_rounded),
+        trailing: _controller.text.isEmpty
+            ? null
+            : [
+                if (widget.onSubmitted != null)
+                  IconButton(
+                    tooltip: 'Submit search',
+                    onPressed: () => _submit(_controller.text),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
+                IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: _onClear,
+                  icon: const Icon(Icons.close_rounded),
                 ),
-              ),
-            ),
-        ],
+              ],
       ),
     );
   }

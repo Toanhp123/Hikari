@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
@@ -56,6 +57,9 @@ final class _Continuations implements SeriesContinuationRepository {
 }
 
 final class _MangaRemote implements MangaPageSource, MangaSeriesSource {
+  List<SourceMediaRef> refs = [_chapterA, _chapterB];
+  ChapterListOrder order = ChapterListOrder.readingOrder;
+  bool failLoad = false;
   @override
   SourceId get id => _sourceId;
   @override
@@ -68,31 +72,35 @@ final class _MangaRemote implements MangaPageSource, MangaSeriesSource {
   Future<Uint8List> readPage(SourceMediaRef page) async =>
       Uint8List.fromList([1]);
   @override
-  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async =>
-      MangaSeriesDetails(
-        metadata: MediaMetadata(title: 'Series'),
-        chapters: [
-          MangaChapter(title: 'Chapter A', source: _chapterA),
-          MangaChapter(title: 'Chapter B', source: _chapterB),
-        ],
-        chapterListOrder: ChapterListOrder.readingOrder,
-      );
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async => failLoad
+      ? throw StateError('source failed')
+      : MangaSeriesDetails(
+          metadata: MediaMetadata(title: 'Series'),
+          chapters: refs
+              .map((ref) => MangaChapter(title: ref.itemId, source: ref))
+              .toList(),
+          chapterListOrder: order,
+        );
 }
 
 final class _NovelSeries implements NovelSeriesSource, NovelChapterSource {
+  List<SourceMediaRef> refs = [_chapterA, _chapterB];
+  ChapterListOrder order = ChapterListOrder.readingOrder;
+  bool failLoad = false;
   @override
   SourceId get id => _sourceId;
   @override
   String get name => 'Remote';
   @override
-  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => NovelDetails(
-    metadata: MediaMetadata(title: 'Series'),
-    chapters: [
-      NovelChapter(title: 'Chapter A', source: _chapterA),
-      NovelChapter(title: 'Chapter B', source: _chapterB),
-    ],
-    chapterListOrder: ChapterListOrder.readingOrder,
-  );
+  Future<NovelDetails> loadDetails(SourceMediaRef novel) async => failLoad
+      ? throw StateError('source failed')
+      : NovelDetails(
+          metadata: MediaMetadata(title: 'Series'),
+          chapters: refs
+              .map((ref) => NovelChapter(title: ref.itemId, source: ref))
+              .toList(),
+          chapterListOrder: order,
+        );
   @override
   Future<RichReadingContent> chapterContent(SourceMediaRef chapter) async =>
       RichReadingContent(html: '<p>${chapter.itemId}</p>');
@@ -122,6 +130,12 @@ void main() {
   );
 
   setUp(() {
+    mangaRemote.refs = [_chapterA, _chapterB];
+    novelSeriesSource.refs = [_chapterA, _chapterB];
+    mangaRemote.order = ChapterListOrder.readingOrder;
+    novelSeriesSource.order = ChapterListOrder.readingOrder;
+    mangaRemote.failLoad = false;
+    novelSeriesSource.failLoad = false;
     progress.rows.clear();
     continuation.chapter = _chapterA;
     continuation.delay = null;
@@ -129,6 +143,87 @@ void main() {
     continuation.saves = 0;
     progress.saves = 0;
   });
+
+  for (final manga in [true, false]) {
+    test(
+      '${manga ? 'manga' : 'novel'} Home Detail parity and invalid sequences',
+      () async {
+        final workflow = OpenSeriesContinuation(
+          OpenMedia(manga ? mangaRegistry : novelRegistry, progress),
+        );
+        final media = manga ? mangaSeries : novelSeries;
+        final detail = LoadSeriesReadingTarget(continuation);
+        mangaRemote.order = ChapterListOrder.reverseReadingOrder;
+        novelSeriesSource.order = ChapterListOrder.reverseReadingOrder;
+        for (final saved in [
+          _chapterA,
+          const SourceMediaRef(sourceId: _sourceId, itemId: 'missing'),
+        ]) {
+          continuation.chapter = saved;
+          final target = await workflow.execute(media, saved);
+          final resolved = await detail.execute(_series, [
+            _chapterB,
+            _chapterA,
+          ]);
+          expect(target.chapter, resolved.chapter);
+          final sequence = switch (target) {
+            MangaContinuationOpenTarget() => target.sequence.map(
+              (c) => c.source,
+            ),
+            NovelContinuationOpenTarget() => target.sequence.map(
+              (c) => c.source,
+            ),
+          };
+          expect(sequence, [_chapterB, _chapterA]);
+          await target.release();
+        }
+        continuation.chapter = null;
+        expect(
+          (await detail.execute(_series, [
+            _chapterB,
+            _chapterA,
+          ])).isContinuation,
+          isFalse,
+        );
+        for (final refs in <List<SourceMediaRef>>[
+          [],
+          [_chapterA, _chapterA],
+          [_series],
+          [const SourceMediaRef(sourceId: _sourceId, itemId: '')],
+          [
+            const SourceMediaRef(
+              sourceId: SourceId('foreign'),
+              itemId: 'chapter',
+            ),
+          ],
+        ]) {
+          mangaRemote.refs = refs;
+          novelSeriesSource.refs = refs;
+          await expectLater(
+            workflow.execute(media, _chapterA),
+            throwsStateError,
+          );
+          if (refs.isEmpty) {
+            expect((await detail.execute(_series, refs)).chapter, isNull);
+          } else {
+            await expectLater(detail.execute(_series, refs), throwsStateError);
+          }
+        }
+        mangaRemote.failLoad = true;
+        novelSeriesSource.failLoad = true;
+        await expectLater(
+          workflow.execute(media, _chapterA),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'source failed',
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   test(
     'resume validates exact tapped chapter against fresh sequence',
@@ -146,16 +241,20 @@ void main() {
         _chapterB,
       ]);
       await result.release();
-      await expectLater(
-        workflow.execute(
-          mangaSeries,
-          const SourceMediaRef(
-            sourceId: _sourceId,
-            itemId: 'same-title-number',
-          ),
-        ),
-        throwsStateError,
+      final fallback = await workflow.execute(
+        mangaSeries,
+        const SourceMediaRef(sourceId: _sourceId, itemId: 'same-title-number'),
       );
+      expect(fallback.chapter, _chapterA);
+      await fallback.release();
+      final novelFallback =
+          await OpenSeriesContinuation(OpenMedia(novelRegistry, progress))
+              .execute(
+                novelSeries,
+                const SourceMediaRef(sourceId: _sourceId, itemId: 'missing'),
+              );
+      expect(novelFallback.chapter, _chapterA);
+      await novelFallback.release();
     },
   );
 

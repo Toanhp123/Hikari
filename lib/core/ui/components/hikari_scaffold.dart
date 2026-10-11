@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
 
 /// A cinematic scaffold that renders an ambient glow gradient mesh behind the content.
 class HikariScaffold extends StatelessWidget {
@@ -26,7 +25,7 @@ class HikariScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
 
     Widget content = body;
     if (useSafeArea) {
@@ -34,7 +33,7 @@ class HikariScaffold extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       appBar: appBar,
       bottomNavigationBar: bottomNavigationBar,
       floatingActionButton: floatingActionButton,
@@ -43,7 +42,7 @@ class HikariScaffold extends StatelessWidget {
       body: Stack(
         children: [
           // Background ambient gradient mesh
-          if (showAmbientGlow && !colors.isOled) ...[
+          if (showAmbientGlow && colors.surface != Colors.black) ...[
             Positioned(
               top: -120,
               right: -80,

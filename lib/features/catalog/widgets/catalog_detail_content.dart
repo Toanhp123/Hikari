@@ -11,7 +11,7 @@ class CatalogDetailLoadingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Loading catalog details for $title',
       child: ExcludeSemantics(
@@ -47,7 +47,7 @@ class CatalogDetailLoadingBody extends StatelessWidget {
             _SkeletonBox(width: 84, height: 18, color: colors.surfaceContainer),
             const SizedBox(height: HikariSpacing.md),
             SizedBox(
-              height: 210,
+              height: 246,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: 4,
@@ -193,8 +193,8 @@ class CatalogDetailContent extends StatelessWidget {
                 overflow: descriptionExpanded
                     ? TextOverflow.visible
                     : TextOverflow.fade,
-                style: HikariTypography.bodyMedium.copyWith(
-                  color: context.hikariColors.textSecondary,
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   height: 1.6,
                 ),
               ),

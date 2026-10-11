@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
@@ -14,15 +13,18 @@ class CatalogDiscoverySections extends StatelessWidget {
     required this.error,
     required this.onRetry,
     required this.openDetail,
+    this.excludeFeatured = false,
   });
 
   final CatalogDiscovery? discovery;
   final Object? error;
   final VoidCallback onRetry;
   final void Function(CatalogEntry entry) openDetail;
+  final bool excludeFeatured;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final current = discovery;
     if (error != null && current == null) {
       return Padding(
@@ -38,7 +40,7 @@ class CatalogDiscoverySections extends StatelessWidget {
       );
     }
     if (current == null) {
-      return const _CatalogLoadingSkeleton();
+      return _CatalogLoadingSkeleton(excludeFeatured: excludeFeatured);
     }
 
     final sections = current.sections;
@@ -64,7 +66,7 @@ class CatalogDiscoverySections extends StatelessWidget {
             ],
           ),
         ],
-        if (featured.isNotEmpty)
+        if (!excludeFeatured && featured.isNotEmpty)
           HeroCarousel(entries: featured, openDetail: openDetail),
         for (final section in CatalogSection.values)
           if (section != CatalogSection.featured &&
@@ -76,16 +78,22 @@ class CatalogDiscoverySections extends StatelessWidget {
                 HikariSpacing.lg,
                 HikariSpacing.sm,
               ),
-              child: Text(
-                _sectionTitle(section),
-                style: HikariTypography.titleLarge,
+              child: Semantics(
+                headingLevel: 2,
+                child: Text(
+                  _sectionTitle(section),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.15,
+                  ),
+                ),
               ),
             ),
-            Builder(
-              builder: (context) {
-                final posterWidth = _catalogPosterWidth(context);
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final posterWidth = _catalogPosterWidth(constraints.maxWidth);
                 return SizedBox(
-                  height: posterWidth * 1.5,
+                  height: mediaPosterShelfHeight(context, posterWidth),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
                       horizontal: HikariSpacing.lg,
@@ -99,18 +107,11 @@ class CatalogDiscoverySections extends StatelessWidget {
                       final entry = sections[section]![index];
                       return SizedBox(
                         width: posterWidth,
-                        child: Semantics(
-                          button: true,
-                          label: 'View details for ${entry.title}',
-                          child: Material(
-                            color: Colors.transparent,
-                            child: MediaPoster(
-                              title: entry.title,
-                              imageUrl: entry.coverUrl,
-                              badgeText: mediaTypeBadgeLabel(entry.type),
-                              onTap: () => openDetail(entry),
-                            ),
-                          ),
+                        child: MediaPoster(
+                          title: entry.title,
+                          imageUrl: entry.coverUrl,
+                          badgeText: mediaTypeBadgeLabel(entry.type),
+                          onTap: () => openDetail(entry),
                         ),
                       );
                     },
@@ -138,19 +139,31 @@ String _sectionTitle(CatalogSection section) => switch (section) {
   CatalogSection.seasonalAnime => 'Seasonal Anime',
 };
 
-double _catalogPosterWidth(BuildContext context) => context.isCompact
-    ? 132.0
-    : context.isMedium
-    ? 144.0
-    : 156.0;
+double _catalogPosterWidth(double availableWidth) {
+  final layout = HikariBreakpoints.classify(availableWidth);
+  return switch (layout) {
+    HikariWidthClass.compact => 132.0,
+    HikariWidthClass.medium => 144.0,
+    HikariWidthClass.expanded || HikariWidthClass.wide => 156.0,
+  };
+}
 
 class _CatalogLoadingSkeleton extends StatelessWidget {
-  const _CatalogLoadingSkeleton();
+  const _CatalogLoadingSkeleton({this.excludeFeatured = false});
+
+  final bool excludeFeatured;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    final posterWidth = _catalogPosterWidth(context);
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildSkeleton(context, constraints.maxWidth),
+  );
+
+  Widget _buildSkeleton(BuildContext context, double width) {
+    final isCompact =
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
+    final colors = Theme.of(context).colorScheme;
+    final posterWidth = _catalogPosterWidth(width);
 
     return Semantics(
       key: const ValueKey('catalog-loading-skeleton'),
@@ -160,30 +173,29 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: context.isCompact ? 0 : HikariSpacing.lg,
-              ),
-              child: AspectRatio(
-                aspectRatio: context.isCompact ? (16 / 10) : (16 / 7),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: context.isCompact
-                        ? BorderRadius.zero
-                        : HikariRadius.borderLg,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        colors.surfaceElevated,
-                        colors.surfaceContainer,
-                        colors.surface,
-                      ],
+            if (!excludeFeatured)
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
+                ),
+                child: AspectRatio(
+                  aspectRatio: isCompact ? (16 / 10) : (16 / 7),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: HikariRadius.borderLg,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          colors.surfaceContainerHighest,
+                          colors.surfaceContainer,
+                          colors.surface,
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             for (var section = 0; section < 2; section++) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -195,14 +207,14 @@ class _CatalogLoadingSkeleton extends StatelessWidget {
                 child: Container(
                   width: section == 0 ? 112 : 148,
                   height: 18,
-                  decoration: BoxDecoration(
-                    color: colors.surfaceElevated,
-                    borderRadius: HikariRadius.borderCapsule,
+                  decoration: ShapeDecoration(
+                    color: colors.surfaceContainerHighest,
+                    shape: HikariRadius.pill,
                   ),
                 ),
               ),
               SizedBox(
-                height: posterWidth * 1.5,
+                height: mediaPosterShelfHeight(context, posterWidth),
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(
                     horizontal: HikariSpacing.lg,

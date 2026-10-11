@@ -1,9 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/features/home/widgets/hero_carousel_slide.dart';
 
 /// Manual cinematic carousel for catalog Featured entries.
 ///
@@ -62,61 +63,102 @@ class _HeroCarouselState extends State<HeroCarousel> {
     if (page < 0 || page >= widget.entries.length || page == _currentPage) {
       return;
     }
-    await _pageController.animateToPage(
-      page,
-      duration: HikariMotion.normal,
-      curve: HikariMotion.curveStandard,
-    );
+    final duration = HikariMotion.duration(context, HikariMotion.standard);
+    if (duration == Duration.zero) {
+      _pageController.jumpToPage(page);
+    } else {
+      await _pageController.animateToPage(
+        page,
+        duration: duration,
+        curve: Easing.standard,
+      );
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (widget.entries.isEmpty) return const SizedBox.shrink();
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildCarousel(context, constraints.maxWidth),
+  );
 
-    final isCompact = context.isCompact;
+  Widget _buildCarousel(BuildContext context, double width) {
+    if (widget.entries.isEmpty) return const SizedBox.shrink();
+    final isCompact =
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final horizontalPadding = isCompact ? HikariSpacing.lg : HikariSpacing.xl;
+    final minimumHeight = _scaledSlideMinimumHeight(
+      context,
+      math.max(1.0, width - 2 * horizontalPadding),
+      isCompact,
+    );
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 0 : HikariSpacing.lg,
-      ),
-      child: AspectRatio(
-        aspectRatio: isCompact ? (16 / 10) : (16 / 7),
-        child: ClipRRect(
-          borderRadius: isCompact ? BorderRadius.zero : HikariRadius.borderLg,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              PageView.builder(
-                controller: _pageController,
-                itemCount: widget.entries.length,
-                onPageChanged: (page) => setState(() => _currentPage = page),
-                itemBuilder: (context, index) => _HeroSlide(
-                  entry: widget.entries[index],
-                  position: index + 1,
-                  total: widget.entries.length,
-                  openDetail: widget.openDetail,
-                ),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minimumHeight),
+        child: AspectRatio(
+          aspectRatio: isCompact ? (16 / 10) : (16 / 7),
+          child: Material(
+            color: colors.surfaceContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: HikariRadius.borderLg,
+              side: BorderSide(
+                color: colors.outlineVariant.withValues(alpha: 0.6),
+                width: HikariRadius.borderWidth,
               ),
-              if (widget.entries.length > 1) ...[
-                Positioned(
-                  top: HikariSpacing.md,
-                  right: HikariSpacing.lg,
-                  child: ExcludeSemantics(
-                    child: _PageCounter(
-                      current: _currentPage + 1,
-                      total: widget.entries.length,
-                    ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                PageView.builder(
+                  clipBehavior: Clip.none,
+                  controller: _pageController,
+                  itemCount: widget.entries.length,
+                  onPageChanged: (page) => setState(() => _currentPage = page),
+                  itemBuilder: (context, index) => HeroCarouselSlide(
+                    entry: widget.entries[index],
+                    position: index + 1,
+                    total: widget.entries.length,
+                    isCompact: isCompact,
+                    openDetail: widget.openDetail,
                   ),
                 ),
-                if (!isCompact) ...[
+                if (widget.entries.length > 1) ...[
+                  Positioned(
+                    top: HikariSpacing.md,
+                    right: isCompact ? 0 : HikariSpacing.lg,
+                    left: isCompact ? 0 : null,
+                    child: Align(
+                      alignment: isCompact
+                          ? Alignment.topCenter
+                          : Alignment.topRight,
+                      child: ExcludeSemantics(
+                        child: _PageCounter(
+                          current: _currentPage + 1,
+                          total: widget.entries.length,
+                        ),
+                      ),
+                    ),
+                  ),
                   Positioned(
                     left: HikariSpacing.md,
                     top: 0,
                     bottom: 0,
-                    child: Center(
-                      child: HikariIconButton(
+                    width: HikariSize.touchTarget,
+                    child: Align(
+                      alignment: isCompact
+                          ? Alignment.topCenter
+                          : Alignment.center,
+                      child: IconButton.filledTonal(
                         tooltip: 'Previous featured item',
-                        variant: HikariIconButtonVariant.glass,
+                        style: IconButton.styleFrom(
+                          backgroundColor: colors.surfaceContainerHighest
+                              .withValues(alpha: 0.72),
+                          foregroundColor: colors.onSurface,
+                        ),
                         onPressed: _currentPage > 0
                             ? () => _goToPage(_currentPage - 1)
                             : null,
@@ -128,10 +170,18 @@ class _HeroCarouselState extends State<HeroCarousel> {
                     right: HikariSpacing.md,
                     top: 0,
                     bottom: 0,
-                    child: Center(
-                      child: HikariIconButton(
+                    width: HikariSize.touchTarget,
+                    child: Align(
+                      alignment: isCompact
+                          ? Alignment.topCenter
+                          : Alignment.center,
+                      child: IconButton.filledTonal(
                         tooltip: 'Next featured item',
-                        variant: HikariIconButtonVariant.glass,
+                        style: IconButton.styleFrom(
+                          backgroundColor: colors.surfaceContainerHighest
+                              .withValues(alpha: 0.72),
+                          foregroundColor: colors.onSurface,
+                        ),
                         onPressed: _currentPage < widget.entries.length - 1
                             ? () => _goToPage(_currentPage + 1)
                             : null,
@@ -141,189 +191,73 @@ class _HeroCarouselState extends State<HeroCarousel> {
                   ),
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-}
 
-class _HeroSlide extends StatelessWidget {
-  const _HeroSlide({
-    required this.entry,
-    required this.position,
-    required this.total,
-    required this.openDetail,
-  });
+  double _scaledSlideMinimumHeight(
+    BuildContext context,
+    double cardWidth,
+    bool isCompact,
+  ) {
+    final scaler = MediaQuery.textScalerOf(context);
+    // Preserve the original artwork geometry at normal text sizes.
+    if (scaler.scale(12) <= 15) return 0;
 
-  final CatalogEntry entry;
-  final int position;
-  final int total;
-  final ValueChanged<CatalogEntry> openDetail;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    final isCompact = context.isCompact;
-    final typeLabel = mediaTypeLabel(entry.type);
-    final metadata = [typeLabel, ...entry.genres.take(2)].join(' · ');
-    final artworkUrl = entry.bannerUrl?.isNotEmpty == true
-        ? entry.bannerUrl
-        : entry.coverUrl;
-
-    return Semantics(
-      container: true,
-      label: 'Featured $position of $total: ${entry.title}',
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _buildFallbackArtwork(colors),
-          if (artworkUrl != null && artworkUrl.isNotEmpty)
-            Image.network(
-              artworkUrl,
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-              filterQuality: FilterQuality.medium,
-              excludeFromSemantics: true,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
-            ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  colors.background.withValues(alpha: 0.18),
-                  colors.scrimMedium,
-                  colors.scrimStrong,
-                ],
-                stops: const [0.0, 0.38, 0.74, 1.0],
-              ),
-            ),
-          ),
-          if (!isCompact)
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    colors.scrimStrong,
-                    colors.scrimMedium,
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.46, 0.82],
-                ),
-              ),
-            ),
-          Positioned(
-            left: HikariSpacing.lg,
-            right: HikariSpacing.lg,
-            bottom: HikariSpacing.lg,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colors.glassSurface,
-                      borderRadius: HikariRadius.borderCapsule,
-                      border: Border.all(color: colors.glassBorder),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: HikariSpacing.sm,
-                        vertical: HikariSpacing.xs,
-                      ),
-                      child: Text(
-                        'Featured',
-                        style: HikariTypography.labelSmall.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: HikariSpacing.sm),
-                  Text(
-                    entry.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        (isCompact
-                                ? HikariTypography.headline
-                                : HikariTypography.display)
-                            .copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              shadows: [
-                                Shadow(
-                                  color: colors.scrimStrong,
-                                  blurRadius: 12,
-                                ),
-                              ],
-                            ),
-                  ),
-                  const SizedBox(height: HikariSpacing.xs),
-                  Text(
-                    metadata,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: HikariTypography.labelMedium.copyWith(
-                      color: Colors.white.withValues(alpha: 0.84),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: HikariSpacing.md),
-                  HikariButton(
-                    label: 'View details',
-                    icon: const Icon(Icons.info_outline_rounded, size: 18),
-                    size: HikariButtonSize.medium,
-                    onPressed: () => openDetail(entry),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    final textTheme = Theme.of(context).textTheme;
+    final titleStyle = isCompact
+        ? textTheme.headlineSmall
+        : textTheme.headlineMedium;
+    final contentWidth = math.max(
+      1.0,
+      math.min(620.0, cardWidth - 2 * HikariSpacing.lg),
     );
-  }
 
-  Widget _buildFallbackArtwork(HikariColors colors) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(0.4, -0.3),
-          radius: 1.2,
-          colors: [
-            colors.primary.withValues(alpha: 0.34),
-            colors.surfaceElevated,
-            colors.surfaceContainer,
-            colors.background,
-          ],
-          stops: const [0.0, 0.4, 0.75, 1.0],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 20,
-            right: 40,
-            child: Icon(
-              Icons.auto_awesome,
-              size: 120,
-              color: colors.primaryGlow.withValues(alpha: 0.08),
-            ),
-          ),
-        ],
-      ),
+    double measure(String value, TextStyle? style, int lines) {
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: style),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+        maxLines: lines,
+        ellipsis: '…',
+      )..layout(maxWidth: contentWidth);
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    var maxTitle = 0.0;
+    var maxMetadata = 0.0;
+    for (final entry in widget.entries) {
+      maxTitle = math.max(maxTitle, measure(entry.title, titleStyle, 2));
+      final metadata = [
+        mediaTypeLabel(entry.type),
+        ...entry.genres.take(2),
+      ].join(' · ');
+      maxMetadata = math.max(
+        maxMetadata,
+        measure(metadata, textTheme.bodySmall, 1),
+      );
+    }
+    final badge =
+        measure('Featured', textTheme.labelSmall, 1) + 2 * HikariSpacing.xs;
+    final button = math.max(
+      HikariSize.touchTarget,
+      measure('View details', textTheme.labelLarge, 1) + 2 * HikariSpacing.md,
     );
+    // Keep the header paging controls separate from the bottom CTA at high scale.
+    return 60 +
+        badge +
+        HikariSpacing.sm +
+        maxTitle +
+        HikariSpacing.xs +
+        maxMetadata +
+        HikariSpacing.md +
+        button +
+        HikariSpacing.lg;
   }
 }
 
@@ -335,23 +269,66 @@ class _PageCounter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.glassSurface,
-        borderRadius: HikariRadius.borderCapsule,
-        border: Border.all(color: colors.glassBorder),
+      decoration: ShapeDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.75),
+        shape: HikariRadius.pill,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: HikariSpacing.sm,
+          horizontal: HikariSpacing.md,
           vertical: HikariSpacing.xs,
         ),
         child: Text(
           '$current / $total',
-          style: HikariTypography.labelSmall.copyWith(
-            color: colors.textPrimary,
+          style: (theme.textTheme.labelSmall ?? const TextStyle()).copyWith(
+            color: colors.onSurface,
             fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HeroCarouselSkeleton extends StatelessWidget {
+  const HeroCarouselSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) =>
+        _buildSkeleton(context, constraints.maxWidth),
+  );
+
+  Widget _buildSkeleton(BuildContext context, double width) {
+    final isCompact =
+        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
+      ),
+      child: AspectRatio(
+        aspectRatio: isCompact ? (16 / 10) : (16 / 7),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: HikariRadius.borderLg,
+            border: Border.all(
+              color: colors.outlineVariant.withValues(alpha: 0.6),
+              width: HikariRadius.borderWidth,
+            ),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.surfaceContainerHighest,
+                colors.surfaceContainer,
+                colors.surface,
+              ],
+            ),
           ),
         ),
       ),

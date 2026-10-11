@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
@@ -164,6 +165,49 @@ void main() {
     library = SqliteLibraryRepository(db);
     continuations = SqliteSeriesContinuationRepository(db);
 
+    final detailResolver = LoadSeriesReadingTarget(continuations);
+    final mangaDetails = await mangaSource.loadDetails(_mangaSeriesRef);
+    final mangaCta = await detailResolver.execute(
+      _mangaSeriesRef,
+      mangaDetails.chaptersInReadingOrder
+          .map((chapter) => chapter.source)
+          .toList(),
+    );
+    expect(mangaCta.isContinuation, isTrue);
+    final detailMangaOpen = await OpenMangaChapter(registry, progress).execute(
+      mangaDetails.chapters.singleWhere(
+        (chapter) => chapter.source == mangaCta.chapter,
+      ),
+    );
+    expect(
+      (detailMangaOpen.progress.initialProgress!.position as PagePosition)
+          .pageIndex,
+      2,
+    );
+    final novelDetails = await novelSource.loadDetails(_novelSeriesRef);
+    final novelCta = await detailResolver.execute(
+      _novelSeriesRef,
+      novelDetails.chaptersInReadingOrder
+          .map((chapter) => chapter.source)
+          .toList(),
+    );
+    expect(novelCta.isContinuation, isTrue);
+    final detailNovelOpen =
+        await OpenNovelChapter(
+          registry,
+          progress,
+          ReadNovelChapterContent(_NoCache()),
+        ).execute(
+          novelDetails.chapters.singleWhere(
+            (chapter) => chapter.source == novelCta.chapter,
+          ),
+        );
+    expect(
+      (detailNovelOpen.progress.initialProgress!.position as TextPosition)
+          .progression,
+      .42,
+    );
+
     final home = await LoadContinueReading(
       progress,
       continuations,
@@ -226,26 +270,31 @@ void main() {
     await openedNovel.release();
   });
 
-  test('resume rejects missing chapter and unavailable source', () async {
-    const manga = Media(
-      title: 'Manga',
-      type: MediaType.manga,
-      source: _mangaSeriesRef,
-    );
-    const missing = SourceMediaRef(sourceId: _id, itemId: 'missing');
-    final openSeries = OpenSeriesContinuation(OpenMedia(registry, progress));
-    await expectLater(openSeries.execute(manga, missing), throwsStateError);
+  test(
+    'resume falls back for missing chapter but rejects unavailable source',
+    () async {
+      const manga = Media(
+        title: 'Manga',
+        type: MediaType.manga,
+        source: _mangaSeriesRef,
+      );
+      const missing = SourceMediaRef(sourceId: _id, itemId: 'missing');
+      final openSeries = OpenSeriesContinuation(OpenMedia(registry, progress));
+      final fallback = await openSeries.execute(manga, missing);
+      expect(fallback.chapter, _mangaChapterRef);
+      await fallback.release();
 
-    final unavailableRegistry = SourceRegistry([
-      _MangaSource(available: false),
-      novelSource,
-    ]);
-    await expectLater(
-      OpenSeriesContinuation(OpenMedia(unavailableRegistry, progress))
-          .execute(manga, _mangaChapterRef),
-      throwsStateError,
-    );
-  });
+      final unavailableRegistry = SourceRegistry([
+        _MangaSource(available: false),
+        novelSource,
+      ]);
+      await expectLater(
+        OpenSeriesContinuation(OpenMedia(unavailableRegistry, progress))
+            .execute(manga, _mangaChapterRef),
+        throwsStateError,
+      );
+    },
+  );
 
   test(
     'resume rejects duplicate chapter sequence and releases acquired lease',

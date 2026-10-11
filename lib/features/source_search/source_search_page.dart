@@ -100,7 +100,8 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
         body: SourceSearchContent(
           controller: _searchController,
           state: _viewModel.state,
-          onQueryChanged: (query) => unawaited(_viewModel.search(query)),
+          onQueryChanged: _viewModel.updateQuery,
+          onSubmitted: (query) => unawaited(_viewModel.submitQuery(query)),
           onSelectFilter: (filter) =>
               unawaited(_viewModel.selectFilter(filter)),
           onRetry: () => unawaited(_viewModel.retry()),

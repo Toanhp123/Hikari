@@ -87,6 +87,28 @@ Remote manga/novel series routes keep feature-local state holders for chapter lo
 Their chapter collections support adaptive pull-to-refresh plus an explicit refresh action,
 and retain the last usable chapter list if refresh fails. Chapter selection passes an immutable
 snapshot in declared reading order; each reader route keeps that sequence fixed for its lifetime.
+The series ViewModels own cached query matching and source-order reversal; neither changes
+canonical reading order. Detail CTAs resolve the existing `SeriesContinuationRepository`
+through `LoadSeriesReadingTarget`, falling back to the first readable chapter when a saved
+chapter is absent. Home continuation uses the same reading-target selection. Both detail
+loading and continuation opening share
+`validateSeriesChapterSequence`: malformed or duplicate references reject the entire fresh
+sequence rather than silently filtering it. Same-source parent membership comes from the
+source's series response, not from parsing opaque chapter IDs. Pages own navigation locks;
+load/resume generations and page identity checks discard stale completions. An empty
+readable sequence leaves the CTA disabled. Details refresh does not await continuation
+persistence; the first readable canonical chapter remains actionable while it resolves.
+Pages update callback bindings in place. A stable dependency owner identifies actual
+provider/repository replacement, invalidating old requests without resetting search or
+source-order preferences; artwork is keyed separately from synopsis state. Provider
+replacement discards the previous provider's detail snapshot, including on failure,
+while ordinary same-provider refreshes retain their last successful snapshot.
+Chapter-opening callbacks receive a navigation permission check; they must recheck it
+after any asynchronous open operation and immediately before pushing a reader route.
+Changing the series/provider revokes outstanding permission, even while the page remains
+mounted.
+Metadata keeps its lazy header alive to retain
+synopsis expansion, search state and artwork without keeping all chapter tiles alive.
 Feature-local chapter reader routes own adjacent-navigation ViewModels; those ViewModels use injected
 open workflows and stable source references, publish a new chapter only after a successful open,
 and ignore stale completions after route close. Each successful open supplies a fresh

@@ -99,8 +99,60 @@ void main() {
     );
 
     expect(result.match?.media.title, 'Sousou no Frieren');
-    expect(manga.queries, ['Frieren', 'Sousou no Frieren']);
+    expect(manga.queries, [
+      'Frieren',
+      'Sousou no Frieren',
+      'Frieren at the Funeral',
+    ]);
   });
+
+  test(
+    'cross-alias exact matches stay candidates rather than auto opening',
+    () async {
+      final manga = _MangaSource(
+        responses: {
+          'Frieren': [_manga('Frieren', itemId: 'a')],
+          'Sousou no Frieren': [_manga('Sousou no Frieren', itemId: 'b')],
+        },
+      );
+      final entry = _entry('Frieren');
+      final result = await _resolver(manga).execute(
+        entry: entry,
+        sourceId: manga.id,
+        details: CatalogEntryDetails(
+          entry: entry,
+          alternateTitles: ['Sousou no Frieren'],
+        ),
+      );
+      expect(result.match, isNull);
+      expect(result.candidates.map((c) => c.media.source.itemId), ['a', 'b']);
+      expect(manga.queries, ['Frieren', 'Sousou no Frieren']);
+    },
+  );
+
+  test(
+    'duplicate exact candidate across aliases is one unambiguous result',
+    () async {
+      final repeated = _manga('Frieren', itemId: 'same');
+      final manga = _MangaSource(
+        responses: {
+          'Frieren': [repeated],
+          'Sousou no Frieren': [repeated],
+        },
+      );
+      final entry = _entry('Frieren');
+      final result = await _resolver(manga).execute(
+        entry: entry,
+        sourceId: manga.id,
+        details: CatalogEntryDetails(
+          entry: entry,
+          alternateTitles: ['Sousou no Frieren'],
+        ),
+      );
+      expect(result.match?.media.source.itemId, 'same');
+      expect(result.candidates, hasLength(1));
+    },
+  );
 
   test('does not auto open a merely similar title', () async {
     final manga = _MangaSource(

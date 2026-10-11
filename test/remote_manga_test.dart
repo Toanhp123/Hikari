@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/core/ui/patterns/media_poster.dart';
 
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -521,7 +522,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       await _openCatalogSourceSearch(tester);
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
       await tester.pumpAndSettle();
@@ -559,7 +560,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.byType(MangaReaderPage), findsNothing);
@@ -607,7 +608,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       expect(
         tester.getTopLeft(find.text('Chapter C')).dy,
@@ -679,7 +680,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter A'));
     await tester.pumpAndSettle();
@@ -762,7 +763,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter A'));
       for (var i = 0; i < 10; i++) {
@@ -862,7 +863,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       final prefetchedPage = cache.writeSignals.putIfAbsent(
         'manga-page-v1/["fake","page-1"]',
@@ -926,7 +927,7 @@ void main() {
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
@@ -992,7 +993,7 @@ void main() {
       await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
       await _openCatalogSourceSearch(tester);
-      await tester.tap(find.text('Series'));
+      await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
       await tester.pumpAndSettle();
@@ -1079,7 +1080,7 @@ void main() {
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
@@ -1152,13 +1153,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Local pages'));
+    await tester.tapAt(tester.getCenter(find.text('Local pages')));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Next page'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Local pages'));
+    await tester.tapAt(tester.getCenter(find.text('Local pages')));
     await tester.pumpAndSettle();
     expect(reads, 3);
     expect(cache.reads, isEmpty);
@@ -1199,7 +1200,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await _openCatalogSourceSearch(tester);
-    await tester.tap(find.text('Series'));
+    await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
     await tester.pump();
@@ -1241,7 +1242,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Series'));
+    await tester.tap(find.widgetWithText(MediaPoster, 'Series'));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.text('Chapter'), findsOneWidget);
@@ -1275,7 +1276,7 @@ void main() {
                     ),
                   );
           },
-          openChapter: (_, _, _) async {},
+          openChapter: (_, _, _, _) async {},
         ),
       ),
     );
@@ -1308,7 +1309,7 @@ void main() {
               chapters: [MangaChapter(title: 'Chapter 1', source: ref)],
             );
           },
-          openChapter: (_, _, _) async {},
+          openChapter: (_, _, _, _) async {},
         ),
       ),
     );
@@ -1352,7 +1353,7 @@ void main() {
               ),
             ],
           ),
-          openChapter: (_, _, _) async {
+          openChapter: (_, _, _, _) async {
             opens++;
           },
         ),
@@ -1397,7 +1398,7 @@ void main() {
               ),
             ],
           ),
-          openChapter: (_, chapter, _) async {
+          openChapter: (_, chapter, _, _) async {
             selected = chapter;
           },
         ),

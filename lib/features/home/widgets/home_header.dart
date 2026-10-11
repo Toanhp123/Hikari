@@ -1,7 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/material.dart';
+
+import 'package:hikari/app/theme/hikari_theme.dart';
+
+/// Pinned Home chrome with a gradual scroll-under glass surface.
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key, this.onSearch});
 
@@ -9,64 +13,170 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        HikariSpacing.lg,
-        HikariSpacing.xs,
-        HikariSpacing.lg,
-        HikariSpacing.sm,
+    final title = TextPainter(
+      text: TextSpan(
+        text: 'Hikari',
+        style: Theme.of(context).textTheme.titleLarge,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [colors.primary, colors.secondary],
-                  ),
-                  borderRadius: HikariRadius.borderSm,
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.primary.withValues(alpha: 0.22),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    // Keep the original 58dp chrome at normal scale; grow for accessible text.
+    final extent = math.max(58.0, title.height + HikariSpacing.xl);
+    title.dispose();
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _HomeHeaderDelegate(onSearch: onSearch, extent: extent),
+    );
+  }
+}
+
+class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _HomeHeaderDelegate({this.onSearch, required this.extent});
+
+  final VoidCallback? onSearch;
+  final double extent;
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    // Flutter passes pinned scroll offset into this delegate even when its
+    // min/max geometry is fixed. Unlike overlapsContent, this changes for the
+    // first sliver in an ordinary CustomScrollView.
+    final progress = (shrinkOffset / 32.0).clamp(0.0, 1.0);
+    final isScrolled = progress > 0.0;
+
+    Widget content = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colors.surface.withValues(alpha: 0.88 * progress),
+            colors.surface.withValues(alpha: 0.65 * progress),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: colors.outlineVariant.withValues(alpha: 0.35 * progress),
+            width: HikariRadius.borderWidth,
+          ),
+        ),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: HikariBreakpoints.maxContentWidth,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Semantics(
+                    headingLevel: 1,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [colors.primary, colors.secondary],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: HikariRadius.borderMd,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colors.primary.withValues(alpha: 0.22),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.auto_awesome,
+                            color: colors.onPrimary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: HikariSpacing.md),
+                        Flexible(
+                          child: Text(
+                            'Hikari',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                (theme.textTheme.titleLarge ??
+                                        const TextStyle())
+                                    .copyWith(
+                                      color: colors.onSurface,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: HikariSpacing.sm),
-              Text(
-                'Hikari',
-                style: HikariTypography.titleLarge.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ],
+                if (onSearch != null)
+                  IconButton.filledTonal(
+                    tooltip: 'Search',
+                    style: IconButton.styleFrom(
+                      backgroundColor: colors.surfaceContainerHighest
+                          .withValues(alpha: 0.5 + (0.3 * progress)),
+                      foregroundColor: colors.onSurface,
+                      minimumSize: const Size(
+                        HikariSize.touchTarget,
+                        HikariSize.touchTarget,
+                      ),
+                    ),
+                    onPressed: onSearch,
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      size: HikariSize.icon,
+                    ),
+                  ),
+              ],
+            ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              HikariIconButton(
-                tooltip: 'Search',
-                onPressed: onSearch,
-                icon: const Icon(Icons.search_rounded),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
+
+    if (isScrolled) {
+      content = ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 16.0 * progress,
+            sigmaY: 16.0 * progress,
+          ),
+          child: content,
+        ),
+      );
+    }
+
+    return RepaintBoundary(child: content);
+  }
+
+  @override
+  bool shouldRebuild(covariant _HomeHeaderDelegate oldDelegate) {
+    return oldDelegate.onSearch != onSearch || oldDelegate.extent != extent;
   }
 }

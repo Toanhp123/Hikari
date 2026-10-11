@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
@@ -31,60 +30,53 @@ class CatalogSearchContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            HikariSpacing.lg,
-            HikariSpacing.md,
-            HikariSpacing.lg,
-            HikariSpacing.sm,
-          ),
-          child: Column(
-            children: [
-              Row(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: HikariBreakpoints.maxContentWidth,
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                HikariSpacing.lg,
+                HikariSpacing.md,
+                HikariSpacing.lg,
+                HikariSpacing.sm,
+              ),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: HikariSearchBar(
-                      controller: controller,
-                      onChanged: onQueryChanged,
-                      onSubmitted: onSubmitted,
-                      hintText: 'Search anime, manga, novels...',
-                    ),
+                  HikariSearchBar(
+                    controller: controller,
+                    onChanged: onQueryChanged,
+                    onSubmitted: onSubmitted,
                   ),
-                  const SizedBox(width: HikariSpacing.sm),
-                  HikariIconButton(
-                    tooltip: 'Search catalog',
-                    variant: HikariIconButtonVariant.primary,
-                    onPressed: () => onSubmitted(controller.text),
-                    icon: const Icon(Icons.search_rounded),
+                  const SizedBox(height: HikariSpacing.sm),
+                  HikariChipRow(
+                    children: [
+                      for (final filter in CatalogSearchFilter.values)
+                        HikariChip(
+                          label: filter.mediaType == null
+                              ? 'All'
+                              : mediaTypeLabel(filter.mediaType!),
+                          isSelected: state.filter == filter,
+                          onTap: () => onSelectFilter(filter),
+                        ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: HikariSpacing.sm),
-              HikariChipRow(
-                children: [
-                  for (final filter in CatalogSearchFilter.values)
-                    HikariChip(
-                      label: filter.mediaType == null
-                          ? 'All'
-                          : mediaTypeFilterLabel(filter.mediaType!),
-                      isSelected: state.filter == filter,
-                      onTap: () => onSelectFilter(filter),
-                    ),
-                ],
+            ),
+            Expanded(
+              child: _CatalogSearchResults(
+                state: state,
+                onRetry: onRetry,
+                openDetail: openDetail,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        Expanded(
-          child: _CatalogSearchResults(
-            state: state,
-            onRetry: onRetry,
-            openDetail: openDetail,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

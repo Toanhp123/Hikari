@@ -28,92 +28,120 @@ class _NovelReaderPreferencesSheetState
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    return Padding(
-      padding: const EdgeInsets.all(HikariSpacing.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Reading Preferences',
-            style: HikariTypography.titleMedium.copyWith(
-              color: colors.textPrimary,
+    final colors = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(HikariSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                'Reading Preferences',
+                style: Theme.of(context).textTheme.titleMedium!
+                    .copyWith(color: colors.onSurface),
+              ),
             ),
-          ),
-          const SizedBox(height: HikariSpacing.md),
-          Text(
-            'Color Theme',
-            style: TextStyle(fontSize: 12, color: colors.textSecondary),
-          ),
-          const SizedBox(height: HikariSpacing.xs),
-          Row(
-            children: NovelReaderTheme.values.map((theme) {
-              final selected = _theme == theme;
-              return Padding(
-                padding: const EdgeInsets.only(right: HikariSpacing.sm),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _theme = theme);
-                    widget.onThemeChanged(theme);
-                  },
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: theme.bg,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: selected ? colors.primaryGlow : colors.border,
-                        width: selected ? 2.5 : 1.0,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Aa',
-                        style: TextStyle(
-                          color: theme.fg,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+            const SizedBox(height: HikariSpacing.md),
+            Text(
+              'Color Theme',
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: HikariSpacing.xs),
+            Wrap(
+              spacing: HikariSpacing.sm,
+              runSpacing: HikariSpacing.sm,
+              children: NovelReaderTheme.values.map((theme) {
+                final selected = _theme == theme;
+                return Semantics(
+                  label: '${theme.label} reading theme',
+                  selected: selected,
+                  button: true,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() => _theme = theme);
+                        widget.onThemeChanged(theme);
+                      },
+                      customBorder: const CircleBorder(),
+                      child: SizedBox(
+                        width: HikariSize.touchTarget,
+                        height: HikariSize.touchTarget,
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: theme.bg,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: selected
+                                    ? colors.primary
+                                    : colors.outline,
+                                width: selected ? 2.5 : 1,
+                              ),
+                            ),
+                            child: selected
+                                ? Icon(Icons.check_rounded, color: theme.fg)
+                                : ExcludeSemantics(
+                                    child: Text(
+                                      'Aa',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: theme.fg,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ),
+                          ),
                         ),
                       ),
                     ),
                   ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: HikariSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Font Size',
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: colors.onSurfaceVariant),
                 ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: HikariSpacing.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Font Size',
-                style: TextStyle(fontSize: 12, color: colors.textSecondary),
-              ),
-              Text(
-                '${_fontSize.toInt()}sp',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w600,
+                Text(
+                  '${_fontSize.toInt()}sp',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+              ],
+            ),
+            Semantics(
+              label: 'Font size',
+              child: Slider(
+                value: _fontSize,
+                min: 12,
+                max: 26,
+                divisions: 7,
+                semanticFormatterCallback: (value) => '${value.toInt()} sp',
+                onChanged: (value) {
+                  setState(() => _fontSize = value);
+                  widget.onFontSizeChanged(value);
+                },
               ),
-            ],
-          ),
-          Slider(
-            value: _fontSize,
-            min: 12,
-            max: 26,
-            divisions: 7,
-            activeColor: colors.primary,
-            inactiveColor: colors.surfaceHighlight,
-            onChanged: (value) {
-              setState(() => _fontSize = value);
-              widget.onFontSizeChanged(value);
-            },
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

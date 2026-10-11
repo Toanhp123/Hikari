@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -51,7 +52,7 @@ final class AppNavigationController extends ChangeNotifier {
   }
 }
 
-/// Adaptive Navigation Shell supporting Glassmorphism Bottom Nav (< 600dp)
+/// Adaptive Navigation Shell supporting Docked Tonal Bottom Bar (< 600dp)
 /// and Navigation Rail / Sidebar (>= 600dp) with IndexedStack state preservation.
 class AppNavigationShell extends StatefulWidget {
   const AppNavigationShell({
@@ -72,10 +73,14 @@ class AppNavigationShell extends StatefulWidget {
 }
 
 class _AppNavigationShellState extends State<AppNavigationShell> {
-  late final AppNavigationController _controller;
-  late final bool _ownsController;
+  late AppNavigationController _controller;
+  late bool _ownsController;
   late int _currentIndex;
   late final Set<int> _loadedIndices;
+  TextStyle? _barLabelStyle;
+  TextScaler? _barTextScaler;
+  TextDirection? _barTextDirection;
+  double? _barHeight;
 
   @override
   void initState() {
@@ -86,6 +91,21 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
         AppNavigationController(initialTab: widget.initialTab);
     _currentIndex = _controller.currentTab.index;
     _loadedIndices = {_currentIndex};
+    _controller.addListener(_handleControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(AppNavigationShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) return;
+    _controller.removeListener(_handleControllerChanged);
+    if (_ownsController) _controller.dispose();
+    _ownsController = widget.controller == null;
+    _controller =
+        widget.controller ??
+        AppNavigationController(initialTab: widget.initialTab);
+    _currentIndex = _controller.currentTab.index;
+    _loadedIndices.add(_currentIndex);
     _controller.addListener(_handleControllerChanged);
   }
 
@@ -115,7 +135,9 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
     if (!AppTab.values.every(widget.tabs.containsKey)) {
       throw ArgumentError('A page is required for every AppTab.');
     }
-    final isCompact = context.isCompact;
+    final isCompact =
+        HikariBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
+        HikariWidthClass.compact;
 
     final children = [
       for (final tab in AppTab.values)
@@ -125,138 +147,141 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
           const SizedBox.shrink(),
     ];
 
-    final shell = isCompact
-        ? Scaffold(
-            extendBody: true,
-            backgroundColor: Colors.transparent,
-            body: IndexedStack(index: _currentIndex, children: children),
-            bottomNavigationBar: _buildGlassmorphicBottomBar(context),
-          )
-        : Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Row(
-              children: [
-                _buildNavigationRail(context),
-                Expanded(
-                  child: IndexedStack(index: _currentIndex, children: children),
-                ),
-              ],
-            ),
-          );
-
-    return shell;
+    // Keep visited pages under the same Element ancestry on every resize.
+    // Only the surrounding navigation chrome changes at 600dp.
+    return Scaffold(
+      extendBody: true,
+      backgroundColor: Colors.transparent,
+      body: Row(
+        children: [
+          if (!isCompact) _buildNavigationRail(context),
+          Expanded(
+            child: IndexedStack(index: _currentIndex, children: children),
+          ),
+        ],
+      ),
+      bottomNavigationBar: isCompact ? _buildDockedBottomBar(context) : null,
+    );
   }
 
-  Widget _buildGlassmorphicBottomBar(BuildContext context) {
-    final colors = context.hikariColors;
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+  Widget _buildDockedBottomBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    if (_barHeight == null ||
+        _barLabelStyle != textTheme.labelSmall ||
+        _barTextScaler != scaler ||
+        _barTextDirection != direction) {
+      final metrics = TextPainter(
+        text: TextSpan(text: 'Settings', style: textTheme.labelSmall),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      _barHeight = math.max(72.0, 32 + 4 + metrics.height + 16);
+      metrics.dispose();
+      _barLabelStyle = textTheme.labelSmall;
+      _barTextScaler = scaler;
+      _barTextDirection = direction;
+    }
+    final barHeight = _barHeight!;
 
     return RepaintBoundary(
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, bottomInset > 0 ? 8 : 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                height: 64,
-                decoration: BoxDecoration(
-                  color: colors.glassSurface,
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: colors.glassBorder, width: 1.0),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 28,
-                      offset: const Offset(0, 10),
-                    ),
-                    BoxShadow(
-                      color: colors.primary.withValues(alpha: 0.15),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerLowest.withValues(alpha: 0.88),
+              border: Border(
+                top: BorderSide(
+                  color: colors.outlineVariant.withValues(alpha: 0.6),
+                  width: HikariRadius.borderWidth,
                 ),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                height: barHeight,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: AppTab.values.map((tab) {
                     final isSelected = tab.index == _currentIndex;
                     return Expanded(
-                      child: GestureDetector(
+                      child: Semantics(
+                        button: true,
+                        selected: isSelected,
+                        label: tab.label,
                         onTap: () => _selectTab(tab),
-                        behavior: HitTestBehavior.opaque,
-                        child: Tooltip(
-                          message: tab.label,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AnimatedContainer(
-                                duration: HikariMotion.fast,
-                                curve: HikariMotion.curveStandard,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? colors.primary.withValues(alpha: 0.22)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: isSelected
-                                      ? Border.all(
-                                          color: colors.primaryGlow.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                          width: 1.0,
-                                        )
-                                      : null,
-                                ),
-                                child: Icon(
-                                  isSelected ? tab.selectedIcon : tab.icon,
-                                  size: 21,
-                                  color: isSelected
-                                      ? colors.primaryGlow
-                                      : colors.textSecondary,
+                        child: ExcludeSemantics(
+                          child: Tooltip(
+                            message: tab.label,
+                            child: InkWell(
+                              onTap: () => _selectTab(tab),
+                              splashColor: colors.primary.withValues(
+                                alpha: 0.12,
+                              ),
+                              highlightColor: Colors.transparent,
+                              child: SizedBox(
+                                height: barHeight,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: HikariMotion.duration(
+                                        context,
+                                        HikariMotion.standard,
+                                      ),
+                                      curve: HikariMotion.curveStandard,
+                                      width: isSelected ? 60 : 40,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? colors.secondaryContainer
+                                            : Colors.transparent,
+                                        borderRadius: HikariRadius.borderLg,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        isSelected
+                                            ? tab.selectedIcon
+                                            : tab.icon,
+                                        size: 22,
+                                        color: isSelected
+                                            ? colors.onSecondaryContainer
+                                            : colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(height: HikariSpacing.xs),
+                                    AnimatedDefaultTextStyle(
+                                      duration: HikariMotion.duration(
+                                        context,
+                                        HikariMotion.standard,
+                                      ),
+                                      curve: HikariMotion.curveStandard,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style:
+                                          (textTheme.labelSmall ??
+                                                  const TextStyle())
+                                              .copyWith(
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w500,
+                                                letterSpacing: 0.2,
+                                                color: isSelected
+                                                    ? colors.onSurface
+                                                    : colors.onSurfaceVariant,
+                                              ),
+                                      child: Text(tab.label),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                tab.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: isSelected
-                                      ? colors.textPrimary
-                                      : colors.textMuted,
-                                ),
-                              ),
-                              Container(
-                                margin: const EdgeInsets.only(top: 2),
-                                width: 14,
-                                height: 2,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? colors.primaryGlow
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(1),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: colors.primaryGlow,
-                                            blurRadius: 4,
-                                            spreadRadius: 0.5,
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -272,90 +297,132 @@ class _AppNavigationShellState extends State<AppNavigationShell> {
   }
 
   Widget _buildNavigationRail(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     return RepaintBoundary(
       child: Container(
-        width: 80,
+        width: 88,
         decoration: BoxDecoration(
-          color: colors.surface,
-          border: Border(right: BorderSide(color: colors.border, width: 1.0)),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: HikariSpacing.xl),
-            // Hikari Brand Logo Icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [colors.primary, colors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: HikariRadius.borderMd,
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.primary.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.auto_awesome,
-                color: Colors.white,
-                size: 22,
-              ),
+          color: colors.surfaceContainerLow,
+          border: Border(
+            right: BorderSide(
+              color: colors.outlineVariant.withValues(alpha: 0.6),
+              width: HikariRadius.borderWidth,
             ),
-            const SizedBox(height: HikariSpacing.xxl),
-            // Navigation Items
-            ...AppTab.values.map((tab) {
-              final isSelected = tab.index == _currentIndex;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: HikariSpacing.sm),
-                child: IconButton(
-                  tooltip: tab.label,
-                  onPressed: () => _selectTab(tab),
-                  icon: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? colors.primary.withValues(alpha: 0.2)
-                              : Colors.transparent,
-                          borderRadius: HikariRadius.borderMd,
-                        ),
-                        child: Icon(
-                          isSelected ? tab.selectedIcon : tab.icon,
-                          size: 24,
-                          color: isSelected
-                              ? colors.primaryGlow
-                              : colors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        tab.label,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? colors.textPrimary
-                              : colors.textMuted,
-                        ),
-                      ),
-                    ],
+          ),
+        ),
+        child: SafeArea(
+          right: false,
+          child: Column(
+            children: [
+              const SizedBox(height: HikariSpacing.xl),
+              // Hikari Brand Logo Icon
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [colors.primary, colors.secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: HikariRadius.borderMd,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              );
-            }),
-            const Spacer(),
-          ],
+                child: Icon(
+                  Icons.auto_awesome,
+                  color: colors.onPrimary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(height: HikariSpacing.xxl),
+              // Navigation Items
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: AppTab.values.map((tab) {
+                    final isSelected = tab.index == _currentIndex;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: HikariSpacing.xs,
+                        horizontal: HikariSpacing.sm,
+                      ),
+                      child: IconButton(
+                        isSelected: isSelected,
+                        tooltip: tab.label,
+                        onPressed: () => _selectTab(tab),
+                        style: IconButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: HikariSpacing.md,
+                          ),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: HikariRadius.borderMd,
+                          ),
+                        ),
+                        icon: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedContainer(
+                              duration: HikariMotion.duration(
+                                context,
+                                HikariMotion.standard,
+                              ),
+                              curve: HikariMotion.curveStandard,
+                              width: isSelected ? 56 : 40,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? colors.secondaryContainer
+                                    : Colors.transparent,
+                                borderRadius: HikariRadius.borderLg,
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(
+                                isSelected ? tab.selectedIcon : tab.icon,
+                                size: 22,
+                                color: isSelected
+                                    ? colors.onSecondaryContainer
+                                    : colors.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: HikariSpacing.xs),
+                            AnimatedDefaultTextStyle(
+                              duration: HikariMotion.duration(
+                                context,
+                                HikariMotion.standard,
+                              ),
+                              curve: HikariMotion.curveStandard,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: (textTheme.labelSmall ?? const TextStyle())
+                                  .copyWith(
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    letterSpacing: 0.2,
+                                    color: isSelected
+                                        ? colors.onSurface
+                                        : colors.onSurfaceVariant,
+                                  ),
+                              child: Text(tab.label),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

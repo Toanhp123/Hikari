@@ -15,6 +15,24 @@ import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart';
 
 void main() {
+  testWidgets('scoped source label is announced once in full', (tester) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final semantics = tester.ensureSemantics();
+    const name = 'A very long source name that may be clipped visually';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SourceSearchPage(catalogScopeLabel: name, openMedia: (_, _) {}),
+      ),
+    );
+
+    expect(find.bySemanticsLabel('Searching in $name'), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets(
     'SourceSearchPage shows initial empty state and renders query results',
     (tester) async {
@@ -38,17 +56,104 @@ void main() {
       expect(find.text('Find a source'), findsOneWidget);
 
       // Enter search query
-      await tester.enterText(find.byType(TextField), 'Solo');
+      await tester.enterText(find.byType(SearchBar), 'Solo');
       await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Solo Leveling'), findsNothing);
+      await tester.tap(find.byTooltip('Submit search'));
       await tester.pumpAndSettle();
 
       expect(find.text('Solo Leveling'), findsOneWidget);
 
-      await tester.tap(find.text('Solo Leveling'));
+      await tester.tapAt(tester.getCenter(find.text('Solo Leveling')));
       await tester.pumpAndSettle();
       expect(tappedMedia, item1);
     },
   );
+
+  testWidgets('source search has one submit and singular filters', (
+    tester,
+  ) async {
+    const novel = Media(
+      title: 'Novel title',
+      type: MediaType.lightNovel,
+      source: SourceMediaRef(sourceId: SourceId.local, itemId: 'novel'),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SourceSearchPage(
+          scanLocalMedia: () async => [novel],
+          openMedia: (_, _) {},
+        ),
+      ),
+    );
+
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Light Novel'), findsOneWidget);
+    expect(find.text('Light Novels'), findsNothing);
+    await tester.enterText(find.byType(SearchBar), 'Novel');
+    await tester.pump();
+    expect(find.byTooltip('Submit search'), findsOneWidget);
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(find.text('Novel title'), findsOneWidget);
+    await tester.tap(find.text('Light Novel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Novel title'), findsOneWidget);
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    expect(find.text('Novel title'), findsOneWidget);
+  });
+
+  testWidgets('source search stays centered and bounded as width changes', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const manga = Media(
+      title: 'Manga title',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: SourceId.local, itemId: 'manga'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SourceSearchPage(
+          scanLocalMedia: () async => [manga],
+          openMedia: (_, _) {},
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(SearchBar), 'Manga');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Submit search'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manga title'), findsOneWidget);
+
+    for (final width in [320.0, 375.0, 600.0, 840.0, 1200.0, 1800.0]) {
+      tester.view.physicalSize = Size(width, 900);
+      await tester.pumpAndSettle();
+      final contentWidth = width < HikariBreakpoints.maxContentWidth
+          ? width
+          : HikariBreakpoints.maxContentWidth;
+      expect(
+        tester.getSize(find.byType(SearchBar)).width,
+        moreOrLessEquals(contentWidth - HikariSpacing.lg * 2),
+      );
+      expect(
+        tester.getSize(find.byType(GridView)).width,
+        moreOrLessEquals(contentWidth),
+      );
+      expect(
+        tester.getCenter(find.byType(SearchBar)).dx,
+        closeTo(width / 2, 1),
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
 
   testWidgets('remote source search renders source-owned cover metadata', (
     tester,

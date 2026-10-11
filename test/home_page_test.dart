@@ -13,7 +13,32 @@ import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 
 void main() {
-  testWidgets('Continue shelf precedes catalog discovery', (tester) async {
+  testWidgets('Home bottom clearance follows inherited obstruction', (
+    tester,
+  ) async {
+    for (final bottomPadding in [0.0, 120.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: MediaQuery(
+            data: MediaQueryData(
+              padding: EdgeInsets.only(bottom: bottomPadding),
+            ),
+            child: HomePage(openMedia: (_, _) {}),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('home-bottom-clearance')))
+            .height,
+        bottomPadding + HikariSpacing.xl,
+      );
+    }
+  });
+
+  testWidgets('Catalog featured hero precedes resume shelf', (tester) async {
     tester.view.physicalSize = const Size(900, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -49,12 +74,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      tester.getTopLeft(find.byType(ContinueShelf)).dy,
-      lessThan(tester.getTopLeft(find.text('Featured')).dy),
+      tester.getTopLeft(find.text('Featured')).dy,
+      lessThan(tester.getTopLeft(find.byType(ContinueShelf)).dy),
     );
   });
 
-  testWidgets('Home prioritizes resume content before featured discovery', (
+  testWidgets('Home features spotlight hero before resume content', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 1600);
@@ -108,8 +133,8 @@ void main() {
     expect(find.text('Recently added'), findsOneWidget);
 
     expect(
-      tester.getTopLeft(find.byType(ContinueShelf)).dy,
-      lessThan(tester.getTopLeft(find.text('Featured')).dy),
+      tester.getTopLeft(find.text('Featured')).dy,
+      lessThan(tester.getTopLeft(find.byType(ContinueShelf)).dy),
     );
 
     await tester.tap(find.text('Manga'));
@@ -122,9 +147,9 @@ void main() {
     expect(posterTitles, isNot(contains('Chainsaw Man')));
 
     await tester.tap(
-      find.descendant(
-        of: find.byType(MediaPoster),
-        matching: find.text('One Piece'),
+      find.ancestor(
+        of: find.text('One Piece'),
+        matching: find.byType(MediaPoster),
       ),
     );
     await tester.pumpAndSettle();

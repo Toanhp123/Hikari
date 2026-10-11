@@ -90,10 +90,10 @@ final class ResolveCatalogSource {
     final normalizedTitles = titles.map(_normalizeTitle).toSet();
     final candidates = <CatalogSourceCandidate>[];
     final seen = <SourceMediaRef>{};
+    final exactMatches = <CatalogSourceCandidate>[];
 
     for (final query in titles) {
       final batch = await _search(entry.type, sourceId, query);
-      final exactMatches = <CatalogSourceCandidate>[];
 
       for (final candidate in batch) {
         if (!seen.add(candidate.media.source)) continue;
@@ -102,21 +102,17 @@ final class ResolveCatalogSource {
           exactMatches.add(candidate);
         }
       }
-
-      if (exactMatches.length == 1) {
-        return CatalogSourceResolution(
-          match: exactMatches.single,
-          candidates: candidates,
-        );
-      }
-      if (exactMatches.length > 1) {
-        return CatalogSourceResolution(
-          candidates: _prioritizeExact(candidates, normalizedTitles),
-        );
-      }
     }
 
-    return CatalogSourceResolution(candidates: candidates.take(_maxCandidates));
+    if (exactMatches.length == 1) {
+      return CatalogSourceResolution(
+        match: exactMatches.single,
+        candidates: _prioritizeExact(candidates, normalizedTitles),
+      );
+    }
+    return CatalogSourceResolution(
+      candidates: _prioritizeExact(candidates, normalizedTitles),
+    );
   }
 
   Future<List<CatalogSourceCandidate>> _search(

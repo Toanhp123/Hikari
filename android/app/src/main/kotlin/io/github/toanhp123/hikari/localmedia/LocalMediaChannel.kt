@@ -13,6 +13,7 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 private class MissingTreeException : IllegalStateException("Folder is no longer available.")
+private class RootAccessException(message: String) : IllegalStateException(message)
 
 /** SAF locators stay opaque; no filesystem path conversion or broad permission. */
 class LocalMediaChannel(private val activity: Activity, messenger: BinaryMessenger) {
@@ -134,22 +135,22 @@ class LocalMediaChannel(private val activity: Activity, messenger: BinaryMesseng
             check(preferences.edit().remove(KEY_TREE_URI).commit()) {
                 "Selected folder state could not be cleared."
             }
-            error("Selected folder permission is no longer available. Choose the folder again.")
+            throw RootAccessException(
+                "Selected folder permission is no longer available. Choose the folder again."
+            )
         }
 
         return try {
             describeTree(tree)
         } catch (error: SecurityException) {
             clearStoredTree(tree)
-            throw IllegalStateException(
-                "Selected folder permission is no longer available. Choose the folder again.",
-                error
+            throw RootAccessException(
+                "Selected folder permission is no longer available. Choose the folder again."
             )
         } catch (error: MissingTreeException) {
             clearStoredTree(tree)
-            throw IllegalStateException(
-                "Selected folder is no longer available. Choose the folder again.",
-                error
+            throw RootAccessException(
+                "Selected folder is no longer available. Choose the folder again."
             )
         }
     }
@@ -286,7 +287,14 @@ class LocalMediaChannel(private val activity: Activity, messenger: BinaryMesseng
                 activity.runOnUiThread { if (!closed) result.success(value) }
             } catch (error: Exception) {
                 activity.runOnUiThread {
-                    if (!closed) result.error("storage", error.message, null)
+                    if (!closed) result.error(
+                        if (error is RootAccessException || error is SecurityException)
+                            "access"
+                        else
+                            "storage",
+                        error.message,
+                        null
+                    )
                 }
             }
         }

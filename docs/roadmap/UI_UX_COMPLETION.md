@@ -6,6 +6,8 @@
 >
 > Architectural authority: [`../architecture/UI_ARCHITECTURE.md`](../architecture/UI_ARCHITECTURE.md). This document owns sequencing, acceptance criteria, and current implementation priorities; it must not redefine presentation-layer boundaries.
 
+> Latest UI-hardening checkpoint: [`../quality/UI_UX_HARDENING_CHECKPOINT_2026_10.md`](../quality/UI_UX_HARDENING_CHECKPOINT_2026_10.md). The historical foundation review in `docs/ui-ux/` is not a current migration-status report.
+
 ## 1. Why this phase exists
 
 Hikari already has enough end-to-end product capability to validate the user experience instead of adding another large subsystem first:

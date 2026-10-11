@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// Semantic motion durations and easing curves for the Cinematic Neo-Material design system.
+/// Decorative motion vocabulary. Never use for debounce, seek or auto-hide.
 abstract final class HikariMotion {
-  /// 150ms - micro-interactions, button tactile feedback, hover highlights
-  static const Duration fast = Duration(milliseconds: 150);
+  static const interaction = Duration(milliseconds: 150);
+  static const exit = Duration(milliseconds: 200);
+  static const standard = Duration(milliseconds: 300);
+  static const emphasized = Duration(milliseconds: 400);
 
-  /// 250ms - state changes, expansions, chip selections
-  static const Duration normal = Duration(milliseconds: 250);
+  static const curveStandard = Easing.standard;
+  static const curveEnter = Easing.emphasizedDecelerate;
+  static const curveExit = Easing.emphasizedAccelerate;
+  static const interactionCurve = Curves.easeOutCubic;
+  static const pressScale = 0.97;
 
-  /// 350ms - sheet reveals, dialogs, route transitions
-  static const Duration slow = Duration(milliseconds: 350);
+  // Existing call sites retain their API while using the canonical timings.
+  static const fast = interaction;
 
-  /// 500ms - hero transformations, player fade in/out
-  static const Duration extraSlow = Duration(milliseconds: 500);
-
-  /// Standard natural curve: easeOutCubic
-  static const Curve curveStandard = Curves.easeOutCubic;
-
-  /// Snappy entrance curve
-  static const Curve curveEnter = Curves.decelerate;
-
-  /// Quick exit curve
-  static const Curve curveExit = Curves.easeInCubic;
-
-  /// Subtle tactile bounce curve
-  static const Curve curveBounce = Curves.easeOutBack;
+  /// Honors system settings for decorative transitions only.
+  static Duration duration(BuildContext context, Duration requested) {
+    if (MediaQuery.disableAnimationsOf(context)) return Duration.zero;
+    final view = View.maybeOf(context);
+    if (view != null &&
+        view.platformDispatcher.accessibilityFeatures.reduceMotion) {
+      return Duration.zero;
+    }
+    return requested;
+  }
 }

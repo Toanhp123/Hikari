@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:hikari/app/theme/hikari_theme.dart';
 
 class HomeWarningNotice extends StatelessWidget {
@@ -15,30 +16,33 @@ class HomeWarningNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final theme = Theme.of(context);
+    final statusColors = context.hikariStatusColors;
+    final warningColor = statusColors.onWarningContainer;
+    final warningBg = statusColors.warningContainer;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       child: Material(
-        color: colors.warning.withValues(alpha: 0.08),
+        color: warningBg,
         shape: RoundedRectangleBorder(
-          borderRadius: HikariRadius.borderMd,
-          side: BorderSide(color: colors.warning.withValues(alpha: 0.28)),
+          borderRadius: HikariRadius.borderLg,
+          side: BorderSide(color: warningColor.withValues(alpha: 0.28)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: HikariSpacing.md,
+            horizontal: HikariSpacing.lg,
             vertical: HikariSpacing.sm,
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: colors.warning),
+              Icon(icon, size: 20, color: warningColor),
               const SizedBox(width: HikariSpacing.sm),
               Expanded(
                 child: Text(
                   message,
-                  style: HikariTypography.bodySmall.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: (theme.textTheme.bodySmall ?? const TextStyle())
+                      .copyWith(color: statusColors.onWarningContainer),
                 ),
               ),
               TextButton(onPressed: onRetry, child: const Text('Retry')),

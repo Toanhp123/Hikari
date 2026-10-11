@@ -34,13 +34,18 @@ final class SourceSearchResult {
 final class SourceSearchUiState {
   const SourceSearchUiState({
     this.query = '',
+    this.inputQuery = '',
     this.filter = SourceSearchFilter.all,
     this.status = SourceSearchStatus.idle,
     this.results = const [],
     this.failedSourceCount = 0,
   });
 
+  /// Query that produced the currently displayed results.
   final String query;
+
+  /// Edited text; changes alone never call remote sources.
+  final String inputQuery;
   final SourceSearchFilter filter;
   final SourceSearchStatus status;
   final List<SourceSearchResult> results;
@@ -48,6 +53,7 @@ final class SourceSearchUiState {
 
   SourceSearchUiState copyWith({
     String? query,
+    String? inputQuery,
     SourceSearchFilter? filter,
     SourceSearchStatus? status,
     List<SourceSearchResult>? results,
@@ -55,6 +61,7 @@ final class SourceSearchUiState {
   }) {
     return SourceSearchUiState(
       query: query ?? this.query,
+      inputQuery: inputQuery ?? this.inputQuery,
       filter: filter ?? this.filter,
       status: status ?? this.status,
       results: results ?? this.results,
@@ -73,8 +80,12 @@ final class SourceSearchViewModel extends ChangeNotifier {
     SourceSearchFilter initialFilter = SourceSearchFilter.all,
     this._sourceId,
     this._sourceIds,
-  }) : _state = SourceSearchUiState(
+    this.sourceTimeout = const Duration(seconds: 12),
+    this.maxConcurrentSources = 4,
+  }) : assert(maxConcurrentSources > 0),
+       _state = SourceSearchUiState(
          query: initialQuery.trim(),
+         inputQuery: initialQuery.trim(),
          filter: initialFilter,
        );
 
@@ -84,6 +95,12 @@ final class SourceSearchViewModel extends ChangeNotifier {
   final SourceId? _sourceId;
   final Set<SourceId>? _sourceIds;
 
+  /// Bounds how long the UI waits; it does not cancel a running extension.
+  final Duration sourceTimeout;
+
+  /// Upper bound on concurrently awaited source requests.
+  final int maxConcurrentSources;
+
   SourceSearchUiState _state;
   SourceSearchUiState get state => _state;
 
@@ -91,15 +108,41 @@ final class SourceSearchViewModel extends ChangeNotifier {
   int _generation = 0;
   Future<List<Media>>? _localCatalogFuture;
 
+  void updateQuery(String rawQuery) {
+    final inputQuery = rawQuery.trim();
+    if (_state.inputQuery == inputQuery) return;
+    // Editing invalidates even an in-flight submitted request.
+    ++_generation;
+    _publish(
+      _state.copyWith(
+        inputQuery: inputQuery,
+        status: SourceSearchStatus.idle,
+        results: const [],
+        failedSourceCount: 0,
+      ),
+    );
+  }
+
   Future<void> selectFilter(SourceSearchFilter filter) async {
     if (_state.filter == filter) return;
-    _publish(_state.copyWith(filter: filter));
-    if (_state.query.isNotEmpty) {
-      await search(_state.query);
+    ++_generation;
+    _publish(
+      _state.copyWith(
+        filter: filter,
+        results: const [],
+        status: SourceSearchStatus.idle,
+        failedSourceCount: 0,
+      ),
+    );
+    if (_state.query.isNotEmpty && _state.inputQuery == _state.query) {
+      await submitQuery(_state.query);
     }
   }
 
-  Future<void> search(String rawQuery) async {
+  /// Kept as an alias for existing callers of the programmatic search API.
+  Future<void> search(String rawQuery) => submitQuery(rawQuery);
+
+  Future<void> submitQuery(String rawQuery) async {
     final query = rawQuery.trim();
     if (query.isEmpty) {
       _generation++;
@@ -116,19 +159,21 @@ final class SourceSearchViewModel extends ChangeNotifier {
     _publish(
       _state.copyWith(
         query: query,
+        inputQuery: query,
+        results: const [],
         status: SourceSearchStatus.loading,
         failedSourceCount: 0,
       ),
     );
 
     final filter = _state.filter;
-    final tasks = <Future<_SearchBatch>>[
+    final tasks = <Future<_SearchBatch> Function()>[
       if (filter.mediaType == null || filter.mediaType == MediaType.manga)
         ..._mangaTasks(query),
       if (filter.mediaType == null || filter.mediaType == MediaType.lightNovel)
         ..._novelTasks(query),
       if (_sourceId == null && _sourceIds == null && _scanLocalMedia != null)
-        _searchLocal(query, filter),
+        () => _searchLocal(query, filter),
     ];
 
     if (tasks.isEmpty) {
@@ -146,39 +191,51 @@ final class SourceSearchViewModel extends ChangeNotifier {
       return;
     }
 
-    final batches = await Future.wait(tasks);
-    if (_disposed || generation != _generation) return;
+    // Bounded workers publish completed batches without waiting for the slowest
+    // source. A stale generation never publishes results from an older query.
+    var next = 0;
+    var completed = 0;
+    var failures = 0;
+    final accumulated = <SourceSearchResult>[];
 
-    final failedSourceCount = batches.where((batch) => batch.failed).length;
-    final results = _deduplicate(batches.expand((batch) => batch.results));
-
-    if (results.isEmpty && failedSourceCount == batches.length) {
-      _publish(
-        _state.copyWith(
-          query: query,
-          results: const [],
-          status: SourceSearchStatus.error,
-          failedSourceCount: failedSourceCount,
-        ),
-      );
-      return;
+    Future<void> worker() async {
+      while (next < tasks.length && !_disposed && generation == _generation) {
+        final task = tasks[next++];
+        final batch = await task().timeout(
+          sourceTimeout,
+          onTimeout: () => const _SearchBatch([], failed: true),
+        );
+        if (_disposed || generation != _generation) return;
+        completed++;
+        if (batch.failed) failures++;
+        accumulated.addAll(batch.results);
+        final results = _deduplicate(accumulated);
+        final allFinished = completed == tasks.length;
+        _publish(
+          _state.copyWith(
+            results: results,
+            failedSourceCount: failures,
+            status: !allFinished
+                ? SourceSearchStatus.loading
+                : results.isNotEmpty
+                ? SourceSearchStatus.ready
+                : failures == tasks.length
+                ? SourceSearchStatus.error
+                : SourceSearchStatus.empty,
+          ),
+        );
+      }
     }
 
-    _publish(
-      _state.copyWith(
-        query: query,
-        results: results,
-        status: results.isEmpty
-            ? SourceSearchStatus.empty
-            : SourceSearchStatus.ready,
-        failedSourceCount: failedSourceCount,
-      ),
-    );
+    await Future.wait([
+      for (var i = 0; i < maxConcurrentSources && i < tasks.length; i++)
+        worker(),
+    ]);
   }
 
-  Future<void> retry() => search(_state.query);
+  Future<void> retry() => submitQuery(_state.query);
 
-  Iterable<Future<_SearchBatch>> _mangaTasks(String query) sync* {
+  Iterable<Future<_SearchBatch> Function()> _mangaTasks(String query) sync* {
     final search = _searchManga;
     if (search == null) return;
     for (final source in search.options.where(
@@ -186,7 +243,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
           (_sourceId == null || source.id == _sourceId) &&
           (_sourceIds == null || _sourceIds.contains(source.id)),
     )) {
-      yield _guardSource(() async {
+      yield () => _guardSource(() async {
         final page = await search.execute(sourceId: source.id, query: query);
         return page.results
             .map(
@@ -204,7 +261,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
     }
   }
 
-  Iterable<Future<_SearchBatch>> _novelTasks(String query) sync* {
+  Iterable<Future<_SearchBatch> Function()> _novelTasks(String query) sync* {
     final search = _searchNovels;
     if (search == null) return;
     for (final source in search.options.where(
@@ -212,7 +269,7 @@ final class SourceSearchViewModel extends ChangeNotifier {
           (_sourceId == null || source.id == _sourceId) &&
           (_sourceIds == null || _sourceIds.contains(source.id)),
     )) {
-      yield _guardSource(() async {
+      yield () => _guardSource(() async {
         final page = await search.execute(sourceId: source.id, query: query);
         return page.results
             .map(

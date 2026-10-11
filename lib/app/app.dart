@@ -5,6 +5,7 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
 import 'package:hikari/application/progress/save_series_chapter_progress.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
@@ -14,6 +15,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/settings/appearance_settings.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/catalog/catalog_search_page.dart';
 import 'package:hikari/features/home/home_page.dart';
@@ -36,9 +38,16 @@ import 'package:hikari/features/source_search/source_search_view_model.dart'
 import 'package:hikari/features/settings/settings_page.dart';
 
 class HikariApp extends StatefulWidget {
-  const HikariApp({super.key, required this.dependencies});
+  const HikariApp({
+    super.key,
+    required this.dependencies,
+    this.initialAppearance = const AppearanceSettings(),
+    this.appearanceRepository,
+  });
 
   final AppDependencies dependencies;
+  final AppearanceSettings initialAppearance;
+  final AppearanceSettingsRepository? appearanceRepository;
 
   @override
   State<HikariApp> createState() => _HikariAppState();
@@ -48,10 +57,59 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   late final AppDependencies _dependencies;
   final _navigationController = AppNavigationController();
   bool _isOpeningMedia = false;
-  bool _isOled = false;
+  late bool _isOled;
   Color? _accentColor;
+  Future<void> _pendingAppearanceSave = Future<void>.value();
+  AppearanceSaveStatus? _appearanceSaveStatus;
+  int _appearanceSaveRevision = 0;
   int _homeRefreshRevision = 0;
   int _localScanRevision = 0;
+  int _settingsFolderRevision = 0;
+
+  void _setAppearance({bool? oled, Color? accent, bool updateAccent = false}) {
+    setState(() {
+      if (oled != null) _isOled = oled;
+      if (updateAccent) _accentColor = accent;
+    });
+    _saveAppearance();
+  }
+
+  void _saveAppearance() {
+    final repository = widget.appearanceRepository;
+    if (repository == null) return;
+
+    // Capture the current selection, including on retry. Older completions
+    // must never mark a newer selection as saved (or failed).
+    final revision = ++_appearanceSaveRevision;
+    final snapshot = AppearanceSettings(
+      isOled: _isOled,
+      accentArgb: _accentColor?.toARGB32(),
+    );
+    setState(() => _appearanceSaveStatus = AppearanceSaveStatus.saving);
+
+    // Keep writes ordered so an older attempt cannot overwrite newer choices.
+    // A failed attempt is handled inside the chain, allowing retries and later
+    // changes to run normally.
+    _pendingAppearanceSave = _pendingAppearanceSave.then((_) async {
+      try {
+        await repository.save(snapshot);
+        if (mounted && revision == _appearanceSaveRevision) {
+          setState(() => _appearanceSaveStatus = AppearanceSaveStatus.saved);
+        }
+      } catch (error, stack) {
+        if (mounted && revision == _appearanceSaveRevision) {
+          setState(() => _appearanceSaveStatus = AppearanceSaveStatus.failed);
+        }
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            context: ErrorDescription('persisting appearance settings'),
+          ),
+        );
+      }
+    });
+  }
 
   Future<bool> _chooseLocalRoot({bool fromSettings = false}) async {
     final selected = await _dependencies.localMediaSource.chooseRoot();
@@ -59,7 +117,11 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       setState(() {
         _homeRefreshRevision++;
         // Local already scans its own selection; only external changes refresh it.
-        if (fromSettings) _localScanRevision++;
+        if (fromSettings) {
+          _localScanRevision++;
+        } else {
+          _settingsFolderRevision++;
+        }
       });
     }
     return selected;
@@ -69,6 +131,9 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _dependencies = widget.dependencies;
+    _isOled = widget.initialAppearance.isOled;
+    final accent = widget.initialAppearance.accentArgb;
+    _accentColor = accent == null ? null : Color(accent);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -215,12 +280,21 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       NovelReaderOpenTarget novel => _buildNovelReaderPage(novel),
       NovelSeriesOpenTarget novel => NovelSeriesPage(
         target: novel,
-        openChapter: (context, chapter, sequence) => _openNovelChapter(
-          context,
-          chapter,
-          sequence,
-          seriesRef: novel.media.source,
+        dependencyOwner: (
+          novel.source,
+          _dependencies.seriesContinuationRepository,
         ),
+        loadReadingTarget: (chapters) =>
+            LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
+                .execute(novel.media.source, chapters),
+        openChapter: (context, chapter, sequence, canNavigate) =>
+            _openNovelChapter(
+              context,
+              chapter,
+              sequence,
+              seriesRef: novel.media.source,
+              canNavigate: canNavigate,
+            ),
         library: _dependencies.libraryRepository,
         readArtwork: _dependencies.readSourceArtwork.execute,
       ),
@@ -253,17 +327,25 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
 
   Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) => MangaSeriesPage(
     media: target.media,
+    dependencyOwner: (
+      target.seriesSource,
+      _dependencies.seriesContinuationRepository,
+    ),
     sourceName: target.seriesSource.name,
     loadDetails: target.loadDetails,
+    loadReadingTarget: (chapters) =>
+        LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
+            .execute(target.media.source, chapters),
     readArtwork: target.seriesSource is ArtworkSource
         ? _dependencies.readSourceArtwork.execute
         : null,
     library: _dependencies.libraryRepository,
-    openChapter: (context, chapter, sequence) => _openMangaChapter(
+    openChapter: (context, chapter, sequence, canNavigate) => _openMangaChapter(
       context,
       chapter,
       sequence,
       seriesRef: target.media.source,
+      canNavigate: canNavigate,
     ),
   );
 
@@ -361,9 +443,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     NovelChapter chapter,
     List<NovelChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
+    bool Function()? canNavigate,
   }) async {
     final initialTarget = await _dependencies.openNovelChapter.execute(chapter);
-    if (!context.mounted) return;
+    if (!context.mounted || (canNavigate != null && !canNavigate())) return;
     final saveProgress = seriesRef == null
         ? null
         : SaveSeriesChapterProgress(
@@ -419,9 +502,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     MangaChapter chapter,
     List<MangaChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
+    bool Function()? canNavigate,
   }) async {
     final initialTarget = await _dependencies.openMangaChapter.execute(chapter);
-    if (!context.mounted) return;
+    if (!context.mounted || (canNavigate != null && !canNavigate())) return;
     final chapterPrefetch = _dependencies.createMangaChapterPrefetch();
     final saveProgress = seriesRef == null
         ? null
@@ -482,10 +566,6 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     return MaterialApp(
       title: 'Hikari',
       theme: HikariTheme.darkTheme(oled: _isOled, accentColor: _accentColor),
-      darkTheme: HikariTheme.darkTheme(
-        oled: _isOled,
-        accentColor: _accentColor,
-      ),
       home: Builder(
         builder: (context) => AppNavigationShell(
           controller: _navigationController,
@@ -508,7 +588,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               openDetail: _openCatalogDetail,
             ),
             AppTab.local: LocalMediaPage(
-              scanSelectedRoot: localSource.scanSelectedRoot,
+              scanSelectedRoot: localSource.scanSelectedRootSnapshot,
+              readArtwork: _dependencies.readSourceArtwork.execute,
               chooseRoot: _chooseLocalRoot,
               openMedia: _openMedia,
               library: libraryRepository,
@@ -518,11 +599,25 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.library: LibraryPage(
               repository: libraryRepository,
               openMedia: _openMedia,
+              onNavigateToSearch: () =>
+                  _navigationController.selectTab(AppTab.search),
             ),
             AppTab.settings: SettingsPage(
               isOled: _isOled,
-              onToggleOled: (value) => setState(() => _isOled = value),
-              onSelectAccent: (value) => setState(() => _accentColor = value),
+              selectedAccent: _accentColor,
+              appearanceSaveStatus: widget.appearanceRepository == null
+                  ? null
+                  : _appearanceSaveStatus,
+              onRetryAppearanceSave: widget.appearanceRepository == null
+                  ? null
+                  : _saveAppearance,
+              onToggleOled: (value) => _setAppearance(oled: value),
+              onSelectAccent: (value) =>
+                  _setAppearance(accent: value, updateAccent: true),
+              localFolderRevision: _settingsFolderRevision,
+              loadLocalFolderName: localSource.isAvailable
+                  ? localSource.selectedRootName
+                  : null,
               onChooseLocalFolder: localSource.isAvailable
                   ? () => _chooseLocalRoot(fromSettings: true)
                   : null,

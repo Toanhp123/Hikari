@@ -28,6 +28,10 @@ class NovelReaderPage extends StatefulWidget {
     this.onPreviousChapter,
     this.onNextChapter,
     this.chapterNavigationLoading = false,
+    this.initialReaderTheme = NovelReaderTheme.charcoal,
+    this.initialFontSize = 16.0,
+    this.onReaderThemeChanged,
+    this.onFontSizeChanged,
     this.registerFlush,
     this.closing = false,
   }) : assert((loadText != null) != (loadContent != null)),
@@ -40,6 +44,11 @@ class NovelReaderPage extends StatefulWidget {
   final Future<void> Function()? onPreviousChapter;
   final Future<void> Function()? onNextChapter;
   final bool chapterNavigationLoading;
+  // A chapter owns its progress, while an enclosing reader may own session style.
+  final NovelReaderTheme initialReaderTheme;
+  final double initialFontSize;
+  final ValueChanged<NovelReaderTheme>? onReaderThemeChanged;
+  final ValueChanged<double>? onFontSizeChanged;
   final ValueChanged<Future<void> Function()>? registerFlush;
   final bool closing;
 
@@ -67,8 +76,10 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   bool _handingOffChapter = false;
   int _saveRevision = 0;
 
-  NovelReaderTheme _readerTheme = NovelReaderTheme.charcoal;
-  double _fontSize = 16.0;
+  late NovelReaderTheme _readerTheme;
+  late double _fontSize;
+  bool _restoringTypography = false;
+  int _typographyRevision = 0;
   final double _lineHeight = 1.6;
   final double _horizontalPadding = 20.0;
 
@@ -85,7 +96,8 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         _chapterTransitionBusy ||
         !_restored ||
         !_scroll.hasClients ||
-        _restoringReload) {
+        _restoringReload ||
+        _restoringTypography) {
       return;
     }
     _position = textProgression(
@@ -180,6 +192,8 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   @override
   void initState() {
     super.initState();
+    _readerTheme = widget.initialReaderTheme;
+    _fontSize = widget.initialFontSize;
     widget.registerFlush?.call(_flush);
     WidgetsBinding.instance.addObserver(this);
     _scroll.addListener(_changed);
@@ -264,15 +278,61 @@ class _NovelReaderPageState extends State<NovelReaderPage>
     }
   }
 
+  void _changeReaderTheme(NovelReaderTheme theme) {
+    if (theme == _readerTheme) return;
+    setState(() => _readerTheme = theme);
+    widget.onReaderThemeChanged?.call(theme);
+  }
+
+  void _changeFontSize(double fontSize) {
+    if (fontSize == _fontSize) return;
+    // The same pixel offset refers to different text after a font reflow.
+    // Keep the current logical progression until the new layout is complete.
+    final shouldRestore = _restored && _scroll.hasClients;
+    final progression =
+        shouldRestore &&
+            !_restoringTypography &&
+            _scroll.position.maxScrollExtent > 0
+        ? textProgression(_scroll.offset, _scroll.position.maxScrollExtent)
+        : _position;
+    if (shouldRestore) _restoringTypography = true;
+    setState(() => _fontSize = fontSize);
+    widget.onFontSizeChanged?.call(fontSize);
+    if (!shouldRestore) return;
+    final revision = ++_typographyRevision;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || revision != _typographyRevision) return;
+      if (_scroll.hasClients) {
+        final extent = _scroll.position.maxScrollExtent;
+        if (extent > 0) {
+          _scroll.jumpTo(progression * extent);
+          _position = textProgression(_scroll.offset, extent);
+          _completed = textAtEnd(_scroll.offset, extent);
+        } else {
+          // A short reflowed page has no pixel position; retain its last
+          // meaningful progression for subsequent font changes and saves.
+          _position = progression;
+        }
+        _progress.value = _position;
+      }
+      _restoringTypography = false;
+    });
+  }
+
   void _showPreferencesSheet() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: context.hikariColors.surfaceElevated,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+      isScrollControlled: true,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+      ),
       builder: (context) => NovelReaderPreferencesSheet(
         theme: _readerTheme,
         fontSize: _fontSize,
-        onThemeChanged: (theme) => setState(() => _readerTheme = theme),
-        onFontSizeChanged: (fontSize) => setState(() => _fontSize = fontSize),
+        onThemeChanged: _changeReaderTheme,
+        onFontSizeChanged: _changeFontSize,
       ),
     );
   }

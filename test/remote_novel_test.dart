@@ -16,6 +16,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart' as progress;
 import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
+import 'package:hikari/features/novel_reader/novel_reader_theme.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
@@ -277,7 +278,10 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
-        home: NovelSeriesPage(target: target, openChapter: (_, _, _) async {}),
+        home: NovelSeriesPage(
+          target: target,
+          openChapter: (_, _, _, _) async {},
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -313,7 +317,7 @@ void main() {
       await _openCatalogSourceSearch(tester);
       await tester.tap(find.byTooltip('Add to library'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Novel 1'));
+      await tester.tapAt(tester.getCenter(find.text('Novel 1')));
       await tester.pumpAndSettle();
       expect(
         tester.getTopLeft(find.text('Chapter C')).dy,
@@ -378,6 +382,74 @@ void main() {
     },
   );
 
+  testWidgets('novel reader appearance survives adjacent chapter navigation', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final db = UserDatabase(NativeDatabase.memory());
+    final source = _AdjacentNovel();
+    final dependencies = AppDependencies.create(
+      database: db,
+      catalogProvider: _TestCatalogProvider(MediaType.lightNovel),
+      cache: _TestCache(),
+      additionalSources: [source],
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+      await dependencies.dispose();
+      await db.close();
+    });
+
+    await tester.pumpWidget(HikariApp(dependencies: dependencies));
+    await tester.pumpAndSettle();
+    await _openCatalogSourceSearch(tester);
+    await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(tester.getCenter(find.text('Novel 1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapter A'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Reading Preferences'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Paper reading theme'));
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(22);
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute(); // Close preferences, not the reader.
+    await tester.pumpAndSettle();
+
+    void expectAppearance(String title) {
+      final reader = tester.widget<NovelReaderPage>(
+        find.byType(NovelReaderPage),
+      );
+      expect(reader.title, title);
+      final content = tester.widget<NovelContentView>(
+        find.byType(NovelContentView),
+      );
+      expect(content.textStyle!.fontSize, 22);
+      expect(content.textStyle!.color, NovelReaderTheme.paper.fg);
+    }
+
+    expectAppearance('Chapter A');
+    await tester.tap(find.byTooltip('Next chapter'));
+    await tester.pumpAndSettle();
+    expectAppearance('Chapter B');
+    var reader = tester.widget<NovelReaderPage>(find.byType(NovelReaderPage));
+    expect(reader.initialReaderTheme, NovelReaderTheme.paper);
+    expect(reader.initialFontSize, 22);
+    await tester.tap(find.byTooltip('Previous chapter'));
+    await tester.pumpAndSettle();
+    expectAppearance('Chapter A');
+    reader = tester.widget<NovelReaderPage>(find.byType(NovelReaderPage));
+    expect(reader.initialReaderTheme, NovelReaderTheme.paper);
+    expect(reader.initialFontSize, 22);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('series refresh failure keeps the last chapter list visible', (
     tester,
   ) async {
@@ -393,7 +465,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: NovelSeriesPage(target: target, openChapter: (_, _, _) async {}),
+        home: NovelSeriesPage(
+          target: target,
+          openChapter: (_, _, _, _) async {},
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -435,7 +510,7 @@ void main() {
     await _openCatalogSourceSearch(tester);
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Novel 1'));
+    await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();
     expect(find.text('Real summary'), findsOneWidget);
     expect(find.textContaining('Group A · Group B'), findsOneWidget);
@@ -474,7 +549,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Novel 1'));
+    await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter rich'));
     await tester.pumpAndSettle();
@@ -504,7 +579,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Novel 1'));
+    await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Could not open this item'), findsOneWidget);
     expect(

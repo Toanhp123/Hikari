@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/domain/media/local_media_scan_result.dart';
 
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -11,6 +12,7 @@ import 'package:hikari/infrastructure/local_media/bounded_archive.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
+import 'package:hikari/infrastructure/local_media/local_artwork_ref.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +22,36 @@ void main() {
   final source = LocalMediaSource();
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'opaque');
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+  for (final failingMethod in ['selectedTree', 'children']) {
+    test('scan snapshot normalizes access loss from $failingMethod', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == failingMethod) {
+          throw PlatformException(code: 'access');
+        }
+        if (call.method == 'selectedTree') {
+          return {'id': 'content://root', 'name': 'Books'};
+        }
+        fail('Unexpected ${call.method}');
+      });
+      await expectLater(
+        source.scanSelectedRootSnapshot(),
+        throwsA(isA<LocalMediaAccessException>()),
+      );
+    });
+  }
+
+  test('scan snapshot preserves non-access platform errors', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async {
+      throw PlatformException(code: 'storage');
+    });
+    await expectLater(
+      source.scanSelectedRootSnapshot(),
+      throwsA(
+        isA<PlatformException>().having((e) => e.code, 'code', 'storage'),
+      ),
+    );
+  });
 
   test('CBZ reader shares one copy then releases and reopens', () async {
     final directory = Directory.systemTemp.createTempSync('hikari-cbz-');
@@ -264,6 +296,90 @@ void main() {
       expect(items, hasLength(3));
     },
   );
+
+  test('scan result snapshots copy their inputs', () {
+    final media = <Media>[
+      const Media(
+        title: 'Book',
+        type: MediaType.lightNovel,
+        source: SourceMediaRef(sourceId: SourceId.local, itemId: 'book'),
+      ),
+    ];
+    final previews = <SourceMediaRef, SourceMediaRef>{};
+    final scan = LocalMediaScanResult(
+      rootName: 'Offline books',
+      media: media,
+      artwork: previews,
+    );
+    media.clear();
+    previews[ref] = ref;
+    expect(scan.media, hasLength(1));
+    expect(scan.artwork, isEmpty);
+    expect(() => scan.media.clear(), throwsUnsupportedError);
+    expect(() => scan.artwork[ref] = ref, throwsUnsupportedError);
+  });
+
+  test('scan snapshot keeps folder label and image-only previews', () async {
+    final calls = <String>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      if (call.method == 'selectedTree') {
+        return {'id': 'content://provider/root', 'name': 'My comics'};
+      }
+      if (call.method == 'children') {
+        return [
+          {
+            'id': 'content://provider/10',
+            'name': '10.jpg',
+            'isDirectory': false,
+          },
+          {'id': 'content://provider/1', 'name': '1.jpg', 'isDirectory': false},
+          {
+            'id': 'content://provider/cover',
+            'name': 'cover.png',
+            'isDirectory': false,
+          },
+          {
+            'id': 'content://provider/book',
+            'name': 'volume.cbz',
+            'isDirectory': false,
+          },
+        ];
+      }
+      if (call.method == 'read') {
+        final args = call.arguments as Map<Object?, Object?>;
+        expect(args['id'], 'content://provider/cover');
+        expect(args['limit'], 8 * 1024 * 1024);
+        return Uint8List.fromList([1, 2, 3]);
+      }
+      fail('Unexpected ${call.method}');
+    });
+
+    final snapshot = (await source.scanSelectedRootSnapshot())!;
+    expect(snapshot.rootName, 'My comics');
+    expect(snapshot.media, hasLength(2));
+    final folder = snapshot.media.singleWhere(
+      (item) => item.title == 'My comics',
+    );
+    final cbz = snapshot.media.singleWhere((item) => item.title == 'volume');
+    expect(snapshot.artwork.containsKey(cbz.source), isFalse);
+    final image = snapshot.artwork[folder.source]!;
+    expect(LocalArtworkRef.tryDecode(image.itemId), 'content://provider/cover');
+    expect(calls, ['selectedTree', 'children']);
+    expect(await source.readArtwork(image), [1, 2, 3]);
+    expect(calls.last, 'read');
+  });
+
+  test('artwork references reject unrelated and malformed locators', () async {
+    expect(LocalArtworkRef.tryDecode('hikari-local-art:invalid!'), isNull);
+    expect(LocalArtworkRef.tryEncode('file:///private/file.png'), isNull);
+    expect(LocalArtworkRef.tryEncode('invalid-id'), isNull);
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => fail('No native read expected'),
+    );
+    expect(await source.readArtwork(ref), isEmpty);
+  });
 
   test('pages read on demand and sort numerically', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {

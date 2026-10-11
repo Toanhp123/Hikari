@@ -38,6 +38,105 @@ void main() {
     },
   );
 
+  test(
+    'editing never searches until submit, including filter changes',
+    () async {
+      final source = _MangaSource();
+      final model = SourceSearchViewModel(
+        searchManga: SearchManga(SourceRegistry([source])),
+        initialFilter: SourceSearchFilter.manga,
+      );
+      addTearDown(model.dispose);
+      model.updateQuery('Frieren');
+      expect(model.state.inputQuery, 'Frieren');
+      expect(model.state.status, SourceSearchStatus.idle);
+      expect(source.searches, 0);
+      await model.selectFilter(SourceSearchFilter.all);
+      expect(source.searches, 0);
+      await model.submitQuery('Frieren');
+      expect(source.searches, 1);
+      await model.selectFilter(SourceSearchFilter.manga);
+      expect(source.searches, 2);
+    },
+  );
+
+  test('editing invalidates an in-flight submitted result', () async {
+    final source = _ControlledMangaSource();
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([source])),
+      initialFilter: SourceSearchFilter.manga,
+    );
+    addTearDown(model.dispose);
+    final pending = model.submitQuery('Old');
+    await Future<void>.delayed(Duration.zero);
+    model.updateQuery('New');
+    source.complete('Old');
+    await pending;
+    expect(model.state.inputQuery, 'New');
+    expect(model.state.status, SourceSearchStatus.idle);
+    expect(model.state.results, isEmpty);
+  });
+
+  test('fast results are published before a slow source finishes', () async {
+    final slow = _ControlledMangaSource();
+    final fast = _ResultMangaSource(
+      id: const SourceId('test:fast'),
+      title: 'Fast result',
+    );
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([slow, fast])),
+      initialFilter: SourceSearchFilter.manga,
+    );
+    addTearDown(model.dispose);
+    final pending = model.submitQuery('reading');
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+    expect(model.state.status, SourceSearchStatus.loading);
+    expect(model.state.results.single.media.title, 'Fast result');
+    slow.complete('reading');
+    await pending;
+    expect(model.state.status, SourceSearchStatus.ready);
+    expect(model.state.results, hasLength(2));
+  });
+
+  test('timeout returns partial results even if an extension hangs', () async {
+    final slow = _ControlledMangaSource();
+    final fast = _ResultMangaSource(
+      id: const SourceId('test:fast-timeout'),
+      title: 'Fast result',
+    );
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([slow, fast])),
+      sourceTimeout: const Duration(milliseconds: 20),
+      initialFilter: SourceSearchFilter.manga,
+    );
+    addTearDown(model.dispose);
+    await model.submitQuery('reading');
+    expect(model.state.status, SourceSearchStatus.ready);
+    expect(model.state.failedSourceCount, 1);
+    expect(model.state.results.single.media.title, 'Fast result');
+  });
+
+  test('worker limit starts the next source only after a slot opens', () async {
+    final slow = _ControlledMangaSource();
+    final fast = _ResultMangaSource(
+      id: const SourceId('test:queued'),
+      title: 'Queued result',
+    );
+    final model = SourceSearchViewModel(
+      searchManga: SearchManga(SourceRegistry([slow, fast])),
+      initialFilter: SourceSearchFilter.manga,
+      maxConcurrentSources: 1,
+    );
+    addTearDown(model.dispose);
+    final pending = model.submitQuery('reading');
+    await Future<void>.delayed(Duration.zero);
+    expect(fast.searches, 0);
+    slow.complete('reading');
+    await pending;
+    expect(fast.searches, 1);
+    expect(model.state.results, hasLength(2));
+  });
+
   const media = Media(
     title: 'Solo Leveling',
     type: MediaType.anime,

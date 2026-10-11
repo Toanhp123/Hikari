@@ -54,8 +54,9 @@ series-continuation state, each keyed by source identity without cascading owner
   Library membership or chapter progress leaves the relationship intact.
 
 Version 4 adds bounded remote-series continuation keyed by series source reference.
-The selected chapter must still resolve exactly once in a fresh source sequence at
-resume time. This state is distinct from provider-private continuation data.
+Resume validates a fresh source sequence and selects the saved chapter when still
+readable, otherwise its first readable chapter in canonical order. This state is
+distinct from provider-private continuation data.
 
 A chapter becomes the series continuation when it becomes the active reader target.
 Initial activation and successful adjacent navigation ensure a child Progress row exists
@@ -79,9 +80,11 @@ removing membership hides the item without deleting either record. See
 [ADR-011](../decisions/ADR-011-catalog-content-boundary.md).
 
 `OpenSeriesContinuation` resolves the saved parent through `OpenMedia`, reloads a fresh
-source sequence, and validates the exact child reference occurs once and belongs to the
-same source. Unavailable sources, missing children, and malformed/duplicate sequences
-fail before chapter navigation. A partially acquired media lease is released on failure.
+source sequence, and shares target selection with `LoadSeriesReadingTarget`. A missing
+or unreadable saved child falls back to the first readable canonical chapter. Empty
+readable sequences, unavailable sources, and malformed/duplicate sequences fail before
+chapter navigation. Cross-source saved references are rejected. No progress is created
+by resolution alone. A partially acquired media lease is released on failure.
 
 Version 3 migrates version 2 by adding `mihon_continuation_records` and migrating
 valid `mihon-v1:` manga/chapter references to stable kind-plus-URL `mihon-v2:` keys,

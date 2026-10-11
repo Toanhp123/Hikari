@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -20,7 +20,10 @@ class CatalogDetailHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
+    final isCompact = context.isCompact;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final topPadding = textScale > 1.25 ? 44.0 : 72.0;
     final imageUrl = (entry.bannerUrl?.isNotEmpty ?? false)
         ? entry.bannerUrl
         : entry.coverUrl;
@@ -41,10 +44,10 @@ class CatalogDetailHero extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                colors.background.withValues(alpha: 0.04),
-                colors.scrimMedium,
-                colors.scrimStrong,
-                colors.background,
+                colors.surface.withValues(alpha: 0.04),
+                colors.scrim.withValues(alpha: 0.6),
+                colors.scrim.withValues(alpha: 0.8),
+                colors.surface,
               ],
               stops: const [0, 0.44, 0.76, 1],
             ),
@@ -56,8 +59,8 @@ class CatalogDetailHero extends StatelessWidget {
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
               colors: [
-                colors.scrimStrong,
-                colors.scrimMedium,
+                colors.scrim.withValues(alpha: 0.8),
+                colors.scrim.withValues(alpha: 0.6),
                 Colors.transparent,
               ],
               stops: const [0, 0.5, 0.9],
@@ -73,9 +76,9 @@ class CatalogDetailHero extends StatelessWidget {
                 maxWidth: HikariBreakpoints.maxContentWidth,
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   HikariSpacing.lg,
-                  72,
+                  topPadding,
                   HikariSpacing.lg,
                   HikariSpacing.xl,
                 ),
@@ -83,7 +86,9 @@ class CatalogDetailHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     SizedBox(
-                      width: context.isCompact ? 104 : 132,
+                      width: isCompact
+                          ? (textScale > 1.3 ? 92.0 : 104.0)
+                          : 132.0,
                       child: AspectRatio(
                         aspectRatio: 2 / 3,
                         child: _CoverArtwork(
@@ -102,18 +107,28 @@ class CatalogDetailHero extends StatelessWidget {
                           const SizedBox(height: HikariSpacing.sm),
                           Text(
                             entry.title,
-                            maxLines: context.isCompact ? 3 : 2,
+                            maxLines: isCompact ? (textScale > 1.3 ? 2 : 3) : 2,
                             overflow: TextOverflow.ellipsis,
                             style:
-                                (context.isCompact
-                                        ? HikariTypography.headline
-                                        : HikariTypography.display)
+                                (isCompact
+                                        ? (textScale > 1.25
+                                              ? Theme.of(context)
+                                                    .textTheme
+                                                    .titleLarge!
+                                              : Theme.of(context)
+                                                    .textTheme
+                                                    .headlineMedium!)
+                                        : Theme.of(context)
+                                              .textTheme
+                                              .displayLarge!)
                                     .copyWith(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w800,
                                       shadows: [
                                         Shadow(
-                                          color: colors.scrimStrong,
+                                          color: colors.scrim.withValues(
+                                            alpha: 0.8,
+                                          ),
                                           blurRadius: 12,
                                         ),
                                       ],
@@ -125,10 +140,11 @@ class CatalogDetailHero extends StatelessWidget {
                               metadata.join(' · '),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: HikariTypography.labelMedium.copyWith(
-                                color: Colors.white.withValues(alpha: 0.82),
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: Theme.of(context).textTheme.labelMedium!
+                                  .copyWith(
+                                    color: Colors.white.withValues(alpha: 0.82),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                           ],
                           if (details?.averageScore != null) ...[
@@ -136,17 +152,16 @@ class CatalogDetailHero extends StatelessWidget {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.star_rounded,
                                   size: 17,
-                                  color: Color(0xFFFACC15),
+                                  color: colors.primary,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: HikariSpacing.xs),
                                 Text(
                                   '${details!.averageScore}%',
-                                  style: HikariTypography.labelLarge.copyWith(
-                                    color: Colors.white,
-                                  ),
+                                  style: Theme.of(context).textTheme.labelLarge!
+                                      .copyWith(color: Colors.white),
                                 ),
                               ],
                             ),
@@ -155,15 +170,28 @@ class CatalogDetailHero extends StatelessWidget {
                           Semantics(
                             button: true,
                             label: '$actionLabel ${entry.title}',
-                            child: HikariButton(
-                              label: actionLabel,
+                            child: FilledButton.icon(
+                              onPressed: onPrimaryAction,
                               icon: Icon(
                                 entry.type == MediaType.anime
                                     ? Icons.play_arrow_rounded
                                     : Icons.menu_book_rounded,
                                 size: 19,
                               ),
-                              onPressed: onPrimaryAction,
+                              label: Text(actionLabel),
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(
+                                  HikariSize.touchTarget,
+                                  44,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: HikariSpacing.lg,
+                                  vertical: HikariSpacing.sm,
+                                ),
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: HikariRadius.borderMd,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: HikariSpacing.xs),
@@ -171,9 +199,10 @@ class CatalogDetailHero extends StatelessWidget {
                             entry.type == MediaType.anime
                                 ? 'Choose a source to continue'
                                 : 'Choose where to read',
-                            style: HikariTypography.caption.copyWith(
-                              color: Colors.white.withValues(alpha: 0.72),
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall!
+                                .copyWith(
+                                  color: Colors.white.withValues(alpha: 0.72),
+                                ),
                           ),
                         ],
                       ),
@@ -196,30 +225,33 @@ class _HeroArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final url = imageUrl;
     if (url == null || url.isEmpty) return _fallback(colors);
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      alignment: Alignment.center,
-      excludeFromSemantics: true,
-      errorBuilder: (_, _, _) => _fallback(colors),
-      loadingBuilder: (_, child, progress) =>
-          progress == null ? child : _fallback(colors),
+    return LayoutBuilder(
+      builder: (context, constraints) => Image.network(
+        url,
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+        cacheWidth: mediaArtworkCacheWidth(context, constraints.maxWidth),
+        excludeFromSemantics: true,
+        errorBuilder: (_, _, _) => _fallback(colors),
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : _fallback(colors),
+      ),
     );
   }
 
-  Widget _fallback(HikariColors colors) => DecoratedBox(
+  Widget _fallback(ColorScheme colors) => DecoratedBox(
     decoration: BoxDecoration(
       gradient: RadialGradient(
         center: const Alignment(0.4, -0.35),
         radius: 1.15,
         colors: [
           colors.primary.withValues(alpha: 0.34),
-          colors.surfaceElevated,
+          colors.surfaceContainerHigh,
           colors.surfaceContainer,
-          colors.background,
+          colors.surface,
         ],
         stops: const [0, 0.38, 0.72, 1],
       ),
@@ -235,17 +267,20 @@ class _CoverArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final url = imageUrl;
     final artwork = url == null || url.isEmpty
         ? _fallback(colors)
-        : Image.network(
-            url,
-            fit: BoxFit.cover,
-            excludeFromSemantics: true,
-            errorBuilder: (_, _, _) => _fallback(colors),
-            loadingBuilder: (_, image, progress) =>
-                progress == null ? image : _fallback(colors),
+        : LayoutBuilder(
+            builder: (context, constraints) => Image.network(
+              url,
+              fit: BoxFit.cover,
+              cacheWidth: mediaArtworkCacheWidth(context, constraints.maxWidth),
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => _fallback(colors),
+              loadingBuilder: (_, image, progress) =>
+                  progress == null ? image : _fallback(colors),
+            ),
           );
 
     return Semantics(
@@ -254,7 +289,6 @@ class _CoverArtwork extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: HikariRadius.borderMd,
-          border: Border.all(color: colors.glassBorder),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.42),
@@ -263,19 +297,39 @@ class _CoverArtwork extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipRRect(borderRadius: HikariRadius.borderMd, child: artwork),
+        child: ClipRRect(
+          borderRadius: HikariRadius.borderMd,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              artwork,
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: HikariRadius.borderMd,
+                      border: Border.all(
+                        color: colors.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _fallback(HikariColors colors) => DecoratedBox(
+  Widget _fallback(ColorScheme colors) => DecoratedBox(
     decoration: BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          colors.surfaceHighlight,
-          colors.surfaceElevated,
+          colors.surfaceContainerHighest,
+          colors.surfaceContainerHigh,
           colors.surfaceContainer,
         ],
       ),
@@ -284,7 +338,7 @@ class _CoverArtwork extends StatelessWidget {
       child: Icon(
         Icons.movie_filter_rounded,
         size: 30,
-        color: colors.primaryGlow.withValues(alpha: 0.8),
+        color: colors.primary.withValues(alpha: 0.8),
       ),
     ),
   );
@@ -297,20 +351,19 @@ class _TypePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    final color = mediaTypeBadgeColor(colors, type);
+    final badge = mediaTypeBadgeColors(context, type);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
-        borderRadius: HikariRadius.borderCapsule,
-        border: Border.all(color: color.withValues(alpha: 0.48)),
+        color: badge.background,
+        borderRadius: HikariRadius.borderXl,
+        border: Border.all(color: badge.foreground.withValues(alpha: 0.48)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           catalogMediaTypeLabel(type),
-          style: HikariTypography.labelSmall.copyWith(
-            color: Colors.white,
+          style: Theme.of(context).textTheme.labelSmall!.copyWith(
+            color: badge.foreground,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.6,
           ),

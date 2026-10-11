@@ -19,6 +19,7 @@ class SourceSearchContent extends StatelessWidget {
     required this.controller,
     required this.state,
     required this.onQueryChanged,
+    required this.onSubmitted,
     required this.onSelectFilter,
     required this.onRetry,
     required this.openMedia,
@@ -32,6 +33,7 @@ class SourceSearchContent extends StatelessWidget {
   final TextEditingController controller;
   final SourceSearchUiState state;
   final ValueChanged<String> onQueryChanged;
+  final ValueChanged<String> onSubmitted;
   final ValueChanged<SourceSearchFilter> onSelectFilter;
   final VoidCallback onRetry;
   final void Function(BuildContext, Media) openMedia;
@@ -43,69 +45,83 @@ class SourceSearchContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            HikariSpacing.lg,
-            HikariSpacing.md,
-            HikariSpacing.lg,
-            HikariSpacing.sm,
-          ),
-          child: Column(
-            children: [
-              HikariSearchBar(
-                controller: controller,
-                initialQuery: state.query,
-                onChanged: onQueryChanged,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: HikariBreakpoints.maxContentWidth,
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                HikariSpacing.lg,
+                HikariSpacing.md,
+                HikariSpacing.lg,
+                HikariSpacing.sm,
               ),
-              const SizedBox(height: HikariSpacing.sm),
-              if (catalogScopeLabel != null)
-                _ScopedSourceLabel(sourceName: catalogScopeLabel!)
-              else if (scopedSourceName != null)
-                _ScopedSourceLabel(sourceName: scopedSourceName!)
-              else if (fixedMediaType == null)
-                HikariChipRow(
-                  children: [
-                    for (final filter in SourceSearchFilter.values)
-                      HikariChip(
-                        label: filter.mediaType == null
-                            ? 'All'
-                            : mediaTypeFilterLabel(filter.mediaType!),
-                        isSelected: state.filter == filter,
-                        onTap: () => onSelectFilter(filter),
-                      ),
-                  ],
+              child: Column(
+                children: [
+                  HikariSearchBar(
+                    controller: controller,
+                    onChanged: onQueryChanged,
+                    onSubmitted: onSubmitted,
+                  ),
+                  const SizedBox(height: HikariSpacing.sm),
+                  if (catalogScopeLabel != null)
+                    _ScopedSourceLabel(sourceName: catalogScopeLabel!)
+                  else if (scopedSourceName != null)
+                    _ScopedSourceLabel(sourceName: scopedSourceName!)
+                  else if (fixedMediaType == null)
+                    HikariChipRow(
+                      children: [
+                        for (final filter in SourceSearchFilter.values)
+                          HikariChip(
+                            label: filter.mediaType == null
+                                ? 'All'
+                                : mediaTypeLabel(filter.mediaType!),
+                            isSelected: state.filter == filter,
+                            onTap: () => onSelectFilter(filter),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            if (state.failedSourceCount > 0 &&
+                (state.status == SourceSearchStatus.ready ||
+                    state.status == SourceSearchStatus.empty))
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: HikariSpacing.lg,
+                  vertical: HikariSpacing.xs,
                 ),
-            ],
-          ),
-        ),
-        if (state.failedSourceCount > 0 &&
-            (state.status == SourceSearchStatus.ready ||
-                state.status == SourceSearchStatus.empty))
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpacing.lg,
-              vertical: HikariSpacing.xs,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    'Some configured sources could not be searched.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.hikariStatusColors.onWarningContainer,
+                    ),
+                  ),
+                ),
+              ),
+            if (state.status == SourceSearchStatus.loading &&
+                state.results.isNotEmpty)
+              const LinearProgressIndicator(minHeight: 2),
+            Expanded(
+              child: _SourceSearchResults(
+                state: state,
+                onRetry: onRetry,
+                openMedia: openMedia,
+                library: library,
+                readArtwork: readArtwork,
+                scopedSourceName: scopedSourceName,
+                catalogScopeLabel: catalogScopeLabel,
+              ),
             ),
-            child: Text(
-              'Some configured sources could not be searched.',
-              style: TextStyle(color: colors.warning, fontSize: 12),
-            ),
-          ),
-        Expanded(
-          child: _SourceSearchResults(
-            state: state,
-            onRetry: onRetry,
-            openMedia: openMedia,
-            library: library,
-            readArtwork: readArtwork,
-            scopedSourceName: scopedSourceName,
-            catalogScopeLabel: catalogScopeLabel,
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -117,25 +133,32 @@ class _ScopedSourceLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Searching in $sourceName',
-      child: Row(
-        children: [
-          Icon(Icons.extension_outlined, size: 16, color: colors.textMuted),
-          const SizedBox(width: HikariSpacing.xs),
-          Expanded(
-            child: Text(
-              'Searching in $sourceName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: HikariTypography.caption.copyWith(
-                color: colors.textSecondary,
-                fontWeight: FontWeight.w600,
+      // Preserve the full title at narrow widths without a duplicate label.
+      child: ExcludeSemantics(
+        child: Row(
+          children: [
+            Icon(
+              Icons.extension_outlined,
+              size: 16,
+              color: colors.onSurfaceVariant,
+            ),
+            const SizedBox(width: HikariSpacing.xs),
+            Expanded(
+              child: Text(
+                'Searching in $sourceName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -162,11 +185,14 @@ class _SourceSearchResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
+    final colors = Theme.of(context).colorScheme;
     final scope = catalogScopeLabel ?? scopedSourceName;
     final status = switch (state.status) {
       SourceSearchStatus.idle => AsyncViewStatus.empty,
-      SourceSearchStatus.loading => AsyncViewStatus.loading,
+      SourceSearchStatus.loading =>
+        state.results.isEmpty
+            ? AsyncViewStatus.loading
+            : AsyncViewStatus.content,
       SourceSearchStatus.ready => AsyncViewStatus.content,
       SourceSearchStatus.empty => AsyncViewStatus.empty,
       SourceSearchStatus.error => AsyncViewStatus.error,
@@ -174,13 +200,15 @@ class _SourceSearchResults extends StatelessWidget {
 
     return AsyncStateView(
       status: status,
-      emptyTitle: state.query.isEmpty ? 'Find a source' : 'No results found',
-      emptyMessage: state.query.isEmpty
-          ? 'Type a title above to search your configured media sources.'
+      emptyTitle: state.status == SourceSearchStatus.idle
+          ? 'Find a source'
+          : 'No results found',
+      emptyMessage: state.status == SourceSearchStatus.idle
+          ? 'Enter a title, then submit to search your configured sources.'
           : scope == null
           ? 'No matches found for "${state.query}".'
           : 'No matches found for "${state.query}" in $scope.',
-      emptyIcon: state.query.isEmpty
+      emptyIcon: state.status == SourceSearchStatus.idle
           ? Icons.search_rounded
           : Icons.search_off_rounded,
       errorMessage: scope == null
@@ -192,7 +220,8 @@ class _SourceSearchResults extends StatelessWidget {
           return Center(
             child: Text(
               'No matches for the selected media type.',
-              style: TextStyle(color: colors.textMuted),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: colors.onSurfaceVariant),
             ),
           );
         }
@@ -222,7 +251,6 @@ class _SourceSearchGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.hikariColors;
     return GridView.builder(
       padding: const EdgeInsets.all(HikariSpacing.lg),
       physics: const BouncingScrollPhysics(),
@@ -231,6 +259,7 @@ class _SourceSearchGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final result = results[index];
         final media = result.media;
+        final badge = mediaTypeBadgeColors(context, media.type);
         final authors = result.metadata?.authors ?? const <String>[];
         final subtitle = [
           result.sourceName ?? 'Local media',
@@ -244,7 +273,8 @@ class _SourceSearchGrid extends StatelessWidget {
               isLoading: loading,
               subtitle: subtitle,
               badgeText: mediaTypeBadgeLabel(media.type),
-              badgeColor: mediaTypeBadgeColor(colors, media.type),
+              badgeColor: badge.background,
+              badgeForegroundColor: badge.foreground,
               onTap: () => openMedia(context, media),
             );
 
