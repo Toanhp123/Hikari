@@ -45,74 +45,83 @@ class SourceSearchContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            HikariSpacing.lg,
-            HikariSpacing.md,
-            HikariSpacing.lg,
-            HikariSpacing.sm,
-          ),
-          child: Column(
-            children: [
-              HikariSearchBar(
-                controller: controller,
-                initialQuery: state.inputQuery,
-                onChanged: onQueryChanged,
-                onSubmitted: onSubmitted,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: HikariBreakpoints.maxContentWidth,
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                HikariSpacing.lg,
+                HikariSpacing.md,
+                HikariSpacing.lg,
+                HikariSpacing.sm,
               ),
-              const SizedBox(height: HikariSpacing.sm),
-              if (catalogScopeLabel != null)
-                _ScopedSourceLabel(sourceName: catalogScopeLabel!)
-              else if (scopedSourceName != null)
-                _ScopedSourceLabel(sourceName: scopedSourceName!)
-              else if (fixedMediaType == null)
-                HikariChipRow(
-                  children: [
-                    for (final filter in SourceSearchFilter.values)
-                      HikariChip(
-                        label: filter.mediaType == null
-                            ? 'All'
-                            : mediaTypeFilterLabel(filter.mediaType!),
-                        isSelected: state.filter == filter,
-                        onTap: () => onSelectFilter(filter),
-                      ),
-                  ],
+              child: Column(
+                children: [
+                  HikariSearchBar(
+                    controller: controller,
+                    onChanged: onQueryChanged,
+                    onSubmitted: onSubmitted,
+                  ),
+                  const SizedBox(height: HikariSpacing.sm),
+                  if (catalogScopeLabel != null)
+                    _ScopedSourceLabel(sourceName: catalogScopeLabel!)
+                  else if (scopedSourceName != null)
+                    _ScopedSourceLabel(sourceName: scopedSourceName!)
+                  else if (fixedMediaType == null)
+                    HikariChipRow(
+                      children: [
+                        for (final filter in SourceSearchFilter.values)
+                          HikariChip(
+                            label: filter.mediaType == null
+                                ? 'All'
+                                : mediaTypeLabel(filter.mediaType!),
+                            isSelected: state.filter == filter,
+                            onTap: () => onSelectFilter(filter),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            if (state.failedSourceCount > 0 &&
+                (state.status == SourceSearchStatus.ready ||
+                    state.status == SourceSearchStatus.empty))
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: HikariSpacing.lg,
+                  vertical: HikariSpacing.xs,
                 ),
-            ],
-          ),
-        ),
-        if (state.failedSourceCount > 0 &&
-            (state.status == SourceSearchStatus.ready ||
-                state.status == SourceSearchStatus.empty))
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpacing.lg,
-              vertical: HikariSpacing.xs,
-            ),
-            child: Text(
-              'Some configured sources could not be searched.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.hikariStatusColors.onWarningContainer,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    'Some configured sources could not be searched.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.hikariStatusColors.onWarningContainer,
+                    ),
+                  ),
+                ),
+              ),
+            if (state.status == SourceSearchStatus.loading &&
+                state.results.isNotEmpty)
+              const LinearProgressIndicator(minHeight: 2),
+            Expanded(
+              child: _SourceSearchResults(
+                state: state,
+                onRetry: onRetry,
+                openMedia: openMedia,
+                library: library,
+                readArtwork: readArtwork,
+                scopedSourceName: scopedSourceName,
+                catalogScopeLabel: catalogScopeLabel,
               ),
             ),
-          ),
-        if (state.status == SourceSearchStatus.loading &&
-            state.results.isNotEmpty)
-          const LinearProgressIndicator(minHeight: 2),
-        Expanded(
-          child: _SourceSearchResults(
-            state: state,
-            onRetry: onRetry,
-            openMedia: openMedia,
-            library: library,
-            readArtwork: readArtwork,
-            scopedSourceName: scopedSourceName,
-            catalogScopeLabel: catalogScopeLabel,
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -192,7 +201,7 @@ class _SourceSearchResults extends StatelessWidget {
           ? 'Find a source'
           : 'No results found',
       emptyMessage: state.status == SourceSearchStatus.idle
-          ? 'Enter a title and press Search to search your configured sources.'
+          ? 'Enter a title, then submit to search your configured sources.'
           : scope == null
           ? 'No matches found for "${state.query}".'
           : 'No matches found for "${state.query}" in $scope.',

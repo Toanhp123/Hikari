@@ -8,12 +8,6 @@ String mediaTypeLabel(MediaType type) => switch (type) {
   MediaType.lightNovel => 'Light Novel',
 };
 
-String mediaTypeFilterLabel(MediaType type) => switch (type) {
-  MediaType.anime => 'Anime',
-  MediaType.manga => 'Manga',
-  MediaType.lightNovel => 'Light Novels',
-};
-
 String mediaTypeBadgeLabel(MediaType type) => switch (type) {
   MediaType.anime => 'ANIME',
   MediaType.manga => 'MANGA',

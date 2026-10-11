@@ -100,16 +100,8 @@ final class LibraryViewModel extends ChangeNotifier {
   }
 
   void selectMediaType(MediaType? type) {
-    if (type == null) {
-      _publish(_state.copyWith(clearMediaType: true));
-      return;
-    }
-    _publish(
-      _state.copyWith(
-        mediaType: _state.mediaType == type ? null : type,
-        clearMediaType: _state.mediaType == type,
-      ),
-    );
+    if (_state.mediaType == type) return;
+    _publish(_state.copyWith(mediaType: type, clearMediaType: type == null));
   }
 
   void repositoryChanged() {

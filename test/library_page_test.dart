@@ -172,6 +172,10 @@ void main() {
     await tester.tap(find.text('Manga'));
     await tester.pumpAndSettle();
     expect(find.text('1 of 2 titles'), findsOneWidget);
+    // Selected chips remain selected; use All to clear a single-select filter.
+    await tester.tap(find.text('Manga'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 of 2 titles'), findsOneWidget);
     await tester.tap(find.text('All'));
     await tester.pumpAndSettle();
     expect(find.text('2 saved titles'), findsOneWidget);

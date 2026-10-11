@@ -82,7 +82,7 @@ class HomeRecentShelf extends StatelessWidget {
                     label: Text(
                       filter.mediaType == null
                           ? 'All'
-                          : mediaTypeFilterLabel(filter.mediaType!),
+                          : mediaTypeLabel(filter.mediaType!),
                     ),
                     selected: effectiveFilter == filter,
                     onSelected: (_) => onSelectFilter!(filter),
