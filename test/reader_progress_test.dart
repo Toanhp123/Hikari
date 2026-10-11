@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -661,6 +662,125 @@ void main() {
     expect(writes, hasLength(2));
     expect((writes.last.$1 as TextPosition).progression, closeTo(0.6, 0.02));
     expect(writes.last.$2, isFalse);
+  });
+
+  testWidgets('novel typography reflow preserves the saved progression', (
+    tester,
+  ) async {
+    final writes = <(ProgressPosition, bool)>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Typography reflow',
+          loadText: () async =>
+              List.filled(250, 'Readable chapter text.').join('\n'),
+          saveProgress: (position, completed) async =>
+              writes.add((position, completed)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    expect(scroll.position.maxScrollExtent, greaterThan(0));
+    scroll.jumpTo(scroll.position.maxScrollExtent * 0.4);
+    await tester.pump(const Duration(milliseconds: 600));
+    writes.clear();
+    final oldExtent = scroll.position.maxScrollExtent;
+
+    await tester.tap(find.byTooltip('Reading Preferences'));
+    await tester.pumpAndSettle();
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(26);
+    await tester.pumpAndSettle();
+    expect(scroll.position.maxScrollExtent, greaterThan(oldExtent));
+    expect(scroll.offset / scroll.position.maxScrollExtent, closeTo(0.4, 0.02));
+    expect(writes, isEmpty);
+  });
+
+  testWidgets('novel keeps progression through a non-scrollable font size', (
+    tester,
+  ) async {
+    final writes = <(ProgressPosition, bool)>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Short chapter',
+          initialFontSize: 26,
+          loadText: () async =>
+              List.filled(18, 'A short chapter line.').join('\n'),
+          saveProgress: (position, completed) async =>
+              writes.add((position, completed)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+        .controller!;
+    expect(scroll.position.maxScrollExtent, greaterThan(0));
+    scroll.jumpTo(scroll.position.maxScrollExtent * 0.55);
+    await tester.pump(const Duration(milliseconds: 600));
+    writes.clear();
+
+    await tester.tap(find.byTooltip('Reading Preferences'));
+    await tester.pumpAndSettle();
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(12);
+    await tester.pumpAndSettle();
+    expect(scroll.position.maxScrollExtent, 0);
+    tester.widget<Slider>(find.byType(Slider)).onChanged!(26);
+    await tester.pumpAndSettle();
+    expect(scroll.position.maxScrollExtent, greaterThan(0));
+    expect(
+      scroll.offset / scroll.position.maxScrollExtent,
+      closeTo(0.55, 0.02),
+    );
+    expect(writes, isEmpty);
+  });
+
+  testWidgets('novel preference swatches are accessible on compact screens', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(320, 320),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: NovelReaderPage(
+            title: 'Reading',
+            loadText: () async => 'Text',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Reading Preferences'));
+    await tester.pumpAndSettle();
+    final paper = find.bySemanticsLabel('Paper reading theme');
+    final charcoal = find.bySemanticsLabel('Charcoal reading theme');
+    expect(paper, findsOneWidget);
+    expect(tester.getSize(paper), const Size(48, 48));
+    expect(
+      tester.getSemantics(charcoal).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    await tester.ensureVisible(paper);
+    await tester.pump();
+    await tester.tap(paper);
+    await tester.pump();
+    expect(
+      tester.getSemantics(paper).flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    await tester.ensureVisible(find.byType(Slider));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('novel failed reload retains content and progress state', (

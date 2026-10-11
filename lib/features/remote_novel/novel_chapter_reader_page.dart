@@ -6,6 +6,7 @@ import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
+import 'package:hikari/features/novel_reader/novel_reader_theme.dart';
 import 'package:hikari/features/remote_novel/novel_chapter_reader_view_model.dart';
 
 class NovelChapterReaderPage extends StatefulWidget {
@@ -41,6 +42,9 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
   SourceMediaRef? _prefetchOrigin;
   bool _exiting = false;
   bool _readyToPop = false;
+  // The route survives chapter keys; per-chapter progress and scroll do not.
+  NovelReaderTheme _readerTheme = NovelReaderTheme.charcoal;
+  double _fontSize = 16.0;
 
   Future<void> _exit() async {
     if (_exiting) return;
@@ -140,6 +144,10 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
         return NovelReaderPage(
           key: ValueKey(chapter.source),
           title: chapter.title,
+          initialReaderTheme: _readerTheme,
+          initialFontSize: _fontSize,
+          onReaderThemeChanged: (value) => _readerTheme = value,
+          onFontSizeChanged: (value) => _fontSize = value,
           loadContent: () async => target.content,
           reloadContent: () =>
               widget.reloadContent(target.source, chapter.source),

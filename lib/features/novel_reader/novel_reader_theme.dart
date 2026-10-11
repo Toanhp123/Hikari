@@ -9,4 +9,10 @@ enum NovelReaderTheme {
 
   final Color bg;
   final Color fg;
+
+  String get label => switch (this) {
+    NovelReaderTheme.oled => 'OLED',
+    NovelReaderTheme.charcoal => 'Charcoal',
+    NovelReaderTheme.paper => 'Paper',
+  };
 }
