@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
@@ -17,6 +21,7 @@ class LibraryContent extends StatelessWidget {
     super.key,
     required this.state,
     required this.repository,
+    this.readArtwork,
     required this.openMedia,
     required this.onReload,
     required this.onSelectMediaType,
@@ -26,6 +31,7 @@ class LibraryContent extends StatelessWidget {
 
   final LibraryUiState state;
   final LibraryRepository repository;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
   final VoidCallback onReload;
   final ValueChanged<MediaType?> onSelectMediaType;
@@ -130,12 +136,14 @@ class LibraryContent extends StatelessWidget {
                   ? _LibraryGrid(
                       entries: visibleEntries,
                       repository: repository,
+                      readArtwork: readArtwork,
                       openMedia: openMedia,
                       onRepositoryChanged: onRepositoryChanged,
                     )
                   : _LibraryList(
                       entries: visibleEntries,
                       repository: repository,
+                      readArtwork: readArtwork,
                       openMedia: openMedia,
                       onRepositoryChanged: onRepositoryChanged,
                     ),
@@ -183,12 +191,14 @@ class _LibraryGrid extends StatelessWidget {
   const _LibraryGrid({
     required this.entries,
     required this.repository,
+    this.readArtwork,
     required this.openMedia,
     required this.onRepositoryChanged,
   });
 
   final List<LibraryEntry> entries;
   final LibraryRepository repository;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
   final VoidCallback onRepositoryChanged;
 
@@ -200,16 +210,33 @@ class _LibraryGrid extends StatelessWidget {
       gridDelegate: mediaPosterGridDelegate,
       itemCount: entries.length,
       itemBuilder: (context, index) {
-        final media = entries[index].media;
+        final entry = entries[index];
+        final media = entry.media;
         final badge = mediaTypeBadgeColors(context, media.type);
         return Stack(
           children: [
-            MediaPoster(
-              title: media.title,
-              badgeText: mediaTypeBadgeLabel(media.type),
-              badgeColor: badge.background,
-              badgeForegroundColor: badge.foreground,
-              onTap: () => openMedia(context, media),
+            Positioned.fill(
+              child: Builder(
+                builder: (context) {
+                  Widget poster(Uint8List? bytes) => MediaPoster(
+                    title: media.title,
+                    imageBytes: bytes,
+                    badgeText: mediaTypeBadgeLabel(media.type),
+                    badgeColor: badge.background,
+                    badgeForegroundColor: badge.foreground,
+                    onTap: () => openMedia(context, media),
+                  );
+                  final artwork = entry.artwork;
+                  return artwork != null && readArtwork != null
+                      ? SourceArtwork(
+                          key: ValueKey(media.source),
+                          resource: artwork,
+                          read: readArtwork!,
+                          builder: (_, bytes, _) => poster(bytes),
+                        )
+                      : poster(null);
+                },
+              ),
             ),
             Positioned(
               top: 4,
@@ -231,12 +258,14 @@ class _LibraryList extends StatelessWidget {
   const _LibraryList({
     required this.entries,
     required this.repository,
+    this.readArtwork,
     required this.openMedia,
     required this.onRepositoryChanged,
   });
 
   final List<LibraryEntry> entries;
   final LibraryRepository repository;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
   final VoidCallback onRepositoryChanged;
 
@@ -250,7 +279,8 @@ class _LibraryList extends StatelessWidget {
       separatorBuilder: (context, index) =>
           const SizedBox(height: HikariSpacing.sm),
       itemBuilder: (context, index) {
-        final media = entries[index].media;
+        final entry = entries[index];
+        final media = entry.media;
         return Material(
           color: colors.surfaceContainer,
           shape: RoundedRectangleBorder(
@@ -259,18 +289,42 @@ class _LibraryList extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: ListTile(
-            leading: DecoratedBox(
-              decoration: BoxDecoration(
-                color: mediaTypeBadgeColors(context, media.type).background,
-                borderRadius: HikariRadius.borderSm,
-              ),
-              child: SizedBox.square(
-                dimension: HikariSize.touchTarget,
-                child: Icon(switch (media.type) {
-                  MediaType.anime => Icons.movie_outlined,
-                  MediaType.manga => Icons.menu_book_rounded,
-                  MediaType.lightNovel => Icons.auto_stories_rounded,
-                }, color: mediaTypeBadgeColors(context, media.type).foreground),
+            leading: SizedBox.square(
+              dimension: HikariSize.touchTarget,
+              child: Builder(
+                builder: (context) {
+                  final badge = mediaTypeBadgeColors(context, media.type);
+                  Widget fallback() => ColoredBox(
+                    color: badge.background,
+                    child: Icon(switch (media.type) {
+                      MediaType.anime => Icons.movie_outlined,
+                      MediaType.manga => Icons.menu_book_rounded,
+                      MediaType.lightNovel => Icons.auto_stories_rounded,
+                    }, color: badge.foreground),
+                  );
+                  final artwork = entry.artwork;
+                  return ClipRRect(
+                    borderRadius: HikariRadius.borderSm,
+                    child: artwork != null && readArtwork != null
+                        ? SourceArtwork(
+                            key: ValueKey(media.source),
+                            resource: artwork,
+                            read: readArtwork!,
+                            builder: (_, bytes, _) => bytes == null
+                                ? fallback()
+                                : Image.memory(
+                                    bytes,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: mediaArtworkCacheWidth(
+                                      context,
+                                      HikariSize.touchTarget,
+                                    ),
+                                    errorBuilder: (_, _, _) => fallback(),
+                                  ),
+                          )
+                        : fallback(),
+                  );
+                },
               ),
             ),
             title: Text(

@@ -26,6 +26,7 @@ final class HomeUiState {
   const HomeUiState({
     this.loading = false,
     this.libraryItems = const [],
+    this.artworkByMedia = const {},
     this.hasLibrarySnapshot = false,
     this.continueItems = const [],
     this.error,
@@ -37,6 +38,7 @@ final class HomeUiState {
 
   final bool loading;
   final List<Media> libraryItems;
+  final Map<SourceMediaRef, SourceMediaRef> artworkByMedia;
   final bool hasLibrarySnapshot;
   final List<ContinueReadingItem> continueItems;
   final Object? error;
@@ -48,6 +50,7 @@ final class HomeUiState {
   HomeUiState copyWith({
     bool? loading,
     List<Media>? libraryItems,
+    Map<SourceMediaRef, SourceMediaRef>? artworkByMedia,
     bool? hasLibrarySnapshot,
     List<ContinueReadingItem>? continueItems,
     Object? error,
@@ -62,6 +65,7 @@ final class HomeUiState {
     return HomeUiState(
       loading: loading ?? this.loading,
       libraryItems: libraryItems ?? this.libraryItems,
+      artworkByMedia: artworkByMedia ?? this.artworkByMedia,
       hasLibrarySnapshot: hasLibrarySnapshot ?? this.hasLibrarySnapshot,
       continueItems: continueItems ?? this.continueItems,
       error: clearError ? null : error ?? this.error,
@@ -213,6 +217,10 @@ final class HomeViewModel extends ChangeNotifier {
     required int revision,
   }) async {
     final media = List<Media>.unmodifiable(entries.map((entry) => entry.media));
+    final artworkByMedia = Map<SourceMediaRef, SourceMediaRef>.unmodifiable({
+      for (final entry in entries)
+        if (entry.artwork != null) entry.media.source: entry.artwork!,
+    });
     var continueItems = const <ContinueReadingItem>[];
     Object? progressError;
     final loader = _continueReading;
@@ -226,6 +234,7 @@ final class HomeViewModel extends ChangeNotifier {
       _state.copyWith(
         loading: false,
         libraryItems: media,
+        artworkByMedia: artworkByMedia,
         hasLibrarySnapshot: true,
         continueItems: continueItems,
         progressError: progressError,

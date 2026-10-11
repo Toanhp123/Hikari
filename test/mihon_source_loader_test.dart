@@ -266,6 +266,13 @@ void main() {
       );
     }
     await database.customStatement('DROP TABLE mihon_continuation_records');
+    await database.customStatement('DROP TABLE series_continuation_records');
+    await database.customStatement(
+      'ALTER TABLE library_records DROP COLUMN artwork_source_id',
+    );
+    await database.customStatement(
+      'ALTER TABLE library_records DROP COLUMN artwork_item_id',
+    );
     await database.customStatement('PRAGMA user_version = 2');
     await database.close();
     database = UserDatabase(NativeDatabase(file));

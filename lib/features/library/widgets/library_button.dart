@@ -10,11 +10,13 @@ class LibraryButton extends StatefulWidget {
     super.key,
     required this.repository,
     required this.media,
+    this.artwork,
     this.onChanged,
   });
 
   final LibraryRepository repository;
   final Media media;
+  final SourceMediaRef? artwork;
   final VoidCallback? onChanged;
 
   @override
@@ -27,7 +29,11 @@ class _LibraryButtonState extends State<LibraryButton> {
   @override
   void initState() {
     super.initState();
-    _viewModel = LibraryButtonViewModel(widget.repository, widget.media);
+    _viewModel = LibraryButtonViewModel(
+      widget.repository,
+      widget.media,
+      artwork: widget.artwork,
+    );
   }
 
   @override
@@ -36,11 +42,16 @@ class _LibraryButtonState extends State<LibraryButton> {
     if (oldWidget.repository == widget.repository &&
         oldWidget.media.source == widget.media.source &&
         oldWidget.media.title == widget.media.title &&
-        oldWidget.media.type == widget.media.type) {
+        oldWidget.media.type == widget.media.type &&
+        oldWidget.artwork == widget.artwork) {
       return;
     }
     _viewModel.dispose();
-    _viewModel = LibraryButtonViewModel(widget.repository, widget.media);
+    _viewModel = LibraryButtonViewModel(
+      widget.repository,
+      widget.media,
+      artwork: widget.artwork,
+    );
   }
 
   @override

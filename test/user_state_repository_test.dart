@@ -176,6 +176,12 @@ void main() {
         "INSERT INTO mihon_continuation_records (source_id, item_id, payload) VALUES ('mihon', 'preserved', 'legacy-payload')",
       );
       await v3.customStatement('DROP TABLE series_continuation_records');
+      await v3.customStatement(
+        'ALTER TABLE library_records DROP COLUMN artwork_source_id',
+      );
+      await v3.customStatement(
+        'ALTER TABLE library_records DROP COLUMN artwork_item_id',
+      );
       await v3.customStatement('PRAGMA user_version = 3');
       await v3.close();
       final old = UserDatabase(NativeDatabase(file));
@@ -216,13 +222,144 @@ void main() {
         expect(
           (await old.customSelect('PRAGMA user_version').getSingle())
               .data['user_version'],
-          4,
+          5,
         );
         await old.validateDatabaseSchema();
       } finally {
         await old.close();
         await directory.delete(recursive: true);
       }
+    },
+  );
+
+  test('version four upgrade preserves saved media and progress', () async {
+    await db.close();
+    final directory = await Directory.systemTemp.createTemp(
+      'hikari-v4-artwork-',
+    );
+    final file = File('${directory.path}/state.sqlite');
+    final v4 = UserDatabase(
+      NativeDatabase(
+        file,
+        setup: (sqlite) {
+          sqlite.execute('''
+        CREATE TABLE progress_records (
+          source_id TEXT NOT NULL, item_id TEXT NOT NULL,
+          kind TEXT NOT NULL, position_ms INTEGER, duration_ms INTEGER,
+          page_index INTEGER, page_count INTEGER, text_progression REAL,
+          document_resource TEXT, document_progression REAL,
+          document_total_progression REAL, document_locator TEXT,
+          completed INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY (source_id, item_id))
+      ''');
+          sqlite.execute('''
+        CREATE TABLE library_records (
+          source_id TEXT NOT NULL, item_id TEXT NOT NULL,
+          title TEXT NOT NULL, media_type TEXT NOT NULL,
+          added_at INTEGER NOT NULL,
+          PRIMARY KEY (source_id, item_id))
+      ''');
+          sqlite.execute('''
+        CREATE TABLE mihon_continuation_records (
+          source_id TEXT NOT NULL, item_id TEXT NOT NULL,
+          payload TEXT NOT NULL, PRIMARY KEY (source_id, item_id))
+      ''');
+          sqlite.execute('''
+        CREATE TABLE series_continuation_records (
+          source_id TEXT NOT NULL, series_item_id TEXT NOT NULL,
+          chapter_item_id TEXT NOT NULL,
+          PRIMARY KEY (source_id, series_item_id))
+      ''');
+          sqlite.execute(
+            "INSERT INTO library_records VALUES ('remote', 'book', 'Old book', 'manga', 123)",
+          );
+          sqlite.execute(
+            "INSERT INTO progress_records (source_id,item_id,kind,page_index,page_count,completed,updated_at) VALUES ('remote','chapter','page',2,4,0,456)",
+          );
+          sqlite.execute(
+            "INSERT INTO series_continuation_records VALUES ('remote','book','chapter')",
+          );
+          sqlite.execute('PRAGMA user_version = 4');
+        },
+      ),
+    );
+    try {
+      final repository = SqliteLibraryRepository(v4);
+      const media = SourceMediaRef(
+        sourceId: SourceId('remote'),
+        itemId: 'book',
+      );
+      final snapshot = (await repository.loadAll()).single;
+      expect(snapshot.artwork, isNull);
+      expect(snapshot.addedAt.millisecondsSinceEpoch, 123);
+      expect(
+        await SqliteSeriesContinuationRepository(v4).load(media),
+        const SourceMediaRef(sourceId: SourceId('remote'), itemId: 'chapter'),
+      );
+      expect(
+        (await SqliteProgressRepository(v4).load(
+          const SourceMediaRef(sourceId: SourceId('remote'), itemId: 'chapter'),
+        ))!.updatedAt.millisecondsSinceEpoch,
+        456,
+      );
+      await repository.updateArtwork(
+        media,
+        const SourceMediaRef(sourceId: SourceId('remote'), itemId: 'cover'),
+      );
+      expect((await repository.loadAll()).single.artwork?.itemId, 'cover');
+      expect(
+        (await repository.loadAll()).single.addedAt.millisecondsSinceEpoch,
+        123,
+      );
+      expect(
+        (await v4.customSelect('PRAGMA user_version').getSingle())
+            .data['user_version'],
+        5,
+      );
+      await v4.validateDatabaseSchema();
+    } finally {
+      await v4.close();
+      await directory.delete(recursive: true);
+    }
+  });
+
+  test('artwork round trips, never recreates deleted membership', () async {
+    const media = Media(
+      title: 'Saved manga',
+      type: MediaType.manga,
+      source: ref,
+    );
+    const cover = SourceMediaRef(sourceId: SourceId('remote'), itemId: 'cover');
+    const otherCover = SourceMediaRef(
+      sourceId: SourceId('remote'),
+      itemId: 'other',
+    );
+    await library.upsert(
+      LibraryEntry(media: media, addedAt: now, artwork: cover),
+    );
+    final restored = (await library.loadAll()).single;
+    expect(restored.artwork, cover);
+    expect(restored.addedAt, now);
+    await library.updateArtwork(ref, otherCover);
+    expect((await library.loadAll()).single.artwork, cover);
+    await library.remove(ref);
+    await library.updateArtwork(ref, cover);
+    expect(await library.loadAll(), isEmpty);
+  });
+
+  test(
+    'missing artwork backfills without changing addedAt or membership',
+    () async {
+      await library.upsert(entry());
+      const cover = SourceMediaRef(
+        sourceId: SourceId('provider'),
+        itemId: 'cover',
+      );
+      await library.updateArtwork(ref, cover);
+      final restored = (await library.loadAll()).single;
+      expect(restored.artwork, cover);
+      expect(restored.addedAt, now);
+      expect(restored.media.title, 'Snapshot');
     },
   );
 

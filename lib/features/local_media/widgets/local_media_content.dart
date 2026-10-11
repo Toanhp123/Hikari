@@ -181,6 +181,7 @@ class LocalMediaContent extends StatelessWidget {
                             child: LibraryButton(
                               repository: library!,
                               media: item,
+                              artwork: preview,
                             ),
                           ),
                       ],

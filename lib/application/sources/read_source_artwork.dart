@@ -22,11 +22,10 @@ final class ReadSourceArtwork {
 
   Future<Uint8List?> execute(SourceMediaRef artwork) {
     final source = _sources.find(artwork.sourceId);
-    if (source is! ArtworkSource) return Future.value(null);
 
     final pending = _inFlight[artwork];
     if (pending != null) return pending;
-    final load = _load(source, artwork);
+    final load = _load(source is ArtworkSource ? source : null, artwork);
     final shared = load.whenComplete(() {
       _inFlight.remove(artwork);
     });
@@ -34,7 +33,10 @@ final class ReadSourceArtwork {
     return shared;
   }
 
-  Future<Uint8List?> _load(ArtworkSource source, SourceMediaRef artwork) async {
+  Future<Uint8List?> _load(
+    ArtworkSource? source,
+    SourceMediaRef artwork,
+  ) async {
     final cache = _cache;
     if (cache != null) {
       try {
@@ -45,6 +47,8 @@ final class ReadSourceArtwork {
       }
     }
 
+    // A removed/disabled extension can still display previously cached covers.
+    if (source == null) return null;
     final bytes = await source.readArtwork(artwork);
     if (bytes.isEmpty || cache == null) return bytes.isEmpty ? null : bytes;
     try {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +37,61 @@ void main() {
         bottomPadding + HikariSpacing.xl,
       );
     }
+  });
+
+  testWidgets('Home recent and continue use the saved cover reference', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const media = Media(
+      title: 'Saved reading',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: SourceId('provider'), itemId: 'book'),
+    );
+    const cover = SourceMediaRef(
+      sourceId: SourceId('provider'),
+      itemId: 'cover',
+    );
+    var reads = 0;
+    final image = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGOQNJvzHwADQgHrKgED3AAAAABJRU5ErkJggg==',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: HomePage(
+          openMedia: (_, _) {},
+          library: _FakeLibraryRepository([media], artwork: cover),
+          readArtwork: (ref) async {
+            expect(ref, cover);
+            reads++;
+            return image;
+          },
+          progressRepository: _ProgressRepository({
+            media.source: MediaProgress(
+              media: media.source,
+              position: PagePosition(pageIndex: 2, pageCount: 5),
+              completed: false,
+              updatedAt: DateTime.utc(2026),
+            ),
+          }),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ContinueShelf), findsOneWidget);
+    expect(find.text('Recently added'), findsOneWidget);
+    expect(reads, greaterThanOrEqualTo(2));
+    expect(
+      tester
+          .widgetList<MediaPoster>(find.byType(MediaPoster))
+          .any((poster) => poster.imageBytes != null),
+      isTrue,
+    );
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('Catalog featured hero precedes resume shelf', (tester) async {
@@ -376,13 +432,14 @@ void main() {
 }
 
 final class _FakeLibraryRepository implements LibraryRepository {
-  _FakeLibraryRepository(this.media);
+  _FakeLibraryRepository(this.media, {this.artwork});
   final List<Media> media;
+  final SourceMediaRef? artwork;
 
   @override
   Future<List<LibraryEntry>> loadAll() async => [
     for (final item in media)
-      LibraryEntry(media: item, addedAt: DateTime.utc(2026)),
+      LibraryEntry(media: item, addedAt: DateTime.utc(2026), artwork: artwork),
   ];
 
   @override

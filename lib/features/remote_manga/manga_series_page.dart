@@ -153,7 +153,14 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
           ),
         ),
         if (widget.library != null)
-          LibraryButton(repository: widget.library!, media: widget.media),
+          ListenableBuilder(
+            listenable: _viewModel,
+            builder: (_, _) => LibraryButton(
+              repository: widget.library!,
+              media: widget.media,
+              artwork: _viewModel.state.details?.metadata.cover,
+            ),
+          ),
       ],
     ),
     body: SafeArea(

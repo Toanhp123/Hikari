@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
@@ -16,6 +19,8 @@ class HomeRecentShelf extends StatelessWidget {
     super.key,
     required this.items,
     required this.openMedia,
+    this.artworkByMedia = const {},
+    this.readArtwork,
     this.filters = const [],
     this.effectiveFilter,
     this.onSelectFilter,
@@ -23,6 +28,8 @@ class HomeRecentShelf extends StatelessWidget {
   });
 
   final List<Media> items;
+  final Map<SourceMediaRef, SourceMediaRef> artworkByMedia;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
   final List<HomeFilterType> filters;
   final HomeFilterType? effectiveFilter;
@@ -123,15 +130,25 @@ class HomeRecentShelf extends StatelessWidget {
               itemBuilder: (context, index) {
                 final item = items[index];
                 final badge = mediaTypeBadgeColors(context, item.type);
+                Widget poster(Uint8List? bytes) => MediaPoster(
+                  title: item.title,
+                  imageBytes: bytes,
+                  badgeText: mediaTypeBadgeLabel(item.type),
+                  badgeColor: badge.background,
+                  badgeForegroundColor: badge.foreground,
+                  onTap: () => openMedia(context, item),
+                );
+                final artwork = artworkByMedia[item.source];
                 return SizedBox(
                   width: posterWidth,
-                  child: MediaPoster(
-                    title: item.title,
-                    badgeText: mediaTypeBadgeLabel(item.type),
-                    badgeColor: badge.background,
-                    badgeForegroundColor: badge.foreground,
-                    onTap: () => openMedia(context, item),
-                  ),
+                  child: artwork != null && readArtwork != null
+                      ? SourceArtwork(
+                          key: ValueKey(item.source),
+                          resource: artwork,
+                          read: readArtwork!,
+                          builder: (_, bytes, _) => poster(bytes),
+                        )
+                      : poster(null),
                 );
               },
             ),

@@ -922,6 +922,28 @@ class $LibraryRecordsTable extends LibraryRecords
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _artworkSourceIdMeta = const VerificationMeta(
+    'artworkSourceId',
+  );
+  @override
+  late final GeneratedColumn<String> artworkSourceId = GeneratedColumn<String>(
+    'artwork_source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _artworkItemIdMeta = const VerificationMeta(
+    'artworkItemId',
+  );
+  @override
+  late final GeneratedColumn<String> artworkItemId = GeneratedColumn<String>(
+    'artwork_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     sourceId,
@@ -929,6 +951,8 @@ class $LibraryRecordsTable extends LibraryRecords
     title,
     mediaType,
     addedAt,
+    artworkSourceId,
+    artworkItemId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -982,6 +1006,24 @@ class $LibraryRecordsTable extends LibraryRecords
     } else if (isInserting) {
       context.missing(_addedAtMeta);
     }
+    if (data.containsKey('artwork_source_id')) {
+      context.handle(
+        _artworkSourceIdMeta,
+        artworkSourceId.isAcceptableOrUnknown(
+          data['artwork_source_id']!,
+          _artworkSourceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('artwork_item_id')) {
+      context.handle(
+        _artworkItemIdMeta,
+        artworkItemId.isAcceptableOrUnknown(
+          data['artwork_item_id']!,
+          _artworkItemIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1011,6 +1053,14 @@ class $LibraryRecordsTable extends LibraryRecords
         DriftSqlType.int,
         data['${effectivePrefix}added_at'],
       )!,
+      artworkSourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artwork_source_id'],
+      ),
+      artworkItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}artwork_item_id'],
+      ),
     );
   }
 
@@ -1026,12 +1076,16 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
   final String title;
   final String mediaType;
   final int addedAt;
+  final String? artworkSourceId;
+  final String? artworkItemId;
   const LibraryRecord({
     required this.sourceId,
     required this.itemId,
     required this.title,
     required this.mediaType,
     required this.addedAt,
+    this.artworkSourceId,
+    this.artworkItemId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1041,6 +1095,12 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
     map['title'] = Variable<String>(title);
     map['media_type'] = Variable<String>(mediaType);
     map['added_at'] = Variable<int>(addedAt);
+    if (!nullToAbsent || artworkSourceId != null) {
+      map['artwork_source_id'] = Variable<String>(artworkSourceId);
+    }
+    if (!nullToAbsent || artworkItemId != null) {
+      map['artwork_item_id'] = Variable<String>(artworkItemId);
+    }
     return map;
   }
 
@@ -1051,6 +1111,12 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
       title: Value(title),
       mediaType: Value(mediaType),
       addedAt: Value(addedAt),
+      artworkSourceId: artworkSourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artworkSourceId),
+      artworkItemId: artworkItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(artworkItemId),
     );
   }
 
@@ -1065,6 +1131,8 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
       title: serializer.fromJson<String>(json['title']),
       mediaType: serializer.fromJson<String>(json['mediaType']),
       addedAt: serializer.fromJson<int>(json['addedAt']),
+      artworkSourceId: serializer.fromJson<String?>(json['artworkSourceId']),
+      artworkItemId: serializer.fromJson<String?>(json['artworkItemId']),
     );
   }
   @override
@@ -1076,6 +1144,8 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
       'title': serializer.toJson<String>(title),
       'mediaType': serializer.toJson<String>(mediaType),
       'addedAt': serializer.toJson<int>(addedAt),
+      'artworkSourceId': serializer.toJson<String?>(artworkSourceId),
+      'artworkItemId': serializer.toJson<String?>(artworkItemId),
     };
   }
 
@@ -1085,12 +1155,20 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
     String? title,
     String? mediaType,
     int? addedAt,
+    Value<String?> artworkSourceId = const Value.absent(),
+    Value<String?> artworkItemId = const Value.absent(),
   }) => LibraryRecord(
     sourceId: sourceId ?? this.sourceId,
     itemId: itemId ?? this.itemId,
     title: title ?? this.title,
     mediaType: mediaType ?? this.mediaType,
     addedAt: addedAt ?? this.addedAt,
+    artworkSourceId: artworkSourceId.present
+        ? artworkSourceId.value
+        : this.artworkSourceId,
+    artworkItemId: artworkItemId.present
+        ? artworkItemId.value
+        : this.artworkItemId,
   );
   LibraryRecord copyWithCompanion(LibraryRecordsCompanion data) {
     return LibraryRecord(
@@ -1099,6 +1177,12 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
       title: data.title.present ? data.title.value : this.title,
       mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
       addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+      artworkSourceId: data.artworkSourceId.present
+          ? data.artworkSourceId.value
+          : this.artworkSourceId,
+      artworkItemId: data.artworkItemId.present
+          ? data.artworkItemId.value
+          : this.artworkItemId,
     );
   }
 
@@ -1109,13 +1193,23 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
           ..write('itemId: $itemId, ')
           ..write('title: $title, ')
           ..write('mediaType: $mediaType, ')
-          ..write('addedAt: $addedAt')
+          ..write('addedAt: $addedAt, ')
+          ..write('artworkSourceId: $artworkSourceId, ')
+          ..write('artworkItemId: $artworkItemId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(sourceId, itemId, title, mediaType, addedAt);
+  int get hashCode => Object.hash(
+    sourceId,
+    itemId,
+    title,
+    mediaType,
+    addedAt,
+    artworkSourceId,
+    artworkItemId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1124,7 +1218,9 @@ class LibraryRecord extends DataClass implements Insertable<LibraryRecord> {
           other.itemId == this.itemId &&
           other.title == this.title &&
           other.mediaType == this.mediaType &&
-          other.addedAt == this.addedAt);
+          other.addedAt == this.addedAt &&
+          other.artworkSourceId == this.artworkSourceId &&
+          other.artworkItemId == this.artworkItemId);
 }
 
 class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
@@ -1133,6 +1229,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
   final Value<String> title;
   final Value<String> mediaType;
   final Value<int> addedAt;
+  final Value<String?> artworkSourceId;
+  final Value<String?> artworkItemId;
   final Value<int> rowid;
   const LibraryRecordsCompanion({
     this.sourceId = const Value.absent(),
@@ -1140,6 +1238,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
     this.title = const Value.absent(),
     this.mediaType = const Value.absent(),
     this.addedAt = const Value.absent(),
+    this.artworkSourceId = const Value.absent(),
+    this.artworkItemId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LibraryRecordsCompanion.insert({
@@ -1148,6 +1248,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
     required String title,
     required String mediaType,
     required int addedAt,
+    this.artworkSourceId = const Value.absent(),
+    this.artworkItemId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : sourceId = Value(sourceId),
        itemId = Value(itemId),
@@ -1160,6 +1262,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
     Expression<String>? title,
     Expression<String>? mediaType,
     Expression<int>? addedAt,
+    Expression<String>? artworkSourceId,
+    Expression<String>? artworkItemId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1168,6 +1272,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
       if (title != null) 'title': title,
       if (mediaType != null) 'media_type': mediaType,
       if (addedAt != null) 'added_at': addedAt,
+      if (artworkSourceId != null) 'artwork_source_id': artworkSourceId,
+      if (artworkItemId != null) 'artwork_item_id': artworkItemId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1178,6 +1284,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
     Value<String>? title,
     Value<String>? mediaType,
     Value<int>? addedAt,
+    Value<String?>? artworkSourceId,
+    Value<String?>? artworkItemId,
     Value<int>? rowid,
   }) {
     return LibraryRecordsCompanion(
@@ -1186,6 +1294,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
       title: title ?? this.title,
       mediaType: mediaType ?? this.mediaType,
       addedAt: addedAt ?? this.addedAt,
+      artworkSourceId: artworkSourceId ?? this.artworkSourceId,
+      artworkItemId: artworkItemId ?? this.artworkItemId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1208,6 +1318,12 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
     if (addedAt.present) {
       map['added_at'] = Variable<int>(addedAt.value);
     }
+    if (artworkSourceId.present) {
+      map['artwork_source_id'] = Variable<String>(artworkSourceId.value);
+    }
+    if (artworkItemId.present) {
+      map['artwork_item_id'] = Variable<String>(artworkItemId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1222,6 +1338,8 @@ class LibraryRecordsCompanion extends UpdateCompanion<LibraryRecord> {
           ..write('title: $title, ')
           ..write('mediaType: $mediaType, ')
           ..write('addedAt: $addedAt, ')
+          ..write('artworkSourceId: $artworkSourceId, ')
+          ..write('artworkItemId: $artworkItemId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2218,6 +2336,8 @@ typedef $$LibraryRecordsTableCreateCompanionBuilder =
       required String title,
       required String mediaType,
       required int addedAt,
+      Value<String?> artworkSourceId,
+      Value<String?> artworkItemId,
       Value<int> rowid,
     });
 typedef $$LibraryRecordsTableUpdateCompanionBuilder =
@@ -2227,6 +2347,8 @@ typedef $$LibraryRecordsTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String> mediaType,
       Value<int> addedAt,
+      Value<String?> artworkSourceId,
+      Value<String?> artworkItemId,
       Value<int> rowid,
     });
 
@@ -2261,6 +2383,14 @@ class $$LibraryRecordsTableFilterComposer
 
   ColumnFilters<int> get addedAt => $composableBuilder(
     column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+  ColumnFilters<String> get artworkSourceId => $composableBuilder(
+    column: $table.artworkSourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+  ColumnFilters<String> get artworkItemId => $composableBuilder(
+    column: $table.artworkItemId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2298,6 +2428,14 @@ class $$LibraryRecordsTableOrderingComposer
     column: $table.addedAt,
     builder: (column) => ColumnOrderings(column),
   );
+  ColumnOrderings<String> get artworkSourceId => $composableBuilder(
+    column: $table.artworkSourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+  ColumnOrderings<String> get artworkItemId => $composableBuilder(
+    column: $table.artworkItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LibraryRecordsTableAnnotationComposer
@@ -2323,6 +2461,14 @@ class $$LibraryRecordsTableAnnotationComposer
 
   GeneratedColumn<int> get addedAt =>
       $composableBuilder(column: $table.addedAt, builder: (column) => column);
+  GeneratedColumn<String> get artworkSourceId => $composableBuilder(
+    column: $table.artworkSourceId,
+    builder: (column) => column,
+  );
+  GeneratedColumn<String> get artworkItemId => $composableBuilder(
+    column: $table.artworkItemId,
+    builder: (column) => column,
+  );
 }
 
 class $$LibraryRecordsTableTableManager
@@ -2363,6 +2509,8 @@ class $$LibraryRecordsTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String> mediaType = const Value.absent(),
                 Value<int> addedAt = const Value.absent(),
+                Value<String?> artworkSourceId = const Value.absent(),
+                Value<String?> artworkItemId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LibraryRecordsCompanion(
                 sourceId: sourceId,
@@ -2370,6 +2518,8 @@ class $$LibraryRecordsTableTableManager
                 title: title,
                 mediaType: mediaType,
                 addedAt: addedAt,
+                artworkSourceId: artworkSourceId,
+                artworkItemId: artworkItemId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2379,6 +2529,8 @@ class $$LibraryRecordsTableTableManager
                 required String title,
                 required String mediaType,
                 required int addedAt,
+                Value<String?> artworkSourceId = const Value.absent(),
+                Value<String?> artworkItemId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LibraryRecordsCompanion.insert(
                 sourceId: sourceId,
@@ -2386,6 +2538,8 @@ class $$LibraryRecordsTableTableManager
                 title: title,
                 mediaType: mediaType,
                 addedAt: addedAt,
+                artworkSourceId: artworkSourceId,
+                artworkItemId: artworkItemId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

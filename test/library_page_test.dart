@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +73,41 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+  testWidgets('Library grid and list render persisted artwork', (tester) async {
+    const cover = SourceMediaRef(
+      sourceId: SourceId('provider'),
+      itemId: 'cover',
+    );
+    final image = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGOQNJvzHwADQgHrKgED3AAAAABJRU5ErkJggg==',
+    );
+    await library.upsert(
+      LibraryEntry(media: media, artwork: cover, addedAt: DateTime.utc(2026)),
+    );
+    var requested = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: LibraryPage(
+          repository: library,
+          openMedia: (_, _) {},
+          readArtwork: (resource) async {
+            expect(resource, cover);
+            requested++;
+            return image;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(requested, greaterThan(0));
+    expect(find.byType(Image), findsWidgets);
+    await tester.tap(find.byTooltip('Switch to list view'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Image), findsWidgets);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('scan result toggles persisted library membership', (
     tester,
   ) async {
