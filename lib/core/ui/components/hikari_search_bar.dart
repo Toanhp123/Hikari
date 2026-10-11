@@ -81,31 +81,38 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    return SearchBar(
-      controller: _controller,
-      autoFocus: widget.autofocus,
-      hintText: widget.hintText,
-      textInputAction: widget.onSubmitted == null
-          ? null
-          : TextInputAction.search,
-      onChanged: _onTextChange,
-      onSubmitted: widget.onSubmitted == null ? null : _submit,
-      leading: const Icon(Icons.search_rounded),
-      trailing: _controller.text.isEmpty
-          ? null
-          : [
-              if (widget.onSubmitted != null)
+    // The app-wide input decoration minimum height would also apply to the
+    // TextField inside SearchBar. Let that inner field size to its text so the
+    // SearchBar's Row can center it vertically within the 48dp touch target.
+    return InputDecorationTheme(
+      data: InputDecorationTheme.of(context)
+          .copyWith(constraints: const BoxConstraints()),
+      child: SearchBar(
+        controller: _controller,
+        autoFocus: widget.autofocus,
+        hintText: widget.hintText,
+        textInputAction: widget.onSubmitted == null
+            ? null
+            : TextInputAction.search,
+        onChanged: _onTextChange,
+        onSubmitted: widget.onSubmitted == null ? null : _submit,
+        leading: const Icon(Icons.search_rounded),
+        trailing: _controller.text.isEmpty
+            ? null
+            : [
+                if (widget.onSubmitted != null)
+                  IconButton(
+                    tooltip: 'Submit search',
+                    onPressed: () => _submit(_controller.text),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
                 IconButton(
-                  tooltip: 'Submit search',
-                  onPressed: () => _submit(_controller.text),
-                  icon: const Icon(Icons.arrow_forward_rounded),
+                  tooltip: 'Clear search',
+                  onPressed: _onClear,
+                  icon: const Icon(Icons.close_rounded),
                 ),
-              IconButton(
-                tooltip: 'Clear search',
-                onPressed: _onClear,
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
+              ],
+      ),
     );
   }
 }

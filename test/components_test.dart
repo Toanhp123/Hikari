@@ -263,6 +263,34 @@ void main() {
         inheritedTheme.searchBarTheme.constraints!.minHeight,
         HikariSize.fieldMinHeight,
       );
+      expect(
+        inheritedTheme.inputDecorationTheme.constraints!.minHeight,
+        HikariSize.fieldMinHeight,
+      );
+      expect(tester.getSize(searchBar).height, HikariSize.fieldMinHeight);
+
+      // The nested TextField must not inherit the app-wide 48dp minimum:
+      // SearchBar centers its naturally sized editor beside the action icons.
+      final editor = find.descendant(
+        of: searchBar,
+        matching: find.byType(EditableText),
+      );
+      final textField = find.descendant(
+        of: searchBar,
+        matching: find.byType(TextField),
+      );
+      expect(
+        InputDecorationTheme.of(tester.element(textField)).constraints,
+        const BoxConstraints(),
+      );
+      expect(
+        tester.getSize(textField).height,
+        lessThan(HikariSize.fieldMinHeight),
+      );
+      expect(
+        (tester.getCenter(editor).dy - tester.getCenter(searchBar).dy).abs(),
+        lessThan(1),
+      );
 
       await tester.enterText(searchBar, 'Bleach');
       await tester.pump(const Duration(milliseconds: 20));
@@ -271,6 +299,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 60));
       expect(currentQuery, 'Bleach'); // debounced
       expect(find.byTooltip('Clear search'), findsOneWidget);
+      expect(
+        (tester.getCenter(editor).dy - tester.getCenter(searchBar).dy).abs(),
+        lessThan(1),
+      );
 
       await tester.tap(find.byTooltip('Clear search'));
       await tester.pumpAndSettle();
