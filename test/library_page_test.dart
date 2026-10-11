@@ -167,6 +167,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2 saved titles'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('All Types'), findsNothing);
+    await tester.tap(find.text('Manga'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 of 2 titles'), findsOneWidget);
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 saved titles'), findsOneWidget);
     await tester.tap(find.text('Anime'));
     await tester.pumpAndSettle();
     expect(find.text('No matching titles'), findsOneWidget);

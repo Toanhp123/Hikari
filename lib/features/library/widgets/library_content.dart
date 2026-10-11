@@ -164,7 +164,7 @@ class _LibraryFilters extends StatelessWidget {
         spacing: HikariSpacing.xs,
         children: [
           HikariChip(
-            label: 'All Types',
+            label: 'All',
             isSelected: selectedType == null,
             onTap: () => onSelect(null),
           ),
