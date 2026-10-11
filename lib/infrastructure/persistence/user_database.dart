@@ -30,6 +30,8 @@ class LibraryRecords extends Table {
   TextColumn get title => text()();
   TextColumn get mediaType => text()();
   IntColumn get addedAt => integer()();
+  TextColumn get artworkSourceId => text().nullable()();
+  TextColumn get artworkItemId => text().nullable()();
   @override
   Set<Column<Object>> get primaryKey => {sourceId, itemId};
 }
@@ -62,7 +64,7 @@ class UserDatabase extends _$UserDatabase {
   UserDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'hikari_user_state'));
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   Future<void> _migrateMihonReferences() async {
     // Keep latest progress / earliest library membership if old mutable keys
@@ -144,6 +146,10 @@ class UserDatabase extends _$UserDatabase {
       }
       if (from < 4) {
         await m.createTable(seriesContinuationRecords);
+      }
+      if (from < 5) {
+        await m.addColumn(libraryRecords, libraryRecords.artworkSourceId);
+        await m.addColumn(libraryRecords, libraryRecords.artworkItemId);
       }
     },
   );

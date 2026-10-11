@@ -1,9 +1,12 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
+import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -16,11 +19,15 @@ class ContinueShelf extends StatelessWidget {
     super.key,
     required this.items,
     required this.onOpenMedia,
+    this.artworkByMedia = const {},
+    this.readArtwork,
     this.onContinue,
     this.onSeeAll,
   });
 
   final List<ContinueReadingItem> items;
+  final Map<SourceMediaRef, SourceMediaRef> artworkByMedia;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) onOpenMedia;
   final void Function(BuildContext, ContinueReadingItem)? onContinue;
   final VoidCallback? onSeeAll;
@@ -112,6 +119,8 @@ class ContinueShelf extends StatelessWidget {
               width: cardWidth,
               child: _ContinueCard(
                 item: items[index],
+                artwork: artworkByMedia[items[index].media.source],
+                readArtwork: readArtwork,
                 onTap: () => onContinue != null
                     ? onContinue!(context, items[index])
                     : onOpenMedia(context, items[index].media),
@@ -125,9 +134,16 @@ class ContinueShelf extends StatelessWidget {
 }
 
 class _ContinueCard extends StatelessWidget {
-  const _ContinueCard({required this.item, required this.onTap});
+  const _ContinueCard({
+    required this.item,
+    required this.onTap,
+    this.artwork,
+    this.readArtwork,
+  });
 
   final ContinueReadingItem item;
+  final SourceMediaRef? artwork;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final VoidCallback onTap;
 
   @override
@@ -200,6 +216,29 @@ class _ContinueCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (artwork != null && readArtwork != null)
+                        SourceArtwork(
+                          key: ValueKey(artwork),
+                          resource: artwork!,
+                          read: readArtwork!,
+                          builder: (context, bytes, _) => bytes == null
+                              ? const SizedBox.shrink()
+                              : LayoutBuilder(
+                                  builder: (context, constraints) =>
+                                      Image.memory(
+                                        bytes,
+                                        fit: BoxFit.cover,
+                                        width: constraints.maxWidth,
+                                        height: constraints.maxHeight,
+                                        cacheWidth: mediaArtworkCacheWidth(
+                                          context,
+                                          constraints.maxWidth,
+                                        ),
+                                        errorBuilder: (_, _, _) =>
+                                            const SizedBox.shrink(),
+                                      ),
+                                ),
+                        ),
                       Positioned(
                         left: HikariSpacing.sm,
                         top: HikariSpacing.sm,

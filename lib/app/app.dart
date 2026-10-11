@@ -573,6 +573,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.home: HomePage(
               openMedia: _openMedia,
               library: libraryRepository,
+              readArtwork: _dependencies.readSourceArtwork.execute,
               loadContinueReading: _dependencies.loadContinueReading,
               onContinue: _continueReading,
               discoverCatalog: _dependencies.discoverCatalog,
@@ -598,6 +599,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             ),
             AppTab.library: LibraryPage(
               repository: libraryRepository,
+              readArtwork: _dependencies.readSourceArtwork.execute,
               openMedia: _openMedia,
               onNavigateToSearch: () =>
                   _navigationController.selectTab(AppTab.search),

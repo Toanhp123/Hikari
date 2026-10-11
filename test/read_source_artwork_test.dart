@@ -25,7 +25,7 @@ void main() {
     expect(source.reads, 1);
   });
 
-  test('uses cache only for registered artwork sources', () async {
+  test('prefers cache and never fetches from unsupported sources', () async {
     final source = _ArtworkSource();
     final cache = _MemoryCache();
     final reader = ReadSourceArtwork(SourceRegistry([source]), cache: cache);
@@ -40,6 +40,23 @@ void main() {
         cache: cache,
       ).execute(_art('test:plain', 'cover')),
       isNull,
+    );
+  });
+
+  test('cached artwork survives missing provider', () async {
+    final cache = _MemoryCache();
+    final artwork = _art('test:artwork', 'persisted');
+    final reader = ReadSourceArtwork(
+      SourceRegistry([_ArtworkSource()]),
+      cache: cache,
+    );
+    expect(await reader.execute(artwork), [1, 2, 3]);
+    expect(
+      await ReadSourceArtwork(
+        SourceRegistry([]),
+        cache: cache,
+      ).execute(artwork),
+      [1, 2, 3],
     );
   });
 

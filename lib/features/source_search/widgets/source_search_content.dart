@@ -297,7 +297,11 @@ class _SourceSearchGrid extends StatelessWidget {
               Positioned(
                 top: HikariSpacing.xs,
                 right: HikariSpacing.xs,
-                child: LibraryButton(repository: library!, media: media),
+                child: LibraryButton(
+                  repository: library!,
+                  media: media,
+                  artwork: cover,
+                ),
               ),
           ],
         );

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
@@ -32,6 +34,7 @@ class HomePage extends StatefulWidget {
     this.refreshRevision = 0,
     this.onNavigateToSearch,
     this.onNavigateToLibrary,
+    this.readArtwork,
   });
 
   final void Function(BuildContext, Media) openMedia;
@@ -44,6 +47,7 @@ class HomePage extends StatefulWidget {
   final int refreshRevision;
   final VoidCallback? onNavigateToSearch;
   final VoidCallback? onNavigateToLibrary;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -129,6 +133,8 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
                   child: ContinueShelf(
                     items: state.continueItems,
+                    artworkByMedia: state.artworkByMedia,
+                    readArtwork: widget.readArtwork,
                     onOpenMedia: widget.openMedia,
                     onContinue: widget.onContinue,
                     onSeeAll: widget.onNavigateToLibrary,
@@ -177,6 +183,8 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
                   child: HomeRecentShelf(
                     items: _viewModel.visibleLibraryItems,
+                    artworkByMedia: state.artworkByMedia,
+                    readArtwork: widget.readArtwork,
                     openMedia: widget.openMedia,
                     filters: _viewModel.availableFilters,
                     effectiveFilter: _viewModel.effectiveFilter,

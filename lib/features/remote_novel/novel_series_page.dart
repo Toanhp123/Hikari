@@ -153,9 +153,13 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
             ),
           ),
           if (widget.library != null)
-            LibraryButton(
-              repository: widget.library!,
-              media: widget.target.media,
+            ListenableBuilder(
+              listenable: _viewModel,
+              builder: (_, _) => LibraryButton(
+                repository: widget.library!,
+                media: widget.target.media,
+                artwork: _viewModel.state.details?.metadata.cover,
+              ),
             ),
         ],
       ),

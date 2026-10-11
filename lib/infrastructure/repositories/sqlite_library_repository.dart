@@ -3,7 +3,8 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
-final class SqliteLibraryRepository implements ObservableLibraryRepository {
+final class SqliteLibraryRepository
+    implements ObservableLibraryRepository, LibraryArtworkRepository {
   SqliteLibraryRepository(this._database);
 
   final UserDatabase _database;
@@ -19,6 +20,29 @@ final class SqliteLibraryRepository implements ObservableLibraryRepository {
             title: entry.media.title,
             mediaType: _mediaTypeStorageValue(entry.media.type),
             addedAt: entry.addedAt.millisecondsSinceEpoch,
+            artworkSourceId: entry.artwork?.sourceId.value,
+            artworkItemId: entry.artwork?.itemId,
+          ),
+        );
+  }
+
+  @override
+  Future<void> updateArtwork(
+    SourceMediaRef media,
+    SourceMediaRef artwork,
+  ) async {
+    // Never recreate a removed entry, overwrite an existing cover, or change addedAt.
+    await (_database.update(_database.libraryRecords)..where(
+          (row) =>
+              row.sourceId.equals(media.sourceId.value) &
+              row.itemId.equals(media.itemId) &
+              row.artworkSourceId.isNull() &
+              row.artworkItemId.isNull(),
+        ))
+        .write(
+          LibraryRecordsCompanion(
+            artworkSourceId: Value(artwork.sourceId.value),
+            artworkItemId: Value(artwork.itemId),
           ),
         );
   }
@@ -74,6 +98,12 @@ LibraryEntry _mapLibraryEntry(LibraryRecord row) {
         ),
       ),
       addedAt: DateTime.fromMillisecondsSinceEpoch(row.addedAt, isUtc: true),
+      artwork: row.artworkSourceId != null && row.artworkItemId != null
+          ? SourceMediaRef(
+              sourceId: SourceId(row.artworkSourceId!),
+              itemId: row.artworkItemId!,
+            )
+          : null,
     );
   } on ArgumentError catch (error) {
     throw FormatException('Invalid library snapshot: $error');

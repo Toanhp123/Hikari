@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
@@ -12,10 +14,12 @@ class LibraryPage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.openMedia,
+    this.readArtwork,
     this.onNavigateToSearch,
   });
 
   final LibraryRepository repository;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
   final VoidCallback? onNavigateToSearch;
 
@@ -63,6 +67,7 @@ class _LibraryPageState extends State<LibraryPage> {
           body: LibraryContent(
             state: state,
             repository: widget.repository,
+            readArtwork: widget.readArtwork,
             openMedia: widget.openMedia,
             onReload: _viewModel.reload,
             onSelectMediaType: _viewModel.selectMediaType,
