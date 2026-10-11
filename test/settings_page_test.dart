@@ -9,6 +9,36 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/features/settings/settings_page.dart';
 
 void main() {
+  testWidgets('appearance save status is visible and retry is available', (
+    tester,
+  ) async {
+    var retries = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          appearanceSaveStatus: AppearanceSaveStatus.failed,
+          onRetryAppearanceSave: () => retries++,
+        ),
+      ),
+    );
+    expect(find.textContaining('Could not save appearance.'), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    expect(retries, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('appearance persistence status hides retry while saving', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(appearanceSaveStatus: AppearanceSaveStatus.saving),
+      ),
+    );
+    expect(find.text('Saving appearance…'), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+  });
+
   testWidgets('saved folder name appears after an async metadata lookup', (
     tester,
   ) async {

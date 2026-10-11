@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 
+/// Persistence state for the most recently requested appearance selection.
+enum AppearanceSaveStatus { saved, saving, failed }
+
 class SettingsContent extends StatelessWidget {
   const SettingsContent({
     super.key,
     required this.isOled,
     this.selectedAccent,
+    this.appearanceSaveStatus,
+    this.onRetryAppearanceSave,
     required this.isClearingCache,
     required this.isChoosingFolder,
     this.isCheckingFolder = false,
@@ -22,6 +27,8 @@ class SettingsContent extends StatelessWidget {
 
   final bool isOled;
   final Color? selectedAccent;
+  final AppearanceSaveStatus? appearanceSaveStatus;
+  final VoidCallback? onRetryAppearanceSave;
   final bool isClearingCache;
   final bool isChoosingFolder;
   final bool isCheckingFolder;
@@ -89,16 +96,51 @@ class SettingsContent extends StatelessWidget {
                               ),
                           ],
                         ),
-                        const SizedBox(height: HikariSpacing.sm),
-                        Text(
-                          'Appearance preferences are saved on this device.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colors.onSurfaceVariant),
-                        ),
                       ],
                     ),
                   ),
                 ],
+                if (appearanceSaveStatus != null)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: HikariSpacing.md,
+                      end: HikariSpacing.md,
+                      bottom: HikariSpacing.md,
+                    ),
+                    child: appearanceSaveStatus == AppearanceSaveStatus.failed
+                        ? Semantics(
+                            liveRegion: true,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline_rounded,
+                                  color: colors.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: HikariSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    'Could not save appearance. Changes may be lost after restart.',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: colors.error),
+                                  ),
+                                ),
+                                if (onRetryAppearanceSave != null)
+                                  TextButton(
+                                    onPressed: onRetryAppearanceSave,
+                                    child: const Text('Retry'),
+                                  ),
+                              ],
+                            ),
+                          )
+                        : Text(
+                            appearanceSaveStatus == AppearanceSaveStatus.saving
+                                ? 'Saving appearance…'
+                                : 'Appearance saved on this device.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.onSurfaceVariant),
+                          ),
+                  ),
               ],
             ),
             if (onChooseLocalFolder != null || onClearCache != null) ...[

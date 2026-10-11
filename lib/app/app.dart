@@ -60,6 +60,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   late bool _isOled;
   Color? _accentColor;
   Future<void> _pendingAppearanceSave = Future<void>.value();
+  AppearanceSaveStatus? _appearanceSaveStatus;
+  int _appearanceSaveRevision = 0;
   int _homeRefreshRevision = 0;
   int _localScanRevision = 0;
   int _settingsFolderRevision = 0;
@@ -69,24 +71,44 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       if (oled != null) _isOled = oled;
       if (updateAccent) _accentColor = accent;
     });
+    _saveAppearance();
+  }
+
+  void _saveAppearance() {
     final repository = widget.appearanceRepository;
     if (repository == null) return;
+
+    // Capture the current selection, including on retry. Older completions
+    // must never mark a newer selection as saved (or failed).
+    final revision = ++_appearanceSaveRevision;
     final snapshot = AppearanceSettings(
       isOled: _isOled,
       accentArgb: _accentColor?.toARGB32(),
     );
-    // Serialize writes so a slow older write cannot overwrite a newer choice.
-    _pendingAppearanceSave = _pendingAppearanceSave
-        .then((_) => repository.save(snapshot))
-        .catchError((Object error, StackTrace stack) {
-          FlutterError.reportError(
-            FlutterErrorDetails(
-              exception: error,
-              stack: stack,
-              context: ErrorDescription('persisting appearance settings'),
-            ),
-          );
-        });
+    setState(() => _appearanceSaveStatus = AppearanceSaveStatus.saving);
+
+    // Keep writes ordered so an older attempt cannot overwrite newer choices.
+    // A failed attempt is handled inside the chain, allowing retries and later
+    // changes to run normally.
+    _pendingAppearanceSave = _pendingAppearanceSave.then((_) async {
+      try {
+        await repository.save(snapshot);
+        if (mounted && revision == _appearanceSaveRevision) {
+          setState(() => _appearanceSaveStatus = AppearanceSaveStatus.saved);
+        }
+      } catch (error, stack) {
+        if (mounted && revision == _appearanceSaveRevision) {
+          setState(() => _appearanceSaveStatus = AppearanceSaveStatus.failed);
+        }
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            context: ErrorDescription('persisting appearance settings'),
+          ),
+        );
+      }
+    });
   }
 
   Future<bool> _chooseLocalRoot({bool fromSettings = false}) async {
@@ -583,6 +605,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.settings: SettingsPage(
               isOled: _isOled,
               selectedAccent: _accentColor,
+              appearanceSaveStatus: widget.appearanceRepository == null
+                  ? null
+                  : _appearanceSaveStatus,
+              onRetryAppearanceSave: widget.appearanceRepository == null
+                  ? null
+                  : _saveAppearance,
               onToggleOled: (value) => _setAppearance(oled: value),
               onSelectAccent: (value) =>
                   _setAppearance(accent: value, updateAccent: true),

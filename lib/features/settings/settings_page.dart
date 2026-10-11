@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/features/settings/widgets/settings_content.dart';
 
+export 'package:hikari/features/settings/widgets/settings_content.dart'
+    show AppearanceSaveStatus;
+
 /// Settings exposes only capabilities backed by real application callbacks.
 ///
 /// Appearance is controlled by the app composition root and saved when its
@@ -13,6 +16,8 @@ class SettingsPage extends StatefulWidget {
     super.key,
     this.isOled = false,
     this.selectedAccent,
+    this.appearanceSaveStatus,
+    this.onRetryAppearanceSave,
     this.onToggleOled,
     this.onSelectAccent,
     this.onClearCache,
@@ -24,6 +29,10 @@ class SettingsPage extends StatefulWidget {
 
   final bool isOled;
   final Color? selectedAccent;
+
+  /// Null when appearance persistence is not configured.
+  final AppearanceSaveStatus? appearanceSaveStatus;
+  final VoidCallback? onRetryAppearanceSave;
   final ValueChanged<bool>? onToggleOled;
   final ValueChanged<Color?>? onSelectAccent;
   final Future<void> Function()? onClearCache;
@@ -166,6 +175,8 @@ class _SettingsPageState extends State<SettingsPage> {
       body: SettingsContent(
         isOled: _isOled,
         selectedAccent: widget.selectedAccent,
+        appearanceSaveStatus: widget.appearanceSaveStatus,
+        onRetryAppearanceSave: widget.onRetryAppearanceSave,
         isClearingCache: _isClearingCache,
         isChoosingFolder: _isChoosingFolder,
         isCheckingFolder: _isCheckingFolder,
