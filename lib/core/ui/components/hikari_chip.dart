@@ -9,14 +9,12 @@ class HikariChip extends StatelessWidget {
     this.isSelected = false,
     this.onTap,
     this.leading,
-    this.customBadgeColor,
   });
 
   final String label;
   final bool isSelected;
   final VoidCallback? onTap;
   final Widget? leading;
-  final Color? customBadgeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -24,16 +22,7 @@ class HikariChip extends StatelessWidget {
     final content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (customBadgeColor != null) ...[
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: customBadgeColor,
-              shape: BoxShape.circle,
-            ),
-            child: const SizedBox.square(dimension: 6),
-          ),
-          const SizedBox(width: HikariSpacing.xs),
-        ] else if (leading != null) ...[
+        if (leading != null) ...[
           leading!,
           const SizedBox(width: HikariSpacing.xs),
         ],

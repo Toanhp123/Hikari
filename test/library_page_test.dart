@@ -169,6 +169,18 @@ void main() {
     expect(find.text('2 saved titles'), findsOneWidget);
     expect(find.text('All'), findsOneWidget);
     expect(find.text('All Types'), findsNothing);
+    final chips = tester
+        .widgetList<FilterChip>(find.byType(FilterChip))
+        .toList();
+    expect(chips, hasLength(MediaType.values.length + 1));
+    for (final chip in chips) {
+      expect((chip.label as Row).children, hasLength(1));
+    }
+    expect(
+      tester.getTopLeft(find.byType(FilterChip).at(1)).dx -
+          tester.getTopRight(find.byType(FilterChip).first).dx,
+      HikariSpacing.sm,
+    );
     await tester.tap(find.text('Manga'));
     await tester.pumpAndSettle();
     expect(find.text('1 of 2 titles'), findsOneWidget);

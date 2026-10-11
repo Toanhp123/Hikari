@@ -161,7 +161,6 @@ class _LibraryFilters extends StatelessWidget {
         vertical: HikariSpacing.xs,
       ),
       child: HikariChipRow(
-        spacing: HikariSpacing.xs,
         children: [
           HikariChip(
             label: 'All',
@@ -171,7 +170,6 @@ class _LibraryFilters extends StatelessWidget {
           for (final type in MediaType.values)
             HikariChip(
               label: mediaTypeLabel(type),
-              customBadgeColor: mediaTypeBadgeColors(context, type).foreground,
               isSelected: selectedType == type,
               onTap: () => onSelect(type),
             ),

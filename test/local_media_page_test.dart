@@ -539,6 +539,11 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Comics & books'), findsOneWidget);
+      final chips = tester.widgetList<FilterChip>(find.byType(FilterChip));
+      expect(chips.length, MediaType.values.length + 1);
+      for (final chip in chips) {
+        expect((chip.label as Row).children, hasLength(1));
+      }
       await tester.tap(find.byType(FilterChip).at(2)); // Manga has no match.
       await tester.pumpAndSettle();
       expect(find.text('No matching local media'), findsOneWidget);

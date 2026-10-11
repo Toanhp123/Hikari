@@ -113,10 +113,6 @@ class LocalMediaContent extends StatelessWidget {
                         HikariChip(
                           label: mediaTypeLabel(type),
                           isSelected: state.filter == type,
-                          customBadgeColor: mediaTypeBadgeColors(
-                            context,
-                            type,
-                          ).foreground,
                           onTap: () => onSelectFilter(type),
                         ),
                     ],

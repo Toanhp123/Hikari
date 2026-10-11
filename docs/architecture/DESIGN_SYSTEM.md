@@ -18,7 +18,7 @@ Material 3 `ColorScheme`, `TextTheme` and native component themes own presentati
 | Native colors | `Theme.of(context).colorScheme` | Primary/secondary/on-role pairs, tonal surfaces, outline/error/inverse roles |
 | App color semantics | `Theme.of(context).colorScheme` | All common UI colors and foreground/background role pairs, no parallel adapter |
 | Warning/info | `context.hikariStatusColors` | Required `HikariStatusColors` extension registered by root; missing extension throws, never silently falls back |
-| Media identity | `mediaTypeBadgeColors(context, type)` | Shared Anime/Manga/Novel container/foreground pair; filter dots use foreground |
+| Media identity | `mediaTypeBadgeColors(context, type)` | Shared Anime/Manga/Novel container/foreground pair for media badges |
 | Typography | `HikariTypography.textTheme` / `Theme.of(context).textTheme` | 12dp minimum semantic metadata, Material text slots, platform font fallback |
 | Spacing | `HikariSpacing` | xs/sm/md/lg/xl/xxl/xxxl = 4/8/12/16/24/32/48dp |
 | Radii | `HikariRadius` | sm 8, md 14, lg 16, xl 24, `pill` StadiumBorder; xs 4 for small inner badges |
@@ -33,6 +33,7 @@ Use local `LayoutBuilder` constraints for a component's responsive content decis
 
 ## Component behavior
 
+- Media-type filter rows: keep the native `FilterChip` dimensions and padding from the root theme, show text-only labels, and use `HikariSpacing.sm` (8dp) **between** adjacent chips in Home, Library, Local and both Search screens. On narrow screens the row scrolls horizontally; do not shrink individual chips to fit.
 - Action types: native FilledButton, OutlinedButton, TextButton; minimum 48dp touch targets; preserve focus, keyboard and disabled state semantics. Shared filter/icon actions delegate focus, semantics and keyboard behavior to native Material controls.
 - Sections: semantic TextTheme slots, feature-owned heading/metadata and actions. No generic shelf DSL or mega-card component.
 - Cards: stable artwork aspect ratio, separate scaled title area, useful error/fallback imagery, no default shadow; full labels available to assistive technology even when visual copy truncates.

@@ -77,19 +77,19 @@ class HomeRecentShelf extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
             child: Row(
               children: [
-                for (final filter in filters) ...[
+                for (var index = 0; index < filters.length; index++) ...[
+                  if (index > 0) const SizedBox(width: HikariSpacing.sm),
                   FilterChip(
                     label: Text(
-                      filter.mediaType == null
+                      filters[index].mediaType == null
                           ? 'All'
-                          : mediaTypeLabel(filter.mediaType!),
+                          : mediaTypeLabel(filters[index].mediaType!),
                     ),
-                    selected: effectiveFilter == filter,
-                    onSelected: (_) => onSelectFilter!(filter),
+                    selected: effectiveFilter == filters[index],
+                    onSelected: (_) => onSelectFilter!(filters[index]),
                     showCheckmark: false,
                     shape: HikariRadius.pill,
                   ),
-                  const SizedBox(width: HikariSpacing.sm),
                 ],
               ],
             ),

@@ -138,6 +138,32 @@ void main() {
     });
   });
 
+  group('HikariChipRow', () {
+    testWidgets('keeps original chip padding and 8dp gaps', (tester) async {
+      await tester.pumpWidget(
+        testWrapper(
+          HikariChipRow(
+            children: [
+              HikariChip(label: 'All', onTap: () {}),
+              HikariChip(label: 'Anime', onTap: () {}),
+            ],
+          ),
+        ),
+      );
+
+      final first = find.widgetWithText(FilterChip, 'All');
+      final second = find.widgetWithText(FilterChip, 'Anime');
+      expect(
+        tester.getTopLeft(second).dx - tester.getTopRight(first).dx,
+        HikariSpacing.sm,
+      );
+      expect(
+        Theme.of(tester.element(first)).chipTheme.padding,
+        const EdgeInsets.symmetric(horizontal: HikariSpacing.sm),
+      );
+    });
+  });
+
   group('native shared control contracts', () {
     testWidgets('filter chip exposes selected semantics and keyboard action', (
       tester,
