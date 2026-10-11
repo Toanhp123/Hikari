@@ -119,6 +119,11 @@ class LocalMediaSource
 
   Future<bool> chooseRoot() async => await _root('pickTree') != null;
 
+  /// Read only the saved root's display name; do not enumerate its contents.
+  /// The Android adapter verifies the persisted grant when resolving the root.
+  Future<String?> selectedRootName() async =>
+      (await _root('selectedTree'))?.name;
+
   Future<LocalEntry?> _root(String method) async {
     final selected = await _channel.invokeMapMethod<String, Object?>(method);
     if (selected == null) return null;

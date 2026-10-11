@@ -9,6 +9,139 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/features/settings/settings_page.dart';
 
 void main() {
+  testWidgets('saved folder name appears after an async metadata lookup', (
+    tester,
+  ) async {
+    final folder = Completer<String?>();
+    var reads = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          onChooseLocalFolder: () async => false,
+          loadLocalFolderName: () {
+            reads++;
+            return folder.future;
+          },
+        ),
+      ),
+    );
+    expect(find.text('Checking selected folder…'), findsOneWidget);
+    folder.complete('Books & comics');
+    await tester.pumpAndSettle();
+    expect(find.text('Books & comics'), findsOneWidget);
+    expect(reads, 1);
+  });
+
+  testWidgets('folder choice refreshes displayed name; cancel preserves it', (
+    tester,
+  ) async {
+    var name = 'Old library';
+    var changed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          loadLocalFolderName: () async => name,
+          onChooseLocalFolder: () async {
+            if (changed) return false;
+            changed = true;
+            name = 'New library';
+            return true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Old library'), findsOneWidget);
+    await tester.tap(find.text('Local Media Folder'));
+    await tester.pumpAndSettle();
+    expect(find.text('New library'), findsOneWidget);
+    await tester.tap(find.text('Local Media Folder'));
+    await tester.pumpAndSettle();
+    expect(find.text('New library'), findsOneWidget);
+  });
+
+  testWidgets('failed folder lookup can be retried without opening picker', (
+    tester,
+  ) async {
+    var reads = 0;
+    var picks = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          onChooseLocalFolder: () async {
+            picks++;
+            return false;
+          },
+          loadLocalFolderName: () async {
+            if (++reads == 1) throw StateError('Provider busy');
+            return 'Restored folder';
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Folder unavailable. Check access or try again.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Retry folder check'));
+    await tester.pumpAndSettle();
+    expect(find.text('Restored folder'), findsOneWidget);
+    expect(reads, 2);
+    expect(picks, 0);
+  });
+
+  testWidgets('stale folder lookup cannot replace a newer selection', (
+    tester,
+  ) async {
+    final first = Completer<String?>();
+    final second = Completer<String?>();
+    var revision = 0;
+    var reads = 0;
+    Future<String?> readName() => ++reads == 1 ? first.future : second.future;
+    late StateSetter update;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return SettingsPage(
+              localFolderRevision: revision,
+              onChooseLocalFolder: () async => false,
+              loadLocalFolderName: readName,
+            );
+          },
+        ),
+      ),
+    );
+    update(() => revision++);
+    await tester.pump();
+    second.complete('Newest folder');
+    await tester.pumpAndSettle();
+    first.complete('Old folder');
+    await tester.pumpAndSettle();
+    expect(find.text('Newest folder'), findsOneWidget);
+    expect(find.text('Old folder'), findsNothing);
+  });
+
+  testWidgets('Settings displays no selected folder when none is saved', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          onChooseLocalFolder: () async => false,
+          loadLocalFolderName: () async => null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No folder selected. Choose one to scan media.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('folder picker failure offers retry without uncaught errors', (
     tester,
   ) async {
@@ -38,9 +171,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: SettingsPage(onChooseLocalFolder: () async => false),
-      ),
+      MaterialApp(home: SettingsPage(onChooseLocalFolder: () async => false)),
     );
     await tester.tap(find.text('Local Media Folder'));
     await tester.pumpAndSettle();
@@ -158,7 +289,10 @@ void main() {
     final amber = find.bySemanticsLabel('Amber accent');
     expect(violet, findsOneWidget);
     expect(amber, findsOneWidget);
-    expect(tester.getTopLeft(amber).dy, greaterThan(tester.getTopLeft(violet).dy));
+    expect(
+      tester.getTopLeft(amber).dy,
+      greaterThan(tester.getTopLeft(violet).dy),
+    );
 
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     await tester.pumpAndSettle();

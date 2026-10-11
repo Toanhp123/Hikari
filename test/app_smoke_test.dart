@@ -131,11 +131,11 @@ void main() {
           picks++;
           if (cancel) return null;
           root++;
-          return {'id': 'root-$root', 'name': 'Root'};
+          return {'id': 'root-$root', 'name': 'Root $root'};
         case 'selectedTree':
-          scans++;
-          return {'id': 'root-$root', 'name': 'Root'};
+          return {'id': 'root-$root', 'name': 'Root $root'};
         case 'children':
+          scans++;
           return [
             {
               'id': 'book-$root',
@@ -178,7 +178,13 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Book 2'), findsOneWidget);
-    expect(scans, 3); // One scan per Local root selection.
+    expect(scans, 3); // Folder metadata lookups must not start recursive scans.
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Root 2'), findsOneWidget);
+    await tester.tap(find.byTooltip('Local'));
+    await tester.pumpAndSettle();
+    expect(scans, 3); // Switching tabs does not enumerate the tree again.
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));

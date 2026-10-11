@@ -62,6 +62,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   Future<void> _pendingAppearanceSave = Future<void>.value();
   int _homeRefreshRevision = 0;
   int _localScanRevision = 0;
+  int _settingsFolderRevision = 0;
 
   void _setAppearance({bool? oled, Color? accent, bool updateAccent = false}) {
     setState(() {
@@ -94,7 +95,11 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       setState(() {
         _homeRefreshRevision++;
         // Local already scans its own selection; only external changes refresh it.
-        if (fromSettings) _localScanRevision++;
+        if (fromSettings) {
+          _localScanRevision++;
+        } else {
+          _settingsFolderRevision++;
+        }
       });
     }
     return selected;
@@ -581,6 +586,10 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
               onToggleOled: (value) => _setAppearance(oled: value),
               onSelectAccent: (value) =>
                   _setAppearance(accent: value, updateAccent: true),
+              localFolderRevision: _settingsFolderRevision,
+              loadLocalFolderName: localSource.isAvailable
+                  ? localSource.selectedRootName
+                  : null,
               onChooseLocalFolder: localSource.isAvailable
                   ? () => _chooseLocalRoot(fromSettings: true)
                   : null,

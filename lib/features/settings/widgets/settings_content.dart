@@ -9,6 +9,10 @@ class SettingsContent extends StatelessWidget {
     this.selectedAccent,
     required this.isClearingCache,
     required this.isChoosingFolder,
+    this.isCheckingFolder = false,
+    this.folderStatusUnavailable = false,
+    this.localFolderName,
+    this.onRetryFolderStatus,
     this.onToggleOled,
     this.onSelectAccent,
     this.onClearCache,
@@ -20,6 +24,10 @@ class SettingsContent extends StatelessWidget {
   final Color? selectedAccent;
   final bool isClearingCache;
   final bool isChoosingFolder;
+  final bool isCheckingFolder;
+  final bool folderStatusUnavailable;
+  final String? localFolderName;
+  final VoidCallback? onRetryFolderStatus;
   final ValueChanged<bool>? onToggleOled;
   final ValueChanged<Color?>? onSelectAccent;
   final VoidCallback? onClearCache;
@@ -102,8 +110,16 @@ class SettingsContent extends StatelessWidget {
                     ListTile(
                       leading: const Icon(Icons.folder_open_rounded),
                       title: const Text('Local Media Folder'),
-                      subtitle: const Text(
-                        'Choose the folder Hikari scans for local media.',
+                      subtitle: Text(
+                        isCheckingFolder
+                            ? 'Checking selected folder…'
+                            : folderStatusUnavailable
+                            ? 'Folder unavailable. Check access or try again.'
+                            : localFolderName == null
+                            ? 'No folder selected. Choose one to scan media.'
+                            : localFolderName!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       trailing: isChoosingFolder
                           ? const SizedBox(
@@ -113,6 +129,23 @@ class SettingsContent extends StatelessWidget {
                             )
                           : const Icon(Icons.chevron_right_rounded),
                       onTap: isChoosingFolder ? null : onChooseLocalFolder,
+                    ),
+                  if (folderStatusUnavailable && onRetryFolderStatus != null)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        end: HikariSpacing.sm,
+                        bottom: HikariSpacing.xs,
+                      ),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton.icon(
+                          onPressed: isCheckingFolder
+                              ? null
+                              : onRetryFolderStatus,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Retry folder check'),
+                        ),
+                      ),
                     ),
                   if (onChooseLocalFolder != null && onClearCache != null)
                     const Divider(height: 1),
@@ -146,7 +179,9 @@ class SettingsContent extends StatelessWidget {
                 ListTile(
                   leading: Icon(Icons.auto_awesome),
                   title: Text('Hikari'),
-                  subtitle: Text('Manga, novels, and local video in one place.'),
+                  subtitle: Text(
+                    'Manga, novels, and local video in one place.',
+                  ),
                 ),
               ],
             ),
@@ -205,7 +240,9 @@ class _AccentSwatch extends StatelessWidget {
               ),
               child: selected || isDefault
                   ? Icon(
-                      selected ? Icons.check_rounded : Icons.restart_alt_rounded,
+                      selected
+                          ? Icons.check_rounded
+                          : Icons.restart_alt_rounded,
                       size: 21,
                       color: iconColor,
                     )
