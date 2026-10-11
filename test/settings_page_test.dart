@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ void main() {
         home: SettingsPage(
           onChooseLocalFolder: () async {
             if (++attempts == 1) throw StateError('picker unavailable');
+            return true;
           },
         ),
       ),
@@ -32,6 +34,60 @@ void main() {
     await tester.pumpAndSettle();
     expect(attempts, 2);
   });
+  testWidgets('cancelled folder selection does not show a success message', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(onChooseLocalFolder: () async => false),
+      ),
+    );
+    await tester.tap(find.text('Local Media Folder'));
+    await tester.pumpAndSettle();
+    expect(find.text('Local media folder updated.'), findsNothing);
+  });
+
+  testWidgets('successful folder selection confirms the change', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsPage(onChooseLocalFolder: () async => true)),
+    );
+    await tester.tap(find.text('Local Media Folder'));
+    await tester.pumpAndSettle();
+    expect(find.text('Local media folder updated.'), findsOneWidget);
+  });
+
+  testWidgets('folder picker is disabled while a selection is pending', (
+    tester,
+  ) async {
+    final selection = Completer<bool>();
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          onChooseLocalFolder: () {
+            calls++;
+            return selection.future;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Local Media Folder'));
+    await tester.pump();
+    expect(calls, 1);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Local Media Folder'), findsOneWidget);
+    final tile = tester.widget<ListTile>(
+      find.widgetWithText(ListTile, 'Local Media Folder'),
+    );
+    expect(tile.onTap, isNull);
+    selection.complete(false);
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(calls, 1);
+  });
+
   testWidgets('accent swatches use selected seed and named 48dp targets', (
     tester,
   ) async {
@@ -81,6 +137,33 @@ void main() {
     await tester.tap(reset);
     await tester.pump();
     expect(latest, isNull);
+    semantics.dispose();
+  });
+
+  testWidgets('accent choices wrap on narrow screens and content is bounded', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SettingsPage(onSelectAccent: (_) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final semantics = tester.ensureSemantics();
+    final violet = find.bySemanticsLabel('Violet accent');
+    final amber = find.bySemanticsLabel('Amber accent');
+    expect(violet, findsOneWidget);
+    expect(amber, findsOneWidget);
+    expect(tester.getTopLeft(amber).dy, greaterThan(tester.getTopLeft(violet).dy));
+
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byType(ListView)).width, lessThanOrEqualTo(640));
     semantics.dispose();
   });
 

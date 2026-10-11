@@ -24,7 +24,8 @@ class SettingsPage extends StatefulWidget {
   final ValueChanged<Color?>? onSelectAccent;
   final Future<void> Function()? onClearCache;
   final String? cacheSizeLabel;
-  final Future<void> Function()? onChooseLocalFolder;
+  /// Returns true only when the user chooses a new root; cancel is not a success.
+  final Future<bool> Function()? onChooseLocalFolder;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -58,7 +59,12 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_isChoosingFolder || widget.onChooseLocalFolder == null) return;
     setState(() => _isChoosingFolder = true);
     try {
-      await widget.onChooseLocalFolder!();
+      final changed = await widget.onChooseLocalFolder!();
+      if (changed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Local media folder updated.')),
+        );
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
