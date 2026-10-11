@@ -92,17 +92,22 @@ class _PlayerControlsState extends State<PlayerControls> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Slider(
-                    value: progress,
-                    onChanged: duration <= Duration.zero
-                        ? null
-                        : (value) => setState(() => _dragProgress = value),
-                    onChangeEnd: duration <= Duration.zero
-                        ? null
-                        : (value) {
-                            setState(() => _dragProgress = null);
-                            widget.onSeekToProgress(value);
-                          },
+                  Semantics(
+                    label: 'Playback position',
+                    child: Slider(
+                      value: progress,
+                      semanticFormatterCallback: (value) =>
+                          '${(value * 100).round()} percent',
+                      onChanged: duration <= Duration.zero
+                          ? null
+                          : (value) => setState(() => _dragProgress = value),
+                      onChangeEnd: duration <= Duration.zero
+                          ? null
+                          : (value) {
+                              setState(() => _dragProgress = null);
+                              widget.onSeekToProgress(value);
+                            },
+                    ),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

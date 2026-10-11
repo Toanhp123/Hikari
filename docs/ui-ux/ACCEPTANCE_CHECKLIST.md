@@ -1,4 +1,9 @@
-# Hikari UI Foundation Acceptance Checklist
+# Hikari UI Foundation Acceptance Checklist (historical)
+
+> Review checklist from 2026-10-07. Items below are intentionally left
+> unchecked: they do not indicate current implementation failures or
+> successful device verification. Use the active roadmap and the latest
+> verification results for the current release.
 
 Use this checklist before declaring the UI foundation ready for wider migration.
 

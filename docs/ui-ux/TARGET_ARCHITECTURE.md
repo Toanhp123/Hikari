@@ -1,4 +1,9 @@
 # Hikari UI Foundation Target Architecture
+> **Historical design-system review (2026-10-07, commit `08a091e`).**
+> This document preserves the original findings/decisions and is not a
+> description of the current implementation. See
+> [`DESIGN_SYSTEM.md`](../architecture/DESIGN_SYSTEM.md) and the
+> [active UI/UX roadmap](../roadmap/UI_UX_COMPLETION.md).
 
 Status: Target state after incremental migration  
 Scope: theme ownership, shared UI, responsive layout, navigation shell, Home presentation

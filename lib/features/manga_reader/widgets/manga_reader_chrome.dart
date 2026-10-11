@@ -174,22 +174,27 @@ class _MangaReaderPageControlsState extends State<MangaReaderPageControls> {
                         color: colors.onSurface,
                       ),
                     ),
-                    Slider(
-                      value: _dragPage ?? (widget.pageIndex + 1).toDouble(),
-                      min: 1,
-                      max: widget.pageCount.toDouble(),
-                      divisions: widget.pageCount > 1
-                          ? widget.pageCount - 1
-                          : 1,
-                      onChanged: widget.loading
-                          ? null
-                          : (value) => setState(() => _dragPage = value),
-                      onChangeEnd: widget.loading
-                          ? null
-                          : (value) {
-                              setState(() => _dragPage = null);
-                              widget.onJumpToPage(value.round() - 1);
-                            },
+                    Semantics(
+                      label: 'Reading page',
+                      child: Slider(
+                        value: _dragPage ?? (widget.pageIndex + 1).toDouble(),
+                        min: 1,
+                        max: widget.pageCount.toDouble(),
+                        divisions: widget.pageCount > 1
+                            ? widget.pageCount - 1
+                            : 1,
+                        semanticFormatterCallback: (value) =>
+                            'Page ${value.round()} of ${widget.pageCount}',
+                        onChanged: widget.loading
+                            ? null
+                            : (value) => setState(() => _dragPage = value),
+                        onChangeEnd: widget.loading
+                            ? null
+                            : (value) {
+                                setState(() => _dragPage = null);
+                                widget.onJumpToPage(value.round() - 1);
+                              },
+                      ),
                     ),
                   ],
                 ),

@@ -1,4 +1,9 @@
 # Hikari UI Foundation Migration Plan
+> **Historical design-system review (2026-10-07, commit `08a091e`).**
+> This document preserves the original findings/decisions and is not a
+> description of the current implementation. See
+> [`DESIGN_SYSTEM.md`](../architecture/DESIGN_SYSTEM.md) and the
+> [active UI/UX roadmap](../roadmap/UI_UX_COMPLETION.md).
 
 Status: Recommended implementation order after consolidated review  
 Goal: Make the new UI foundation correct before expanding visual migration

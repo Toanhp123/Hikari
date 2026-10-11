@@ -136,26 +136,29 @@ class _ScopedSourceLabel extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Searching in $sourceName',
-      child: Row(
-        children: [
-          Icon(
-            Icons.extension_outlined,
-            size: 16,
-            color: colors.onSurfaceVariant,
-          ),
-          const SizedBox(width: HikariSpacing.xs),
-          Expanded(
-            child: Text(
-              'Searching in $sourceName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                color: colors.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
+      // Preserve the full title at narrow widths without a duplicate label.
+      child: ExcludeSemantics(
+        child: Row(
+          children: [
+            Icon(
+              Icons.extension_outlined,
+              size: 16,
+              color: colors.onSurfaceVariant,
+            ),
+            const SizedBox(width: HikariSpacing.xs),
+            Expanded(
+              child: Text(
+                'Searching in $sourceName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

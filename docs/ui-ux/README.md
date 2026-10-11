@@ -1,4 +1,11 @@
-# Hikari UI/UX Foundation Review Pack
+# Hikari UI/UX Foundation Review Pack (historical)
+
+> **Historical review, 2026-10-07.** The findings and phase gates below
+> describe commit `08a091e`; they are not an audit of the current branch.
+> The application has since consolidated its root theme and extended the
+> migration to Search, Library, Local and Settings. For current design rules
+> see [`DESIGN_SYSTEM.md`](../architecture/DESIGN_SYSTEM.md); for active
+> product work see [`UI_UX_COMPLETION.md`](../roadmap/UI_UX_COMPLETION.md).
 
 Status: Consolidated review baseline  
 Review date: 2026-10-07  
@@ -15,9 +22,10 @@ This pack consolidates:
 - a target UI architecture for Hikari;
 - a smaller implementation sequence and acceptance checklist.
 
-It is intended to become the decision baseline before additional visual polish or app-wide design-system migration.
+It records the decisions that informed the later design-system migration.
+Retain it for historical rationale; do not use its migration status as current truth.
 
-## Executive decision
+## Executive decision at the 2026-10-07 baseline
 
 Keep the current visual direction and the new design-system foundation. Do not redesign Home or replace the existing feature state architecture.
 

@@ -15,6 +15,24 @@ import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart';
 
 void main() {
+  testWidgets('scoped source label is announced once in full', (tester) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final semantics = tester.ensureSemantics();
+    const name = 'A very long source name that may be clipped visually';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SourceSearchPage(catalogScopeLabel: name, openMedia: (_, _) {}),
+      ),
+    );
+
+    expect(find.bySemanticsLabel('Searching in $name'), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets(
     'SourceSearchPage shows initial empty state and renders query results',
     (tester) async {
