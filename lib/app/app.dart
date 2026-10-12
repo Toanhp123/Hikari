@@ -393,12 +393,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                   continuation.selected,
                   [continuation.selected],
                   seriesRef: continuation.series.source,
+                  cachedSequence: continuation.readCachedSequence,
                   refreshSequence: continuation.refreshSequence,
                 ),
                 NovelContinuationOpenTarget() => _prepareNovelChapterReader(
                   continuation.selected,
                   [continuation.selected],
                   seriesRef: continuation.series.source,
+                  cachedSequence: continuation.readCachedSequence,
                   refreshSequence: continuation.refreshSequence,
                 ),
               };
@@ -499,6 +501,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     NovelChapter chapter,
     List<NovelChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
+    Future<List<NovelChapter>?> Function()? cachedSequence,
     Future<List<NovelChapter>> Function()? refreshSequence,
   }) async {
     final initialTarget = await _dependencies.openNovelChapter.execute(chapter);
@@ -532,13 +535,23 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         }
       },
     );
-    final settled = refreshSequence == null
+    final settled = cachedSequence == null && refreshSequence == null
         ? Future<void>.value()
         : () async {
-            try {
-              viewModel.reconcileSequence(await refreshSequence());
-            } catch (_) {
-              // Reading remains available if chapter-list reconciliation fails.
+            if (cachedSequence != null) {
+              try {
+                final cached = await cachedSequence();
+                if (cached != null) viewModel.reconcileSequence(cached);
+              } catch (_) {
+                // Missing or corrupt cache must not block reading.
+              }
+            }
+            if (refreshSequence != null) {
+              try {
+                viewModel.reconcileSequence(await refreshSequence());
+              } catch (_) {
+                // The last valid sequence remains available offline.
+              }
             }
           }();
     return (
@@ -587,6 +600,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     MangaChapter chapter,
     List<MangaChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
+    Future<List<MangaChapter>?> Function()? cachedSequence,
     Future<List<MangaChapter>> Function()? refreshSequence,
   }) async {
     final initialTarget = await _dependencies.openMangaChapter.execute(chapter);
@@ -623,13 +637,23 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         }
       },
     );
-    final settled = refreshSequence == null
+    final settled = cachedSequence == null && refreshSequence == null
         ? Future<void>.value()
         : () async {
-            try {
-              viewModel.reconcileSequence(await refreshSequence());
-            } catch (_) {
-              // Reading remains available if chapter-list reconciliation fails.
+            if (cachedSequence != null) {
+              try {
+                final cached = await cachedSequence();
+                if (cached != null) viewModel.reconcileSequence(cached);
+              } catch (_) {
+                // Missing or corrupt cache must not block reading.
+              }
+            }
+            if (refreshSequence != null) {
+              try {
+                viewModel.reconcileSequence(await refreshSequence());
+              } catch (_) {
+                // The last valid sequence remains available offline.
+              }
             }
           }();
     return (

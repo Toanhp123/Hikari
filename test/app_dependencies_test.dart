@@ -47,15 +47,17 @@ void main() {
         'Source artwork',
         'Manga pages',
         'Manga page lists',
+        'Remote chapter lists',
         'Novel chapters',
         'Novel resources',
         'Catalog metadata',
       ]);
-      expect(usage.totalBytes, 6);
+      expect(usage.totalBytes, 7);
       expect(cache.sizedNamespaces, [
         'source-artwork-v1',
         'manga-page-v1',
         'manga-page-list-v1',
+        'remote-chapter-list-v1',
         'novel-chapter-content-v1',
         'novel-resource-v1',
         'anilist-metadata',

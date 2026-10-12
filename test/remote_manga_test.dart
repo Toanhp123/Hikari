@@ -515,6 +515,7 @@ void main() {
         HikariApp(
           dependencies: AppDependencies.create(
             database: db,
+            cache: _TestByteCache(),
             catalogProvider: _TestCatalogProvider(MediaType.manga),
             additionalSources: [UnavailableRemote()],
           ),
@@ -943,7 +944,7 @@ void main() {
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
     expect(remote.pageReads, 0);
-    expect(cache.writes, isEmpty);
+    expect(cache.writes, ['remote-chapter-list-v1/["manga","fake","series"]']);
     expect(find.text('Could not decode this page.'), findsOneWidget);
     final baseline = (await progress.load(chapter))!;
     expect((baseline.position as PagePosition).pageIndex, 0);
@@ -970,6 +971,7 @@ void main() {
     expect(find.text('Could not decode this page.'), findsNothing);
     expect(cache.values['manga-page-v1/["fake","page-0"]'], validPng);
     expect(cache.writes, [
+      'remote-chapter-list-v1/["manga","fake","series"]',
       'manga-page-v1/["fake","page-0"]',
       'manga-page-v1/["fake","page-1"]',
     ]);
@@ -1251,6 +1253,7 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          cache: _TestByteCache(),
           additionalSources: [remote],
         ),
       ),

@@ -21,6 +21,18 @@ final class MangaContinuationOpenTarget extends SeriesContinuationOpenTarget {
   MangaChapter get selected =>
       MangaChapter(title: series.title, source: chapter);
 
+  /// An evictable cached sequence is optional navigation metadata, not a
+  /// prerequisite to open the saved chapter.
+  Future<List<MangaChapter>?> readCachedSequence() async {
+    final parent = this.parent as MangaSeriesOpenTarget;
+    final chapters = await parent.chapterLists?.readManga(series.source);
+    if (chapters == null ||
+        !chapters.any((item) => item.source == chapter && item.canReadPages)) {
+      return null;
+    }
+    return chapters;
+  }
+
   /// Only accept a complete, source-owned sequence containing this chapter.
   /// A missing chapter is not permission to silently resume another one.
   Future<List<MangaChapter>> refreshSequence() async {
@@ -42,6 +54,15 @@ final class NovelContinuationOpenTarget extends SeriesContinuationOpenTarget {
 
   NovelChapter get selected =>
       NovelChapter(title: series.title, source: chapter);
+
+  Future<List<NovelChapter>?> readCachedSequence() async {
+    final parent = this.parent as NovelSeriesOpenTarget;
+    final chapters = await parent.chapterLists?.readNovel(series.source);
+    if (chapters == null || !chapters.any((item) => item.source == chapter)) {
+      return null;
+    }
+    return chapters;
+  }
 
   Future<List<NovelChapter>> refreshSequence() async {
     final parent = this.parent as NovelSeriesOpenTarget;

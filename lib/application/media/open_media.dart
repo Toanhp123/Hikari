@@ -1,3 +1,4 @@
+import 'package:hikari/application/media/read_remote_chapter_list.dart';
 import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -34,21 +35,35 @@ final class MangaSeriesOpenTarget extends MediaOpenTarget {
   const MangaSeriesOpenTarget(
     super.media, {
     required this.seriesSource,
+    this.chapterLists,
     super.lease,
   });
 
   final MangaSeriesSource seriesSource;
+  final ReadRemoteChapterList? chapterLists;
 
   Future<MangaSeriesDetails> loadDetails() async {
-    final details = await seriesSource.loadDetails(media.source);
-    if (details.chapters.any(
-          (chapter) => chapter.source.sourceId != seriesSource.id,
-        ) ||
-        (details.metadata.cover != null &&
-            details.metadata.cover!.sourceId != seriesSource.id)) {
-      throw StateError('Manga source returned foreign references.');
+    final request = chapterLists?.beginRefresh(media.source, MediaType.manga);
+    try {
+      final details = await seriesSource.loadDetails(media.source);
+      if (details.chapters.any(
+            (chapter) => chapter.source.sourceId != seriesSource.id,
+          ) ||
+          (details.metadata.cover != null &&
+              details.metadata.cover!.sourceId != seriesSource.id)) {
+        throw StateError('Manga source returned foreign references.');
+      }
+      await chapterLists?.persistManga(
+        media.source,
+        details.chaptersInReadingOrder,
+        request: request,
+      );
+      return details;
+    } finally {
+      if (request != null) {
+        chapterLists!.finishRefresh(media.source, MediaType.manga, request);
+      }
     }
-    return details;
   }
 }
 
@@ -65,20 +80,45 @@ final class MangaReaderOpenTarget extends MediaOpenTarget {
 }
 
 final class NovelSeriesOpenTarget extends MediaOpenTarget {
-  const NovelSeriesOpenTarget(super.media, {required this.source, super.lease});
+  const NovelSeriesOpenTarget(
+    super.media, {
+    required this.source,
+    this.chapterLists,
+    super.lease,
+  });
 
   final NovelSeriesSource source;
+  final ReadRemoteChapterList? chapterLists;
 
   Future<NovelDetails> loadDetails() async {
-    final details = await source.loadDetails(media.source);
-    if (details.chapters.any(
-          (chapter) => chapter.source.sourceId != source.id,
-        ) ||
-        (details.metadata.cover != null &&
-            details.metadata.cover!.sourceId != source.id)) {
-      throw StateError('Novel source returned foreign references.');
+    final request = chapterLists?.beginRefresh(
+      media.source,
+      MediaType.lightNovel,
+    );
+    try {
+      final details = await source.loadDetails(media.source);
+      if (details.chapters.any(
+            (chapter) => chapter.source.sourceId != source.id,
+          ) ||
+          (details.metadata.cover != null &&
+              details.metadata.cover!.sourceId != source.id)) {
+        throw StateError('Novel source returned foreign references.');
+      }
+      await chapterLists?.persistNovel(
+        media.source,
+        details.chaptersInReadingOrder,
+        request: request,
+      );
+      return details;
+    } finally {
+      if (request != null) {
+        chapterLists!.finishRefresh(
+          media.source,
+          MediaType.lightNovel,
+          request,
+        );
+      }
     }
-    return details;
   }
 }
 
@@ -111,10 +151,11 @@ final class PublicationReaderOpenTarget extends MediaOpenTarget {
 /// Navigation and widgets stay in presentation. Source-specific details stay
 /// behind the domain source capabilities registered in [SourceRegistry].
 final class OpenMedia {
-  const OpenMedia(this._sources, this._progressRepository);
+  const OpenMedia(this._sources, this._progressRepository, {this.chapterLists});
 
   final SourceRegistry _sources;
   final ProgressRepository _progressRepository;
+  final ReadRemoteChapterList? chapterLists;
 
   Future<MediaOpenTarget> execute(Media media) async {
     final source = _sources.require(media.source.sourceId);
@@ -126,6 +167,7 @@ final class OpenMedia {
       return MangaSeriesOpenTarget(
         media,
         seriesSource: source,
+        chapterLists: chapterLists,
         lease: _acquireLease(source, media.source),
       );
     }
@@ -136,6 +178,7 @@ final class OpenMedia {
       return NovelSeriesOpenTarget(
         media,
         source: source,
+        chapterLists: chapterLists,
         lease: _acquireLease(source, media.source),
       );
     }

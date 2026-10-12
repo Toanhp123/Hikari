@@ -12,6 +12,7 @@ import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/media/read_manga_page_list.dart';
+import 'package:hikari/application/media/read_remote_chapter_list.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
 import 'package:hikari/application/media/open_media.dart';
@@ -58,6 +59,11 @@ final class AppDependencies {
     (
       namespace: ReadMangaPageList.cacheNamespace,
       label: 'Manga page lists',
+      budgetBytes: 8 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadRemoteChapterList.cacheNamespace,
+      label: 'Remote chapter lists',
       budgetBytes: 8 * 1024 * 1024,
     ),
     (
@@ -157,7 +163,11 @@ final class AppDependencies {
     final seriesContinuationRepository = SqliteSeriesContinuationRepository(
       resolvedDatabase,
     );
-    final openMedia = OpenMedia(sourceRegistry, progressRepository);
+    final openMedia = OpenMedia(
+      sourceRegistry,
+      progressRepository,
+      chapterLists: ReadRemoteChapterList(resolvedCache),
+    );
     final searchManga = SearchManga(sourceRegistry);
     final searchNovels = SearchNovels(sourceRegistry);
 
