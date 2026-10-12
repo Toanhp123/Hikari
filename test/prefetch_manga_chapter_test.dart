@@ -128,6 +128,43 @@ void main() {
     expect(source.pageLists, ['old', 'new']);
   });
 
+  test(
+    'queued chapter does not request its page list before its turn',
+    () async {
+      final source = _Source()..holdPageRead = 'old-0';
+      final prefetch = _prefetch(source, _Cache());
+
+      final old = prefetch.execute(_chapter('old'));
+      await source.pageReadStarted.future;
+      final queued = prefetch.execute(_chapter('new'));
+      expect(source.pageLists, ['old']);
+
+      prefetch.discard();
+      source.pageReadGate.complete(Uint8List.fromList([1]));
+      await Future.wait([old, queued]);
+      expect(source.pageLists, ['old']);
+    },
+  );
+
+  test(
+    'foreground handoff starts a queued page list without waiting',
+    () async {
+      final source = _Source()..holdPageRead = 'old-0';
+      final prefetch = _prefetch(source, _Cache());
+
+      final old = prefetch.execute(_chapter('old'));
+      await source.pageReadStarted.future;
+      final queued = prefetch.execute(_chapter('new'));
+      final foreground = await prefetch.loadPages(source, _ref('new'));
+      expect(foreground, [_ref('new-0'), _ref('new-1'), _ref('new-2')]);
+      expect(source.pageLists, ['old', 'new']);
+
+      source.pageReadGate.complete(Uint8List.fromList([1]));
+      await Future.wait([old, queued]);
+      expect(source.pageLists, ['old', 'new']);
+    },
+  );
+
   test('cancel stops byte remainder but preserves page-list handoff', () async {
     final source = _Source()..holdPageRead = 'next-0';
     final prefetch = _prefetch(source, _Cache());

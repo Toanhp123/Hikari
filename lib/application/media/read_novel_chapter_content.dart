@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:hikari/application/media/foreground_read_gate.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -9,12 +10,29 @@ import 'package:hikari/domain/media/novel.dart';
 final class ReadNovelChapterContent {
   static const cacheNamespace = 'novel-chapter-content-v1';
 
-  ReadNovelChapterContent(this._cache);
+  ReadNovelChapterContent(this._cache, {ForegroundReadGate? readGate})
+    : _foreground = readGate ?? ForegroundReadGate();
 
   final ByteCache _cache;
+  final ForegroundReadGate _foreground;
+
+  Future<void> waitForForeground() => _foreground.waitForIdle();
+
   final Map<SourceMediaRef, _ContentFlight> _inFlight = {};
 
   Future<RichReadingContent> execute(
+    NovelChapterSource source,
+    SourceMediaRef chapter,
+  ) => _foreground.track(() => _execute(source, chapter));
+
+  /// Prefetch workflows wait for foreground work and recheck their generation
+  /// before invoking this method.
+  Future<RichReadingContent> prefetch(
+    NovelChapterSource source,
+    SourceMediaRef chapter,
+  ) => _execute(source, chapter);
+
+  Future<RichReadingContent> _execute(
     NovelChapterSource source,
     SourceMediaRef chapter,
   ) {
@@ -29,6 +47,11 @@ final class ReadNovelChapterContent {
   }
 
   Future<RichReadingContent> reload(
+    NovelChapterSource source,
+    SourceMediaRef chapter,
+  ) => _foreground.track(() => _reload(source, chapter));
+
+  Future<RichReadingContent> _reload(
     NovelChapterSource source,
     SourceMediaRef chapter,
   ) {

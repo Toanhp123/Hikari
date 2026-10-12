@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:hikari/application/media/foreground_read_gate.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -8,7 +9,8 @@ import 'package:hikari/domain/media/media.dart';
 /// Reconstructible chapter page references, not a durable offline download.
 /// Page bytes live in ReadMangaPage's separate, independently evicted cache.
 final class ReadMangaPageList {
-  ReadMangaPageList(this._cache);
+  ReadMangaPageList(this._cache, {ForegroundReadGate? readGate})
+    : _foreground = readGate ?? ForegroundReadGate();
 
   static const cacheNamespace = 'manga-page-list-v1';
   static const _version = 1;
@@ -16,10 +18,22 @@ final class ReadMangaPageList {
   static const _maxBytes = 2 * 1024 * 1024;
 
   final ByteCache _cache;
+  final ForegroundReadGate _foreground;
   final Map<SourceMediaRef, Future<List<SourceMediaRef>>> _inFlight = {};
 
   /// Cache-first permits reopening a previously visited remote chapter offline.
   Future<List<SourceMediaRef>> execute(
+    MangaPageSource source,
+    SourceMediaRef chapter,
+  ) => _foreground.track(() => _execute(source, chapter));
+
+  /// Speculative callers wait for foreground work before entering here.
+  Future<List<SourceMediaRef>> prefetch(
+    MangaPageSource source,
+    SourceMediaRef chapter,
+  ) => _execute(source, chapter);
+
+  Future<List<SourceMediaRef>> _execute(
     MangaPageSource source,
     SourceMediaRef chapter,
   ) async {
@@ -40,6 +54,11 @@ final class ReadMangaPageList {
   /// Gets a fresh list without publishing it to disk. The reader commits only
   /// once it has successfully loaded the new current page.
   Future<List<SourceMediaRef>> fetchFresh(
+    MangaPageSource source,
+    SourceMediaRef chapter,
+  ) => _foreground.track(() => _fetchFresh(source, chapter));
+
+  Future<List<SourceMediaRef>> _fetchFresh(
     MangaPageSource source,
     SourceMediaRef chapter,
   ) async {

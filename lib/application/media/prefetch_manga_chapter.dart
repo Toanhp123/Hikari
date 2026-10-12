@@ -48,7 +48,7 @@ final class PrefetchMangaChapter {
       final prepared = _PreparedMangaChapter(
         chapter: chapter.source,
         source: source,
-        pages: _loadSpeculativePages(source, chapter.source),
+        loadPages: () => _loadSpeculativePages(source, chapter.source),
       );
       _prepared = prepared;
       return prepared;
@@ -63,7 +63,7 @@ final class PrefetchMangaChapter {
   ) async {
     try {
       final pages =
-          await (_pageList?.execute(source, chapter) ?? source.pages(chapter));
+          await (_pageList?.prefetch(source, chapter) ?? source.pages(chapter));
       if (pages.any((page) => page.sourceId != source.id)) return null;
       return List.unmodifiable(pages);
     } catch (_) {
@@ -72,6 +72,8 @@ final class PrefetchMangaChapter {
   }
 
   Future<void> _warm(_PreparedMangaChapter prepared, int generation) async {
+    if (generation != _generation || !identical(_prepared, prepared)) return;
+    await _readMangaPage.waitForForeground();
     if (generation != _generation || !identical(_prepared, prepared)) return;
     final pages = await prepared.pages;
     if (generation != _generation || !identical(_prepared, prepared)) return;
@@ -83,8 +85,10 @@ final class PrefetchMangaChapter {
     final limit = pages.length < _pageWarmCount ? pages.length : _pageWarmCount;
     for (var index = 0; index < limit; index++) {
       if (generation != _generation || !identical(_prepared, prepared)) return;
+      await _readMangaPage.waitForForeground();
+      if (generation != _generation || !identical(_prepared, prepared)) return;
       try {
-        await _readMangaPage.execute(prepared.source, pages[index]);
+        await _readMangaPage.prefetch(prepared.source, pages[index]);
       } catch (_) {
         // Speculative page failures do not affect foreground reading.
       }
@@ -130,11 +134,13 @@ final class _PreparedMangaChapter {
   _PreparedMangaChapter({
     required this.chapter,
     required this.source,
-    required this.pages,
+    required this._loadPages,
   });
 
   final SourceMediaRef chapter;
   final MangaPageSource source;
-  final Future<List<SourceMediaRef>?> pages;
+  final Future<List<SourceMediaRef>?> Function() _loadPages;
+  Future<List<SourceMediaRef>?>? _pages;
+  Future<List<SourceMediaRef>?> get pages => _pages ??= _loadPages();
   bool warmAttempted = false;
 }

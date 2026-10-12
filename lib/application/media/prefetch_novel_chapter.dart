@@ -34,15 +34,19 @@ final class PrefetchNovelChapter {
         return;
       }
 
-      final content = await _readContent.execute(source, chapter.source);
+      await _readContent.waitForForeground();
+      if (generation != _generation) return;
+      final content = await _readContent.prefetch(source, chapter.source);
       if (generation != _generation) return;
 
       final seen = <SourceMediaRef>{};
       for (final resource in content.resources.values) {
         if (generation != _generation) return;
         if (!seen.add(resource)) continue;
+        await _readResource.waitForForeground();
+        if (generation != _generation) return;
         try {
-          await _readResource.execute(source, resource);
+          await _readResource.prefetch(source, resource);
         } catch (_) {
           // A failed speculative resource must not affect foreground reading.
         }

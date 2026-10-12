@@ -4,6 +4,7 @@ import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/progress/load_continue_reading.dart';
+import 'package:hikari/application/media/foreground_read_gate.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
 import 'package:hikari/application/media/prefetch_manga_chapter.dart';
@@ -137,10 +138,20 @@ final class AppDependencies {
         );
     final resolvedCatalogProvider =
         catalogProvider ?? AniListCatalogProvider(cache: resolvedCache);
-    final readMangaPage = ReadMangaPage(resolvedCache);
-    final readMangaPageList = ReadMangaPageList(resolvedCache);
-    final readNovelChapterContent = ReadNovelChapterContent(resolvedCache);
-    final readNovelResource = ReadNovelResource(resolvedCache);
+    final readGate = ForegroundReadGate();
+    final readMangaPage = ReadMangaPage(resolvedCache, readGate: readGate);
+    final readMangaPageList = ReadMangaPageList(
+      resolvedCache,
+      readGate: readGate,
+    );
+    final readNovelChapterContent = ReadNovelChapterContent(
+      resolvedCache,
+      readGate: readGate,
+    );
+    final readNovelResource = ReadNovelResource(
+      resolvedCache,
+      readGate: readGate,
+    );
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
     final progressRepository = SqliteProgressRepository(resolvedDatabase);
     final seriesContinuationRepository = SqliteSeriesContinuationRepository(

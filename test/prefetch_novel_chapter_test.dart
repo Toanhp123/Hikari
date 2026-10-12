@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/application/media/foreground_read_gate.dart';
 import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
@@ -108,6 +109,60 @@ void main() {
     expect(source.chapterReads, isEmpty);
     expect(source.resourceReads, isEmpty);
   });
+
+  test('foreground resource read pauses new chapter prefetch', () async {
+    final source = _Source()
+      ..holdResource = 'current-image'
+      ..contentFor = (_) => RichReadingContent(
+        html: '<p>next</p>',
+        resources: {'image': _ref('next-image')},
+      );
+    final cache = _Cache();
+    final gate = ForegroundReadGate();
+    final contentReader = ReadNovelChapterContent(cache, readGate: gate);
+    final resourceReader = ReadNovelResource(cache, readGate: gate);
+    final prefetch = PrefetchNovelChapter(
+      SourceRegistry([source]),
+      contentReader,
+      resourceReader,
+    );
+
+    final foreground = resourceReader.execute(source, _ref('current-image'));
+    await source.resourceStarted.future;
+    final pending = prefetch.execute(_chapter('next'));
+    await Future<void>.delayed(Duration.zero);
+    expect(source.chapterReads, isEmpty);
+    expect(source.resourceReads, ['current-image']);
+
+    source.resourceGate.complete(Uint8List.fromList([1]));
+    await foreground;
+    await pending;
+    expect(source.chapterReads, ['next']);
+    expect(source.resourceReads, ['current-image', 'next-image']);
+  });
+
+  test(
+    'cancelled novel prefetch stays skipped after foreground finishes',
+    () async {
+      final source = _Source()..holdResource = 'current-image';
+      final cache = _Cache();
+      final gate = ForegroundReadGate();
+      final resourceReader = ReadNovelResource(cache, readGate: gate);
+      final prefetch = PrefetchNovelChapter(
+        SourceRegistry([source]),
+        ReadNovelChapterContent(cache, readGate: gate),
+        resourceReader,
+      );
+
+      final foreground = resourceReader.execute(source, _ref('current-image'));
+      await source.resourceStarted.future;
+      final pending = prefetch.execute(_chapter('next'));
+      prefetch.cancelPending();
+      source.resourceGate.complete(Uint8List.fromList([1]));
+      await Future.wait([foreground, pending]);
+      expect(source.chapterReads, isEmpty);
+    },
+  );
 
   test(
     'latest request supersedes active remainder and queued chapters',
