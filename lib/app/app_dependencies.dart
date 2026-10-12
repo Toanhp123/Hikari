@@ -1,3 +1,4 @@
+import 'package:hikari/application/cache/cache_management.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
@@ -18,6 +19,7 @@ import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/core/cache/cache_maintenance.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -71,6 +73,7 @@ final class AppDependencies {
     required this.createNovelChapterPrefetch,
     required this.videoSession,
     required this.cache,
+    required this.cacheManagement,
     required this.ownsCache,
   });
 
@@ -162,6 +165,9 @@ final class AppDependencies {
       ),
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
+      cacheManagement: resolvedCache is CacheMaintenance
+          ? CacheManagement(resolvedCache as CacheMaintenance)
+          : null,
       ownsCache: cache == null || ownsCache,
     );
   }
@@ -190,6 +196,7 @@ final class AppDependencies {
   final PrefetchNovelChapter Function() createNovelChapterPrefetch;
   final MediaKitVideoSession videoSession;
   final ByteCache cache;
+  final CacheManagement? cacheManagement;
   final bool ownsCache;
 
   final UserDatabase _database;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
 
@@ -21,7 +22,10 @@ class SettingsContent extends StatelessWidget {
     this.onToggleOled,
     this.onSelectAccent,
     this.onClearCache,
-    this.cacheSizeLabel,
+    this.cacheUsage,
+    this.isLoadingCacheUsage = false,
+    this.cacheUsageUnavailable = false,
+    this.onRetryCacheUsage,
     this.onChooseLocalFolder,
   });
 
@@ -38,7 +42,10 @@ class SettingsContent extends StatelessWidget {
   final ValueChanged<bool>? onToggleOled;
   final ValueChanged<Color?>? onSelectAccent;
   final VoidCallback? onClearCache;
-  final String? cacheSizeLabel;
+  final CacheUsage? cacheUsage;
+  final bool isLoadingCacheUsage;
+  final bool cacheUsageUnavailable;
+  final VoidCallback? onRetryCacheUsage;
   final VoidCallback? onChooseLocalFolder;
 
   @override
@@ -196,9 +203,14 @@ class SettingsContent extends StatelessWidget {
                       leading: const Icon(Icons.cleaning_services_rounded),
                       title: const Text('Temporary Cache'),
                       subtitle: Text(
-                        cacheSizeLabel == null
-                            ? 'Clear temporary cached content.'
-                            : 'Cached content: $cacheSizeLabel',
+                        isLoadingCacheUsage
+                            ? 'Measuring cache…'
+                            : cacheUsageUnavailable
+                            ? 'Cache size unavailable.'
+                            : cacheUsage == null
+                            ? 'Clear cached reading content and artwork.'
+                            : 'Cached reading/artwork: '
+                                  '${_formatCacheBytes(cacheUsage!.totalBytes)}',
                       ),
                       trailing: SizedBox(
                         width: 96,
@@ -209,6 +221,46 @@ class SettingsContent extends StatelessWidget {
                           isLoading: isClearingCache,
                           onPressed: onClearCache,
                         ),
+                      ),
+                    ),
+                  if (cacheUsage != null && onClearCache != null)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: HikariSpacing.md,
+                        end: HikariSpacing.md,
+                        bottom: HikariSpacing.md,
+                      ),
+                      child: Column(
+                        children: [
+                          for (final entry in cacheUsage!.byCategory.entries)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: HikariSpacing.xs,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(child: Text(entry.key)),
+                                  Text(_formatCacheBytes(entry.value)),
+                                ],
+                              ),
+                            ),
+                          Text(
+                            'Indexed Hikari reading/artwork cache. Local files, '
+                            'native HTTP cache and image memory are excluded.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (cacheUsageUnavailable && onRetryCacheUsage != null)
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: TextButton(
+                        onPressed: isLoadingCacheUsage
+                            ? null
+                            : onRetryCacheUsage,
+                        child: const Text('Retry cache size'),
                       ),
                     ),
                 ],
@@ -236,6 +288,13 @@ class SettingsContent extends StatelessWidget {
 }
 
 /// A single color choice with a 48dp target, focus feedback and non-color cue.
+String _formatCacheBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kib = bytes / 1024;
+  if (kib < 1024) return '${kib.toStringAsFixed(1)} KiB';
+  return '${(kib / 1024).toStringAsFixed(1)} MiB';
+}
+
 class _AccentSwatch extends StatelessWidget {
   const _AccentSwatch({
     required this.label,

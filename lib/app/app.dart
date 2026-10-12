@@ -605,6 +605,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                   _navigationController.selectTab(AppTab.search),
             ),
             AppTab.settings: SettingsPage(
+              loadCacheUsage: _dependencies.cacheManagement?.usage,
+              onClearCache: _dependencies.cacheManagement?.clear,
               isOled: _isOled,
               selectedAccent: _accentColor,
               appearanceSaveStatus: widget.appearanceRepository == null

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/features/settings/widgets/settings_content.dart';
 
@@ -21,7 +22,7 @@ class SettingsPage extends StatefulWidget {
     this.onToggleOled,
     this.onSelectAccent,
     this.onClearCache,
-    this.cacheSizeLabel,
+    this.loadCacheUsage,
     this.onChooseLocalFolder,
     this.loadLocalFolderName,
     this.localFolderRevision = 0,
@@ -36,7 +37,7 @@ class SettingsPage extends StatefulWidget {
   final ValueChanged<bool>? onToggleOled;
   final ValueChanged<Color?>? onSelectAccent;
   final Future<void> Function()? onClearCache;
-  final String? cacheSizeLabel;
+  final Future<CacheUsage> Function()? loadCacheUsage;
 
   /// Returns true only when the user chooses a new root; cancel is not a success.
   final Future<bool> Function()? onChooseLocalFolder;
@@ -54,6 +55,10 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late bool _isOled;
   bool _isClearingCache = false;
+  bool _isLoadingCacheUsage = false;
+  bool _cacheUsageUnavailable = false;
+  CacheUsage? _cacheUsage;
+  int _cacheUsageGeneration = 0;
   bool _isChoosingFolder = false;
   bool _isCheckingFolder = false;
   bool _folderStatusUnavailable = false;
@@ -65,11 +70,15 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _isOled = widget.isOled;
     unawaited(_loadLocalFolderName());
+    unawaited(_loadCacheUsage());
   }
 
   @override
   void didUpdateWidget(SettingsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.loadCacheUsage != widget.loadCacheUsage) {
+      unawaited(_loadCacheUsage());
+    }
     if (oldWidget.isOled != widget.isOled) {
       _isOled = widget.isOled;
     }
@@ -141,29 +150,98 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _loadCacheUsage() async {
+    final load = widget.loadCacheUsage;
+    final generation = ++_cacheUsageGeneration;
+    if (load == null) {
+      if (mounted) {
+        setState(() {
+          _cacheUsage = null;
+          _isLoadingCacheUsage = false;
+          _cacheUsageUnavailable = false;
+        });
+      }
+      return;
+    }
+    setState(() {
+      _isLoadingCacheUsage = true;
+      _cacheUsageUnavailable = false;
+    });
+    try {
+      final usage = await load();
+      if (!mounted || generation != _cacheUsageGeneration) return;
+      setState(() {
+        _cacheUsage = usage;
+        _isLoadingCacheUsage = false;
+      });
+    } catch (_) {
+      if (!mounted || generation != _cacheUsageGeneration) return;
+      setState(() {
+        _cacheUsage = null;
+        _isLoadingCacheUsage = false;
+        _cacheUsageUnavailable = true;
+      });
+    }
+  }
+
   Future<void> _clearCache() async {
     final clearCache = widget.onClearCache;
     if (clearCache == null || _isClearingCache) return;
 
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear temporary cache?'),
+        content: const Text(
+          'Cached remote manga pages, novel chapters and artwork will be '
+          'loaded again when needed. Local artwork previews may be rebuilt. '
+          'Your Library, reading progress '
+          'and local files will not be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear cache'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || _isClearingCache) return;
+
     setState(() => _isClearingCache = true);
+    var cleared = false;
     try {
       await clearCache();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Cache cleared.')));
+      cleared = true;
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to clear cache.')));
+      // Maintenance errors propagate. Partial deletion is not success.
     } finally {
-      if (mounted) setState(() => _isClearingCache = false);
+      if (mounted) {
+        await _loadCacheUsage();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                cleared
+                    ? 'Temporary cache cleared.'
+                    : 'Could not clear all temporary cache. Try again.',
+              ),
+            ),
+          );
+          setState(() => _isClearingCache = false);
+        }
+      }
     }
   }
 
   @override
   void dispose() {
     _folderLookupGeneration++;
+    _cacheUsageGeneration++;
     super.dispose();
   }
 
@@ -188,7 +266,12 @@ class _SettingsPageState extends State<SettingsPage> {
         onToggleOled: widget.onToggleOled == null ? null : _toggleOled,
         onSelectAccent: widget.onSelectAccent,
         onClearCache: widget.onClearCache == null ? null : _clearCache,
-        cacheSizeLabel: widget.cacheSizeLabel,
+        cacheUsage: _cacheUsage,
+        isLoadingCacheUsage: _isLoadingCacheUsage,
+        cacheUsageUnavailable: _cacheUsageUnavailable,
+        onRetryCacheUsage: widget.loadCacheUsage == null
+            ? null
+            : _loadCacheUsage,
         onChooseLocalFolder: widget.onChooseLocalFolder == null
             ? null
             : _chooseLocalFolder,

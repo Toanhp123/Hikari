@@ -24,6 +24,14 @@ void main() {
     expect(cache.closeCalls, 2);
   });
 
+  test('default app cache advertises scoped maintenance', () async {
+    final db = UserDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final dependencies = AppDependencies.create(database: db);
+    expect(dependencies.cacheManagement, isNotNull);
+    await dependencies.dispose();
+  });
+
   test(
     'AppDependencies manages catalog provider ownership and dispose semantics',
     () async {
@@ -58,6 +66,7 @@ void main() {
         cache: callerCache,
       );
       expect(cacheCallerOwned.ownsCache, isFalse);
+      expect(cacheCallerOwned.cacheManagement, isNull);
       await cacheCallerOwned.dispose();
       expect(callerCache.closeCalls, 0);
 
@@ -68,6 +77,7 @@ void main() {
         ownsCache: true,
       );
       expect(cacheAppOwned.ownsCache, isTrue);
+      expect(cacheAppOwned.cacheManagement, isNull);
       await cacheAppOwned.dispose();
       expect(ownedCache.closeCalls, 1);
       await cacheAppOwned.dispose();

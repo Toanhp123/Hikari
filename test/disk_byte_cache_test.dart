@@ -405,6 +405,53 @@ void main() {
     expect(await cache.sizeBytes('art'), 0);
   });
 
+  test('maintenance clear waits for writes and isolates namespaces', () async {
+    final started = Completer<void>();
+    final release = Completer<void>();
+    final cache = _cache(
+      root,
+      {'art': 64, 'pages': 64, 'other': 64},
+      beforePublish: () async {
+        if (!started.isCompleted) {
+          started.complete();
+          await release.future;
+        }
+      },
+    );
+    addTearDown(cache.close);
+    final writing = cache.write('art', 'cover', Uint8List(2));
+    await started.future;
+    final clearing = cache.clearNamespaces(['art', 'pages']);
+    release.complete();
+    await writing;
+    await clearing;
+    expect(await cache.sizes(['art', 'pages', 'other']), {
+      'art': 0,
+      'pages': 0,
+      'other': 0,
+    });
+    await cache.write('other', 'keep', Uint8List(3));
+    await cache.clearNamespaces(['art', 'pages']);
+    expect(await cache.read('other', 'keep'), Uint8List(3));
+  });
+
+  test('maintenance failure does not report success', () async {
+    final cache = _cache(root, {'art': 64});
+    addTearDown(cache.close);
+    await cache.write('art', 'cover', Uint8List.fromList([7]));
+    final dir = Directory(p.join(root.path, 'hikari', 'cache-v1'));
+    final blob =
+        (await dir.list().where((e) => e.path.endsWith('.blob')).first) as File;
+    await blob.delete();
+    await Directory(blob.path).create();
+    await expectLater(
+      cache.clearNamespaces(['art']),
+      throwsA(isA<FileSystemException>()),
+    );
+    // This is not reported as a successful clear and metadata remains indexed.
+    expect(await cache.sizes(['art']), {'art': 1});
+  });
+
   test('corrupt blob becomes miss', () async {
     final cache = _cache(root, {'art': 64});
     addTearDown(cache.close);

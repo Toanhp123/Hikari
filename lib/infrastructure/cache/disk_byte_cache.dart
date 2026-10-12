@@ -7,9 +7,10 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/core/cache/cache_maintenance.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';
 
-final class DiskByteCache implements ByteCache {
+final class DiskByteCache implements ByteCache, CacheMaintenance {
   DiskByteCache({
     Future<Directory> Function()? cacheBaseDirectory,
     Map<String, int> namespaceByteBudgets = const {},
@@ -327,23 +328,66 @@ final class DiskByteCache implements ByteCache {
     });
   }
 
+  Future<void> _clearNamespace(CacheDatabase database, String namespace) async {
+    while (true) {
+      final rows =
+          await (database.select(database.cacheEntries)
+                ..where((row) => row.namespace.equals(namespace))
+                ..limit(32))
+              .get();
+      if (rows.isEmpty) break;
+      for (final row in rows) {
+        await _deleteEntry(database, row);
+      }
+    }
+  }
+
+  @override
+  Future<Map<String, int>> sizes(Iterable<String> namespaces) {
+    final requested = namespaces.toSet();
+    if (_shutdownRequested) return Future.error(StateError('Cache is closed'));
+    return _serialized(() async {
+      if (_closed) throw StateError('Cache is closed');
+      try {
+        await _ensureReady();
+        return {
+          for (final namespace in requested)
+            namespace: await _namespaceSizeBytes(_database!, namespace),
+        };
+      } catch (_) {
+        _acceptWrites = false;
+        rethrow;
+      }
+    });
+  }
+
+  @override
+  Future<void> clearNamespaces(Iterable<String> namespaces) {
+    final requested = namespaces.toSet();
+    if (_shutdownRequested) return Future.error(StateError('Cache is closed'));
+    return _serialized(() async {
+      if (_closed) throw StateError('Cache is closed');
+      try {
+        await _ensureReady();
+        // One queue operation: no cache read or write can interleave between
+        // namespaces while an explicit user clear is in progress.
+        for (final namespace in requested) {
+          await _clearNamespace(_database!, namespace);
+        }
+      } catch (_) {
+        _acceptWrites = false;
+        rethrow;
+      }
+    });
+  }
+
   Future<void> clear(String namespace) {
     if (_shutdownRequested) return Future.value();
     return _serialized(() async {
       if (_closed) return;
       try {
         await _ensureReady();
-        while (true) {
-          final rows =
-              await (_database!.select(_database!.cacheEntries)
-                    ..where((row) => row.namespace.equals(namespace))
-                    ..limit(32))
-                  .get();
-          if (rows.isEmpty) break;
-          for (final row in rows) {
-            await _deleteEntry(_database!, row);
-          }
-        }
+        await _clearNamespace(_database!, namespace);
       } catch (_) {
         _acceptWrites = false;
       }
