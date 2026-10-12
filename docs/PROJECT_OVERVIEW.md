@@ -1029,7 +1029,7 @@ Danh sách nội dung người dùng chủ động lưu/theo dõi.
   Xem [SOURCES](architecture/SOURCES.md) và [ADR-007](decisions/ADR-007-android-manga-extension-runtime.md).
 - Home/Catalog/Search/Library/Settings đã có presentation flow thật; Catalog dùng AniList làm metadata plane riêng rồi resolve sang source content trước khi mở reader. Manga và novel series đều có thể add/remove Library ngay tại series page;
 - remote manga và remote novel đều có chapter navigation dựa trên immutable reading-order snapshot. Reader flush progress trước chapter handoff và bỏ stale async completion khi session đóng;
-- reconstructible cache đã có namespace/budget riêng cho artwork, manga page bytes, normalized novel chapter content và novel resources. Manga reader dùng current-page lookahead cùng bounded next-chapter prefetch gần chapter boundary; novel reader warm bounded next-chapter content/resources. Prefetch không tạo user-state hoặc download ownership.
+- reconstructible cache đã có namespace/budget riêng cho artwork, manga page bytes, normalized novel chapter content và novel resources. Manga reader dùng current-page lookahead cùng bounded next-chapter prefetch gần chapter boundary; Novel reader làm ấm content chương kế tiếp, rồi tải trước tuần tự tối đa 4 resource khác nhau hoặc 8 MiB bytes trả về (giới hạn mềm); ảnh đọc thực tế ở foreground không bị giới hạn này. Prefetch không tạo user-state hoặc download ownership.
 
 ### Tiếp theo
 

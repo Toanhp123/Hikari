@@ -20,6 +20,20 @@ Remote manga page-byte caching and remote novel chapter/resource caching are ind
 
 Cache writes currently remain awaited on the read path, providing deterministic immediate-repeat reuse and same-reference request coalescing. Bounded manga page-ahead, manga next-chapter first-page warming, and novel chapter/resource lookahead use this existing behavior without adding decoded-image warming or broader speculative scheduling. Awaiting writes is not required for index/blob consistency, which is handled by publishing the blob before its index entry.
 
+## Phase 4.4 follow-up — bounded Novel resource lookahead
+
+The original one-chapter, serial Novel prefetch workflow remains. To prevent
+chapters with many illustrations from warming every resource speculatively,
+`PrefetchNovelChapter` now stops after at most four unique resource requests or
+8 MiB of returned resource bytes per lookahead, whichever is reached first.
+Failed requests consume a request slot. The byte ceiling is **soft** because
+`NovelChapterSource.readResource` returns a complete `Uint8List`, and even a
+single response may cross the ceiling; cached hits are also included in the
+accounting. This is not a network transfer hard cap or a change to the 64 MiB
+novel-resource disk namespace budget. Foreground reading is unrestricted and
+continues to load remaining illustrations on demand. These are initial
+heuristics to validate with real-device measurements, not measured optima.
+
 ## Follow-up debt
 
 `DiskByteCache` currently serializes both reads and mutations through one process-local queue. This keeps index/blob reconciliation and close behavior simple, but independent cache hits cannot read immutable blobs concurrently. Treat this as measured performance debt rather than a correctness bug. Novel chapter lookahead deliberately stays at one chapter and serial resource reads, so it does not introduce parallel speculative cache-hit fan-out. If profiling shows reader/artwork/prefetch queue latency, benchmark the current queue and evaluate allowing concurrent immutable blob reads while keeping metadata mutations, eviction, recovery, and close transitions serialized. Any optimization must preserve atomic blob publication, LRU accounting, fail-open behavior, and the existing close/race guarantees; do not replace the queue with unbounded fire-and-forget I/O.

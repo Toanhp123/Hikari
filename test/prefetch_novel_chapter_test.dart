@@ -34,6 +34,107 @@ void main() {
     expect(source.maxActiveResources, 1);
   });
 
+  test('default request limit counts only unique resource attempts', () async {
+    final source = _Source()
+      ..contentFor = (_) => RichReadingContent(
+        html: '<p>next</p>',
+        resources: {
+          'one': _ref('image-1'),
+          'duplicate': _ref('image-1'),
+          'two': _ref('image-2'),
+          'three': _ref('image-3'),
+          'four': _ref('image-4'),
+          'five': _ref('image-5'),
+        },
+      );
+    final prefetch = _prefetch(source, _Cache());
+
+    await prefetch.execute(_chapter('next'));
+
+    expect(source.chapterReads, ['next']);
+    expect(source.resourceReads, ['image-1', 'image-2', 'image-3', 'image-4']);
+  });
+
+  test('stops after resource byte budget without starting the next read', () async {
+    final source = _Source()
+      ..resourceLengths.addAll({'image-1': 3, 'image-2': 4})
+      ..contentFor = (_) => RichReadingContent(
+        html: '<p>next</p>',
+        resources: {
+          'one': _ref('image-1'),
+          'two': _ref('image-2'),
+          'three': _ref('image-3'),
+        },
+      );
+    final prefetch = _prefetch(source, _Cache(), maxResourceBytes: 5);
+
+    await prefetch.execute(_chapter('next'));
+
+    // Resource APIs return whole buffers: the second read crosses the soft cap.
+    expect(source.resourceReads, ['image-1', 'image-2']);
+  });
+
+  test('failed resource attempts consume the request limit', () async {
+    final source = _Source()
+      ..failResources.add('broken')
+      ..contentFor = (_) => RichReadingContent(
+        html: '<p>next</p>',
+        resources: {'broken': _ref('broken'), 'good': _ref('good')},
+      );
+    final prefetch = _prefetch(source, _Cache(), maxResourceRequests: 1);
+
+    await prefetch.execute(_chapter('next'));
+
+    expect(source.resourceReads, ['broken']);
+  });
+
+  test(
+    'resource warming can be disabled without skipping chapter text',
+    () async {
+      final cache = _Cache();
+      final source = _Source()
+        ..contentFor = (_) => RichReadingContent(
+          html: '<p>next</p>',
+          resources: {'image': _ref('image')},
+        );
+      final prefetch = _prefetch(source, cache, maxResourceRequests: 0);
+
+      await prefetch.execute(_chapter('next'));
+
+      expect(source.chapterReads, ['next']);
+      expect(source.resourceReads, isEmpty);
+      final contentReader = ReadNovelChapterContent(cache);
+      final content = await contentReader.execute(source, _ref('next'));
+      expect(content.resources.containsKey('image'), isTrue);
+      expect(source.chapterReads, ['next']);
+    },
+  );
+
+  test(
+    'foreground still fetches resources skipped by prefetch limits',
+    () async {
+      final cache = _Cache();
+      final source = _Source()
+        ..contentFor = (_) => RichReadingContent(
+          html: '<p>next</p>',
+          resources: {'first': _ref('image-1'), 'second': _ref('image-2')},
+        );
+      final resourceReader = ReadNovelResource(cache);
+      final prefetch = PrefetchNovelChapter(
+        SourceRegistry([source]),
+        ReadNovelChapterContent(cache),
+        resourceReader,
+        maxResourceRequests: 1,
+      );
+
+      await prefetch.execute(_chapter('next'));
+      final foreground = await resourceReader.execute(source, _ref('image-2'));
+
+      expect(foreground, [1]);
+      expect(source.resourceReads, ['image-1', 'image-2']);
+    },
+  );
+
   test('foreground joins an active chapter-content prefetch', () async {
     final cache = _Cache();
     final source = _Source()
@@ -252,12 +353,18 @@ void main() {
   });
 }
 
-PrefetchNovelChapter _prefetch(_Source source, _Cache cache) =>
-    PrefetchNovelChapter(
-      SourceRegistry([source]),
-      ReadNovelChapterContent(cache),
-      ReadNovelResource(cache),
-    );
+PrefetchNovelChapter _prefetch(
+  _Source source,
+  _Cache cache, {
+  int maxResourceRequests = 4,
+  int maxResourceBytes = 8 * 1024 * 1024,
+}) => PrefetchNovelChapter(
+  SourceRegistry([source]),
+  ReadNovelChapterContent(cache),
+  ReadNovelResource(cache),
+  maxResourceRequests: maxResourceRequests,
+  maxResourceBytes: maxResourceBytes,
+);
 
 NovelChapter _chapter(String itemId) =>
     NovelChapter(title: itemId, source: _ref(itemId));
@@ -269,6 +376,7 @@ final class _Source implements NovelChapterSource {
   final List<String> chapterReads = [];
   final List<String> resourceReads = [];
   final Set<String> failResources = {};
+  final Map<String, int> resourceLengths = {};
   RichReadingContent Function(SourceMediaRef chapter)? contentFor;
   String? failChapter;
   String? holdChapter;
@@ -313,7 +421,9 @@ final class _Source implements NovelChapterSource {
       if (failResources.contains(resource.itemId)) {
         throw StateError('offline');
       }
-      return Uint8List.fromList([1]);
+      return Uint8List.fromList(
+        List<int>.filled(resourceLengths[resource.itemId] ?? 1, 1),
+      );
     } finally {
       activeResources--;
     }
