@@ -38,6 +38,20 @@ heuristics to validate with real-device measurements, not measured optima.
 
 `DiskByteCache` currently serializes both reads and mutations through one process-local queue. This keeps index/blob reconciliation and close behavior simple, but independent cache hits cannot read immutable blobs concurrently. Treat this as measured performance debt rather than a correctness bug. Novel chapter lookahead deliberately stays at one chapter and serial resource reads, so it does not introduce parallel speculative cache-hit fan-out. If profiling shows reader/artwork/prefetch queue latency, benchmark the current queue and evaluate allowing concurrent immutable blob reads while keeping metadata mutations, eviction, recovery, and close transitions serialized. Any optimization must preserve atomic blob publication, LRU accounting, fail-open behavior, and the existing close/race guarantees; do not replace the queue with unbounded fire-and-forget I/O.
 
+## Phase 4.5 follow-up — measurable I/O before concurrency changes
+
+`DiskByteCache` retains its one-instance serialized queue. Optional cache I/O
+profiling now records admission-to-execution queue wait, operation duration,
+blob SHA-256 cost, write LRU trim cost, byte counts and read hit/miss. The
+instrumentation uses a monotonic stopwatch and DevTools `TimelineTask` only
+when explicitly enabled by `--dart-define=HIKARI_CACHE_TRACE=true`, or an
+injected sample observer for tests. No cache keys or user identifiers are
+reported. Errors in test observers do not change cache behavior, and tracing
+is off by default. This is instrumentation, **not evidence yet** that
+concurrent blob reads are needed. On-device profiling and correctness tests
+must precede any queue redesign; see
+[Cache I/O profile validation](../quality/CACHE_IO_PROFILE_VALIDATION.md).
+
 ## Alternatives
 
 - `flutter_cache_manager` provides HTTP-aware cache machinery and cross-platform filesystem/storage behavior, but its object-count/stale policies do not enforce Hikari's namespace byte budgets and duplicate policy not needed by source-owned byte reads.

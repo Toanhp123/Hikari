@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -11,6 +12,50 @@ import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/core/cache/cache_maintenance.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';
 
+/// A single cache-queue operation. All durations use a monotonic stopwatch.
+///
+/// `bytes` is the returned byte count on a hit or the submitted write size.
+/// `hit` is only set for reads. Keys and source references are never recorded.
+final class CacheIoSample {
+  const CacheIoSample({
+    required this.operation,
+    required this.queueWaitMicros,
+    required this.executionMicros,
+    required this.hashMicros,
+    required this.trimMicros,
+    required this.bytes,
+    required this.failed,
+    this.hit,
+  });
+
+  final String operation;
+  final int queueWaitMicros;
+  final int executionMicros;
+  final int hashMicros;
+  final int trimMicros;
+  final int bytes;
+  final bool failed;
+  final bool? hit;
+
+  Map<String, Object> toTimelineArguments() => {
+    'queueWaitUs': queueWaitMicros,
+    'executionUs': executionMicros,
+    'hashUs': hashMicros,
+    'trimUs': trimMicros,
+    'bytes': bytes,
+    'failed': failed,
+    'hit': ?hit,
+  };
+}
+
+final class _CacheIoTiming {
+  int hashMicros = 0;
+  int trimMicros = 0;
+  int bytes = 0;
+  bool failed = false;
+  bool? hit;
+}
+
 final class DiskByteCache implements ByteCache, CacheMaintenance {
   DiskByteCache({
     Future<Directory> Function()? cacheBaseDirectory,
@@ -20,6 +65,7 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
     this._beforePublish,
     this._beforeIndexPublish,
     this._beforeReplacementCleanup,
+    this.onIoSample,
   }) : _isTestDefaultCache =
            cacheBaseDirectory == null &&
            Platform.environment['FLUTTER_TEST'] == 'true',
@@ -36,6 +82,13 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
   final Future<void> Function()? _beforePublish;
   final Future<void> Function()? _beforeIndexPublish;
   final Future<void> Function()? _beforeReplacementCleanup;
+
+  /// Optional observer for profiling/tests. Observer failures never affect I/O.
+  final void Function(CacheIoSample)? onIoSample;
+
+  /// Opt into DevTools async timeline events in a profile build with
+  /// --dart-define=HIKARI_CACHE_TRACE=true. No persistent logs are written.
+  static const _traceTimeline = bool.fromEnvironment('HIKARI_CACHE_TRACE');
   Future<void> _tail = Future.value();
   Future<void>? _initializing;
   CacheDatabase? _database;
@@ -63,10 +116,60 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
     return CacheDatabase.at(dbFile.path);
   }
 
-  Future<T> _serialized<T>(Future<T> Function() operation) {
-    final result = _tail.then((_) => operation());
+  Future<T> _serialized<T>(
+    String operation,
+    Future<T> Function(_CacheIoTiming? timing) work,
+  ) {
+    if (onIoSample == null && !_traceTimeline) {
+      final result = _tail.then((_) => work(null));
+      _tail = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+      return result;
+    }
+
+    final elapsed = Stopwatch()..start();
+    final task = _traceTimeline
+        ? (developer.TimelineTask()..start('Hikari.Cache.$operation'))
+        : null;
+    final result = _tail.then((_) async {
+      final queueWaitMicros = elapsed.elapsedMicroseconds;
+      final timing = _CacheIoTiming();
+      try {
+        return await work(timing);
+      } catch (_) {
+        timing.failed = true;
+        rethrow;
+      } finally {
+        final sample = CacheIoSample(
+          operation: operation,
+          queueWaitMicros: queueWaitMicros,
+          executionMicros: elapsed.elapsedMicroseconds - queueWaitMicros,
+          hashMicros: timing.hashMicros,
+          trimMicros: timing.trimMicros,
+          bytes: timing.bytes,
+          hit: timing.hit,
+          failed: timing.failed,
+        );
+        // Instrumentation is never allowed to break reader/cache semantics.
+        try {
+          onIoSample?.call(sample);
+        } catch (_) {}
+        try {
+          task?.finish(arguments: sample.toTimelineArguments());
+        } catch (_) {}
+      }
+    });
     _tail = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     return result;
+  }
+
+  String _digest(Uint8List bytes, _CacheIoTiming? timing) {
+    if (timing == null) return sha256.convert(bytes).toString();
+    final elapsed = Stopwatch()..start();
+    try {
+      return sha256.convert(bytes).toString();
+    } finally {
+      timing.hashMicros += elapsed.elapsedMicroseconds;
+    }
   }
 
   Future<void> _ensureReady() =>
@@ -180,7 +283,8 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
   @override
   Future<Uint8List?> read(String namespace, String key) {
     if (_shutdownRequested) return Future.value(null);
-    return _serialized(() async {
+    return _serialized('read', (timing) async {
+      timing?.hit = false;
       if (_closed) return null;
       try {
         await _ensureReady();
@@ -200,14 +304,18 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
           return null;
         }
         final bytes = await file.readAsBytes();
-        if (bytes.length != row.size ||
-            sha256.convert(bytes).toString() != row.digest) {
+        if (bytes.length != row.size || _digest(bytes, timing) != row.digest) {
           await _deleteEntry(database, row);
           return null;
         }
         _dirtyTouches[hash] = _clock();
+        if (timing != null) {
+          timing.hit = true;
+          timing.bytes = bytes.length;
+        }
         return bytes;
       } catch (_) {
+        if (timing != null) timing.failed = true;
         _acceptWrites = false;
         return null;
       }
@@ -217,7 +325,8 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
   @override
   Future<void> write(String namespace, String key, Uint8List bytes) {
     if (_shutdownRequested) return Future.value();
-    return _serialized(() async {
+    return _serialized('write', (timing) async {
+      timing?.bytes = bytes.length;
       final byteBudget = _byteBudgets[namespace] ?? 0;
       if (_closed ||
           !_acceptWrites ||
@@ -231,7 +340,7 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
         final database = _database!;
         await _flushTouches(database);
         final hash = _keyHash(namespace, key);
-        final digest = sha256.convert(bytes).toString();
+        final digest = _digest(bytes, timing);
         final finalFile = File(_blobPath(hash, digest));
         final old =
             await (database.select(database.cacheEntries)..where(
@@ -270,14 +379,16 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
             await File(_blobPath(old.keyHash, old.digest)).delete();
           } on FileSystemException catch (error) {
             if (error.osError?.errorCode != 2) {
+              if (timing != null) timing.failed = true;
               _acceptWrites = false;
               return;
             }
           }
         }
         _dirtyTouches[hash] = _clock();
-        await _trim(database, namespace, byteBudget);
+        await _trim(database, namespace, byteBudget, timing: timing);
       } catch (_) {
+        if (timing != null) timing.failed = true;
         _acceptWrites = false;
       }
     });
@@ -309,28 +420,34 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
   Future<void> _trim(
     CacheDatabase database,
     String namespace,
-    int byteBudget,
-  ) async {
-    var total = await _namespaceSizeBytes(database, namespace);
-    while (total > byteBudget) {
-      final rows =
-          await (database.select(database.cacheEntries)
-                ..where((row) => row.namespace.equals(namespace))
-                ..orderBy([(row) => OrderingTerm.asc(row.accessedAt)])
-                ..limit(32))
-              .get();
-      if (rows.isEmpty) return;
-      for (final row in rows) {
-        if (total <= byteBudget) break;
-        await _deleteEntry(database, row);
-        total -= row.size;
+    int byteBudget, {
+    _CacheIoTiming? timing,
+  }) async {
+    final elapsed = timing == null ? null : (Stopwatch()..start());
+    try {
+      var total = await _namespaceSizeBytes(database, namespace);
+      while (total > byteBudget) {
+        final rows =
+            await (database.select(database.cacheEntries)
+                  ..where((row) => row.namespace.equals(namespace))
+                  ..orderBy([(row) => OrderingTerm.asc(row.accessedAt)])
+                  ..limit(32))
+                .get();
+        if (rows.isEmpty) return;
+        for (final row in rows) {
+          if (total <= byteBudget) break;
+          await _deleteEntry(database, row);
+          total -= row.size;
+        }
       }
+    } finally {
+      if (timing != null) timing.trimMicros += elapsed!.elapsedMicroseconds;
     }
   }
 
   Future<void> remove(String namespace, String key) {
     if (_shutdownRequested) return Future.value();
-    return _serialized(() async {
+    return _serialized('remove', (timing) async {
       if (_closed) return;
       try {
         await _ensureReady();
@@ -368,7 +485,7 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
   Future<Map<String, int>> sizes(Iterable<String> namespaces) {
     final requested = namespaces.toSet();
     if (_shutdownRequested) return Future.error(StateError('Cache is closed'));
-    return _serialized(() async {
+    return _serialized('sizes', (timing) async {
       if (_closed) throw StateError('Cache is closed');
       try {
         await _ensureReady();
@@ -387,7 +504,7 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
   Future<void> clearNamespaces(Iterable<String> namespaces) {
     final requested = namespaces.toSet();
     if (_shutdownRequested) return Future.error(StateError('Cache is closed'));
-    return _serialized(() async {
+    return _serialized('clearNamespaces', (timing) async {
       if (_closed) throw StateError('Cache is closed');
       try {
         await _ensureReady();
@@ -405,7 +522,7 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
 
   Future<void> clear(String namespace) {
     if (_shutdownRequested) return Future.value();
-    return _serialized(() async {
+    return _serialized('clear', (timing) async {
       if (_closed) return;
       try {
         await _ensureReady();
@@ -418,7 +535,7 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
 
   Future<int> sizeBytes(String namespace) {
     if (_shutdownRequested) return Future.value(0);
-    return _serialized(() async {
+    return _serialized('sizeBytes', (timing) async {
       if (_closed) return 0;
       try {
         await _ensureReady();
@@ -435,7 +552,7 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
     if (_closing case final closing?) return closing;
     if (_closed) return Future.value();
     _shutdownRequested = true;
-    final closing = _serialized(() async {
+    final closing = _serialized('close', (timing) async {
       final database = _database;
       if (database != null) {
         try {
