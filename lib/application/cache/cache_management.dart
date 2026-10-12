@@ -7,7 +7,24 @@ import 'package:hikari/core/cache/cache_usage.dart';
 /// and all durable user state are intentionally outside this capability.
 final class CacheManagement {
   CacheManagement(this._cache, {required Map<String, String> namespaces})
-    : _namespaces = Map.unmodifiable(namespaces);
+    : _namespaces = Map.unmodifiable(namespaces) {
+    if (_namespaces.entries.any(
+      (entry) => entry.key.trim().isEmpty || entry.value.trim().isEmpty,
+    )) {
+      throw ArgumentError.value(
+        namespaces,
+        'namespaces',
+        'Empty cache ID or label',
+      );
+    }
+    if (_namespaces.values.toSet().length != _namespaces.length) {
+      throw ArgumentError.value(
+        namespaces,
+        'namespaces',
+        'Duplicate cache labels',
+      );
+    }
+  }
 
   final CacheMaintenance _cache;
   final Map<String, String> _namespaces;

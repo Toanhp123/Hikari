@@ -367,7 +367,7 @@ void main() {
     // Clear Cache
     await tester.pumpAndSettle();
     expect(
-      find.textContaining('Cached reading/artwork: 3.0 KiB'),
+      find.textContaining('Cached temporary data: 3.0 KiB'),
       findsOneWidget,
     );
     expect(find.text('Manga pages'), findsOneWidget);
@@ -402,7 +402,7 @@ void main() {
       find.text('Could not clear all temporary cache. Try again.'),
       findsOneWidget,
     );
-    expect(find.textContaining('Cached reading/artwork: 20 B'), findsOneWidget);
+    expect(find.textContaining('Cached temporary data: 20 B'), findsOneWidget);
   });
 
   testWidgets('cache size failure can be retried', (tester) async {
@@ -421,7 +421,7 @@ void main() {
     expect(find.text('Cache size unavailable.'), findsOneWidget);
     await tester.tap(find.text('Retry cache size'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Cached reading/artwork: 12 B'), findsOneWidget);
+    expect(find.textContaining('Cached temporary data: 12 B'), findsOneWidget);
     expect(attempts, 2);
   });
 
@@ -447,10 +447,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Clear cache'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Cached reading/artwork: 3 B'), findsOneWidget);
+    expect(find.textContaining('Cached temporary data: 3 B'), findsOneWidget);
     old.complete(const CacheUsage({'Manga pages': 99}));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Cached reading/artwork: 3 B'), findsOneWidget);
+    expect(find.textContaining('Cached temporary data: 3 B'), findsOneWidget);
   });
 
   testWidgets('Settings uses the canonical app bar title style', (

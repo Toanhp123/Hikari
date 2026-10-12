@@ -121,7 +121,7 @@ final class AniListCatalogProvider
     if (root == null) {
       throw const FormatException('Catalog response has no data object.');
     }
-    final warnings = _errors(response['errors']);
+    final warnings = _errors(response);
     final sections = <CatalogSection, List<CatalogEntry>>{};
 
     List<CatalogEntry> readSection(String key) {
@@ -189,7 +189,7 @@ final class AniListCatalogProvider
 
     final response = await _singleFlight(key, request, variables: variables);
     final rows = _asMap(_asMap(response['data'])?['Page'])?['media'];
-    final errors = _errors(response['errors']);
+    final errors = _errors(response);
     if (rows is! List) {
       if (errors.isNotEmpty) throw FormatException(errors.join(' '));
       throw const FormatException('Catalog search response is invalid.');
@@ -276,7 +276,7 @@ final class AniListCatalogProvider
     final numericId = int.tryParse(id.value);
     if (numericId == null) return null;
     final item = _asMap(_asMap(response['data'])?['Media']);
-    final warnings = _errors(response['errors']);
+    final warnings = _errors(response);
     if (item == null && warnings.isNotEmpty) {
       throw FormatException(warnings.join(' '));
     }
@@ -337,7 +337,7 @@ final class AniListCatalogProvider
   }
 
   bool _cacheableDiscovery(Map<String, dynamic> response) {
-    if (_errors(response['errors']).isNotEmpty) return false;
+    if (_errors(response).isNotEmpty) return false;
     final data = _asMap(response['data']);
     if (data == null) return false;
     for (final key in const [
@@ -359,11 +359,28 @@ final class AniListCatalogProvider
   }
 
   bool _cacheableDetails(Map<String, dynamic> response, CatalogEntryId id) {
-    if (_errors(response['errors']).isNotEmpty) return false;
+    if (_errors(response).isNotEmpty) return false;
     final item = _asMap(_asMap(response['data'])?['Media']);
-    return item != null &&
-        item['id'] == int.tryParse(id.value) &&
-        _entry(item) != null;
+    if (item == null ||
+        item['id'] != int.tryParse(id.value) ||
+        _entry(item) == null ||
+        !item.containsKey('relations')) {
+      return false;
+    }
+
+    // AniList may legitimately return null for this optional field. A
+    // malformed connection, however, must not be kept for a full detail TTL.
+    final relations = item['relations'];
+    if (relations == null) return true;
+    final connection = _asMap(relations);
+    if (connection == null || !connection.containsKey('edges')) return false;
+    final edges = connection['edges'];
+    return edges == null ||
+        (edges is List &&
+            edges.every((raw) {
+              final edge = _asMap(raw);
+              return edge != null && _entry(edge['node']) != null;
+            }));
   }
 
   Future<Map<String, dynamic>> _singleFlight(
@@ -526,14 +543,21 @@ final class AniListCatalogProvider
     return null;
   }
 
-  static List<String> _errors(Object? value) {
-    if (value is! List) return [];
-    return value
-        .map(_asMap)
-        .whereType<Map<Object?, Object?>>()
-        .map((error) => error['message'])
-        .whereType<String>()
-        .map((message) => 'Some catalog data could not be loaded: $message')
+  static List<String> _errors(Map<String, dynamic> response) {
+    if (!response.containsKey('errors')) return [];
+    final errors = response['errors'];
+    // GraphQL errors must be a non-empty list. Treat malformed error payloads
+    // as failures too, rather than accidentally persisting partial responses.
+    if (errors is! List || errors.isEmpty) {
+      return ['Some catalog data could not be loaded.'];
+    }
+    return errors
+        .map((raw) {
+          final message = _asMap(raw)?['message'];
+          return message is String && message.trim().isNotEmpty
+              ? 'Some catalog data could not be loaded: $message'
+              : 'Some catalog data could not be loaded.';
+        })
         .toList(growable: true);
   }
 

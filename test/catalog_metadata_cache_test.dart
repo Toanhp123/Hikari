@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/application/cache/cache_management.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
 import 'package:hikari/infrastructure/catalog/anilist/anilist_catalog_provider.dart';
 import 'package:hikari/infrastructure/catalog/anilist/anilist_metadata_cache.dart';
 
@@ -152,6 +155,191 @@ void main() {
     },
   );
 
+  test('malformed GraphQL errors do not overwrite good snapshots', () async {
+    const id = CatalogEntryId(provider: 'anilist', value: '42');
+    var response = _discovery('Good');
+    final provider = AniListCatalogProvider(
+      cache: cache,
+      clock: () => now,
+      post: (_, _) async => AniListHttpResponse(200, jsonEncode(response)),
+    );
+    addTearDown(provider.close);
+    await provider.discover();
+
+    for (final invalidErrors in <Object?>[
+      null,
+      <Object>[],
+      {'message': 'not an array'},
+      <Object?>[null],
+      <Object>[
+        {'code': 123},
+      ],
+    ]) {
+      response = {..._discovery('Bad'), 'errors': invalidErrors};
+      final result = await provider.refreshDiscovery();
+      expect(result.warnings, isNotEmpty);
+      expect(
+        (await provider.cachedDiscovery())!
+            .data
+            .sections[CatalogSection.featured]!
+            .first
+            .title,
+        'Good',
+      );
+    }
+
+    response = _detail('Good detail');
+    await provider.loadDetails(id);
+    response = {
+      ..._detail('Bad detail'),
+      'errors': <Object>[42],
+    };
+    final partial = await provider.refreshDetails(id);
+    expect(partial?.warnings, isNotEmpty);
+    expect((await provider.cachedDetails(id))?.data.entry.title, 'Good detail');
+  });
+
+  test('invalid detail relations cannot overwrite a good snapshot', () async {
+    const id = CatalogEntryId(provider: 'anilist', value: '42');
+    var response = _detail('Good');
+    final provider = AniListCatalogProvider(
+      cache: cache,
+      clock: () => now,
+      post: (_, _) async => AniListHttpResponse(200, jsonEncode(response)),
+    );
+    addTearDown(provider.close);
+    await provider.loadDetails(id);
+    for (final brokenRelations in <Object?>[
+      'invalid',
+      <String, Object?>{},
+      {'edges': 'not a list'},
+      {
+        'edges': [null],
+      },
+      {
+        'edges': [
+          <String, Object?>{
+            'node': {'id': 'not numeric'},
+          },
+        ],
+      },
+    ]) {
+      response = _detailWithRelations('Bad', brokenRelations);
+      await provider.refreshDetails(id);
+      expect((await provider.cachedDetails(id))?.data.entry.title, 'Good');
+    }
+    response = {
+      'data': {'Media': _row(42, 'Missing')},
+    };
+    await provider.refreshDetails(id);
+    expect((await provider.cachedDetails(id))?.data.entry.title, 'Good');
+
+    // Null is valid for a nullable GraphQL field; it is not a broken shape.
+    response = _detailWithRelations('Nullable', null);
+    await provider.refreshDetails(id);
+    expect((await provider.cachedDetails(id))?.data.entry.title, 'Nullable');
+  });
+
+  test(
+    'malformed GraphQL errors do not populate search memory cache',
+    () async {
+      var requests = 0;
+      var hasInvalidErrors = true;
+      final provider = AniListCatalogProvider(
+        clock: () => now,
+        post: (_, _) async {
+          requests++;
+          return AniListHttpResponse(
+            200,
+            jsonEncode({
+              ..._search(),
+              if (hasInvalidErrors) 'errors': <Object>[],
+            }),
+          );
+        },
+      );
+      addTearDown(provider.close);
+      expect((await provider.search('Title')).single.title, 'Title');
+      expect((await provider.search('Title')).single.title, 'Title');
+      expect(requests, 2);
+      hasInvalidErrors = false;
+      await provider.search('Title');
+      await provider.search('Title');
+      expect(requests, 3);
+    },
+  );
+
+  test('disk snapshot survives reopen, then Clear Cache removes it', () async {
+    final root = await Directory.systemTemp.createTemp('hikari-catalog-disk-');
+    addTearDown(() => root.delete(recursive: true));
+    const budget = {AniListMetadataCache.namespace: 1024 * 1024};
+    final firstCache = DiskByteCache(
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: budget,
+    );
+    addTearDown(firstCache.close);
+    var requests = 0;
+    final firstProvider = AniListCatalogProvider(
+      cache: firstCache,
+      clock: () => now,
+      post: (_, body) async {
+        requests++;
+        final isDetail = (jsonDecode(body)['query'] as String).contains(
+          'Media(id:',
+        );
+        return AniListHttpResponse(
+          200,
+          jsonEncode(isDetail ? _detail('Disk') : _discovery('Disk')),
+        );
+      },
+    );
+    const id = CatalogEntryId(provider: 'anilist', value: '42');
+    expect(
+      (await firstProvider.discover())
+          .sections[CatalogSection.featured]!
+          .first
+          .title,
+      'Disk',
+    );
+    expect((await firstProvider.loadDetails(id))?.entry.title, 'Disk');
+    expect(requests, 2);
+    await firstProvider.close();
+    await firstCache.close();
+
+    final reopened = DiskByteCache(
+      cacheBaseDirectory: () async => root,
+      namespaceByteBudgets: budget,
+    );
+    addTearDown(reopened.close);
+    final nextProvider = AniListCatalogProvider(
+      cache: reopened,
+      clock: () => now,
+      post: (_, _) async => throw StateError('Unexpected network request'),
+    );
+    addTearDown(nextProvider.close);
+    expect(
+      (await nextProvider.discover())
+          .sections[CatalogSection.featured]!
+          .first
+          .title,
+      'Disk',
+    );
+    expect((await nextProvider.loadDetails(id))?.entry.title, 'Disk');
+
+    final management = CacheManagement(
+      reopened,
+      namespaces: const {AniListMetadataCache.namespace: 'Catalog metadata'},
+    );
+    expect(
+      (await management.usage()).byCategory['Catalog metadata'],
+      greaterThan(0),
+    );
+    await management.clear();
+    expect((await management.usage()).totalBytes, 0);
+    expect(await nextProvider.cachedDiscovery(), isNull);
+    expect(await nextProvider.cachedDetails(id), isNull);
+  });
+
   test(
     'clear, corruption and future timestamps are cache misses or stale',
     () async {
@@ -257,12 +445,12 @@ Map<String, Object?> _discovery(String title) => {
   },
 };
 
-Map<String, Object?> _detail(String title) => {
+Map<String, Object?> _detail(String title) =>
+    _detailWithRelations(title, {'edges': <Object>[]});
+
+Map<String, Object?> _detailWithRelations(String title, Object? relations) => {
   'data': {
-    'Media': {
-      ..._row(42, title),
-      'relations': {'edges': <Object>[]},
-    },
+    'Media': {..._row(42, title), 'relations': relations},
   },
 };
 

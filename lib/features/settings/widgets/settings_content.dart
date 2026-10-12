@@ -208,8 +208,8 @@ class SettingsContent extends StatelessWidget {
                             : cacheUsageUnavailable
                             ? 'Cache size unavailable.'
                             : cacheUsage == null
-                            ? 'Clear cached reading content and artwork.'
-                            : 'Cached reading/artwork: '
+                            ? 'Clear cached reading, artwork and catalog metadata.'
+                            : 'Cached temporary data: '
                                   '${_formatCacheBytes(cacheUsage!.totalBytes)}',
                       ),
                       trailing: SizedBox(
@@ -245,8 +245,9 @@ class SettingsContent extends StatelessWidget {
                               ),
                             ),
                           Text(
-                            'Indexed Hikari reading/artwork cache. Local files, '
-                            'native HTTP cache and image memory are excluded.',
+                            'Indexed reading, artwork and catalog metadata. '
+                            'Local files, native HTTP cache and image memory '
+                            'are excluded.',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: colors.onSurfaceVariant),
                           ),

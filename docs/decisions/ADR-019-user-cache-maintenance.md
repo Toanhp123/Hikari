@@ -2,6 +2,12 @@
 
 Status: Proposed for review (2026-10-12).
 
+> Scope note: ADR-019 records the original four-namespace Phase 1 decision.
+> ADR-020 subsequently adds the fifth managed namespace (`anilist-metadata`).
+> Production labels and byte budgets now share one registration in
+> `AppDependencies`; Settings counts catalog snapshots too. This does not
+> extend Clear Cache to user-owned state, local archives, or native caches.
+
 ## Context
 
 ADR-012 established `DiskByteCache` as a separate, reconstructible disk cache
@@ -41,9 +47,10 @@ Library, Progress, continuation, plugin settings or active local media.
    release held archive owners, or remove source-owned local originals.
 5. Do not clear Flutter's decoded `ImageCache`, HTTP/OkHttp cache, download
    files, local temp archive materializations or cached catalog HTTP responses
-   in this phase. The UI explicitly labels this as Hikari's reading/artwork
-   disk cache. Future additional cache stores need their own scoped management
-   and dedicated testing; do not assume the four-namespace total is global.
+   in this phase. The original UI described Hikari's reading/artwork disk
+   cache; ADR-020 updates the label to include catalog metadata. Additional
+   cache stores need scoped management and dedicated tests; do not assume the
+   original four-namespace total is the global app storage footprint.
 
 ## Concurrency and failure guarantees
 

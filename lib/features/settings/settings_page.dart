@@ -193,10 +193,9 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) => AlertDialog(
         title: const Text('Clear temporary cache?'),
         content: const Text(
-          'Cached remote manga pages, novel chapters and artwork will be '
-          'loaded again when needed. Local artwork previews may be rebuilt. '
-          'Your Library, reading progress '
-          'and local files will not be deleted.',
+          'Cached manga pages, novel chapters, artwork and catalog metadata '
+          'will be loaded again when needed. Local previews may be rebuilt. '
+          'Your Library, reading progress and local files will not be deleted.',
         ),
         actions: [
           TextButton(

@@ -30,9 +30,12 @@ must be small, on-demand and disposable.
 3. Persist only the results of user-initiated, successful discovery and detail
    requests. Store a versioned JSON response and UTC timestamp. Parse all cached
    responses through the same existing normalization code as network responses.
-   Reject malformed records and partial GraphQL failures; do not cache empty
-   fallback responses caused by parsing errors. Increment cache version when
-   the requested GraphQL shape or its parsing contract changes.
+   Reject malformed records, GraphQL `errors` fields (including malformed
+   error payloads), and structurally invalid related-entry connections; do not
+   cache empty fallback responses caused by parsing errors. Nullable optional
+   relations remain valid, but a missing or malformed requested field is not
+   persisted. Increment cache version when the requested GraphQL shape or its
+   parsing contract changes.
 4. Discovery snapshots: 30-minute TTL with the current year/season in the key.
    Detail snapshots: 24-hour TTL keyed by AniList media ID. Search results:
    **RAM-only**, 5-minute TTL with a maximum of 40 queries per provider instance.

@@ -53,6 +53,32 @@ void main() {
     },
   );
 
+  test('rejects duplicate labels and blank namespace registrations', () async {
+    final root = await Directory.systemTemp.createTemp('hikari-cache-labels-');
+    addTearDown(() => root.delete(recursive: true));
+    final cache = DiskByteCache(cacheBaseDirectory: () async => root);
+    addTearDown(cache.close);
+
+    expect(
+      () => CacheManagement(
+        cache,
+        namespaces: const {
+          'catalog': 'Temporary data',
+          'artwork': 'Temporary data',
+        },
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => CacheManagement(cache, namespaces: const {'': 'Catalog metadata'}),
+      throwsArgumentError,
+    );
+    expect(
+      () => CacheManagement(cache, namespaces: const {'catalog': '  '}),
+      throwsArgumentError,
+    );
+  });
+
   test('clear never deletes a local archive with an active lease', () async {
     final root = await Directory.systemTemp.createTemp('hikari-cache-lease-');
     addTearDown(() => root.delete(recursive: true));
