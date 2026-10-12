@@ -146,7 +146,7 @@ void main() {
 
   for (final manga in [true, false]) {
     test(
-      '${manga ? 'manga' : 'novel'} Home Detail parity and invalid sequences',
+      '${manga ? 'manga' : 'novel'} resumes without loading details and validates background sequence',
       () async {
         final workflow = OpenSeriesContinuation(
           OpenMedia(manga ? mangaRegistry : novelRegistry, progress),
@@ -159,32 +159,30 @@ void main() {
           _chapterA,
           const SourceMediaRef(sourceId: _sourceId, itemId: 'missing'),
         ]) {
-          continuation.chapter = saved;
           final target = await workflow.execute(media, saved);
-          final resolved = await detail.execute(_series, [
-            _chapterB,
-            _chapterA,
-          ]);
-          expect(target.chapter, resolved.chapter);
-          final sequence = switch (target) {
-            MangaContinuationOpenTarget() => target.sequence.map(
-              (c) => c.source,
+          expect(target.chapter, saved);
+          expect(switch (target) {
+            MangaContinuationOpenTarget() => target.selected.source,
+            NovelContinuationOpenTarget() => target.selected.source,
+          }, saved);
+          final Future<List<SourceMediaRef>> refresh = switch (target) {
+            MangaContinuationOpenTarget() => target.refreshSequence().then(
+              (chapters) => chapters.map((item) => item.source).toList(),
             ),
-            NovelContinuationOpenTarget() => target.sequence.map(
-              (c) => c.source,
+            NovelContinuationOpenTarget() => target.refreshSequence().then(
+              (chapters) => chapters.map((item) => item.source).toList(),
             ),
           };
-          expect(sequence, [_chapterB, _chapterA]);
+          if (saved == _chapterA) {
+            expect(await refresh, [_chapterB, _chapterA]);
+          } else {
+            await expectLater(refresh, throwsStateError);
+          }
           await target.release();
         }
-        continuation.chapter = null;
-        expect(
-          (await detail.execute(_series, [
-            _chapterB,
-            _chapterA,
-          ])).isContinuation,
-          isFalse,
-        );
+        final resolved = await detail.execute(_series, [_chapterB, _chapterA]);
+        expect(resolved.chapter, _chapterA);
+
         for (final refs in <List<SourceMediaRef>>[
           [],
           [_chapterA, _chapterA],
@@ -199,62 +197,56 @@ void main() {
         ]) {
           mangaRemote.refs = refs;
           novelSeriesSource.refs = refs;
-          await expectLater(
-            workflow.execute(media, _chapterA),
-            throwsStateError,
-          );
-          if (refs.isEmpty) {
-            expect((await detail.execute(_series, refs)).chapter, isNull);
-          } else {
-            await expectLater(detail.execute(_series, refs), throwsStateError);
-          }
+          final target = await workflow.execute(media, _chapterA);
+          await expectLater(switch (target) {
+            MangaContinuationOpenTarget() => target.refreshSequence(),
+            NovelContinuationOpenTarget() => target.refreshSequence(),
+          }, throwsStateError);
+          await target.release();
         }
         mangaRemote.failLoad = true;
         novelSeriesSource.failLoad = true;
-        await expectLater(
-          workflow.execute(media, _chapterA),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              'source failed',
-            ),
-          ),
-        );
+        final target = await workflow.execute(media, _chapterA);
+        expect(target.chapter, _chapterA);
+        await expectLater(switch (target) {
+          MangaContinuationOpenTarget() => target.refreshSequence(),
+          NovelContinuationOpenTarget() => target.refreshSequence(),
+        }, throwsStateError);
+        await target.release();
       },
     );
   }
 
   test(
-    'resume validates exact tapped chapter against fresh sequence',
+    'Continue keeps exact chapter while source sequence is unavailable',
     () async {
       final workflow = OpenSeriesContinuation(
         OpenMedia(mangaRegistry, progress),
       );
-      final result = await workflow.execute(mangaSeries, _chapterB);
-      expect(
-        (result as MangaContinuationOpenTarget).selected.source,
-        _chapterB,
-      );
-      expect(result.sequence.map((chapter) => chapter.source), [
+      final saved = await workflow.execute(mangaSeries, _chapterB);
+      expect(saved.chapter, _chapterB);
+      expect((saved as MangaContinuationOpenTarget).selected.source, _chapterB);
+      expect((await saved.refreshSequence()).map((item) => item.source), [
         _chapterA,
         _chapterB,
       ]);
-      await result.release();
-      final fallback = await workflow.execute(
-        mangaSeries,
-        const SourceMediaRef(sourceId: _sourceId, itemId: 'same-title-number'),
+      await saved.release();
+      final unknown = const SourceMediaRef(
+        sourceId: _sourceId,
+        itemId: 'missing',
       );
-      expect(fallback.chapter, _chapterA);
-      await fallback.release();
-      final novelFallback =
-          await OpenSeriesContinuation(OpenMedia(novelRegistry, progress))
-              .execute(
-                novelSeries,
-                const SourceMediaRef(sourceId: _sourceId, itemId: 'missing'),
-              );
-      expect(novelFallback.chapter, _chapterA);
-      await novelFallback.release();
+      final target = await workflow.execute(mangaSeries, unknown);
+      expect(target.chapter, unknown);
+      await expectLater(
+        (target as MangaContinuationOpenTarget).refreshSequence(),
+        throwsStateError,
+      );
+      await target.release();
+      final novelTarget = await OpenSeriesContinuation(
+        OpenMedia(novelRegistry, progress),
+      ).execute(novelSeries, unknown);
+      expect(novelTarget.chapter, unknown);
+      await novelTarget.release();
     },
   );
 

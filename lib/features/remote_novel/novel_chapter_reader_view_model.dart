@@ -40,7 +40,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
     );
   }
 
-  final List<NovelChapter> _chapters;
+  List<NovelChapter> _chapters;
   final OpenNovelChapter _openChapter;
   final Future<void> Function(NovelChapterOpenTarget target)?
   onChapterActivated;
@@ -48,6 +48,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
   onProgress;
   late NovelChapterReaderUiState _state;
   NovelChapterReaderUiState get state => _state;
+  NovelChapter get currentChapter => _chapters[_state.chapterIndex];
   bool get canOpenPrevious => _state.chapterIndex > 0;
   bool get canOpenNext => _state.chapterIndex < _chapters.length - 1;
   NovelChapter? get nextChapter =>
@@ -67,6 +68,28 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
         );
       }
     }
+  }
+
+  /// Updates adjacent navigation without replacing the active reader target.
+  /// A delayed response cannot reset the current chapter or reading position.
+  bool reconcileSequence(List<NovelChapter> chapters) {
+    if (_closed || _closing || _state.openingAdjacent) return false;
+    final normalized = List<NovelChapter>.unmodifiable(chapters);
+    _validate(normalized.map((item) => item.source));
+    if (normalized.any(
+      (item) => item.source.sourceId != _state.target.chapter.source.sourceId,
+    )) {
+      throw ArgumentError('Chapter sequence has foreign source references.');
+    }
+    final index = normalized.indexWhere(
+      (item) => item.source == _state.target.chapter.source,
+    );
+    if (index < 0) return false;
+    _chapters = normalized;
+    _publish(
+      NovelChapterReaderUiState(target: _state.target, chapterIndex: index),
+    );
+    return true;
   }
 
   Future<void> openPrevious() => _move(-1);

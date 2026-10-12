@@ -7,10 +7,15 @@ import 'package:drift/native.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
+import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/open_series_continuation.dart';
+import 'package:hikari/application/media/open_novel_chapter.dart';
+import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
 
@@ -50,6 +55,29 @@ void main() {
     );
     expect(reopenedSource.chapterReads, 0);
     expect(reopenedSource.resourceReads, 0);
+
+    const seriesRef = SourceMediaRef(
+      sourceId: SourceId('novel'),
+      itemId: 'series',
+    );
+    const media = Media(
+      title: 'Novel',
+      type: MediaType.lightNovel,
+      source: seriesRef,
+    );
+    final registry = SourceRegistry([reopenedSource]);
+    final resume = await OpenSeriesContinuation(
+      OpenMedia(registry, _ProgressRepository()),
+    ).execute(media, _ref('disk-chapter'));
+    final opened = await OpenNovelChapter(
+      registry,
+      _ProgressRepository(),
+      ReadNovelChapterContent(second),
+    ).execute((resume as NovelContinuationOpenTarget).selected);
+    expect(opened.content.html, contains('chapter 1'));
+    expect(reopenedSource.chapterReads, 0);
+    expect(reopenedSource.detailsCalls, 0);
+    await resume.release();
   });
 
   test('chapter rejects malformed fields, ownership, and version as misses', () async {
@@ -389,12 +417,19 @@ void main() {
 SourceMediaRef _ref(String item, [String source = 'novel']) =>
     SourceMediaRef(sourceId: SourceId(source), itemId: item);
 
-final class _Source implements NovelChapterSource {
+final class _Source implements NovelChapterSource, NovelSeriesSource {
   @override
   final SourceId id = const SourceId('novel');
   @override
   String get name => 'test';
   int chapterReads = 0;
+  int detailsCalls = 0;
+  @override
+  Future<NovelDetails> loadDetails(SourceMediaRef media) async {
+    detailsCalls++;
+    throw StateError('details are unavailable offline');
+  }
+
   int resourceReads = 0;
   bool failChapter = false;
   bool failResource = false;
@@ -474,4 +509,13 @@ final class _Cache implements ByteCache {
 
   @override
   Future<void> close() async {}
+}
+
+final class _ProgressRepository implements ProgressRepository {
+  @override
+  Future<MediaProgress?> load(SourceMediaRef media) async => null;
+  @override
+  Future<void> save(MediaProgress progress) async {}
+  @override
+  Future<void> delete(SourceMediaRef media) async {}
 }

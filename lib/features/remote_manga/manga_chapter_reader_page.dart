@@ -187,10 +187,11 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
         final generation = _pageGeneration;
         return MangaReaderPage(
           key: ValueKey(target.chapter.source),
-          title: target.chapter.title,
+          title: _viewModel.currentChapter.title,
           credit: [
             target.source.name,
-            if (target.chapter.scanlator != null) target.chapter.scanlator!,
+            if (_viewModel.currentChapter.scanlator != null)
+              _viewModel.currentChapter.scanlator!,
           ].join(' · '),
           loadPages: () async => target.pages,
           readPage: (page) {

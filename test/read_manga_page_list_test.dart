@@ -6,12 +6,16 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/read_manga_page_list.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
+import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/open_series_continuation.dart';
 import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
@@ -54,6 +58,31 @@ void main() {
     ]);
     expect(source.calls, 1);
     expect(await ReadMangaPage(reopened).execute(source, _page('one')), [1]);
+
+    // Continue opens the persisted chapter directly. Details must not be
+    // fetched before the cached page list, even when the source is offline.
+    const seriesRef = SourceMediaRef(sourceId: _id, itemId: 'series');
+    const media = Media(
+      title: 'Series',
+      type: MediaType.manga,
+      source: seriesRef,
+    );
+    final registry = SourceRegistry([source]);
+    final resume = await OpenSeriesContinuation(
+      OpenMedia(registry, _ProgressRepository()),
+    ).execute(media, _chapter);
+    final reader = await OpenMangaChapter(
+      registry,
+      _ProgressRepository(),
+      ReadMangaPageList(reopened),
+    ).execute((resume as MangaContinuationOpenTarget).selected);
+    expect(reader.pages, [_page('one'), _page('two')]);
+    expect(source.detailsCalls, 0);
+    expect(
+      (await ReadMangaPage(reopened).execute(source, reader.pages.first)),
+      [1],
+    );
+    await resume.release();
 
     await reopened.clear(ReadMangaPageList.cacheNamespace);
     await expectLater(
@@ -162,7 +191,7 @@ void main() {
   });
 }
 
-final class _Source implements MangaPageSource {
+final class _Source implements MangaPageSource, MangaSeriesSource {
   _Source([this.id = _id]);
   @override
   final SourceId id;
@@ -171,6 +200,18 @@ final class _Source implements MangaPageSource {
   List<SourceMediaRef> result = [];
   bool offline = false;
   int calls = 0;
+  int detailsCalls = 0;
+  @override
+  Future<MangaSeriesDetails> loadDetails(SourceMediaRef media) async {
+    detailsCalls++;
+    if (offline) throw StateError('offline');
+    return MangaSeriesDetails(
+      metadata: MediaMetadata(title: 'Series'),
+      chapters: [MangaChapter(title: 'Chapter', source: _chapter)],
+      chapterListOrder: ChapterListOrder.readingOrder,
+    );
+  }
+
   Future<List<SourceMediaRef>> Function()? pageListOverride;
   final pageListStarted = Completer<void>();
   @override
