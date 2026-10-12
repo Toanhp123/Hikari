@@ -106,6 +106,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(Image), findsWidgets);
     await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('scan result toggles persisted library membership', (
