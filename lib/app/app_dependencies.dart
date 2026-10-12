@@ -29,6 +29,7 @@ import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
 import 'package:hikari/infrastructure/catalog/anilist/anilist_catalog_provider.dart';
+import 'package:hikari/infrastructure/catalog/anilist/anilist_metadata_cache.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/playback/media_kit_video_session.dart';
@@ -39,10 +40,35 @@ import 'package:hikari/domain/progress/series_continuation.dart';
 
 /// Composition root for application workflows and replaceable infrastructure.
 final class AppDependencies {
-  static const _sourceArtworkCacheBudgetBytes = 64 * 1024 * 1024;
-  static const _mangaPageCacheBudgetBytes = 128 * 1024 * 1024;
-  static const _novelChapterCacheBudgetBytes = 32 * 1024 * 1024;
-  static const _novelResourceCacheBudgetBytes = 64 * 1024 * 1024;
+  /// Single production policy for disk byte budgets and Settings maintenance.
+  /// Stable namespace IDs remain owned by their cache consumers.
+  static const _managedCache = [
+    (
+      namespace: ReadSourceArtwork.cacheNamespace,
+      label: 'Source artwork',
+      budgetBytes: 64 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadMangaPage.cacheNamespace,
+      label: 'Manga pages',
+      budgetBytes: 128 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadNovelChapterContent.cacheNamespace,
+      label: 'Novel chapters',
+      budgetBytes: 32 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadNovelResource.cacheNamespace,
+      label: 'Novel resources',
+      budgetBytes: 64 * 1024 * 1024,
+    ),
+    (
+      namespace: AniListMetadataCache.namespace,
+      label: 'Catalog metadata',
+      budgetBytes: 12 * 1024 * 1024,
+    ),
+  ];
 
   AppDependencies._(
     this._database,
@@ -89,7 +115,6 @@ final class AppDependencies {
     Iterable<MediaSource> additionalSources = const [],
   }) {
     final resolvedLocalSource = localMediaSource ?? LocalMediaSource();
-    final resolvedCatalogProvider = catalogProvider ?? AniListCatalogProvider();
     final sourceRegistry = SourceRegistry([
       resolvedLocalSource,
       ...additionalSources,
@@ -98,14 +123,13 @@ final class AppDependencies {
     final resolvedCache =
         cache ??
         DiskByteCache(
-          namespaceByteBudgets: const {
-            ReadSourceArtwork.cacheNamespace: _sourceArtworkCacheBudgetBytes,
-            ReadMangaPage.cacheNamespace: _mangaPageCacheBudgetBytes,
-            ReadNovelChapterContent.cacheNamespace:
-                _novelChapterCacheBudgetBytes,
-            ReadNovelResource.cacheNamespace: _novelResourceCacheBudgetBytes,
+          namespaceByteBudgets: {
+            for (final entry in _managedCache)
+              entry.namespace: entry.budgetBytes,
           },
         );
+    final resolvedCatalogProvider =
+        catalogProvider ?? AniListCatalogProvider(cache: resolvedCache);
     final readMangaPage = ReadMangaPage(resolvedCache);
     final readNovelChapterContent = ReadNovelChapterContent(resolvedCache);
     final readNovelResource = ReadNovelResource(resolvedCache);
@@ -166,7 +190,12 @@ final class AppDependencies {
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
       cacheManagement: resolvedCache is CacheMaintenance
-          ? CacheManagement(resolvedCache as CacheMaintenance)
+          ? CacheManagement(
+              resolvedCache as CacheMaintenance,
+              namespaces: {
+                for (final entry in _managedCache) entry.namespace: entry.label,
+              },
+            )
           : null,
       ownsCache: cache == null || ownsCache,
     );

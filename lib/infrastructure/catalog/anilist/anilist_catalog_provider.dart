@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:html/parser.dart' as html;
+import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/infrastructure/catalog/anilist/anilist_metadata_cache.dart';
 
 typedef AniListHttpPost = Future<AniListHttpResponse> Function(
   Uri uri,
@@ -17,16 +19,29 @@ final class AniListHttpResponse {
   final String body;
 }
 
-final class AniListCatalogProvider implements CatalogProvider {
-  AniListCatalogProvider({AniListHttpPost? post, DateTime Function()? clock})
-    : _clock = clock ?? DateTime.now {
+final class AniListCatalogProvider
+    implements CatalogProvider, CatalogSnapshotProvider {
+  AniListCatalogProvider({
+    AniListHttpPost? post,
+    DateTime Function()? clock,
+    ByteCache? cache,
+  }) : _clock = clock ?? DateTime.now {
     _post = post ?? _send;
+    _metadata = cache == null ? null : AniListMetadataCache(cache, _clock);
   }
 
   static const _endpoint = 'https://graphql.anilist.co';
   static const _featuredCandidatePoolSize = 4;
   static const _featuredEntriesPerType = 2;
+  static const _discoveryTtl = Duration(minutes: 30);
+  static const _detailTtl = Duration(hours: 24);
+  static const _searchTtl = Duration(minutes: 5);
+  static const _maxSearchSnapshots = 40;
+
   late final AniListHttpPost _post;
+  late final AniListMetadataCache? _metadata;
+  final Map<String, Future<Map<String, dynamic>>> _requests = {};
+  final Map<String, _SearchSnapshot> _searchSnapshots = {};
   final DateTime Function() _clock;
   HttpClient? _client;
   bool _closed = false;
@@ -53,7 +68,36 @@ final class AniListCatalogProvider implements CatalogProvider {
   }
 
   @override
-  Future<CatalogDiscovery> discover() async {
+  Future<CatalogDiscovery> discover() => _discover(forceRefresh: false);
+
+  @override
+  Future<CatalogDiscovery> refreshDiscovery() => _discover(forceRefresh: true);
+
+  String _discoveryKey() {
+    final now = _clock().toUtc();
+    return 'discovery:${now.year}:${_season(now.month)}';
+  }
+
+  @override
+  Future<CatalogSnapshot<CatalogDiscovery>?> cachedDiscovery() async {
+    final cached = await _metadata?.read(_discoveryKey(), _discoveryTtl);
+    if (cached == null || !_cacheableDiscovery(cached.response)) return null;
+    try {
+      return CatalogSnapshot(
+        _parseDiscovery(cached.response),
+        isFresh: cached.isFresh,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<CatalogDiscovery> _discover({required bool forceRefresh}) async {
+    if (_closed) throw StateError('Catalog provider is closed.');
+    if (!forceRefresh) {
+      final cached = await cachedDiscovery();
+      if (cached != null && cached.isFresh) return cached.data;
+    }
     final now = _clock().toUtc();
     final year = now.year;
     final season = _season(now.month);
@@ -62,7 +106,17 @@ final class AniListCatalogProvider implements CatalogProvider {
     const featuredFields = '$fields bannerImage genres';
     final query =
         '''query { featuredAnime: Page(perPage: $_featuredCandidatePoolSize) { media(type: ANIME sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } featuredManga: Page(perPage: $_featuredCandidatePoolSize) { media(type: MANGA format_not: NOVEL sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } featuredNovels: Page(perPage: $_featuredCandidatePoolSize) { media(type: MANGA format: NOVEL sort: [TRENDING_DESC, SCORE_DESC] isAdult: false) { $featuredFields } } trending: Page(perPage: 10) { media(sort: TRENDING_DESC isAdult: false) { $fields } } anime: Page(perPage: 10) { media(type: ANIME sort: POPULARITY_DESC isAdult: false) { $fields } } manga: Page(perPage: 10) { media(type: MANGA format_not: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } novels: Page(perPage: 10) { media(type: MANGA format: NOVEL sort: POPULARITY_DESC isAdult: false) { $fields } } seasonal: Page(perPage: 10) { media(type: ANIME season: $season seasonYear: $year sort: POPULARITY_DESC isAdult: false) { $fields } } }''';
-    final response = await _request(query);
+    // Use the same season for both the query and the snapshot key.
+    final key = 'discovery:$year:$season';
+    final response = await _singleFlight(key, query);
+    final result = _parseDiscovery(response);
+    if (!_closed && _cacheableDiscovery(response)) {
+      await _metadata?.write(key, response);
+    }
+    return result;
+  }
+
+  CatalogDiscovery _parseDiscovery(Map<String, dynamic> response) {
     final root = _asMap(response['data']);
     if (root == null) {
       throw const FormatException('Catalog response has no data object.');
@@ -109,6 +163,14 @@ final class AniListCatalogProvider implements CatalogProvider {
   Future<List<CatalogEntry>> search(String query, {MediaType? type}) async {
     final normalized = query.trim();
     if (normalized.isEmpty) return const [];
+    if (_closed) throw StateError('Catalog provider is closed.');
+    final key = 'search:${type?.name ?? 'all'}:$normalized';
+    final snapshot = _searchSnapshots[key];
+    if (snapshot != null) {
+      final age = _clock().toUtc().difference(snapshot.createdAt);
+      if (!age.isNegative && age < _searchTtl) return snapshot.entries;
+      _searchSnapshots.remove(key);
+    }
 
     const fields =
         'id type format title { english romaji native } coverImage { large }';
@@ -125,7 +187,7 @@ final class AniListCatalogProvider implements CatalogProvider {
       },
     };
 
-    final response = await _request(request, variables: variables);
+    final response = await _singleFlight(key, request, variables: variables);
     final rows = _asMap(_asMap(response['data'])?['Page'])?['media'];
     final errors = _errors(response['errors']);
     if (rows is! List) {
@@ -136,18 +198,83 @@ final class AniListCatalogProvider implements CatalogProvider {
       throw FormatException(errors.join(' '));
     }
 
-    return List.unmodifiable(rows.map(_entry).whereType<CatalogEntry>());
+    final results = List<CatalogEntry>.unmodifiable(
+      rows.map(_entry).whereType<CatalogEntry>(),
+    );
+    if (!_closed && errors.isEmpty) {
+      _searchSnapshots.remove(key);
+      _searchSnapshots[key] = _SearchSnapshot(_clock().toUtc(), results);
+      if (_searchSnapshots.length > _maxSearchSnapshots) {
+        _searchSnapshots.remove(_searchSnapshots.keys.first);
+      }
+    }
+    return results;
   }
 
   @override
-  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) async {
+  Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id) =>
+      _loadDetails(id, forceRefresh: false);
+
+  @override
+  Future<CatalogEntryDetails?> refreshDetails(CatalogEntryId id) =>
+      _loadDetails(id, forceRefresh: true);
+
+  @override
+  Future<CatalogSnapshot<CatalogEntryDetails>?> cachedDetails(
+    CatalogEntryId id,
+  ) async {
     final numericId = int.tryParse(id.value);
     if (id.provider != this.id || numericId == null || numericId <= 0) {
       return null;
     }
+    final cached = await _metadata?.read('detail:${id.value}', _detailTtl);
+    if (cached == null || !_cacheableDetails(cached.response, id)) {
+      return null;
+    }
+    try {
+      final details = _parseDetails(cached.response, id);
+      return details == null
+          ? null
+          : CatalogSnapshot(details, isFresh: cached.isFresh);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<CatalogEntryDetails?> _loadDetails(
+    CatalogEntryId id, {
+    required bool forceRefresh,
+  }) async {
+    if (_closed) throw StateError('Catalog provider is closed.');
+    final numericId = int.tryParse(id.value);
+    if (id.provider != this.id || numericId == null || numericId <= 0) {
+      return null;
+    }
+    if (!forceRefresh) {
+      final cached = await cachedDetails(id);
+      if (cached != null && cached.isFresh) return cached.data;
+    }
     const query =
         r'''query($id: Int) { Media(id: $id) { id type format status season seasonYear startDate { year } episodes chapters volumes averageScore popularity description(asHtml: true) genres synonyms title { english romaji native } coverImage { large } bannerImage studios(isMain: true) { nodes { name } } staff(perPage: 12, sort: RELEVANCE) { edges { role node { name { full } } } } relations { edges { relationType node { id type format title { english romaji native } coverImage { large } } } } } }''';
-    final response = await _request(query, variables: {'id': numericId});
+    final key = 'detail:${id.value}';
+    final response = await _singleFlight(
+      key,
+      query,
+      variables: {'id': numericId},
+    );
+    final details = _parseDetails(response, id);
+    if (details != null && !_closed && _cacheableDetails(response, id)) {
+      await _metadata?.write(key, response);
+    }
+    return details;
+  }
+
+  CatalogEntryDetails? _parseDetails(
+    Map<String, dynamic> response,
+    CatalogEntryId id,
+  ) {
+    final numericId = int.tryParse(id.value);
+    if (numericId == null) return null;
     final item = _asMap(_asMap(response['data'])?['Media']);
     final warnings = _errors(response['errors']);
     if (item == null && warnings.isNotEmpty) {
@@ -207,6 +334,52 @@ final class AniListCatalogProvider implements CatalogProvider {
       relations: relations,
       warnings: warnings.toSet(),
     );
+  }
+
+  bool _cacheableDiscovery(Map<String, dynamic> response) {
+    if (_errors(response['errors']).isNotEmpty) return false;
+    final data = _asMap(response['data']);
+    if (data == null) return false;
+    for (final key in const [
+      'featuredAnime',
+      'featuredManga',
+      'featuredNovels',
+      'trending',
+      'anime',
+      'manga',
+      'novels',
+      'seasonal',
+    ]) {
+      final rows = _asMap(data[key])?['media'];
+      if (rows is! List || rows.any((row) => _entry(row) == null)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _cacheableDetails(Map<String, dynamic> response, CatalogEntryId id) {
+    if (_errors(response['errors']).isNotEmpty) return false;
+    final item = _asMap(_asMap(response['data'])?['Media']);
+    return item != null &&
+        item['id'] == int.tryParse(id.value) &&
+        _entry(item) != null;
+  }
+
+  Future<Map<String, dynamic>> _singleFlight(
+    String key,
+    String query, {
+    Map<String, Object?> variables = const {},
+  }) {
+    if (_closed) return Future.error(StateError('Catalog provider is closed.'));
+    final pending = _requests[key];
+    if (pending != null) return pending;
+    late final Future<Map<String, dynamic>> future;
+    future = _request(query, variables: variables).whenComplete(() {
+      if (identical(_requests[key], future)) _requests.remove(key);
+    });
+    _requests[key] = future;
+    return future;
   }
 
   Future<Map<String, dynamic>> _request(
@@ -385,7 +558,14 @@ final class AniListCatalogProvider implements CatalogProvider {
   @override
   Future<void> close() async {
     _closed = true;
+    _searchSnapshots.clear();
     _client?.close(force: true);
     _client = null;
   }
+}
+
+final class _SearchSnapshot {
+  const _SearchSnapshot(this.createdAt, this.entries);
+  final DateTime createdAt;
+  final List<CatalogEntry> entries;
 }

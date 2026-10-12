@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -148,7 +149,8 @@ class _HomePageState extends State<HomePage> {
                   child: CatalogDiscoverySections(
                     discovery: state.catalogDiscovery,
                     error: state.catalogError,
-                    onRetry: _viewModel.reloadCatalog,
+                    onRetry: () =>
+                        unawaited(_viewModel.reloadCatalog(forceRefresh: true)),
                     openDetail: (entry) =>
                         widget.openCatalogDetail!(context, entry),
                     excludeFeatured: true,

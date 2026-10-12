@@ -61,7 +61,10 @@ void main() {
       'cover',
       Uint8List.fromList([1, 2, 3]),
     );
-    await CacheManagement(cache).clear();
+    await CacheManagement(
+      cache,
+      namespaces: const {ReadSourceArtwork.cacheNamespace: 'Source artwork'},
+    ).clear();
 
     expect(await cache.read(ReadSourceArtwork.cacheNamespace, 'cover'), isNull);
     expect(await library.contains(mediaRef), isTrue);

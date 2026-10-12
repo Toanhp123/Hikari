@@ -100,3 +100,9 @@ fvm flutter build apk --debug
   https://github.com/square/okhttp/blob/master/docs/features/caching.md
 - Existing Hikari cache/lease design: ADR-012, ADR-018, and
   `infrastructure/local_media/archive_copy_pool.dart`.
+
+## Follow-up
+
+ADR-020 subsequently extends the explicit allowlist with on-demand AniList
+metadata snapshots. The four-namespace scope above describes the original
+Phase 1 decision and is preserved as historical context.

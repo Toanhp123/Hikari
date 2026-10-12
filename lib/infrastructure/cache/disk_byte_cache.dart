@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -19,11 +20,15 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
     this._beforePublish,
     this._beforeIndexPublish,
     this._beforeReplacementCleanup,
-  }) : _cacheBaseDirectory = cacheBaseDirectory ?? getApplicationCacheDirectory,
+  }) : _isTestDefaultCache =
+           cacheBaseDirectory == null &&
+           Platform.environment['FLUTTER_TEST'] == 'true',
+       _cacheBaseDirectory = cacheBaseDirectory ?? _defaultCacheDirectory,
        _byteBudgets = Map.unmodifiable(namespaceByteBudgets),
        _openDatabase = openDatabase ?? _defaultDatabase,
        _clock = clock ?? _now;
 
+  final bool _isTestDefaultCache;
   final Future<Directory> Function() _cacheBaseDirectory;
   final Map<String, int> _byteBudgets;
   final Future<CacheDatabase> Function(String rootPath) _openDatabase;
@@ -43,8 +48,20 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
 
   static int _now() => DateTime.now().microsecondsSinceEpoch;
 
-  static Future<CacheDatabase> _defaultDatabase(String rootPath) async =>
-      CacheDatabase.at(p.join(rootPath, 'index.sqlite'));
+  static Future<Directory> _defaultCacheDirectory() async {
+    if (Platform.environment['FLUTTER_TEST'] == 'true') {
+      return Directory.systemTemp.createTempSync('hikari-test-cache-');
+    }
+    return getApplicationCacheDirectory();
+  }
+
+  static Future<CacheDatabase> _defaultDatabase(String rootPath) async {
+    final dbFile = File(p.join(rootPath, 'index.sqlite'));
+    if (Platform.environment['FLUTTER_TEST'] == 'true') {
+      return CacheDatabase(NativeDatabase(dbFile));
+    }
+    return CacheDatabase.at(dbFile.path);
+  }
 
   Future<T> _serialized<T>(Future<T> Function() operation) {
     final result = _tail.then((_) => operation());
@@ -52,17 +69,20 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
     return result;
   }
 
-  Future<void> _ensureReady() => _initializing ??= _initialize();
+  Future<void> _ensureReady() =>
+      _initializing ??= _initialize().catchError((Object error) {
+        _initializing = null;
+        throw error;
+      });
 
   Future<void> _initialize() async {
     if (_closed) throw StateError('Cache is closed');
-    final root = Directory(
-      p.join((await _cacheBaseDirectory()).path, 'hikari', 'cache-v1'),
-    );
-    await root.create(recursive: true);
-    _root = root;
-
     try {
+      final baseDir = await _cacheBaseDirectory();
+      final root = Directory(p.join(baseDir.path, 'hikari', 'cache-v1'));
+      root.createSync(recursive: true);
+      _root = root;
+
       final database = await _openDatabaseWithRecovery(root);
       _database = database;
       final namespaces = await _reconcile(database, root);
@@ -79,10 +99,10 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
     try {
       return await _openValidatedDatabase(root);
     } catch (_) {
-      if (await root.exists()) {
-        await root.delete(recursive: true);
+      if (root.existsSync()) {
+        root.deleteSync(recursive: true);
       }
-      await root.create(recursive: true);
+      root.createSync(recursive: true);
       return _openValidatedDatabase(root);
     }
   }
@@ -116,12 +136,14 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
       }
     }
 
-    await for (final entity in root.list(followLinks: false)) {
+    for (final entity in root.listSync(followLinks: false)) {
       if (entity is! File) continue;
       final name = p.basename(entity.path);
       if (entity.path.endsWith('.tmp') ||
           (entity.path.endsWith('.blob') && !indexedBlobs.contains(name))) {
-        await entity.delete();
+        try {
+          entity.deleteSync();
+        } catch (_) {}
       }
     }
     return namespaces;
@@ -423,6 +445,13 @@ final class DiskByteCache implements ByteCache, CacheMaintenance {
         }
         await database.close();
         _database = null;
+      }
+      if (_isTestDefaultCache && _root != null) {
+        try {
+          if (_root!.existsSync()) {
+            _root!.deleteSync(recursive: true);
+          }
+        } catch (_) {}
       }
       _closed = true;
     });

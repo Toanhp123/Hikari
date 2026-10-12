@@ -5,6 +5,20 @@ final class LoadCatalogEntryDetails {
 
   final CatalogProvider provider;
 
+  Future<CatalogSnapshot<CatalogEntryDetails>?> cached(CatalogEntryId id) {
+    if (id.provider != provider.id) return Future.value(null);
+    return provider is CatalogSnapshotProvider
+        ? (provider as CatalogSnapshotProvider).cachedDetails(id)
+        : Future.value(null);
+  }
+
+  Future<CatalogEntryDetails?> refresh(CatalogEntryId id) {
+    if (id.provider != provider.id) return Future.value(null);
+    return provider is CatalogSnapshotProvider
+        ? (provider as CatalogSnapshotProvider).refreshDetails(id)
+        : provider.loadDetails(id);
+  }
+
   Future<CatalogEntryDetails?> execute(CatalogEntryId id) {
     if (id.provider != provider.id) return Future.value(null);
     return provider.loadDetails(id);

@@ -1138,7 +1138,11 @@ void main() {
     });
     final db = UserDatabase(NativeDatabase.memory());
     final cache = _TestByteCache();
-    final dependencies = AppDependencies.create(database: db, cache: cache);
+    final dependencies = AppDependencies.create(
+      database: db,
+      catalogProvider: _TestCatalogProvider(MediaType.manga),
+      cache: cache,
+    );
     await SqliteLibraryRepository(db).upsert(
       LibraryEntry(
         media: const Media(

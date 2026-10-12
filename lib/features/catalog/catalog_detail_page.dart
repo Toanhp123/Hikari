@@ -210,7 +210,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                     refreshing: state.refreshing,
                     onPressed: state.status == CatalogDetailStatus.loading
                         ? null
-                        : () => unawaited(_viewModel.load()),
+                        : () => unawaited(_viewModel.load(forceRefresh: true)),
                   ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
@@ -246,13 +246,17 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
                                 () => _descriptionExpanded =
                                     !_descriptionExpanded,
                               ),
-                              onRetry: () => unawaited(_viewModel.load()),
+                              onRetry: () => unawaited(
+                                _viewModel.load(forceRefresh: true),
+                              ),
                               openRelated: widget.openRelated,
                             )
                           : CatalogDetailFallbackBody(
                               entry: state.entry,
                               failed: state.failed,
-                              onRetry: () => unawaited(_viewModel.load()),
+                              onRetry: () => unawaited(
+                                _viewModel.load(forceRefresh: true),
+                              ),
                             ),
                     ),
                   ),

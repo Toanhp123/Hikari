@@ -128,3 +128,21 @@ abstract interface class CatalogProvider {
   Future<CatalogEntryDetails?> loadDetails(CatalogEntryId id);
   Future<void> close();
 }
+
+/// Optional snapshot capability: callers can display persisted metadata before
+/// revalidation without making every catalog provider implement disk caching.
+final class CatalogSnapshot<T> {
+  const CatalogSnapshot(this.data, {required this.isFresh});
+
+  final T data;
+  final bool isFresh;
+}
+
+abstract interface class CatalogSnapshotProvider {
+  Future<CatalogSnapshot<CatalogDiscovery>?> cachedDiscovery();
+  Future<CatalogSnapshot<CatalogEntryDetails>?> cachedDetails(
+    CatalogEntryId id,
+  );
+  Future<CatalogDiscovery> refreshDiscovery();
+  Future<CatalogEntryDetails?> refreshDetails(CatalogEntryId id);
+}
