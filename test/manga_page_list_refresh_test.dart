@@ -21,6 +21,7 @@ void main() {
     (tester) async {
       final saved = <PagePosition>[];
       var accepted = <SourceMediaRef>[];
+      final commits = <String>[];
       await tester.pumpWidget(
         MaterialApp(
           home: MangaReaderPage(
@@ -29,10 +30,25 @@ void main() {
             readPage: (_) async => png,
             reloadPage: (_) async => png,
             refreshPages: () async => [_page('a'), _page('b'), _page('c')],
-            onPagesRefreshed: (pages) async => accepted = pages,
+            onFreshPageValidated: (page, bytes) async {
+              expect(page, _page('c'));
+              expect(bytes, png);
+              commits.add('page bytes');
+            },
+            onPagesRefreshed: (pages) async {
+              commits.add('page list');
+              accepted = pages;
+            },
             saveProgress: (position, _) async =>
                 saved.add(position as PagePosition),
           ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => precacheImage(
+          tester.widget<Image>(find.byType(Image)).image,
+          tester.element(find.byType(MangaReaderPage)),
         ),
       );
       await tester.pumpAndSettle();
@@ -44,6 +60,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Page 3 of 3'), findsOneWidget);
       expect(accepted, [_page('a'), _page('b'), _page('c')]);
+      expect(commits, ['page bytes', 'page list']);
       expect(find.text('Could not refresh chapter pages.'), findsNothing);
       expect(tester.takeException(), isNull);
     },
@@ -143,6 +160,47 @@ void main() {
     expect(find.text('Page 1 of 1'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
     expect(accepted, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('truncated PNG header does not commit pages or progress', (
+    tester,
+  ) async {
+    // A valid PNG signature and IHDR are not proof of decodable pixels.
+    final truncated = Uint8List.fromList(png.sublist(0, 33));
+    final saved = <PagePosition>[];
+    var persistedBytes = false;
+    var persistedPages = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaReaderPage(
+          title: 'Chapter',
+          loadPages: () async => [_page('a'), _page('b')],
+          readPage: (_) async => png,
+          fetchFreshPage: (_) async => truncated,
+          refreshPages: () async => [_page('replacement')],
+          onFreshPageValidated: (_, _) async => persistedBytes = true,
+          onPagesRefreshed: (_) async => persistedPages = true,
+          saveProgress: (position, _) async =>
+              saved.add(position as PagePosition),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Next page'));
+    await tester.pumpAndSettle();
+    final previousImage = tester.widget<Image>(find.byType(Image)).image;
+    final previousProgress = List<PagePosition>.of(saved);
+
+    await tester.tap(find.byTooltip('Refresh page list'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Page 2 of 2'), findsOneWidget);
+    expect(tester.widget<Image>(find.byType(Image)).image, same(previousImage));
+    expect(persistedBytes, isFalse);
+    expect(persistedPages, isFalse);
+    expect(saved, previousProgress);
+    expect(find.text('Could not refresh chapter pages.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -221,12 +221,16 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
             if (_closed || !identical(target, _viewModel.state.target)) {
               throw StateError('Manga chapter changed during refresh.');
             }
-            _viewModel.acceptRefreshedPages(target, pages);
+            // Do not publish the new target if the persistence callback fails.
             await widget.persistPages?.call(
               target.source,
               target.chapter.source,
               pages,
             );
+            if (_closed || !identical(target, _viewModel.state.target)) {
+              throw StateError('Manga chapter changed during refresh.');
+            }
+            _viewModel.acceptRefreshedPages(target, pages);
           },
           reloadPage: (page) {
             prefetch.cancelPending();
