@@ -245,10 +245,10 @@ void main() {
           sqlite.execute('''
         CREATE TABLE progress_records (
           source_id TEXT NOT NULL, item_id TEXT NOT NULL,
-          kind TEXT NOT NULL, position_ms INTEGER, duration_ms INTEGER,
-          page_index INTEGER, page_count INTEGER, text_progression REAL,
-          document_resource TEXT, document_progression REAL,
-          document_total_progression REAL, document_locator TEXT,
+          kind TEXT NOT NULL, position_ms INTEGER NULL, duration_ms INTEGER NULL,
+          page_index INTEGER NULL, page_count INTEGER NULL, text_progression REAL NULL,
+          document_resource TEXT NULL, document_progression REAL NULL,
+          document_total_progression REAL NULL, document_locator TEXT NULL,
           completed INTEGER NOT NULL, updated_at INTEGER NOT NULL,
           PRIMARY KEY (source_id, item_id))
       ''');
