@@ -270,6 +270,33 @@ void main() {
     },
   );
 
+  test(
+    'accepted page-list refresh replaces only current chapter snapshot',
+    () async {
+      final source = _Source();
+      final model = await _model(source, _a, [_a, _b]);
+      addTearDown(model.dispose);
+      final previous = model.state.target;
+      final pages = [_a, _b, _c];
+      model.acceptRefreshedPages(previous, pages);
+      expect(model.state.target.pages, pages);
+      expect(identical(model.state.target.progress, previous.progress), isTrue);
+      expect(model.state.chapterIndex, 0);
+      expect(
+        () => model.acceptRefreshedPages(previous, pages),
+        throwsStateError,
+      );
+      await model.openNext();
+      expect(model.state.target.chapter.source, _b);
+      expect(
+        () => model.acceptRefreshedPages(model.state.target, [
+          const SourceMediaRef(sourceId: SourceId('foreign'), itemId: 'page'),
+        ]),
+        throwsStateError,
+      );
+    },
+  );
+
   test('missing selected, missing refs, and duplicate refs rejected', () async {
     final source = _Source();
     final workflow = OpenMangaChapter(SourceRegistry([source]), _Progress());

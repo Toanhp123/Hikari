@@ -10,6 +10,7 @@ import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
+import 'package:hikari/application/media/read_manga_page_list.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
 import 'package:hikari/application/media/open_media.dart';
@@ -54,6 +55,11 @@ final class AppDependencies {
       budgetBytes: 128 * 1024 * 1024,
     ),
     (
+      namespace: ReadMangaPageList.cacheNamespace,
+      label: 'Manga page lists',
+      budgetBytes: 8 * 1024 * 1024,
+    ),
+    (
       namespace: ReadNovelChapterContent.cacheNamespace,
       label: 'Novel chapters',
       budgetBytes: 32 * 1024 * 1024,
@@ -93,6 +99,7 @@ final class AppDependencies {
     required this.searchNovels,
     required this.readSourceArtwork,
     required this.readMangaPage,
+    required this.readMangaPageList,
     required this.readNovelChapterContent,
     required this.readNovelResource,
     required this.openNovelChapter,
@@ -131,6 +138,7 @@ final class AppDependencies {
     final resolvedCatalogProvider =
         catalogProvider ?? AniListCatalogProvider(cache: resolvedCache);
     final readMangaPage = ReadMangaPage(resolvedCache);
+    final readMangaPageList = ReadMangaPageList(resolvedCache);
     final readNovelChapterContent = ReadNovelChapterContent(resolvedCache);
     final readNovelResource = ReadNovelResource(resolvedCache);
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
@@ -165,9 +173,16 @@ final class AppDependencies {
         searchNovels: searchNovels,
       ),
       openMedia: openMedia,
-      openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
-      createMangaChapterPrefetch: () =>
-          PrefetchMangaChapter(sourceRegistry, readMangaPage),
+      openMangaChapter: OpenMangaChapter(
+        sourceRegistry,
+        progressRepository,
+        readMangaPageList,
+      ),
+      createMangaChapterPrefetch: () => PrefetchMangaChapter(
+        sourceRegistry,
+        readMangaPage,
+        readMangaPageList,
+      ),
       searchManga: searchManga,
       searchNovels: searchNovels,
       readSourceArtwork: ReadSourceArtwork(
@@ -175,6 +190,7 @@ final class AppDependencies {
         cache: resolvedCache,
       ),
       readMangaPage: readMangaPage,
+      readMangaPageList: readMangaPageList,
       readNovelChapterContent: readNovelChapterContent,
       readNovelResource: readNovelResource,
       openNovelChapter: OpenNovelChapter(
@@ -219,6 +235,7 @@ final class AppDependencies {
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;
   final ReadMangaPage readMangaPage;
+  final ReadMangaPageList readMangaPageList;
   final ReadNovelChapterContent readNovelChapterContent;
   final ReadNovelResource readNovelResource;
   final OpenNovelChapter openNovelChapter;

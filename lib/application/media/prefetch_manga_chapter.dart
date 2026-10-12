@@ -1,4 +1,5 @@
 import 'package:hikari/application/media/read_manga_page.dart';
+import 'package:hikari/application/media/read_manga_page_list.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -6,16 +7,16 @@ import 'package:hikari/domain/media/source.dart';
 
 /// Warms one manga chapter selected by the reader's lookahead policy.
 ///
-/// Page-list state is session-local and one-slot only. It exists solely so a
-/// foreground chapter open can join or reuse the speculative request; page
-/// lists are not persisted as cache data.
+/// One-slot session handoff avoids duplicate speculative requests. The
+/// optional page-list store persists remote results across app restarts.
 final class PrefetchMangaChapter {
-  PrefetchMangaChapter(this._sources, this._readMangaPage);
+  PrefetchMangaChapter(this._sources, this._readMangaPage, [this._pageList]);
 
   static const _pageWarmCount = 2;
 
   final SourceRegistry _sources;
   final ReadMangaPage _readMangaPage;
+  final ReadMangaPageList? _pageList;
   Future<void> _tail = Future<void>.value();
   _PreparedMangaChapter? _prepared;
   int _generation = 0;
@@ -61,7 +62,8 @@ final class PrefetchMangaChapter {
     SourceMediaRef chapter,
   ) async {
     try {
-      final pages = await source.pages(chapter);
+      final pages =
+          await (_pageList?.execute(source, chapter) ?? source.pages(chapter));
       if (pages.any((page) => page.sourceId != source.id)) return null;
       return List.unmodifiable(pages);
     } catch (_) {
@@ -101,14 +103,14 @@ final class PrefetchMangaChapter {
   ) async {
     final prepared = _prepared;
     if (prepared == null || prepared.chapter != chapter) {
-      return source.pages(chapter);
+      return _pageList?.execute(source, chapter) ?? source.pages(chapter);
     }
 
     _generation++;
     _prepared = null;
     final pages = await prepared.pages;
     if (pages != null && pages.isNotEmpty) return pages;
-    return source.pages(chapter);
+    return _pageList?.execute(source, chapter) ?? source.pages(chapter);
   }
 
   /// Stops queued/speculative byte warming while preserving the prepared page

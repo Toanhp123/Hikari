@@ -15,6 +15,10 @@ class MangaChapterReaderPage extends StatefulWidget {
     required this.viewModel,
     required this.readPage,
     required this.reloadPage,
+    this.fetchFreshPage,
+    this.persistFreshPage,
+    this.fetchFreshPages,
+    this.persistPages,
     required this.createPrefetch,
     required this.prefetchPages,
   });
@@ -22,6 +26,18 @@ class MangaChapterReaderPage extends StatefulWidget {
   final MangaChapterReaderViewModel viewModel;
   final Future<Uint8List> Function(MangaPageSource, SourceMediaRef) readPage;
   final Future<Uint8List> Function(MangaPageSource, SourceMediaRef) reloadPage;
+  final Future<Uint8List> Function(MangaPageSource, SourceMediaRef)?
+  fetchFreshPage;
+  final Future<void> Function(MangaPageSource, SourceMediaRef, Uint8List)?
+  persistFreshPage;
+  final Future<List<SourceMediaRef>> Function(MangaPageSource, SourceMediaRef)?
+  fetchFreshPages;
+  final Future<void> Function(
+    MangaPageSource,
+    SourceMediaRef,
+    List<SourceMediaRef>,
+  )?
+  persistPages;
   final PrefetchMangaPages Function() createPrefetch;
   final Future<void> Function(
     PrefetchMangaPages,
@@ -87,6 +103,7 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     if (identical(_observedTarget, target)) return;
     _prefetch.cancelPending();
     _viewModel.discardChapterPrefetch();
+    _pageGeneration++;
     _observedTarget = target;
     _prefetch = widget.createPrefetch();
   }
@@ -180,6 +197,35 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
             prefetch.cancelPending();
             _viewModel.cancelChapterPrefetch();
             return widget.readPage(target.source, page);
+          },
+          refreshPages:
+              widget.fetchFreshPages == null || widget.persistPages == null
+              ? null
+              : () {
+                  _prefetch.cancelPending();
+                  _viewModel.discardChapterPrefetch();
+                  return widget.fetchFreshPages!(
+                    target.source,
+                    target.chapter.source,
+                  );
+                },
+          fetchFreshPage: widget.fetchFreshPage == null
+              ? null
+              : (page) => widget.fetchFreshPage!(target.source, page),
+          onFreshPageValidated: widget.persistFreshPage == null
+              ? null
+              : (page, bytes) =>
+                    widget.persistFreshPage!(target.source, page, bytes),
+          onPagesRefreshed: (pages) async {
+            if (_closed || !identical(target, _viewModel.state.target)) {
+              throw StateError('Manga chapter changed during refresh.');
+            }
+            _viewModel.acceptRefreshedPages(target, pages);
+            await widget.persistPages?.call(
+              target.source,
+              target.chapter.source,
+              pages,
+            );
           },
           reloadPage: (page) {
             prefetch.cancelPending();

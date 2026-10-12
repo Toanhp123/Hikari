@@ -553,6 +553,7 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          cache: _TestByteCache(),
           catalogProvider: _TestCatalogProvider(MediaType.manga),
           additionalSources: [FakeRemote()],
         ),
@@ -917,7 +918,17 @@ void main() {
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
     );
     final cache = _TestByteCache()
-      ..values['manga-page-v1/["fake","page-0"]'] = Uint8List.fromList([1]);
+      ..values['manga-page-v1/["fake","page-0"]'] = Uint8List.fromList([1])
+      ..values['manga-page-list-v1/["fake","chapter"]'] = Uint8List.fromList(
+        utf8.encode(
+          jsonEncode({
+            'version': 1,
+            'source': 'fake',
+            'chapter': 'chapter',
+            'pages': ['page-0', 'page-1'],
+          }),
+        ),
+      );
     final dependencies = AppDependencies.create(
       database: db,
       catalogProvider: _TestCatalogProvider(MediaType.manga),
@@ -1197,6 +1208,7 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          cache: _TestByteCache(),
           catalogProvider: _TestCatalogProvider(MediaType.manga),
           additionalSources: [ResumableRemote()],
         ),

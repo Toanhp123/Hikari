@@ -39,7 +39,7 @@ explicit caller requests reload; this operation is not an automatic source-updat
 No automatic source/plugin revision invalidation or universal TTL is introduced. Stable IDs
 must not change solely because an extension APK updated; changed provider URLs are naturally
 new source references. In-place upstream page-list changes cannot be detected by refreshing
-a single image; those need a separately scoped chapter-list refresh/reopen policy. If a
+a single image; ADR-022 adds an explicit page-list refresh/reconciliation path. If a
 source changes resource bytes without a new reference, a manual reload is the supported
 revalidation path. No guarantee of automatic update while offline. Cache remains expendable;
 Library, Progress, extension continuation and local archive leases are never modified.
@@ -62,3 +62,4 @@ merge.
 - [LNReader releases and reader caching notes](https://github.com/lnreader/lnreader/releases)
 - [ADR-012 — Cache foundation](ADR-012-reconstructible-cache-foundation.md)
 - [ADR-009 — Stable source identity](ADR-009-stable-source-identities.md)
+- [ADR-022 — Manga page-list cache and reconciliation](ADR-022-manga-page-list-cache-and-refresh.md)

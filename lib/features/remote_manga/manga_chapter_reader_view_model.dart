@@ -139,6 +139,35 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     }
   }
 
+  /// Replace only the active chapter snapshot after its new visible page has
+  /// loaded; navigation, progress identity and chapter ordering stay intact.
+  void acceptRefreshedPages(
+    MangaChapterOpenTarget target,
+    List<SourceMediaRef> pages,
+  ) {
+    if (_closed ||
+        _closing ||
+        _state.openingAdjacent ||
+        !identical(_state.target, target)) {
+      throw StateError('The manga chapter has changed during refresh.');
+    }
+    if (pages.any((page) => page.sourceId != target.source.id)) {
+      throw StateError('Manga source returned foreign page references.');
+    }
+    discardChapterPrefetch();
+    _publish(
+      MangaChapterReaderUiState(
+        target: MangaChapterOpenTarget(
+          chapter: target.chapter,
+          source: target.source,
+          pages: List.unmodifiable(pages),
+          progress: target.progress,
+        ),
+        chapterIndex: _state.chapterIndex,
+      ),
+    );
+  }
+
   Future<void> Function()? _flushReader;
 
   void registerFlush(Future<void> Function() flush) => _flushReader = flush;

@@ -37,6 +37,41 @@ final class ReadMangaPage {
     return _start(source, page, reload: true, predecessor: predecessor);
   }
 
+  /// Loads source bytes without replacing an existing cached image. The
+  /// reader can validate image decoding before committing the replacement.
+  Future<Uint8List> fetchFresh(MangaPageSource source, SourceMediaRef page) {
+    if (page.sourceId != source.id) {
+      return Future.error(
+        StateError('Manga source received foreign page reference.'),
+      );
+    }
+    return source.readPage(page);
+  }
+
+  Future<void> persist(
+    MangaPageSource source,
+    SourceMediaRef page,
+    Uint8List bytes,
+  ) async {
+    if (page.sourceId != source.id) {
+      throw StateError('Manga source received foreign page reference.');
+    }
+    if (bytes.isEmpty) return;
+    final predecessor = _inFlight[page]?.future;
+    if (predecessor != null) {
+      try {
+        await predecessor;
+      } catch (_) {
+        // A pending prefetch failure must not suppress validated bytes.
+      }
+    }
+    try {
+      await _cache.write(cacheNamespace, cacheKey(page), bytes);
+    } catch (_) {
+      // Cache persistence must not hide a successfully decoded source image.
+    }
+  }
+
   Future<Uint8List> _start(
     MangaPageSource source,
     SourceMediaRef page, {

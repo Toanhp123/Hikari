@@ -46,14 +46,16 @@ void main() {
       expect(usage.byCategory.keys.toList(), [
         'Source artwork',
         'Manga pages',
+        'Manga page lists',
         'Novel chapters',
         'Novel resources',
         'Catalog metadata',
       ]);
-      expect(usage.totalBytes, 5);
+      expect(usage.totalBytes, 6);
       expect(cache.sizedNamespaces, [
         'source-artwork-v1',
         'manga-page-v1',
+        'manga-page-list-v1',
         'novel-chapter-content-v1',
         'novel-resource-v1',
         'anilist-metadata',
