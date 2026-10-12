@@ -2,8 +2,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
+import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
+
+const _maxIllustrationDecodeHeight = 4096;
 
 /// Renders inert chapter HTML without ambient network or filesystem access.
 class NovelContentView extends StatelessWidget {
@@ -109,11 +112,28 @@ class _SourceImageState extends State<_SourceImage> {
           child: Center(child: CircularProgressIndicator()),
         );
       }
-      return Image.memory(
-        bytes,
-        semanticLabel: widget.label,
-        fit: BoxFit.contain,
-        errorBuilder: (_, _, _) => _error(),
+      // Bound the decoded image, not the source bytes. Novel illustrations
+      // only render at reader width, and long images must also have a height
+      // ceiling to avoid retaining enormous decoded bitmaps in ImageCache.
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final availableWidth =
+              constraints.hasBoundedWidth && constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          return Image(
+            image: ResizeImage(
+              MemoryImage(bytes),
+              width: mediaArtworkCacheWidth(context, availableWidth),
+              height: _maxIllustrationDecodeHeight,
+              policy: ResizeImagePolicy.fit,
+              allowUpscaling: false,
+            ),
+            semanticLabel: widget.label,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => _error(),
+          );
+        },
       );
     },
   );

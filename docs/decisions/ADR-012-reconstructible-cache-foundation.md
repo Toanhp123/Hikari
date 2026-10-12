@@ -34,6 +34,19 @@ novel-resource disk namespace budget. Foreground reading is unrestricted and
 continues to load remaining illustrations on demand. These are initial
 heuristics to validate with real-device measurements, not measured optima.
 
+## Phase 4.6 follow-up — decoded reader images
+
+Remote and local publication illustrations share `NovelContentView`. Source
+bytes remain full-resolution in the normal resource read/cache workflow;
+only decoded Flutter images are now bounded by reader layout width × DPR
+(rounded to stable buckets, maximum 2048 px) and height 4096 px using
+`ResizeImagePolicy.fit` with upscaling disabled. This avoids retaining full
+resolution illustrations solely to display them within the reading column.
+Refresh/retry still use new bytes; no stable-ref-only decoded image cache is
+introduced because it could serve stale images. Manga's existing 2048 × 4096
+fit decode and 4× zoom behavior stay unchanged pending image profiling. See
+[`docs/quality/IMAGE_DECODE_PROFILE_VALIDATION.md`](../quality/IMAGE_DECODE_PROFILE_VALIDATION.md).
+
 ## Follow-up debt
 
 `DiskByteCache` currently serializes both reads and mutations through one process-local queue. This keeps index/blob reconciliation and close behavior simple, but independent cache hits cannot read immutable blobs concurrently. Treat this as measured performance debt rather than a correctness bug. Novel chapter lookahead deliberately stays at one chapter and serial resource reads, so it does not introduce parallel speculative cache-hit fan-out. If profiling shows reader/artwork/prefetch queue latency, benchmark the current queue and evaluate allowing concurrent immutable blob reads while keeping metadata mutations, eviction, recovery, and close transitions serialized. Any optimization must preserve atomic blob publication, LRU accounting, fail-open behavior, and the existing close/race guarantees; do not replace the queue with unbounded fire-and-forget I/O.
