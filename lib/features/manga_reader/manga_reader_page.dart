@@ -164,7 +164,13 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     }
   }
 
-  Future<void> _loadCurrent({bool reloadFromSource = false}) async {
+  Future<void> _loadCurrent({
+    bool reloadFromSource = false,
+    bool preserveOnFailure = false,
+  }) async {
+    final previousImage = preserveOnFailure ? _image : null;
+    final previousSavedImage = preserveOnFailure ? _savedImage : null;
+    final previousNotifiedImage = preserveOnFailure ? _notifiedImage : null;
     final generation = ++_loadGeneration;
     _retryRequiresReload = reloadFromSource;
     _releaseImage();
@@ -197,10 +203,23 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
       });
     } catch (_) {
       if (!mounted || generation != _loadGeneration) return;
-      setState(() {
-        _failed = true;
-        _loading = false;
-      });
+      if (previousImage != null) {
+        setState(() {
+          _image = previousImage;
+          _savedImage = previousSavedImage;
+          _notifiedImage = previousNotifiedImage;
+          _retryRequiresReload = false;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not reload this page.')),
+        );
+      } else {
+        setState(() {
+          _failed = true;
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -305,6 +324,12 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                     ? null
                     : () => _handoffChapter(widget.onNextChapter),
                 chapterNavigationLoading: _readerInteractionBusy,
+                onReloadPage: widget.reloadPage == null
+                    ? null
+                    : () => _loadCurrent(
+                        reloadFromSource: true,
+                        preserveOnFailure: true,
+                      ),
               ),
             ),
           if (_showControls && pages != null && pages.isNotEmpty)

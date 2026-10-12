@@ -12,12 +12,14 @@ class NovelContentView extends StatelessWidget {
     required this.content,
     required this.readResource,
     this.reloadResource,
+    this.resourceRefreshGeneration = 0,
     this.onTapLink,
     this.htmlKey,
     this.textStyle,
   });
 
   final GlobalKey<HtmlWidgetState>? htmlKey;
+  final int resourceRefreshGeneration;
   final RichReadingContent content;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
   final Future<Uint8List> Function(SourceMediaRef)? reloadResource;
@@ -28,15 +30,16 @@ class NovelContentView extends StatelessWidget {
   Widget build(BuildContext context) => HtmlWidget(
     content.html,
     key: htmlKey,
-    rebuildTriggers: [content],
+    rebuildTriggers: [content, resourceRefreshGeneration],
     factoryBuilder: _SourceWidgetFactory.new,
     customWidgetBuilder: (element) {
       if (element.localName != 'img') return null;
       final resource = content.resources[element.attributes['src']];
       if (resource == null) return const SizedBox.shrink();
       return _SourceImage(
-        key: ValueKey<SourceMediaRef>(resource),
+        // Repeated <img> elements may reference the same resource.
         resource: resource,
+        refreshGeneration: resourceRefreshGeneration,
         readResource: readResource,
         reloadResource: reloadResource,
         label: element.attributes['alt'] ?? 'Illustration',
@@ -63,14 +66,15 @@ class _SourceWidgetFactory extends WidgetFactory {
 
 class _SourceImage extends StatefulWidget {
   const _SourceImage({
-    super.key,
     required this.resource,
     required this.readResource,
     required this.label,
     this.reloadResource,
+    required this.refreshGeneration,
   });
 
   final SourceMediaRef resource;
+  final int refreshGeneration;
   final Future<Uint8List> Function(SourceMediaRef) readResource;
   final Future<Uint8List> Function(SourceMediaRef)? reloadResource;
   final String label;
@@ -87,7 +91,10 @@ class _SourceImageState extends State<_SourceImage> {
   @override
   void didUpdateWidget(covariant _SourceImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.resource != widget.resource) _bytes = _read();
+    if (oldWidget.resource != widget.resource ||
+        oldWidget.refreshGeneration != widget.refreshGeneration) {
+      _bytes = _read();
+    }
   }
 
   @override
