@@ -10,6 +10,7 @@ import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 
 void main() {
@@ -130,7 +131,9 @@ void main() {
 
       final resolved = await model.selectSource(model.state.sources.single);
 
-      expect(resolved?.title, 'Frieren');
+      expect(resolved, isA<CatalogSourcePickerCandidate>());
+      expect(resolved?.media.title, 'Frieren');
+      expect(resolved?.metadata?.summary, 'Source summary Frieren');
       expect(model.state.status, CatalogSourcePickerStatus.resolving);
       expect(model.state.candidates, isEmpty);
     },
@@ -343,7 +346,7 @@ void main() {
     );
     await slowPending;
 
-    expect(fastResolved?.source.sourceId, const SourceId('test:fast'));
+    expect(fastResolved?.media.source.sourceId, const SourceId('test:fast'));
     expect(model.state.selectedSource?.id, const SourceId('test:fast'));
     expect(model.state.status, CatalogSourcePickerStatus.resolving);
   });
@@ -391,6 +394,7 @@ MangaPreview _preview(
   String? itemId,
   SourceId sourceId = const SourceId('test:manga'),
 }) => MangaPreview(
+  metadata: MediaMetadata(title: title, summary: 'Source summary $title'),
   media: Media(
     title: title,
     type: MediaType.manga,

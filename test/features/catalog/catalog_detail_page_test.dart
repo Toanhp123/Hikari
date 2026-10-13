@@ -12,6 +12,7 @@ import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
@@ -32,7 +33,7 @@ void main() {
                 presentationGroupId: 'group:$i',
               ),
           ]),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -68,7 +69,7 @@ void main() {
                     presentationGroupId: package,
                   ),
             ]),
-            openMedia: (_, _) async {},
+            openMedia: (_, _, {previewMetadata}) async {},
             openRelated: (_) {},
             openSourceSearch: (_, _, _, _, _) {},
           ),
@@ -127,7 +128,7 @@ void main() {
                   presentationGroupId: 'one',
                 ),
             ]),
-            openMedia: (_, _) async {},
+            openMedia: (_, _, {previewMetadata}) async {},
             openRelated: (_) {},
             openSourceSearch: (_, _, _, _, _) {},
           ),
@@ -174,7 +175,7 @@ void main() {
                   presentationGroupId: 'package:dex',
                 ),
             ]),
-            openMedia: (_, _) async {},
+            openMedia: (_, _, {previewMetadata}) async {},
             openRelated: (_) {},
             openSourceSearch: (_, _, _, _, _) {},
           ),
@@ -258,7 +259,7 @@ void main() {
             _Provider(onLoadDetails: (_) => pending.future),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (entry, _, _, _, _) => searched = entry,
         ),
@@ -318,7 +319,7 @@ void main() {
             _Provider(onLoadDetails: (_) async => detail),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (entry) => related = entry,
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -376,7 +377,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -421,7 +422,7 @@ void main() {
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (entry, _, _, _, _) => searched = entry,
         ),
@@ -462,7 +463,7 @@ void main() {
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -501,7 +502,7 @@ void main() {
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -541,7 +542,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -578,7 +579,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -616,7 +617,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -663,7 +664,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(sources),
-          openMedia: (_, _) async {},
+          openMedia: (_, _, {previewMetadata}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, ids, _) => searchedIds = ids,
         ),
@@ -691,65 +692,77 @@ void main() {
     expect(searchedIds, isNull);
   });
 
-  testWidgets('manga Read resolves a selected source before opening media', (
-    tester,
-  ) async {
-    Media? opened;
-    CatalogEntry? searched;
-    final manga = CatalogEntry(
-      id: _related.id,
-      title: 'Book A',
-      type: MediaType.manga,
-    );
-    final source = _MangaSource(
-      results: [
-        MangaPreview(
+  for (final automatic in [true, false]) {
+    testWidgets(
+      'CatalogDetailPage forwards own source preview automatic $automatic',
+      (tester) async {
+        Media? opened;
+        MediaMetadata? received;
+        CatalogEntry? searched;
+        final catalog = CatalogEntry(
+          id: _related.id,
+          title: 'Book A',
+          type: MediaType.manga,
+        );
+        final preview = MediaMetadata(
+          title: 'Source title',
+          summary: 'Source summary',
+          cover: const SourceMediaRef(
+            sourceId: SourceId('test:manga'),
+            itemId: 'source-cover',
+          ),
+        );
+        final candidate = MangaPreview(
+          metadata: preview,
           media: Media(
-            title: 'Book A',
+            title: automatic ? 'Book A' : 'Chosen book',
             type: MediaType.manga,
             source: const SourceMediaRef(
               sourceId: SourceId('test:manga'),
-              itemId: 'book-a',
+              itemId: 'chosen',
             ),
           ),
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      _app(
-        CatalogDetailPage(
-          initialEntry: manga,
-          loadDetails: LoadCatalogEntryDetails(
-            _Provider(
-              onLoadDetails: (_) async => CatalogEntryDetails(entry: manga),
+        );
+        final source = _MangaSource(results: [candidate]);
+        await tester.pumpWidget(
+          _app(
+            CatalogDetailPage(
+              initialEntry: catalog,
+              loadDetails: LoadCatalogEntryDetails(
+                _Provider(
+                  onLoadDetails: (_) async =>
+                      CatalogEntryDetails(entry: catalog),
+                ),
+              ),
+              resolveCatalogSource: _resolver([source]),
+              openMedia: (_, media, {previewMetadata}) async {
+                opened = media;
+                received = previewMetadata;
+              },
+              openRelated: (_) {},
+              openSourceSearch: (entry, _, _, _, _) => searched = entry,
             ),
           ),
-          resolveCatalogSource: _resolver([source]),
-          openMedia: (_, media) async {
-            opened = media;
-          },
-          openRelated: (_) {},
-          openSourceSearch: (entry, _, _, _, _) => searched = entry,
-        ),
-      ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Read'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Manga source [en]'));
+        await tester.pumpAndSettle();
+        if (!automatic) {
+          expect(opened, isNull);
+          expect(find.text('Is this the right title?'), findsOneWidget);
+          await tester.tap(find.text('Chosen book'));
+          await tester.pumpAndSettle();
+        }
+        expect(opened, same(candidate.media));
+        expect(received, same(preview));
+        expect(received!.cover!.sourceId, source.id);
+        expect(searched, isNull);
+        expect(find.text('Read from'), findsNothing);
+      },
     );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Read'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Read from'), findsOneWidget);
-    expect(find.text('Manga source [en]'), findsOneWidget);
-    expect(searched, isNull);
-
-    await tester.tap(find.text('Manga source [en]'));
-    await tester.pumpAndSettle();
-
-    expect(opened?.title, 'Book A');
-    expect(searched, isNull);
-    expect(find.text('Read from'), findsNothing);
-  });
+  }
 
   testWidgets(
     'catalog detail hero layout remains resilient at 200% text scale with long title',
@@ -783,7 +796,7 @@ void main() {
                 ),
               ),
               resolveCatalogSource: _resolver(),
-              openMedia: (_, _) async {},
+              openMedia: (_, _, {previewMetadata}) async {},
               openRelated: (_) {},
               openSourceSearch: (_, _, _, _, _) {},
             ),

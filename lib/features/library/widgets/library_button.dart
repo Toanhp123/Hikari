@@ -42,8 +42,8 @@ class _LibraryButtonState extends State<LibraryButton> {
     if (oldWidget.repository == widget.repository &&
         oldWidget.media.source == widget.media.source &&
         oldWidget.media.title == widget.media.title &&
-        oldWidget.media.type == widget.media.type &&
-        oldWidget.artwork == widget.artwork) {
+        oldWidget.media.type == widget.media.type) {
+      _viewModel.updateArtwork(widget.artwork);
       return;
     }
     _viewModel.dispose();

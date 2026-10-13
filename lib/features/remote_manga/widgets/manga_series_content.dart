@@ -40,10 +40,11 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.viewModel.state.initialLoading) {
+    final metadata = widget.viewModel.effectiveMetadata;
+    if (widget.viewModel.state.initialLoading && metadata == null) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
-    if (widget.viewModel.state.failed) {
+    if (widget.viewModel.state.failed && metadata == null) {
       return Center(
         child: SingleChildScrollView(
           child: Column(
@@ -62,8 +63,8 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
       );
     }
 
-    final details = widget.viewModel.state.details!;
-    final allChapters = details.chapters;
+    final details = widget.viewModel.state.details;
+    final allChapters = details?.chapters ?? const [];
     final primaryChapter = widget.viewModel.primaryChapter;
 
     final query = _searchQuery.trim().toLowerCase();
@@ -93,21 +94,43 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
                       ),
                     ],
                   ),
-                MediaMetadataView(
-                  metadata: details.metadata,
-                  sourceName: widget.sourceName,
-                  readArtwork: widget.readArtwork,
-                  artworkOwner: widget.artworkOwner,
-                ),
-                PrimaryReadingCta(
-                  label: widget.viewModel.isContinuation
-                      ? 'Continue reading'
-                      : 'Start reading',
-                  enabled: !widget.openingChapter,
-                  onPressed: primaryChapter == null
-                      ? null
-                      : () => widget.onOpenChapter(primaryChapter),
-                ),
+                if (metadata != null)
+                  MediaMetadataView(
+                    key: const ValueKey('series-metadata'),
+                    metadata: metadata,
+                    sourceName: widget.sourceName,
+                    readArtwork: widget.readArtwork,
+                    artworkOwner: widget.artworkOwner,
+                  ),
+                if (widget.viewModel.state.initialLoading)
+                  const LinearProgressIndicator(
+                    semanticsLabel: 'Loading chapters',
+                  ),
+                if (widget.viewModel.state.failed)
+                  Semantics(
+                    liveRegion: true,
+                    child: MaterialBanner(
+                      content: const Text(
+                        'Could not load chapters. Check source access and try again.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => unawaited(widget.onRefresh()),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (details != null)
+                  PrimaryReadingCta(
+                    label: widget.viewModel.isContinuation
+                        ? 'Continue reading'
+                        : 'Start reading',
+                    enabled: !widget.openingChapter,
+                    onPressed: primaryChapter == null
+                        ? null
+                        : () => widget.onOpenChapter(primaryChapter),
+                  ),
                 if (allChapters.isNotEmpty)
                   ChapterControlBar(
                     totalChapters: allChapters.length,
@@ -127,12 +150,12 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
                     onSearchChanged: widget.viewModel.setSearchQuery,
                     onClearSearch: () => widget.viewModel.setSearchQuery(''),
                   ),
-                if (allChapters.isEmpty)
+                if (details != null && allChapters.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(HikariSpacing.lg),
                     child: Text('No readable chapters found.'),
                   )
-                else if (displayChapters.isEmpty)
+                else if (details != null && displayChapters.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(HikariSpacing.lg),
                     child: Column(

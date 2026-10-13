@@ -10,6 +10,7 @@ import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/features/library/widgets/library_button.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart';
 
@@ -36,7 +37,8 @@ class SourceSearchContent extends StatelessWidget {
   final ValueChanged<String> onSubmitted;
   final ValueChanged<SourceSearchFilter> onSelectFilter;
   final VoidCallback onRetry;
-  final void Function(BuildContext, Media) openMedia;
+  final void Function(BuildContext, Media, {MediaMetadata? previewMetadata})
+  openMedia;
   final LibraryRepository? library;
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String? scopedSourceName;
@@ -177,7 +179,8 @@ class _SourceSearchResults extends StatelessWidget {
 
   final SourceSearchUiState state;
   final VoidCallback onRetry;
-  final void Function(BuildContext, Media) openMedia;
+  final void Function(BuildContext, Media, {MediaMetadata? previewMetadata})
+  openMedia;
   final LibraryRepository? library;
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final String? scopedSourceName;
@@ -245,7 +248,8 @@ class _SourceSearchGrid extends StatelessWidget {
   });
 
   final List<SourceSearchResult> results;
-  final void Function(BuildContext, Media) openMedia;
+  final void Function(BuildContext, Media, {MediaMetadata? previewMetadata})
+  openMedia;
   final LibraryRepository? library;
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
@@ -275,7 +279,8 @@ class _SourceSearchGrid extends StatelessWidget {
               badgeText: mediaTypeBadgeLabel(media.type),
               badgeColor: badge.background,
               badgeForegroundColor: badge.foreground,
-              onTap: () => openMedia(context, media),
+              onTap: () =>
+                  openMedia(context, media, previewMetadata: result.metadata),
             );
 
         final cover = result.metadata?.cover;

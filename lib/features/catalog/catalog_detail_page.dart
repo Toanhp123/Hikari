@@ -9,6 +9,7 @@ import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/features/catalog/catalog_detail_view_model.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_content.dart';
@@ -16,7 +17,7 @@ import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 
 typedef _CatalogSourcePickerResult = ({
-  Media? media,
+  CatalogSourcePickerCandidate? candidate,
   CatalogSourcePickerSource? source,
   Set<SourceId>? sourceIds,
   String? sourceLanguage,
@@ -37,7 +38,12 @@ class CatalogDetailPage extends StatefulWidget {
   final CatalogEntry initialEntry;
   final LoadCatalogEntryDetails loadDetails;
   final ResolveCatalogSource resolveCatalogSource;
-  final Future<void> Function(BuildContext context, Media media) openMedia;
+  final Future<void> Function(
+    BuildContext context,
+    Media media, {
+    MediaMetadata? previewMetadata,
+  })
+  openMedia;
   final void Function(CatalogEntry entry) openRelated;
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
   final void Function(
@@ -95,9 +101,13 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     }
     if (!mounted || result == null) return;
 
-    final media = result.media;
-    if (media != null) {
-      await widget.openMedia(context, media);
+    final candidate = result.candidate;
+    if (candidate != null) {
+      await widget.openMedia(
+        context,
+        candidate.media,
+        previewMetadata: candidate.metadata,
+      );
       return;
     }
     widget.openSourceSearch(
@@ -124,8 +134,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         ),
         child: CatalogSourcePicker(
           viewModel: picker,
-          onOpenMedia: (media) => Navigator.of(sheetContext).pop((
-            media: media,
+          onOpenMedia: (candidate) => Navigator.of(sheetContext).pop((
+            candidate: candidate,
             source: null,
             sourceIds: null,
             sourceLanguage: null,
@@ -133,7 +143,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
           readArtwork: widget.readArtwork,
           onManualSearch: (source, sourceIds) =>
               Navigator.of(sheetContext).pop((
-                media: null,
+                candidate: null,
                 source: source,
                 sourceIds: sourceIds,
                 sourceLanguage: source == null
@@ -155,8 +165,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         clipBehavior: Clip.antiAlias,
         child: CatalogSourcePicker(
           viewModel: picker,
-          onOpenMedia: (media) => Navigator.of(dialogContext).pop((
-            media: media,
+          onOpenMedia: (candidate) => Navigator.of(dialogContext).pop((
+            candidate: candidate,
             source: null,
             sourceIds: null,
             sourceLanguage: null,
@@ -164,7 +174,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
           readArtwork: widget.readArtwork,
           onManualSearch: (source, sourceIds) =>
               Navigator.of(dialogContext).pop((
-                media: null,
+                candidate: null,
                 source: source,
                 sourceIds: sourceIds,
                 sourceLanguage: source == null

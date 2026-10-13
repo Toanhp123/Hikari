@@ -145,6 +145,64 @@ to stay alive. `OpenMedia` acquires the lease only after the requested open capa
 has been validated; the returned target owns release. Presentation never checks a
 specific source ID to retain or release provider/local resources.
 
+## Source preview handoff (Phase 5.2)
+
+Catalog resolution maps `CatalogSourceCandidate` into the existing presentation
+`CatalogSourcePickerCandidate` at the view-model boundary for exact-match and explicit
+candidate selection; widgets do not depend on application workflows. Source Search forwards its selected result's own optional
+`MediaMetadata`. Both routes call `OpenMedia.execute(media, previewMetadata: ...)`;
+AniList metadata is never converted into source preview metadata. Entry points without
+source metadata, including Library and Continue, pass none. A preview cover with a
+foreign `SourceId` is rejected with `ArgumentError` by `OpenMedia` and by series view
+models when a series reference is available.
+
+Series targets carry preview metadata without requesting details. Manga/Novel series
+view models own that initial preview separately from complete details. Effective
+metadata is **full details metadata, otherwise preview**: the first successful full
+response replaces the entire preview, including null cover/summary and empty lists.
+No field merging or fake chapter details is permitted. Initial loading and initial
+failure remain chapter-based states; preview can display during either, with progress
+or an announced error and Retry, but no reading CTA, chapter controls, or empty-list
+claim until actual details arrive. The same metadata header remains mounted across
+preview-to-full transitions; unchanged cover/owner retains its artwork future.
+
+Ordinary rebuilds do not reload details or restore discarded preview. A changed series
+reference creates a new view model with its new initial preview. Provider-owner changes
+clear old preview and details before loading and retain generation/continuation guards.
+Library save can use the effective cover while details are pending; artwork-only
+updates preserve pending membership mutations. Stored media title, progress, added time,
+and non-null saved artwork are not refreshed from source details. Existing SQL
+fill-null-only artwork policy is unchanged. Preview is route-local, not offline Detail
+persistence, and does not replace fresh complete chapter loading (ADR-024).
+
+### Request audit
+
+No same-identity/same-semantics duplicate request was established; no request removal,
+new dedupe coordinator, cache, alias fanout, or dependency was added.
+
+| Path | Retained work / handoff |
+| --- | --- |
+| Catalog discovery/search | Existing AniList cache and in-flight request dedupe; discovery identity stays catalog-only |
+| Catalog details | Existing cached detail workflow; catalog artwork never becomes source artwork |
+| Catalog exact source match | Existing bounded title/alias search; selected candidate keeps its source metadata |
+| Catalog ambiguous candidate | Explicit confirmation remains; chosen candidate keeps its own metadata |
+| Manual Source Search | Manga/Novel result metadata follows selected source media |
+| Source Detail entry | Preview renders immediately; one fresh complete detail load still required |
+| Detail refresh | Mihon `loadSeries` refreshes metadata, memo and chapters; LNReader `parseNovel` plus pages 2..N yields complete chapters |
+| Library save/reopen | Effective artwork may fill missing saved artwork; reopen does not manufacture preview or update saved title/progress |
+| Continue / reader | Reader-first open and independent cached-sequence/fresh reconciliation unchanged; artwork uses existing source artwork workflow |
+
+Upstream evidence supports distinguishing previews from full details, not copying
+upstream persistence or merge behavior: Mihon `SMangaImpl.initialized=false`
+([pinned source](https://github.com/mihonapp/mihon/blob/1ca9b0efb817b54948436e19906de9a5a2dca6b2/source-api/src/main/kotlin/eu/kanade/tachiyomi/source/model/SMangaImpl.kt));
+LNReader `NovelItem` versus `SourceNovel` and distinct `parseNovel`/`parsePage`
+([pinned types](https://github.com/LNReader/lnreader/blob/14d87add614960b5d1f300092339fa191399c393/src/plugins/types/index.ts),
+[plugin contract](https://github.com/LNReader/lnreader-plugins/blob/master/docs/docs.md));
+Kotatsu emits provisional metadata with `isLoaded=false`
+([pinned use case](https://github.com/KotatsuApp/Kotatsu/blob/34f6e5232bf7f0bcdf8f3fbddb986697518e82a4/app/src/main/kotlin/org/koitharu/kotatsu/details/domain/DetailsLoadUseCase.kt)).
+Whole-response precedence and route-local ownership above are Hikari design choices,
+not claims of identical upstream behavior or measured performance improvements.
+
 ## Composition and ownership
 
 `AppDependencies.create()` is the explicit composition root:

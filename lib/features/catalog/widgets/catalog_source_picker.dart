@@ -19,7 +19,7 @@ class CatalogSourcePicker extends StatelessWidget {
   });
 
   final CatalogSourcePickerViewModel viewModel;
-  final ValueChanged<Media> onOpenMedia;
+  final ValueChanged<CatalogSourcePickerCandidate> onOpenMedia;
   final void Function(CatalogSourcePickerSource?, Set<SourceId>?)
   onManualSearch;
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
@@ -92,7 +92,7 @@ class CatalogSourcePicker extends StatelessWidget {
       CatalogSourcePickerStatus.candidates => CatalogSourceCandidateList(
         source: state.selectedSource!,
         candidates: state.candidates,
-        onSelect: (candidate) => onOpenMedia(candidate.media),
+        onSelect: onOpenMedia,
         onChooseAnother: viewModel.chooseAnotherSource,
         onManualSearch: () => onManualSearch(state.selectedSource, null),
         readArtwork: readArtwork,

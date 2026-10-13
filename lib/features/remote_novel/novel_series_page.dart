@@ -50,6 +50,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
     widget.target.loadDetails,
     loadReadingTarget: widget.loadReadingTarget,
     series: widget.target.media.source,
+    previewMetadata: widget.target.previewMetadata,
   );
   bool _isOpeningChapter = false;
   int _openingGeneration = 0;
@@ -69,6 +70,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         widget.target.loadDetails,
         loadReadingTarget: widget.loadReadingTarget,
         series: widget.target.media.source,
+        previewMetadata: widget.target.previewMetadata,
       );
       _openingGeneration++;
       _isOpeningChapter = false;
@@ -140,7 +142,12 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
     final source = widget.target.source;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.target.media.title),
+        title: ListenableBuilder(
+          listenable: _viewModel,
+          builder: (_, _) => Text(
+            _viewModel.effectiveMetadata?.title ?? widget.target.media.title,
+          ),
+        ),
         actions: [
           ListenableBuilder(
             listenable: _viewModel,
@@ -158,7 +165,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
               builder: (_, _) => LibraryButton(
                 repository: widget.library!,
                 media: widget.target.media,
-                artwork: _viewModel.state.details?.metadata.cover,
+                artwork: _viewModel.effectiveMetadata?.cover,
               ),
             ),
         ],

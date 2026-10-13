@@ -3,6 +3,7 @@ import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
@@ -36,11 +37,13 @@ final class MangaSeriesOpenTarget extends MediaOpenTarget {
     super.media, {
     required this.seriesSource,
     this.chapterLists,
+    this.previewMetadata,
     super.lease,
   });
 
   final MangaSeriesSource seriesSource;
   final ReadRemoteChapterList? chapterLists;
+  final MediaMetadata? previewMetadata;
 
   Future<MangaSeriesDetails> loadDetails() async {
     final request = chapterLists?.beginRefresh(media.source, MediaType.manga);
@@ -84,11 +87,13 @@ final class NovelSeriesOpenTarget extends MediaOpenTarget {
     super.media, {
     required this.source,
     this.chapterLists,
+    this.previewMetadata,
     super.lease,
   });
 
   final NovelSeriesSource source;
   final ReadRemoteChapterList? chapterLists;
+  final MediaMetadata? previewMetadata;
 
   Future<NovelDetails> loadDetails() async {
     final request = chapterLists?.beginRefresh(
@@ -157,7 +162,19 @@ final class OpenMedia {
   final ProgressRepository _progressRepository;
   final ReadRemoteChapterList? chapterLists;
 
-  Future<MediaOpenTarget> execute(Media media) async {
+  Future<MediaOpenTarget> execute(
+    Media media, {
+    MediaMetadata? previewMetadata,
+  }) async {
+    if (previewMetadata?.cover case final cover?) {
+      if (cover.sourceId != media.source.sourceId) {
+        throw ArgumentError.value(
+          previewMetadata,
+          'previewMetadata',
+          'Preview cover belongs to another source.',
+        );
+      }
+    }
     final source = _sources.require(media.source.sourceId);
     if (source is MediaSourceAvailability && !source.isAvailable) {
       throw StateError('Source is unavailable on this device.');
@@ -168,6 +185,7 @@ final class OpenMedia {
         media,
         seriesSource: source,
         chapterLists: chapterLists,
+        previewMetadata: previewMetadata,
         lease: _acquireLease(source, media.source),
       );
     }
@@ -179,6 +197,7 @@ final class OpenMedia {
         media,
         source: source,
         chapterLists: chapterLists,
+        previewMetadata: previewMetadata,
         lease: _acquireLease(source, media.source),
       );
     }

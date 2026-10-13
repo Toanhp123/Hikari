@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/core/ui/patterns/chapter_list_filter.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/series_continuation.dart';
 
@@ -31,7 +32,21 @@ final class NovelSeriesViewModel extends ChangeNotifier {
     this._loadDetails, {
     this._loadReadingTarget,
     this.series,
-  });
+    MediaMetadata? previewMetadata,
+  }) : _previewMetadata = previewMetadata {
+    if (previewMetadata?.cover case final cover?) {
+      if (series != null && cover.sourceId != series!.sourceId) {
+        throw ArgumentError.value(
+          previewMetadata,
+          'previewMetadata',
+          'Preview cover belongs to another source.',
+        );
+      }
+    }
+  }
+  MediaMetadata? _previewMetadata;
+  MediaMetadata? get effectiveMetadata =>
+      _state.details?.metadata ?? _previewMetadata;
   final SourceMediaRef? series;
   Future<SeriesReadingTarget> Function(List<SourceMediaRef>)?
   _loadReadingTarget;
@@ -91,6 +106,7 @@ final class NovelSeriesViewModel extends ChangeNotifier {
     if (ownerChanged) {
       // A new provider must not retain the previous provider's metadata,
       // even if its first request fails. Ordinary refreshes keep their snapshot.
+      _previewMetadata = null;
       _state = const NovelSeriesUiState();
       _readingSequence = const [];
       _displayChapters = const [];
@@ -168,6 +184,7 @@ final class NovelSeriesViewModel extends ChangeNotifier {
           details.chapters.map((chapter) => chapter.source),
         );
       }
+      _previewMetadata = null;
       _state = NovelSeriesUiState(
         status: NovelSeriesStatus.ready,
         details: details,

@@ -11,6 +11,7 @@ import 'package:hikari/application/progress/save_series_chapter_progress.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';
@@ -230,12 +231,19 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _openMedia(BuildContext context, Media media) async {
+  Future<void> _openMedia(
+    BuildContext context,
+    Media media, {
+    MediaMetadata? previewMetadata,
+  }) async {
     if (_isOpeningMedia) return;
     _isOpeningMedia = true;
     MediaOpenTarget? target;
     try {
-      target = await _dependencies.openMedia.execute(media);
+      target = await _dependencies.openMedia.execute(
+        media,
+        previewMetadata: previewMetadata,
+      );
       if (!context.mounted) return;
       await _pushMediaTarget(context, target);
       if (mounted) setState(() => _homeRefreshRevision++);
@@ -328,6 +336,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
 
   Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) => MangaSeriesPage(
     media: target.media,
+    previewMetadata: target.previewMetadata,
     dependencyOwner: (
       target.seriesSource,
       _dependencies.seriesContinuationRepository,
