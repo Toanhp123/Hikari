@@ -17,6 +17,7 @@ class CatalogSearchContent extends StatelessWidget {
     required this.onSubmitted,
     required this.onSelectFilter,
     required this.onRetry,
+    required this.onSearchSources,
     required this.openDetail,
   });
 
@@ -26,6 +27,7 @@ class CatalogSearchContent extends StatelessWidget {
   final ValueChanged<String> onSubmitted;
   final ValueChanged<CatalogSearchFilter> onSelectFilter;
   final VoidCallback onRetry;
+  final VoidCallback onSearchSources;
   final void Function(BuildContext context, CatalogEntry entry) openDetail;
 
   @override
@@ -63,6 +65,14 @@ class CatalogSearchContent extends StatelessWidget {
                           onTap: () => onSelectFilter(filter),
                         ),
                     ],
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton.icon(
+                      onPressed: onSearchSources,
+                      icon: const Icon(Icons.extension_outlined, size: 18),
+                      label: const Text('Search sources'),
+                    ),
                   ),
                 ],
               ),

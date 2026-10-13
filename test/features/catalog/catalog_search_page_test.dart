@@ -19,6 +19,7 @@ void main() {
         home: CatalogSearchPage(
           searchCatalog: SearchCatalog(provider),
           openDetail: (_, entry) => opened = entry,
+          openSourceSearch: (_) {},
         ),
       ),
     );
@@ -68,6 +69,7 @@ void main() {
         home: CatalogSearchPage(
           searchCatalog: SearchCatalog(provider),
           openDetail: (_, _) {},
+          openSourceSearch: (_) {},
         ),
       ),
     );
@@ -95,6 +97,28 @@ void main() {
     expect(provider.calls.last, ('Novel', null));
   });
 
+  testWidgets('source search action is available without catalog results', (
+    tester,
+  ) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: CatalogSearchPage(
+          searchCatalog: SearchCatalog(_Provider()),
+          openDetail: (_, _) {},
+          openSourceSearch: (_) => opened++,
+        ),
+      ),
+    );
+
+    expect(find.text('Search sources'), findsOneWidget);
+    await tester.tap(find.text('Search sources'));
+    expect(opened, 1);
+    expect(find.text('Explore & Search'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('catalog search bounds content on resize', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(375, 900);
@@ -107,6 +131,7 @@ void main() {
         home: CatalogSearchPage(
           searchCatalog: SearchCatalog(_Provider()),
           openDetail: (_, _) {},
+          openSourceSearch: (_) {},
         ),
       ),
     );

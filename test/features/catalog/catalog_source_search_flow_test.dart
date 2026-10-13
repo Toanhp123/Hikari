@@ -343,30 +343,26 @@ void main() {
     try {
       await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
-      // Home exposes the production standalone opener; the search route itself
-      // has no Catalog scope or selection-only callback.
-      final home = tester.widget<HomePage>(find.byType(HomePage));
-      final context = tester.element(find.byType(HomePage));
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => SourceSearchPage(
-            openMedia: (context, media, {previewMetadata}) =>
-                home.openMedia(context, media),
-            searchNovels: dependencies.searchNovels,
-            initialQuery: 'Catalog title',
-            initialFilter: SourceSearchFilter.novel,
-            library: dependencies.libraryRepository,
-          ),
-        ),
-      );
+      // Navigate through the actual Catalog Search action, not a test-only route.
+      await tester.tap(find.byTooltip('Search').first);
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<SourceSearchPage>(find.byType(SourceSearchPage))
-            .catalogScopeLabel,
-        isNull,
+      await tester.tap(find.text('Search sources'));
+      await tester.pumpAndSettle();
+      final searchPage = tester.widget<SourceSearchPage>(
+        find.byType(SourceSearchPage),
       );
-      await tester.tap(find.byType(MediaPoster).first);
+      expect(searchPage.catalogScopeLabel, isNull);
+      expect(searchPage.fixedMediaType, isNull);
+      expect(searchPage.initialSourceId, isNull);
+      expect(
+        source.searches,
+        0,
+      ); // Standalone entry does not fetch until submit.
+      await tester.enterText(find.byType(SearchBar), 'Catalog title');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(source.searches, 1);
+      await tester.tap(find.widgetWithText(MediaPoster, 'Catalog title'));
       await tester.pumpAndSettle();
       expect(find.byType(NovelSeriesPage), findsOneWidget);
       expect(find.byType(CatalogDetailPage), findsNothing);

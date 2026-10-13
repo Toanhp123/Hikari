@@ -12,10 +12,12 @@ class CatalogSearchPage extends StatefulWidget {
     super.key,
     required this.searchCatalog,
     required this.openDetail,
+    required this.openSourceSearch,
   });
 
   final SearchCatalog searchCatalog;
   final void Function(BuildContext context, CatalogEntry entry) openDetail;
+  final void Function(BuildContext context) openSourceSearch;
 
   @override
   State<CatalogSearchPage> createState() => _CatalogSearchPageState();
@@ -48,6 +50,7 @@ class _CatalogSearchPageState extends State<CatalogSearchPage> {
           onSelectFilter: (filter) =>
               unawaited(_viewModel.selectFilter(filter)),
           onRetry: () => unawaited(_viewModel.retry()),
+          onSearchSources: () => widget.openSourceSearch(context),
           openDetail: widget.openDetail,
         ),
       ),
