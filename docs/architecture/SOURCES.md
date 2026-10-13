@@ -203,6 +203,66 @@ Kotatsu emits provisional metadata with `isLoaded=false`
 Whole-response precedence and route-local ownership above are Hikari design choices,
 not claims of identical upstream behavior or measured performance improvements.
 
+## Local SAF discovery (Phase 5.3)
+
+`LocalMediaSource` owns one in-flight traversal and one complete session snapshot,
+keyed by opaque root ID. `scanSelectedRoot()` validates the persisted grant and
+resolves the selected root on every call, then joins same-root work or reuses the
+completed snapshot. Source Search has no second completed-catalog cache.
+`scanSelectedRootSnapshot()` is explicit refresh: it traverses afresh unless a
+same-root traversal is already running. Root display names are not identities;
+validated reuse updates the display label without rewriting Library or Progress.
+
+Picker opening cancels obsolete traversal before native replacement can release
+the old grant. Searches wait for the picker outcome and revalidate afterward.
+Picker cancellation preserves the completed snapshot. Root replacement, absent
+root, access loss and source close invalidate it; transient same-root errors keep
+the prior complete snapshot and Local's stale-result warning (ADR-018). Cancelled
+work never publishes partial data and is not shown as provider failure. Page
+disposal does not cancel app-lifetime source work that another consumer may join.
+Source close cancels discovery without changing archive lease/copy ownership.
+Reader folder pages still query on demand, never from the discovery snapshot.
+
+Android uses one serialized discovery worker for root description, picker commit
+and scan-only child queries; existing serialized reader worker handles folder
+pages, reads, archive materialization/deletion and startup cleanup. Old grant
+release passes a barrier behind already submitted reader work, then checks and
+releases on the discovery worker, serialized with picker grant/commit mutations. Cancellation control is
+handled outside both queues, with local atomic checks before/after each query and
+through cursor iteration. No remote `CancellationSignal.cancel()` is invoked on
+the UI thread: provider Binder cancellation may itself block. Cancellation is
+cooperative, not a deadline or guaranteed provider interruption. A blocked old
+query can delay replacement discovery, but does not occupy Hikari's reader
+executor. Providers may still serialize their own operations. Each accepted
+MethodChannel call owns exactly one completion, including queued work on close.
+
+Traversal is iterative and bounded to **50,000 received entries including root**.
+Raw rows count even when duplicates are skipped. Each directory is queried at
+most once; repeated rows within a directory are collapsed, shared file-parent
+edges retained, and classified media deduplicated by stable source reference.
+Malformed identifiers/types, null cursors, cursor exceptions and `EXTRA_LOADING`
+fail the scan instead of caching partial results. Child queries project ID,
+display name and MIME together: baseline already had no per-file query N+1.
+Classification/natural sorting stay off the UI isolate via existing `compute`.
+Folder artwork uses a single-pass minimum with unchanged cover/natural-name/ID
+priority. No eager file reads or archive materialization are added.
+
+No persistent index is introduced. Nullable size/modification metadata and
+ContentObserver notifications do not establish recursive subtree freshness or a
+complete change journal; explicit refresh remains authority, and even a full
+walk is not an atomic provider snapshot. Upstream evidence and profiling limits
+are recorded in [ADR-018](../decisions/ADR-018-local-media-scan-presentation.md).
+
+Opt-in `--dart-define=HIKARI_LOCAL_SCAN_TRACE=true` emits numeric-only `LocalScan`
+DevTools timeline events: directory/raw-entry/query counts, total/traversal/
+classification microseconds, summed native queue/query microseconds and
+reuse/cancelled/failed flags. Native timings accompany scan rows only; there are
+no URI, name, title, document ID or error-content trace fields, persistent logs,
+or uploads. Native timings are available only for completed query responses;
+cancelled/failed queries do not contribute them. Root validation is separate
+from traversal timing. Reuse events contain status flags only. Do not ship
+instrumentation enabled or infer Android speedups from desktop fixtures.
+
 ## Composition and ownership
 
 `AppDependencies.create()` is the explicit composition root:

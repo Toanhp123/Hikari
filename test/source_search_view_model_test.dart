@@ -143,26 +143,23 @@ void main() {
     source: SourceMediaRef(sourceId: SourceId.local, itemId: 'solo'),
   );
 
-  test(
-    'local catalog scans once across queries in one view-model session',
-    () async {
-      var scans = 0;
-      final model = SourceSearchViewModel(
-        scanLocalMedia: () async {
-          scans++;
-          return const [media];
-        },
-      );
-      addTearDown(model.dispose);
+  test('local catalog revalidates across queries when root changes', () async {
+    var scans = 0;
+    final model = SourceSearchViewModel(
+      scanLocalMedia: () async {
+        scans++;
+        return scans == 1 ? const [media] : const [];
+      },
+    );
+    addTearDown(model.dispose);
 
-      await model.search('Solo');
-      expect(model.state.results.single.media, media);
+    await model.search('Solo');
+    expect(model.state.results.single.media, media);
 
-      await model.search('Leveling');
-      expect(model.state.results.single.media, media);
-      expect(scans, 1);
-    },
-  );
+    await model.search('Leveling');
+    expect(model.state.results, isEmpty);
+    expect(scans, 2);
+  });
 
   test('media type filter scopes local results', () async {
     const manga = Media(
@@ -368,7 +365,7 @@ void main() {
   });
 
   test(
-    'selected filter limits remote fan-out and reuses local catalog',
+    'selected filter limits remote fan-out and revalidates local catalog',
     () async {
       final manga = _MangaSource();
       final novel = _NovelSource();
@@ -393,17 +390,17 @@ void main() {
       await model.selectFilter(SourceSearchFilter.manga);
       expect(manga.searches, 1);
       expect(novel.searches, 0);
-      expect(scans, 1);
+      expect(scans, 2);
 
       await model.selectFilter(SourceSearchFilter.novel);
       expect(manga.searches, 1);
       expect(novel.searches, 1);
-      expect(scans, 1);
+      expect(scans, 3);
 
       await model.selectFilter(SourceSearchFilter.all);
       expect(manga.searches, 2);
       expect(novel.searches, 2);
-      expect(scans, 1);
+      expect(scans, 4);
     },
   );
 }

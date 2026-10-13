@@ -106,7 +106,6 @@ final class SourceSearchViewModel extends ChangeNotifier {
 
   bool _disposed = false;
   int _generation = 0;
-  Future<List<Media>>? _localCatalogFuture;
 
   void updateQuery(String rawQuery) {
     final inputQuery = rawQuery.trim();
@@ -299,24 +298,9 @@ final class SourceSearchViewModel extends ChangeNotifier {
     });
   }
 
-  Future<List<Media>> _localCatalog() {
-    final cached = _localCatalogFuture;
-    if (cached != null) return cached;
-
-    late final Future<List<Media>> future;
-    future = Future.sync(_scanLocalMedia!)
-        .then((media) {
-          return List<Media>.unmodifiable(media ?? const <Media>[]);
-        })
-        .catchError((Object error, StackTrace stack) {
-          if (identical(_localCatalogFuture, future)) {
-            _localCatalogFuture = null;
-          }
-          Error.throwWithStackTrace(error, stack);
-        });
-    _localCatalogFuture = future;
-    return future;
-  }
+  // Source owns session reuse and revalidates root/grant on every request.
+  Future<List<Media>> _localCatalog() async =>
+      List<Media>.unmodifiable(await _scanLocalMedia!() ?? const <Media>[]);
 
   Future<_SearchBatch> _guardSource(
     Future<List<SourceSearchResult>> Function() operation,

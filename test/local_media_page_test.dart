@@ -91,6 +91,29 @@ void main() {
     expect(scans, 1);
   });
 
+  testWidgets(
+    'cancelled refresh restores prior result without provider error',
+    (tester) async {
+      var scans = 0;
+      await tester.pumpWidget(
+        host(
+          scanSelectedRoot: () async {
+            if (++scans == 1) return [media];
+            throw const LocalMediaScanCancelledException();
+          },
+          chooseRoot: () async => false,
+          openMedia: (_, _) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Rescan folder'));
+      await tester.pumpAndSettle();
+      expect(find.text('Spirited Away'), findsOneWidget);
+      expect(find.textContaining('Could not'), findsNothing);
+      expect(scans, 2);
+    },
+  );
+
   testWidgets('root revision replaces even an in-flight restored scan', (
     tester,
   ) async {

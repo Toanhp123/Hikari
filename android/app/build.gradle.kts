@@ -7,6 +7,12 @@ plugins {
 
 android {
     namespace = "io.github.toanhp123.hikari"
+    // Platform-provided legacy test APIs only for isolated fixture builds.
+    if (providers.gradleProperty("localMediaTestApp").orNull == "true") {
+        useLibrary("android.test.runner")
+        useLibrary("android.test.mock")
+        useLibrary("android.test.base")
+    }
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -33,6 +39,7 @@ android {
 
     defaultConfig {
         applicationId = "io.github.toanhp123.hikari"
+        testInstrumentationRunner = "android.test.InstrumentationTestRunner"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -46,6 +53,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Isolated instrumentation fixture; never replace the user app.
+            if (providers.gradleProperty("localMediaTestApp").orNull == "true") {
+                applicationIdSuffix = ".localmediatest"
+            }
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
