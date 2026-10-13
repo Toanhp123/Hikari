@@ -74,10 +74,10 @@ void main() {
       await manager.read(name, (path) async => path);
     }
     await expectLater(manager.close(), throwsStateError);
-    expect(attempts, ['a', 'b']);
+    expect(attempts, ['a', 'b', 'a']);
     fail = false;
     await manager.close();
-    expect(attempts, ['a', 'b', 'a']);
+    expect(attempts, ['a', 'b', 'a', 'a']);
   });
 
   test('copy and action failures do not poison subsequent reads', () async {
@@ -96,4 +96,174 @@ void main() {
     expect(copies, 2);
     await manager.close();
   });
+
+  test(
+    'two unretained reads share copy and delete only after both finish',
+    () async {
+      final entered = Completer<void>();
+      final resume = Completer<void>();
+      var copies = 0;
+      final deletes = <String>[];
+      final pool = ArchiveCopyPool(
+        (_) async => 'copy-${++copies}',
+        (path) async => deletes.add(path),
+      );
+      final first = pool.read('book', (path) async {
+        entered.complete();
+        await resume.future;
+        return path;
+      });
+      await entered.future;
+      expect(await pool.read('book', (path) async => path), 'copy-1');
+      expect(deletes, isEmpty);
+      resume.complete();
+      expect(await first, 'copy-1');
+      expect(copies, 1);
+      expect(deletes, ['copy-1']);
+      await pool.close();
+    },
+  );
+
+  test(
+    'simultaneous close waits for an in-flight reader and joins shutdown',
+    () async {
+      final entered = Completer<void>();
+      final resume = Completer<void>();
+      final deletes = <String>[];
+      final pool = ArchiveCopyPool(
+        (_) async => 'copy',
+        (path) async => deletes.add(path),
+      );
+      pool.retain('book');
+      final read = pool.read('book', (path) async {
+        entered.complete();
+        await resume.future;
+        return path;
+      });
+      await entered.future;
+      var finished = false;
+      final first = pool.close().then((_) => finished = true);
+      final second = pool.close();
+      await Future<void>.delayed(Duration.zero);
+      expect(finished, isFalse);
+      expect(deletes, isEmpty);
+      expect(() => pool.retain('other'), throwsStateError);
+      resume.complete();
+      expect(await read, 'copy');
+      await Future.wait([first, second]);
+      expect(deletes, ['copy']);
+    },
+  );
+
+  test('read failure survives a failed delete, retried at shutdown', () async {
+    var deleteAttempts = 0;
+    final pool = ArchiveCopyPool((_) async => 'copy', (_) async {
+      if (++deleteAttempts == 1) throw StateError('delete error');
+    });
+    await expectLater(
+      pool.read('book', (_) async => throw FormatException('bad archive')),
+      throwsA(isA<FormatException>()),
+    );
+    expect(deleteAttempts, 1);
+    await pool.close();
+    expect(deleteAttempts, 2);
+  });
+
+  test(
+    'read recovers a cache copy removed by Android while retained',
+    () async {
+      final available = <String>{};
+      final deleted = <String>[];
+      var copies = 0;
+      final pool = ArchiveCopyPool(
+        (_) async {
+          final path = 'copy-${++copies}';
+          available.add(path);
+          return path;
+        },
+        (path) async {
+          available.remove(path);
+          deleted.add(path);
+        },
+        exists: (path) async => available.contains(path),
+      );
+      pool.retain('book');
+      expect(await pool.read('book', (path) async => path), 'copy-1');
+      available.remove('copy-1'); // Android evicted cacheDir while open.
+      expect(
+        await Future.wait([
+          pool.read('book', (path) async => path),
+          pool.read('book', (path) async => path),
+        ]),
+        ['copy-2', 'copy-2'],
+      );
+      expect(copies, 2);
+      await pool.release('book');
+      expect(deleted, ['copy-2']);
+      await pool.close();
+    },
+  );
+
+  test(
+    'missing replacement copy fails without an unbounded retry loop',
+    () async {
+      var copies = 0;
+      final pool = ArchiveCopyPool(
+        (_) async => 'copy-${++copies}',
+        (_) async {},
+        exists: (_) async => false,
+      );
+      await expectLater(
+        pool.read('book', (path) async => path),
+        throwsStateError,
+      );
+      expect(copies, 2);
+      await pool.close();
+    },
+  );
+
+  test('close drains deletion started before entry removal', () async {
+    final deleting = Completer<void>();
+    final resume = Completer<void>();
+    final pool = ArchiveCopyPool((_) async => 'copy', (_) async {
+      deleting.complete();
+      await resume.future;
+    });
+    pool.retain('book');
+    await pool.read('book', (path) async => path);
+    final release = pool.release('book');
+    await deleting.future;
+    var closed = false;
+    final close = pool.close().then((_) => closed = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(closed, isFalse);
+    resume.complete();
+    await Future.wait([release, close]);
+    expect(closed, isTrue);
+  });
+
+  test(
+    'shutdown waits for copy still materializing and then removes it',
+    () async {
+      final started = Completer<void>();
+      final materialized = Completer<String>();
+      final deleted = <String>[];
+      final pool = ArchiveCopyPool((_) {
+        started.complete();
+        return materialized.future;
+      }, (path) async => deleted.add(path));
+      pool.retain('book');
+      final read = pool.read('book', (path) async => path);
+      await started.future;
+      var closed = false;
+      final close = pool.close().then((_) => closed = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(closed, isFalse);
+      materialized.complete('copy');
+      expect(await read, 'copy');
+      await close;
+      expect(closed, isTrue);
+      expect(deleted, ['copy']);
+    },
+  );
 }

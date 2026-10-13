@@ -150,6 +150,33 @@ startup removes stale owned cache files, including interrupted `.part` copies; d
 validates the canonical parent directory. SAF copy size, ZIP entry/count/expanded-size,
 CRC, symlink and EPUB encryption checks remain enforced.
 
+Phase 5.4 hardens this lifecycle without using the reconstructible byte cache:
+materialized CBZ/EPUB files remain ephemeral, source-owned reader resources.
+The Android `local_media` directory has a **1 GiB aggregate copy budget**
+(including live copies and `.part` files), in addition to the existing per-copy
+1 GiB limit. When a retained/active copy consumes the budget, another archive
+fails explicitly rather than evicting a live reader. Streaming copy checks a
+16 MiB free-space reserve and removes partial output on errors. Android may
+evict cache files independently; the pool checks their presence before each
+read and re-materializes a missing copy once, joining simultaneous retries.
+No offline durability is promised for these temporary files.
+
+Idle cleanup is best-effort on the read/route path to preserve the original
+reader error; failed deletions are retried during source shutdown, which also
+waits for active reads, in-flight copy finalization, and previously started
+cleanup even after its entry was removed from the active map. Concurrent close
+calls join one shutdown attempt. A subsequent close may retry remaining failed
+deletions, and the native channel's startup sweep is the final recovery after a
+process kill. Copies are never part of Library, Progress or Clear Cache policy.
+
+Device validation for this hardening: (1) open and rapidly exit CBZ and EPUB,
+(2) switch between two archive readers, (3) rotate/background while opening,
+(4) force-stop during copy and restart, (5) retry with revoked SAF grant,
+(6) test low available storage / aggregate budget exhaustion. Verify that
+`cacheDir/local_media` eventually contains no unused copies and that Library
+and reading progress survive these operations. The source's deterministic
+pool tests do not replace these physical SAF tests.
+
 EPUB parses OPF spine and nav/NCX, sanitizes markup/CSS, and registers image tokens
 before passing content to the inert renderer. Only registered image references reach
 `PublicationSource.readResource`; network/file/data/asset providers remain disabled.

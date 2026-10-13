@@ -256,22 +256,40 @@ class LocalMediaChannel(private val activity: Activity, messenger: BinaryMesseng
         }
     }
 
+    // This directory contains disposable reader copies only. The worker queue
+    // serializes materialization and deletion, so accounting includes any copy
+    // retained by another reader as well as interrupted .part files.
     private fun materialize(uri: Uri, limit: Int): Map<String, Any> {
         require(limit in 1..(1024 * 1024 * 1024)) { "Invalid materialization limit." }
         val directory = File(activity.cacheDir, "local_media")
         require(directory.mkdirs() || directory.isDirectory) { "Cache directory unavailable." }
+        val totalBudget = 1024L * 1024 * 1024
+        val existingBytes = directory.listFiles()?.sumOf { file ->
+            if (file.isFile) file.length() else 0L
+        } ?: 0L
+        require(existingBytes < totalBudget) { "Archive temporary storage budget exhausted." }
+        val availableBudget = minOf(limit.toLong(), totalBudget - existingBytes)
         val target = File(directory, "${UUID.randomUUID()}.part")
         try {
             activity.contentResolver.openInputStream(uri).use { input ->
                 requireNotNull(input) { "Document could not be opened." }
                 target.outputStream().use { output ->
                     val buffer = ByteArray(64 * 1024)
-                    var total = 0
+                    var total = 0L
                     while (true) {
                         val count = input.read(buffer)
                         if (count < 0) break
                         total += count
-                        require(total <= limit) { "Content exceeds materialization limit." }
+                        require(total <= availableBudget) {
+                            "Content exceeds archive temporary storage budget."
+                        }
+                        // Preserve headroom for SQLite, progress and other app
+                        // work. Actual I/O failure is still handled by cleanup.
+                        if (total == count.toLong() || total % (8L * 1024 * 1024) < count) {
+                            require(directory.usableSpace > 16L * 1024 * 1024) {
+                                "Not enough free space to open archive."
+                            }
+                        }
                         output.write(buffer, 0, count)
                     }
                     output.flush()

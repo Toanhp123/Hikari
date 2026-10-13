@@ -111,7 +111,7 @@ void main() {
       expect(call.method, 'deleteMaterialized');
       return false;
     });
-    await expectLater(lease!.release(), throwsStateError);
+    await lease!.release();
     setHandler((call) async {
       if (call.method == 'materialize') {
         return {

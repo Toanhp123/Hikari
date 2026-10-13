@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -56,7 +57,11 @@ class LocalMediaSource
   @override
   String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
-  late final _copies = ArchiveCopyPool(_materialize, _deleteMaterialized);
+  late final _copies = ArchiveCopyPool(
+    _materialize,
+    _deleteMaterialized,
+    exists: (path) => File(path).exists(),
+  );
 
   @override
   MediaOpenLease? acquireOpenLease(SourceMediaRef ref) {
