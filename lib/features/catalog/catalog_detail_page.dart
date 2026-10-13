@@ -19,6 +19,7 @@ import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/catalog/catalog_source_selection.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/features/catalog/catalog_detail_view_model.dart';
@@ -47,6 +48,7 @@ class CatalogDetailPage extends StatefulWidget {
     required this.chapterOpener,
     required this.chapterLists,
     required this.loadReadingTarget,
+    this.sourceSelections,
     this.library,
     required this.selectSourceSearch,
     required this.openMangaChapter,
@@ -57,6 +59,7 @@ class CatalogDetailPage extends StatefulWidget {
   final ReadRemoteChapterList chapterLists;
   final LoadSeriesReadingTarget loadReadingTarget;
   final LibraryRepository? library;
+  final CatalogSourceSelectionRepository? sourceSelections;
   final Future<CatalogSourcePickerCandidate?> Function(
     CatalogEntry,
     SourceId?,
@@ -119,6 +122,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   bool _searchExpanded = false;
   int _selectionGeneration = 0;
   int _identityGeneration = 0;
+  Future<void>? _restoreOperation;
+  Future<void> _saveOperation = Future<void>.value();
   final _informationScroll = ScrollController();
   final _chapterScroll = ScrollController();
 
@@ -138,8 +143,10 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
         oldWidget.chapterOpener != widget.chapterOpener ||
         oldWidget.chapterLists != widget.chapterLists ||
         oldWidget.loadDetails != widget.loadDetails ||
-        oldWidget.loadReadingTarget != widget.loadReadingTarget) {
+        oldWidget.loadReadingTarget != widget.loadReadingTarget ||
+        oldWidget.sourceSelections != widget.sourceSelections) {
       _selectionGeneration++;
+      _restoreOperation = null;
       _identityGeneration++;
       _viewModel.dispose();
       _viewModel = CatalogDetailViewModel(
@@ -167,7 +174,69 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   }
 
   void _tabChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    if (_chapterTab) unawaited(_restoreSelection());
+  }
+
+  // The chapter tab owns the lazy read. Opening Information never touches the
+  // selected source, its cached chapters or its extension.
+  Future<void> _restoreSelection() =>
+      _restoreOperation ??= _loadSavedSelection();
+
+  Future<void> _loadSavedSelection() async {
+    final repository = widget.sourceSelections;
+    final chapters = _chapters;
+    if (repository == null || chapters == null || chapters.media != null) {
+      return;
+    }
+    final entry = _viewModel.state.entry;
+    final generation = _selectionGeneration;
+    final identityGeneration = _identityGeneration;
+    try {
+      final saved = await repository.load(entry);
+      if (!mounted ||
+          generation != _selectionGeneration ||
+          identityGeneration != _identityGeneration ||
+          chapters != _chapters ||
+          chapters.media != null ||
+          saved == null) {
+        return;
+      }
+      if (saved.type != entry.type) return;
+      await chapters.select(saved, null);
+    } catch (_) {
+      if (mounted &&
+          generation == _selectionGeneration &&
+          identityGeneration == _identityGeneration) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not restore selected source.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _restoreAfterCancelledSelection() async {
+    if (_chapters?.media != null) return;
+    // A pending restore can have been superseded by the opened picker.
+    _restoreOperation = null;
+    await _restoreSelection();
+  }
+
+  // Serialize writes in confirmation order: slow A/B/A persistence must not
+  // replace a newer user choice. Keep writes alive after route disposal.
+  void _rememberSelection(CatalogEntry entry, Media selected) {
+    final repository = widget.sourceSelections;
+    if (repository == null) return;
+    _saveOperation = _saveOperation
+        .then((_) => repository.save(entry, selected))
+        .catchError((Object _) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not save selected source.')),
+            );
+          }
+        });
   }
 
   @override
@@ -190,7 +259,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     }
 
     _tabs.index = 1;
-    if (_chapters?.media != null) return;
+    await _restoreSelection();
+    if (!mounted || _chapters?.media != null) return;
     await _chooseSource();
   }
 
@@ -211,7 +281,9 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     } finally {
       picker.dispose();
     }
-    if (!mounted || generation != _selectionGeneration || result == null) {
+    if (!mounted || generation != _selectionGeneration) return;
+    if (result == null) {
+      await _restoreAfterCancelledSelection();
       return;
     }
 
@@ -226,11 +298,30 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       );
       if (!mounted || generation != _selectionGeneration) return;
     }
-    if (candidate != null) {
-      _searchExpanded = false;
-      if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
-      await _chapters!.select(candidate.media, candidate.metadata);
+    if (candidate == null) {
+      await _restoreAfterCancelledSelection();
+      return;
     }
+    final selected = candidate.media;
+    if (selected.type != entry.type ||
+        selected.source.sourceId == SourceId.local ||
+        selected.source.sourceId.value.isEmpty ||
+        selected.source.itemId.isEmpty ||
+        selected.title.isEmpty ||
+        (candidate.metadata?.cover != null &&
+            candidate.metadata!.cover!.sourceId != selected.source.sourceId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid source selection.')),
+      );
+      await _restoreAfterCancelledSelection();
+      return;
+    }
+    // Confirmation owns the preference even when a subsequent chapter
+    // request fails. Cancel/failure before confirmation leaves it unchanged.
+    _rememberSelection(entry, selected);
+    _searchExpanded = false;
+    if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
+    await _chapters!.select(candidate.media, candidate.metadata);
   }
 
   Future<void> _openChapter(Object? chapter) async {

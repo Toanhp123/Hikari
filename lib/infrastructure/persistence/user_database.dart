@@ -52,19 +52,36 @@ class SeriesContinuationRecords extends Table {
   Set<Column<Object>> get primaryKey => {sourceId, seriesItemId};
 }
 
+@DataClassName('CatalogSourceSelectionRecord')
+class CatalogSourceSelections extends Table {
+  TextColumn get catalogProvider => text()();
+  TextColumn get catalogItemId => text()();
+  TextColumn get mediaType => text()();
+  TextColumn get sourceId => text()();
+  TextColumn get itemId => text()();
+  TextColumn get sourceTitle => text()();
+  @override
+  Set<Column<Object>> get primaryKey => {
+    catalogProvider,
+    catalogItemId,
+    mediaType,
+  };
+}
+
 @DriftDatabase(
   tables: [
     ProgressRecords,
     LibraryRecords,
     MihonContinuationRecords,
     SeriesContinuationRecords,
+    CatalogSourceSelections,
   ],
 )
 class UserDatabase extends _$UserDatabase {
   UserDatabase([QueryExecutor? executor])
     : super(executor ?? driftDatabase(name: 'hikari_user_state'));
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   Future<void> _migrateMihonReferences() async {
     // Keep latest progress / earliest library membership if old mutable keys
@@ -150,6 +167,9 @@ class UserDatabase extends _$UserDatabase {
       if (from < 5) {
         await m.addColumn(libraryRecords, libraryRecords.artworkSourceId);
         await m.addColumn(libraryRecords, libraryRecords.artworkItemId);
+      }
+      if (from < 6) {
+        await m.createTable(catalogSourceSelections);
       }
     },
   );

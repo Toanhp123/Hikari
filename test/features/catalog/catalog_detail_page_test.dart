@@ -16,7 +16,9 @@ import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/catalog/catalog_source_selection.dart';
 import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
@@ -25,6 +27,268 @@ import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 
 void main() {
+  testWidgets(
+    'Information remains lazy; Chapters restores exact cached source',
+    (tester) async {
+      final choices = _Choices();
+      final selected = Media(
+        title: 'Saved candidate',
+        type: MediaType.manga,
+        source: const SourceMediaRef(
+          sourceId: SourceId('test:manga'),
+          itemId: 'candidate-7',
+        ),
+      );
+      choices.selected = selected;
+      final memory = _MemoryCache();
+      final chapters = ReadRemoteChapterList(memory);
+      await chapters.persistManga(selected.source, [
+        MangaChapter(
+          title: 'Saved chapter 1',
+          source: const SourceMediaRef(
+            sourceId: SourceId('test:manga'),
+            itemId: 'chapter-1',
+          ),
+        ),
+      ], chapterListOrder: ChapterListOrder.readingOrder);
+      memory.reads = 0;
+      await tester.pumpWidget(
+        _app(
+          _detail(
+            initialEntry: _related,
+            loadDetails: LoadCatalogEntryDetails(_Provider()),
+            resolveCatalogSource: _resolver(),
+            sourceSelections: choices,
+            chapterCache: chapters,
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(choices.reads, 0);
+      expect(memory.reads, 0);
+      expect(find.text('Saved chapter 1'), findsNothing);
+
+      await tester.tap(find.text('Chapters'));
+      await tester.pumpAndSettle();
+      expect(choices.reads, 1);
+      expect(memory.reads, greaterThan(0));
+      expect(choices.saves, 0); // restore must not rewrite a preference
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -450));
+      await tester.pumpAndSettle();
+      expect(find.text('Saved chapter 1'), findsOneWidget);
+      expect(find.text('Change source'), findsOneWidget);
+      expect(find.textContaining('Cached chapters · fresh'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('missing source retains choice and offers Change source', (
+    tester,
+  ) async {
+    final choices = _Choices()
+      ..selected = const Media(
+        title: 'Gone source',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('removed:extension'),
+          itemId: 'old-series',
+        ),
+      );
+    await tester.pumpWidget(
+      _app(
+        _detail(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver(),
+          sourceSelections: choices,
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapters'));
+    await tester.pumpAndSettle();
+    expect(find.text('Change source'), findsOneWidget);
+    expect(find.textContaining('Could not load chapters'), findsOneWidget);
+    expect(choices.selected!.source.itemId, 'old-series');
+    expect(choices.saves, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('late restored preference cannot overwrite a new Catalog entry', (
+    tester,
+  ) async {
+    final choices = _Choices()..delayedRead = Completer<Media?>();
+    final entry = ValueNotifier(_related);
+    addTearDown(entry.dispose);
+    await tester.pumpWidget(
+      _app(
+        ValueListenableBuilder<CatalogEntry>(
+          valueListenable: entry,
+          builder: (_, current, _) => _detail(
+            initialEntry: current,
+            sourceSelections: choices,
+            loadDetails: LoadCatalogEntryDetails(_Provider()),
+            resolveCatalogSource: _resolver(),
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapters'));
+    await tester.pump();
+    entry.value = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'replacement'),
+      title: 'Replacement',
+      type: MediaType.manga,
+    );
+    await tester.pump();
+    choices.delayedRead!.complete(
+      const Media(
+        title: 'Late candidate',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('test:manga'),
+          itemId: 'late',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Change source'), findsNothing);
+    expect(find.text('Late candidate'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('contextual manual source selection saves confirmed candidate', (
+    tester,
+  ) async {
+    final choices = _Choices();
+    final cache = ReadRemoteChapterList(_NoCache());
+    const manual = Media(
+      title: 'Manual result',
+      type: MediaType.manga,
+      source: SourceMediaRef(
+        sourceId: SourceId('mihon:manual'),
+        itemId: 'confirmed',
+      ),
+    );
+    await tester.pumpWidget(
+      _app(
+        CatalogDetailPage(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver(),
+          sourceSelections: choices,
+          chapterOpener: OpenMedia(
+            SourceRegistry([]),
+            _Progress(),
+            chapterLists: cache,
+          ),
+          chapterLists: cache,
+          loadReadingTarget: LoadSeriesReadingTarget(_Continuation()),
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+          selectSourceSearch: (_, _, _, _, _) async =>
+              const CatalogSourcePickerCandidate(media: manual),
+          openMangaChapter: (_, _, _, _, _) async {},
+          openNovelChapter: (_, _, _, _, _) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Search all sources'));
+    await tester.pumpAndSettle();
+    expect(choices.saves, 1);
+    expect(choices.selected?.source, manual.source);
+    expect(find.text('Change source'), findsOneWidget);
+  });
+
+  testWidgets('cancel Change source keeps confirmed choice', (tester) async {
+    final choices = _Choices()
+      ..selected = const Media(
+        title: 'Retained candidate',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('removed:extension'),
+          itemId: 'retained',
+        ),
+      );
+    await tester.pumpWidget(
+      _app(
+        _detail(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver(),
+          sourceSelections: choices,
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapters'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Change source'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Change source'), findsOneWidget);
+    expect(choices.selected!.source.itemId, 'retained');
+    expect(choices.saves, 0);
+  });
+
+  testWidgets('delayed A to B to A commits final confirmed source', (
+    tester,
+  ) async {
+    final choices = _DelayedChoices();
+    final a = _ExactSearchSource(const SourceId('source:a'), 'Source A');
+    final b = _ExactSearchSource(const SourceId('source:b'), 'Source B');
+    await tester.pumpWidget(
+      _app(
+        _detail(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver([a, b]),
+          sourceSelections: choices,
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Source A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Change source'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Source B'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Change source'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Source A'));
+    await tester.pumpAndSettle();
+    expect(choices.calls, 1); // Later writes queue behind first in-flight save.
+    choices.firstWrite.complete();
+    await tester.pumpAndSettle();
+    expect(choices.calls, 3);
+    expect(choices.selected?.source.sourceId, a.id);
+    expect(choices.savedSources, [a.id, b.id, a.id]);
+  });
+
   for (final manual in [false, true]) {
     testWidgets(
       'identity A/B/A rejects pending ${manual ? 'manual search' : 'picker'} completion',
@@ -839,10 +1103,12 @@ void main() {
           ),
         );
         final source = _MangaSource(results: [candidate]);
+        final choices = _Choices();
         await tester.pumpWidget(
           _app(
             _detail(
               initialEntry: catalog,
+              sourceSelections: choices,
               loadDetails: LoadCatalogEntryDetails(
                 _Provider(
                   onLoadDetails: (_) async =>
@@ -872,6 +1138,8 @@ void main() {
         }
         expect(opened, isNull);
         expect(find.text('Change source'), findsOneWidget);
+        expect(choices.saves, 1);
+        expect(choices.selected?.source, candidate.media.source);
         await tester.ensureVisible(find.text('Start reading'));
         await tester.tap(find.text('Start reading'));
         await tester.pumpAndSettle();
@@ -1078,13 +1346,16 @@ Widget _detail({
   )
   openSourceSearch,
   Future<Uint8List?> Function(SourceMediaRef)? readArtwork,
+  CatalogSourceSelectionRepository? sourceSelections,
+  ReadRemoteChapterList? chapterCache,
 }) {
-  final cache = ReadRemoteChapterList(_NoCache());
+  final cache = chapterCache ?? ReadRemoteChapterList(_NoCache());
   return CatalogDetailPage(
     initialEntry: initialEntry,
     loadDetails: loadDetails,
     resolveCatalogSource: resolveCatalogSource,
     openMedia: openMedia,
+    sourceSelections: sourceSelections,
     openRelated: openRelated,
     openSourceSearch: openSourceSearch,
     readArtwork: readArtwork,
@@ -1102,6 +1373,93 @@ Widget _detail({
     openMangaChapter: (_, _, _, _, _) async {},
     openNovelChapter: (_, _, _, _, _) async {},
   );
+}
+
+final class _Choices implements CatalogSourceSelectionRepository {
+  Media? selected;
+  int reads = 0;
+  int saves = 0;
+  Completer<Media?>? delayedRead;
+
+  @override
+  Future<Media?> load(CatalogEntry entry) async {
+    reads++;
+    return delayedRead?.future ?? selected;
+  }
+
+  @override
+  Future<void> save(CatalogEntry entry, Media value) async {
+    saves++;
+    selected = value;
+  }
+}
+
+final class _DelayedChoices implements CatalogSourceSelectionRepository {
+  final firstWrite = Completer<void>();
+  final savedSources = <SourceId>[];
+  Media? selected;
+  int calls = 0;
+
+  @override
+  Future<Media?> load(CatalogEntry entry) async => selected;
+
+  @override
+  Future<void> save(CatalogEntry entry, Media value) async {
+    calls++;
+    if (calls == 1) await firstWrite.future;
+    savedSources.add(value.source.sourceId);
+    selected = value;
+  }
+}
+
+final class _ExactSearchSource implements MangaSearchSource, MangaPageSource {
+  _ExactSearchSource(this.id, this.name);
+
+  @override
+  final SourceId id;
+  @override
+  final String name;
+
+  @override
+  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
+      MangaSearchPage(
+        results: [
+          MangaPreview(
+            media: Media(
+              title: _related.title,
+              type: MediaType.manga,
+              source: SourceMediaRef(sourceId: id, itemId: 'exact'),
+            ),
+          ),
+        ],
+        page: page,
+        hasNextPage: false,
+      );
+
+  @override
+  Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
+
+  @override
+  Future<Uint8List> readPage(SourceMediaRef page) async => Uint8List(0);
+}
+
+final class _MemoryCache implements ByteCache {
+  final bytes = <String, Uint8List>{};
+  int reads = 0;
+
+  @override
+  Future<Uint8List?> read(String namespace, String key) async {
+    reads++;
+    return bytes['$namespace::$key'];
+  }
+
+  @override
+  Future<void> write(String namespace, String key, Uint8List value) async {
+    bytes['$namespace::$key'] = value;
+  }
+
+  @override
+  Future<void> close() async => bytes.clear();
 }
 
 final class _NoCache implements ByteCache {

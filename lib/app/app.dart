@@ -263,6 +263,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           chapterLists: _dependencies.openMedia.chapterLists!,
           loadReadingTarget: _catalogReadingTarget,
           library: _dependencies.libraryRepository,
+          sourceSelections: _dependencies.catalogSourceSelections,
           openMangaChapter: _openMangaSeriesChapter,
           openNovelChapter: _openNovelSeriesChapter,
           selectSourceSearch:

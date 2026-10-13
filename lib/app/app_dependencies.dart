@@ -24,6 +24,7 @@ import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/core/cache/cache_maintenance.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/catalog/catalog_source_selection.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -37,6 +38,7 @@ import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/playback/media_kit_video_session.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_catalog_source_selection_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_series_continuation_repository.dart';
 import 'package:hikari/domain/progress/series_continuation.dart';
@@ -87,6 +89,7 @@ final class AppDependencies {
     this._database,
     this._ownsDatabase, {
     required this.libraryRepository,
+    required this.catalogSourceSelections,
     required this.progressRepository,
     required this.seriesContinuationRepository,
     required this.openSeriesContinuation,
@@ -175,6 +178,9 @@ final class AppDependencies {
       resolvedDatabase,
       database == null || ownsDatabase,
       libraryRepository: libraryRepository,
+      catalogSourceSelections: SqliteCatalogSourceSelectionRepository(
+        resolvedDatabase,
+      ),
       progressRepository: progressRepository,
       seriesContinuationRepository: seriesContinuationRepository,
       openSeriesContinuation: OpenSeriesContinuation(openMedia),
@@ -239,6 +245,7 @@ final class AppDependencies {
   }
 
   final LibraryRepository libraryRepository;
+  final CatalogSourceSelectionRepository catalogSourceSelections;
   final ProgressRepository progressRepository;
   final SeriesContinuationRepository seriesContinuationRepository;
   final OpenSeriesContinuation openSeriesContinuation;
