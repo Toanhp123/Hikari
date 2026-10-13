@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/read_remote_chapter_list.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
+import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/search/search_novels.dart';
@@ -15,13 +21,122 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 
 void main() {
+  for (final manual in [false, true]) {
+    testWidgets(
+      'identity A/B/A rejects pending ${manual ? 'manual search' : 'picker'} completion',
+      (tester) async {
+        final entry = ValueNotifier(_related);
+        addTearDown(entry.dispose);
+        final source = _PickerMangaSource(
+          id: const SourceId('pending'),
+          displayName: 'Pending source',
+          languageCode: 'en',
+        );
+        final searchGate = Completer<MangaSearchPage>();
+        source.searchGate = searchGate;
+        final manualGate = Completer<CatalogSourcePickerCandidate?>();
+        final resolver = _resolver([source]);
+        final loader = LoadCatalogEntryDetails(_Provider());
+        final cache = ReadRemoteChapterList(_NoCache());
+        final opener = OpenMedia(
+          SourceRegistry([source]),
+          _Progress(),
+          chapterLists: cache,
+        );
+        final reading = LoadSeriesReadingTarget(_Continuation());
+        var manualCalls = 0;
+        await tester.pumpWidget(
+          _app(
+            ValueListenableBuilder<CatalogEntry>(
+              valueListenable: entry,
+              builder: (_, current, _) => CatalogDetailPage(
+                initialEntry: current,
+                loadDetails: loader,
+                resolveCatalogSource: resolver,
+                openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+                openRelated: (_) {},
+                openSourceSearch: (_, _, _, _, _) {},
+                chapterOpener: opener,
+                chapterLists: cache,
+                loadReadingTarget: reading,
+                selectSourceSearch: (_, _, _, _, _) {
+                  manualCalls++;
+                  return manualGate.future;
+                },
+                openMangaChapter: (_, _, _, _, _) async {},
+                openNovelChapter: (_, _, _, _, _) async {},
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Read'));
+        await tester.pumpAndSettle();
+        if (manual) {
+          await tester.tap(find.text('Search all sources'));
+          await tester.pumpAndSettle();
+          expect(manualCalls, 1);
+        } else {
+          await tester.tap(find.text('Pending source'));
+          await tester.pump();
+        }
+        entry.value = CatalogEntry(
+          id: const CatalogEntryId(provider: 'test', value: 'replacement'),
+          title: 'Replacement',
+          type: MediaType.manga,
+        );
+        await tester.pump();
+        entry.value = _related;
+        await tester.pump();
+        if (manual) {
+          manualGate.complete(
+            CatalogSourcePickerCandidate(
+              media: Media(
+                title: 'Late source',
+                type: MediaType.manga,
+                source: SourceMediaRef(sourceId: source.id, itemId: 'late'),
+              ),
+            ),
+          );
+        } else {
+          searchGate.complete(
+            MangaSearchPage(
+              results: [
+                MangaPreview(
+                  media: Media(
+                    title: _related.title,
+                    type: MediaType.manga,
+                    source: SourceMediaRef(sourceId: source.id, itemId: 'late'),
+                  ),
+                ),
+              ],
+              hasNextPage: false,
+              page: 1,
+            ),
+          );
+        }
+        await tester.pumpAndSettle();
+        if (!manual) {
+          // The old modal may finish, but its result must not select into A again.
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+        }
+        expect(find.text('Change source'), findsNothing);
+        expect(find.text('Late source'), findsNothing);
+        expect(tester.widget<TabBar>(find.byType(TabBar)).controller!.index, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('large source lists build only visible rows', (tester) async {
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _related,
           loadDetails: LoadCatalogEntryDetails(_Provider()),
           resolveCatalogSource: _resolver([
@@ -33,7 +148,7 @@ void main() {
                 presentationGroupId: 'group:$i',
               ),
           ]),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -56,7 +171,7 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         _app(
-          CatalogDetailPage(
+          _detail(
             initialEntry: _related,
             loadDetails: LoadCatalogEntryDetails(_Provider()),
             resolveCatalogSource: _resolver([
@@ -69,7 +184,7 @@ void main() {
                     presentationGroupId: package,
                   ),
             ]),
-            openMedia: (_, _, {previewMetadata}) async {},
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {},
             openRelated: (_) {},
             openSourceSearch: (_, _, _, _, _) {},
           ),
@@ -107,7 +222,7 @@ void main() {
       );
       await tester.pumpWidget(
         _app(
-          CatalogDetailPage(
+          _detail(
             initialEntry: manga,
             loadDetails: LoadCatalogEntryDetails(
               _Provider(
@@ -128,7 +243,7 @@ void main() {
                   presentationGroupId: 'one',
                 ),
             ]),
-            openMedia: (_, _, {previewMetadata}) async {},
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {},
             openRelated: (_) {},
             openSourceSearch: (_, _, _, _, _) {},
           ),
@@ -159,7 +274,7 @@ void main() {
       );
       await tester.pumpWidget(
         _app(
-          CatalogDetailPage(
+          _detail(
             initialEntry: manga,
             loadDetails: LoadCatalogEntryDetails(
               _Provider(
@@ -175,7 +290,7 @@ void main() {
                   presentationGroupId: 'package:dex',
                 ),
             ]),
-            openMedia: (_, _, {previewMetadata}) async {},
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {},
             openRelated: (_) {},
             openSourceSearch: (_, _, _, _, _) {},
           ),
@@ -253,13 +368,13 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(
             _Provider(onLoadDetails: (_) => pending.future),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (entry, _, _, _, _) => searched = entry,
         ),
@@ -313,13 +428,13 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(
             _Provider(onLoadDetails: (_) async => detail),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (entry) => related = entry,
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -368,7 +483,7 @@ void main() {
     ).join(' ');
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(
             _Provider(
@@ -377,7 +492,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -418,11 +533,11 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (entry, _, _, _, _) => searched = entry,
         ),
@@ -459,11 +574,11 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -498,11 +613,11 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(provider),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -527,7 +642,7 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: _anime,
           loadDetails: LoadCatalogEntryDetails(
             _Provider(
@@ -542,7 +657,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -571,7 +686,7 @@ void main() {
     );
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: manga,
           loadDetails: LoadCatalogEntryDetails(
             _Provider(
@@ -579,7 +694,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -609,7 +724,7 @@ void main() {
     );
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: manga,
           loadDetails: LoadCatalogEntryDetails(
             _Provider(
@@ -617,7 +732,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, _, _) {},
         ),
@@ -656,7 +771,7 @@ void main() {
     ];
     await tester.pumpWidget(
       _app(
-        CatalogDetailPage(
+        _detail(
           initialEntry: manga,
           loadDetails: LoadCatalogEntryDetails(
             _Provider(
@@ -664,7 +779,7 @@ void main() {
             ),
           ),
           resolveCatalogSource: _resolver(sources),
-          openMedia: (_, _, {previewMetadata}) async {},
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
           openSourceSearch: (_, _, _, ids, _) => searchedIds = ids,
         ),
@@ -726,7 +841,7 @@ void main() {
         final source = _MangaSource(results: [candidate]);
         await tester.pumpWidget(
           _app(
-            CatalogDetailPage(
+            _detail(
               initialEntry: catalog,
               loadDetails: LoadCatalogEntryDetails(
                 _Provider(
@@ -735,7 +850,7 @@ void main() {
                 ),
               ),
               resolveCatalogSource: _resolver([source]),
-              openMedia: (_, media, {previewMetadata}) async {
+              openMedia: (_, media, {previewMetadata, canNavigate}) async {
                 opened = media;
                 received = previewMetadata;
               },
@@ -755,6 +870,11 @@ void main() {
           await tester.tap(find.text('Chosen book'));
           await tester.pumpAndSettle();
         }
+        expect(opened, isNull);
+        expect(find.text('Change source'), findsOneWidget);
+        await tester.ensureVisible(find.text('Start reading'));
+        await tester.tap(find.text('Start reading'));
+        await tester.pumpAndSettle();
         expect(opened, same(candidate.media));
         expect(received, same(preview));
         expect(received!.cover!.sourceId, source.id);
@@ -783,7 +903,7 @@ void main() {
         MediaQuery(
           data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
           child: _app(
-            CatalogDetailPage(
+            _detail(
               initialEntry: longTitleEntry,
               loadDetails: LoadCatalogEntryDetails(
                 _Provider(
@@ -796,7 +916,7 @@ void main() {
                 ),
               ),
               resolveCatalogSource: _resolver(),
-              openMedia: (_, _, {previewMetadata}) async {},
+              openMedia: (_, _, {previewMetadata, canNavigate}) async {},
               openRelated: (_) {},
               openSourceSearch: (_, _, _, _, _) {},
             ),
@@ -892,9 +1012,13 @@ final class _PickerMangaSource
   @override
   String get name => '$displayName [$languageCode]';
 
+  Completer<MangaSearchPage>? searchGate;
   @override
-  Future<MangaSearchPage> search(String query, {int page = 1}) async =>
-      MangaSearchPage(results: const [], hasNextPage: false, page: page);
+  Future<MangaSearchPage> search(String query, {int page = 1}) =>
+      searchGate?.future ??
+      Future.value(
+        MangaSearchPage(results: const [], hasNextPage: false, page: page),
+      );
 
   @override
   Future<List<SourceMediaRef>> pages(SourceMediaRef readable) async => const [];
@@ -930,4 +1054,77 @@ final class _Provider implements CatalogProvider {
 
   @override
   Future<void> close() async {}
+}
+
+// Picker/metadata tests compose real chapter dependencies, even when unused.
+Widget _detail({
+  required CatalogEntry initialEntry,
+  required LoadCatalogEntryDetails loadDetails,
+  required ResolveCatalogSource resolveCatalogSource,
+  required Future<void> Function(
+    BuildContext,
+    Media, {
+    MediaMetadata? previewMetadata,
+    bool Function()? canNavigate,
+  })
+  openMedia,
+  required void Function(CatalogEntry) openRelated,
+  required void Function(
+    CatalogEntry,
+    SourceId?,
+    String?,
+    Set<SourceId>?,
+    String?,
+  )
+  openSourceSearch,
+  Future<Uint8List?> Function(SourceMediaRef)? readArtwork,
+}) {
+  final cache = ReadRemoteChapterList(_NoCache());
+  return CatalogDetailPage(
+    initialEntry: initialEntry,
+    loadDetails: loadDetails,
+    resolveCatalogSource: resolveCatalogSource,
+    openMedia: openMedia,
+    openRelated: openRelated,
+    openSourceSearch: openSourceSearch,
+    readArtwork: readArtwork,
+    chapterOpener: OpenMedia(
+      SourceRegistry([_MangaSource()]),
+      _Progress(),
+      chapterLists: cache,
+    ),
+    chapterLists: cache,
+    loadReadingTarget: LoadSeriesReadingTarget(_Continuation()),
+    selectSourceSearch: (entry, source, name, ids, language) async {
+      openSourceSearch(entry, source, name, ids, language);
+      return null;
+    },
+    openMangaChapter: (_, _, _, _, _) async {},
+    openNovelChapter: (_, _, _, _, _) async {},
+  );
+}
+
+final class _NoCache implements ByteCache {
+  @override
+  Future<Uint8List?> read(String namespace, String key) async => null;
+  @override
+  Future<void> write(String namespace, String key, Uint8List bytes) async {}
+  @override
+  Future<void> close() async {}
+}
+
+final class _Progress implements ProgressRepository {
+  @override
+  Future<MediaProgress?> load(SourceMediaRef media) async => null;
+  @override
+  Future<void> save(MediaProgress progress) async {}
+  @override
+  Future<void> delete(SourceMediaRef media) async {}
+}
+
+final class _Continuation implements SeriesContinuationRepository {
+  @override
+  Future<SourceMediaRef?> load(SourceMediaRef series) async => null;
+  @override
+  Future<void> save(SeriesContinuation continuation) async {}
 }

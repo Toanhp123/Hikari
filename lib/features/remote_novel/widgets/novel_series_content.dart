@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/core/ui/patterns/chapter_row.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -66,7 +67,6 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
     final primaryChapter = widget.viewModel.primaryChapter;
     final searchQuery = widget.viewModel.searchQuery;
     final displayChapters = widget.viewModel.displayChapters;
-    final colorScheme = Theme.of(context).colorScheme;
 
     return RefreshIndicator.adaptive(
       onRefresh: widget.onRefresh,
@@ -168,35 +168,11 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
             );
           }
           final chapter = displayChapters[index - 1];
-          final subtitle = [
-            if (chapter.chapterNumber != null)
-              'Chapter ${chapter.chapterNumber}',
-            ...chapter.scanlators,
-            if (chapter.releaseLabel != null)
-              chapter.releaseLabel!
-            else if (chapter.releaseDate != null)
-              chapter.releaseDate!.toIso8601String().split('T').first,
-          ].join(' · ');
-          final isInteractive = !widget.openingChapter;
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpacing.md,
-              vertical: HikariSpacing.xs,
-            ),
-            child: ListTile(
-              key: ValueKey(chapter.source),
-              shape: const RoundedRectangleBorder(
-                borderRadius: HikariRadius.borderMd,
-              ),
-              tileColor: colorScheme.surfaceContainerLow,
-              title: Text(chapter.title),
-              subtitle: Text(subtitle),
-              trailing: isInteractive
-                  ? const Icon(Icons.chevron_right_rounded)
-                  : null,
-              enabled: isInteractive,
-              onTap: isInteractive ? () => widget.onOpenChapter(chapter) : null,
-            ),
+          return ChapterRow(
+            chapter: chapter,
+            sourceName: widget.sourceName,
+            enabled: !widget.openingChapter,
+            onTap: () => widget.onOpenChapter(chapter),
           );
         },
       ),

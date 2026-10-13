@@ -142,11 +142,14 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     required int generation,
     required int displayedIndex,
   }) async {
-    await widget.prefetchPages(
-      prefetch,
-      target.source,
-      target.pages,
-      displayedIndex,
+    if (_closed || _viewModel.isClosing) return;
+    await _viewModel.sourceWork(
+      () => widget.prefetchPages(
+        prefetch,
+        target.source,
+        target.pages,
+        displayedIndex,
+      ),
     );
     if (_closed ||
         _viewModel.state.openingAdjacent ||
@@ -197,7 +200,9 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
           readPage: (page) {
             prefetch.cancelPending();
             _viewModel.cancelChapterPrefetch();
-            return widget.readPage(target.source, page);
+            return _viewModel.sourceWork(
+              () => widget.readPage(target.source, page),
+            );
           },
           refreshPages:
               widget.fetchFreshPages == null || widget.persistPages == null
@@ -205,14 +210,18 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
               : () {
                   _prefetch.cancelPending();
                   _viewModel.discardChapterPrefetch();
-                  return widget.fetchFreshPages!(
-                    target.source,
-                    target.chapter.source,
+                  return _viewModel.sourceWork(
+                    () => widget.fetchFreshPages!(
+                      target.source,
+                      target.chapter.source,
+                    ),
                   );
                 },
           fetchFreshPage: widget.fetchFreshPage == null
               ? null
-              : (page) => widget.fetchFreshPage!(target.source, page),
+              : (page) => _viewModel.sourceWork(
+                  () => widget.fetchFreshPage!(target.source, page),
+                ),
           onFreshPageValidated: widget.persistFreshPage == null
               ? null
               : (page, bytes) =>
@@ -235,7 +244,9 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
           reloadPage: (page) {
             prefetch.cancelPending();
             _viewModel.cancelChapterPrefetch();
-            return widget.reloadPage(target.source, page);
+            return _viewModel.sourceWork(
+              () => widget.reloadPage(target.source, page),
+            );
           },
           onPageDisplayed: (index) {
             if (_closed ||

@@ -83,7 +83,7 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
   }
 
   void _scheduleNextChapter() {
-    if (_closed) return;
+    if (_closed || _viewModel.isClosing) return;
     final current = _viewModel.state.target.chapter.source;
     final next = _viewModel.nextChapter;
     final origin = (current, next?.source);
@@ -91,7 +91,9 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
     _prefetchOrigin = origin;
     _prefetch.cancelPending();
     if (next != null) {
-      unawaited(widget.prefetchChapter(_prefetch, next));
+      unawaited(
+        _viewModel.sourceWork(() => widget.prefetchChapter(_prefetch, next)),
+      );
     }
   }
 
@@ -150,12 +152,15 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
           onReaderThemeChanged: (value) => _readerTheme = value,
           onFontSizeChanged: (value) => _fontSize = value,
           loadContent: () async => target.content,
-          reloadContent: () =>
-              widget.reloadContent(target.source, chapter.source),
-          readResource: (resource) =>
-              widget.readResource(target.source, resource),
-          reloadResource: (resource) =>
-              widget.reloadResource(target.source, resource),
+          reloadContent: () => _viewModel.sourceWork(
+            () => widget.reloadContent(target.source, chapter.source),
+          ),
+          readResource: (resource) => _viewModel.sourceWork(
+            () => widget.readResource(target.source, resource),
+          ),
+          reloadResource: (resource) => _viewModel.sourceWork(
+            () => widget.reloadResource(target.source, resource),
+          ),
           initialProgress: target.progress.initialProgress,
           saveProgress: (position, completed) =>
               _viewModel.saveProgress(target, position, completed),

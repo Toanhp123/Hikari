@@ -14,6 +14,9 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/progress.dart' as progress;
+import 'package:hikari/features/home/home_page.dart';
+import 'package:hikari/features/source_search/source_search_page.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
 import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
 import 'package:hikari/features/novel_reader/novel_reader_page.dart';
 import 'package:hikari/features/novel_reader/novel_reader_theme.dart';
@@ -22,14 +25,26 @@ import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 
-Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
-  await tester.tap(find.text('View details'));
+Future<void> _openStandaloneSourceSearch(WidgetTester tester) async {
+  final dependencies = tester
+      .widget<HikariApp>(find.byType(HikariApp))
+      .dependencies;
+  final home = tester.widget<HomePage>(find.byType(HomePage));
+  final context = tester.element(find.byType(HomePage));
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => SourceSearchPage(
+        openMedia: (context, media, {previewMetadata}) =>
+            home.openMedia(context, media),
+        searchNovels: dependencies.searchNovels,
+        library: dependencies.libraryRepository,
+        readArtwork: dependencies.readSourceArtwork.execute,
+        initialQuery: 'novel',
+        initialFilter: SourceSearchFilter.novel,
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Read'));
-  await tester.pumpAndSettle();
-  expect(find.text('Read from'), findsOneWidget);
-  await tester.tap(find.text('Search all sources'));
-  await tester.pump();
   for (
     var i = 0;
     i < 20 && find.byTooltip('Add to library').evaluate().isEmpty;
@@ -314,7 +329,7 @@ void main() {
 
       await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
-      await _openCatalogSourceSearch(tester);
+      await _openStandaloneSourceSearch(tester);
       await tester.tap(find.byTooltip('Add to library'));
       await tester.pumpAndSettle();
       await tester.tapAt(tester.getCenter(find.text('Novel 1')));
@@ -404,7 +419,7 @@ void main() {
 
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
     await tester.tapAt(tester.getCenter(find.text('Novel 1')));
@@ -507,7 +522,7 @@ void main() {
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
     await tester.tapAt(tester.getCenter(find.text('Novel 1')));

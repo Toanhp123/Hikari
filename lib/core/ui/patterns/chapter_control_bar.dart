@@ -14,12 +14,14 @@ class ChapterControlBar extends StatefulWidget {
     required this.searchQuery,
     required this.onSearchChanged,
     required this.onClearSearch,
+    this.autofocus = true,
     this.padding = const EdgeInsets.symmetric(
       horizontal: HikariSpacing.md,
       vertical: HikariSpacing.xs,
     ),
   });
 
+  final bool autofocus;
   final int totalChapters;
   final int? filteredChapters;
   final bool reverseSourceOrder;
@@ -147,7 +149,7 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
             const SizedBox(height: HikariSpacing.xs),
             TextField(
               controller: _controller,
-              autofocus: true,
+              autofocus: widget.autofocus,
               textInputAction: TextInputAction.search,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurface,

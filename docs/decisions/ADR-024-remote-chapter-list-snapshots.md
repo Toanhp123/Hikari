@@ -36,6 +36,21 @@ separate concern; it stores the page references *inside* one chapter.
 - Each source load has a request token so a late older response cannot overwrite
   a newer request's snapshot. Invalid, cross-source, duplicate, mismatched,
   corrupt, oversized, or incompatible snapshots are cache misses.
+- Catalog Chapters additionally consumes an atomic validated snapshot containing
+  canonical chapters, `fetchedAt`, and structural-order declaration. Its injected
+  clock considers ages in `[0, 1 hour)` fresh; future timestamps are stale.
+  Fresh hits skip source details, stale hits display before revalidation, and
+  explicit refresh always attempts the source. This is a Catalog-only policy:
+  Continue still revalidates on every entry and snapshots have no eviction TTL.
+- Schema v1 adds optional boolean `reverseSourceOrder`; canonical chapter storage
+  and existing `readManga` / `readNovel` callers are unchanged. Missing fields in
+  legacy snapshots default to canonical display order until refreshed. Source
+  structural order cannot be recovered from optional numbers or dates. Invalid
+  field types are cache misses. Chapters and timestamp are decoded/validated
+  together in the application layer, never in widgets.
+- Sequence validation also runs when no cache is composed. DiskByteCache enqueues
+  writes synchronously in invocation order; request-token checking has no async
+  gap before enqueue, so delayed writes cannot replace a later accepted write.
 - User `Library`, `Progress`, series continuation, and provider-private state
   are unchanged. Snapshots are disposable and do not guarantee downloaded pages
   or text. Source/extension availability remains required to open a chapter.

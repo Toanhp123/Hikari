@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -10,8 +11,29 @@ import 'package:hikari/domain/progress/series_continuation.dart';
 /// Reconstructible remote series chapter sequences, never user progress or
 /// durable downloads. Chapters are stored in canonical *reading* order.
 /// Source-private chapter references must remain valid after app restart.
+final class RemoteChapterListSnapshot<T> {
+  RemoteChapterListSnapshot({
+    required List<T> chapters,
+    required this.fetchedAt,
+    required this.chapterListOrder,
+  }) : chapters = List.unmodifiable(chapters);
+
+  /// Canonical reading order, independent of display order.
+  final List<T> chapters;
+  final DateTime fetchedAt;
+  final ChapterListOrder chapterListOrder;
+}
+
 final class ReadRemoteChapterList {
-  ReadRemoteChapterList(this._cache);
+  ReadRemoteChapterList(this._cache, {DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now;
+
+  final DateTime Function() _clock;
+  static const freshness = Duration(hours: 1);
+  bool isFresh(DateTime fetchedAt) {
+    final age = _clock().toUtc().difference(fetchedAt);
+    return !age.isNegative && age < freshness;
+  }
 
   static const cacheNamespace = 'remote-chapter-list-v1';
   static const _version = 1;
@@ -35,12 +57,17 @@ final class ReadRemoteChapterList {
     if (_latestRequests[key] == request) _latestRequests.remove(key);
   }
 
-  Future<List<MangaChapter>?> readManga(SourceMediaRef series) async {
+  Future<List<MangaChapter>?> readManga(SourceMediaRef series) async =>
+      (await readMangaSnapshot(series))?.chapters;
+
+  Future<RemoteChapterListSnapshot<MangaChapter>?> readMangaSnapshot(
+    SourceMediaRef series,
+  ) async {
     final data = await _read(series, 'manga');
     if (data == null) return null;
     try {
       final chapters = <MangaChapter>[];
-      for (final item in data) {
+      for (final item in data['chapters'] as List<dynamic>) {
         if (item is! List<dynamic> ||
             item.length != 6 ||
             item[0] is! String ||
@@ -71,18 +98,32 @@ final class ReadRemoteChapterList {
         );
       }
       _validate(series, chapters.map((chapter) => chapter.source));
-      return List<MangaChapter>.unmodifiable(chapters);
+      return RemoteChapterListSnapshot(
+        chapters: chapters,
+        fetchedAt: DateTime.fromMillisecondsSinceEpoch(
+          data['fetchedAt'] as int,
+          isUtc: true,
+        ),
+        chapterListOrder: data['reverseSourceOrder'] == true
+            ? ChapterListOrder.reverseReadingOrder
+            : ChapterListOrder.readingOrder,
+      );
     } catch (_) {
       return null;
     }
   }
 
-  Future<List<NovelChapter>?> readNovel(SourceMediaRef series) async {
+  Future<List<NovelChapter>?> readNovel(SourceMediaRef series) async =>
+      (await readNovelSnapshot(series))?.chapters;
+
+  Future<RemoteChapterListSnapshot<NovelChapter>?> readNovelSnapshot(
+    SourceMediaRef series,
+  ) async {
     final data = await _read(series, 'novel');
     if (data == null) return null;
     try {
       final chapters = <NovelChapter>[];
-      for (final item in data) {
+      for (final item in data['chapters'] as List<dynamic>) {
         if (item is! List<dynamic> ||
             item.length != 6 ||
             item[0] is! String ||
@@ -116,7 +157,16 @@ final class ReadRemoteChapterList {
         );
       }
       _validate(series, chapters.map((chapter) => chapter.source));
-      return List<NovelChapter>.unmodifiable(chapters);
+      return RemoteChapterListSnapshot(
+        chapters: chapters,
+        fetchedAt: DateTime.fromMillisecondsSinceEpoch(
+          data['fetchedAt'] as int,
+          isUtc: true,
+        ),
+        chapterListOrder: data['reverseSourceOrder'] == true
+            ? ChapterListOrder.reverseReadingOrder
+            : ChapterListOrder.readingOrder,
+      );
     } catch (_) {
       return null;
     }
@@ -126,41 +176,58 @@ final class ReadRemoteChapterList {
     SourceMediaRef series,
     List<MangaChapter> chapters, {
     int? request,
+    ChapterListOrder chapterListOrder = ChapterListOrder.readingOrder,
   }) async {
     _validate(series, chapters.map((chapter) => chapter.source));
-    await _write(series, 'manga', [
-      for (final chapter in chapters)
-        [
-          chapter.source.itemId,
-          chapter.title,
-          chapter.scanlator,
-          chapter.chapterNumber,
-          chapter.uploadedAt?.millisecondsSinceEpoch,
-          chapter.canReadPages,
-        ],
-    ], request: request);
+    await _write(
+      series,
+      'manga',
+      [
+        for (final chapter in chapters)
+          [
+            chapter.source.itemId,
+            chapter.title,
+            chapter.scanlator,
+            chapter.chapterNumber,
+            chapter.uploadedAt?.millisecondsSinceEpoch,
+            chapter.canReadPages,
+          ],
+      ],
+      request: request,
+      chapterListOrder: chapterListOrder,
+    );
   }
 
   Future<void> persistNovel(
     SourceMediaRef series,
     List<NovelChapter> chapters, {
     int? request,
+    ChapterListOrder chapterListOrder = ChapterListOrder.readingOrder,
   }) async {
     _validate(series, chapters.map((chapter) => chapter.source));
-    await _write(series, 'novel', [
-      for (final chapter in chapters)
-        [
-          chapter.source.itemId,
-          chapter.title,
-          chapter.chapterNumber,
-          chapter.releaseDate?.millisecondsSinceEpoch,
-          chapter.releaseLabel,
-          chapter.scanlators,
-        ],
-    ], request: request);
+    await _write(
+      series,
+      'novel',
+      [
+        for (final chapter in chapters)
+          [
+            chapter.source.itemId,
+            chapter.title,
+            chapter.chapterNumber,
+            chapter.releaseDate?.millisecondsSinceEpoch,
+            chapter.releaseLabel,
+            chapter.scanlators,
+          ],
+      ],
+      request: request,
+      chapterListOrder: chapterListOrder,
+    );
   }
 
-  Future<List<dynamic>?> _read(SourceMediaRef series, String type) async {
+  Future<Map<String, dynamic>?> _read(
+    SourceMediaRef series,
+    String type,
+  ) async {
     if (!_isRemote(series)) return null;
     try {
       final bytes = await _cache.read(cacheNamespace, _key(series, type));
@@ -171,14 +238,16 @@ final class ReadRemoteChapterList {
           data['type'] != type ||
           data['source'] != series.sourceId.value ||
           data['series'] != series.itemId ||
-          data['fetchedAt'] is! int) {
+          data['fetchedAt'] is! int ||
+          (data['reverseSourceOrder'] != null &&
+              data['reverseSourceOrder'] is! bool)) {
         return null;
       }
       final chapters = data['chapters'];
       if (chapters is! List<dynamic> || chapters.length > _maxChapters) {
         return null;
       }
-      return chapters;
+      return data;
     } catch (_) {
       // A corrupt or evicted snapshot is never a reader-opening failure.
       return null;
@@ -190,6 +259,7 @@ final class ReadRemoteChapterList {
     String type,
     List<List<Object?>> chapters, {
     int? request,
+    required ChapterListOrder chapterListOrder,
   }) async {
     if (!_isRemote(series) || chapters.length > _maxChapters) return;
     final key = _key(series, type);
@@ -202,13 +272,17 @@ final class ReadRemoteChapterList {
             'type': type,
             'source': series.sourceId.value,
             'series': series.itemId,
-            'fetchedAt': DateTime.now().toUtc().millisecondsSinceEpoch,
+            'fetchedAt': _clock().toUtc().millisecondsSinceEpoch,
+            'reverseSourceOrder':
+                chapterListOrder == ChapterListOrder.reverseReadingOrder,
             'chapters': chapters,
           }),
         ),
       );
       if (bytes.length <= _maxBytes &&
           (request == null || _latestRequests[key] == request)) {
+        // DiskByteCache serializes writes in invocation order. No asynchronous
+        // gap may precede this enqueue after checking the request token.
         await _cache.write(cacheNamespace, key, bytes);
       }
     } catch (_) {

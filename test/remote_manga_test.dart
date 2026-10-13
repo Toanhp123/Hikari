@@ -20,6 +20,9 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/features/home/home_page.dart';
+import 'package:hikari/features/source_search/source_search_page.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
@@ -33,14 +36,26 @@ const _seriesMedia = Media(
   source: SourceMediaRef(sourceId: SourceId('fake'), itemId: 'series'),
 );
 
-Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
-  await tester.tap(find.text('View details'));
+Future<void> _openStandaloneSourceSearch(WidgetTester tester) async {
+  final dependencies = tester
+      .widget<HikariApp>(find.byType(HikariApp))
+      .dependencies;
+  final home = tester.widget<HomePage>(find.byType(HomePage));
+  final context = tester.element(find.byType(HomePage));
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => SourceSearchPage(
+        openMedia: (context, media, {previewMetadata}) =>
+            home.openMedia(context, media),
+        searchManga: dependencies.searchManga,
+        library: dependencies.libraryRepository,
+        readArtwork: dependencies.readSourceArtwork.execute,
+        initialQuery: 'test',
+        initialFilter: SourceSearchFilter.manga,
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Read'));
-  await tester.pumpAndSettle();
-  expect(find.text('Read from'), findsOneWidget);
-  await tester.tap(find.text('Search all sources'));
-  await tester.pump();
   for (var i = 0; i < 20 && find.text('Series').evaluate().isEmpty; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
@@ -491,7 +506,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await _openCatalogSourceSearch(tester);
+        await _openStandaloneSourceSearch(tester);
 
         expect(find.text('Second series'), findsOneWidget);
       } finally {
@@ -522,7 +537,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await _openCatalogSourceSearch(tester);
+      await _openStandaloneSourceSearch(tester);
       await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
@@ -561,7 +576,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
@@ -938,7 +953,7 @@ void main() {
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
@@ -1005,7 +1020,7 @@ void main() {
 
       await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
-      await _openCatalogSourceSearch(tester);
+      await _openStandaloneSourceSearch(tester);
       await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
@@ -1092,7 +1107,7 @@ void main() {
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
@@ -1217,7 +1232,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));

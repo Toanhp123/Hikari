@@ -117,6 +117,26 @@ final class _NovelSource implements NovelSeriesSource, NovelChapterSource {
 }
 
 void main() {
+  test('snapshot exposes atomic freshness and structural order', () async {
+    var now = DateTime.utc(2026, 1, 1);
+    final cache = ReadRemoteChapterList(_MemoryCache(), clock: () => now);
+    await cache.persistManga(_series, [
+      MangaChapter(title: 'First', source: _one),
+      MangaChapter(title: 'Last', source: _two),
+    ], chapterListOrder: ChapterListOrder.reverseReadingOrder);
+    final snapshot = (await cache.readMangaSnapshot(_series))!;
+    expect(snapshot.chapters.map((chapter) => chapter.source), [_one, _two]);
+    expect(snapshot.chapterListOrder, ChapterListOrder.reverseReadingOrder);
+    expect(snapshot.fetchedAt, now);
+    expect(cache.isFresh(snapshot.fetchedAt), isTrue);
+    now = now.add(const Duration(hours: 1));
+    expect(cache.isFresh(snapshot.fetchedAt), isFalse);
+    expect((await cache.readManga(_series))!.map((chapter) => chapter.source), [
+      _one,
+      _two,
+    ]);
+  });
+
   test('manga snapshot keeps canonical order and chapter metadata', () async {
     final cache = ReadRemoteChapterList(_MemoryCache());
     final chapters = [

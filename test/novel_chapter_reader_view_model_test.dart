@@ -72,6 +72,37 @@ OpenNovelChapter _workflow(_Source source) => OpenNovelChapter(
 );
 
 void main() {
+  test('closed reader settles delayed adjacent and content before releasing ownership', () async {
+    final source = _Source()..gates['b'] = Completer();
+    final model = await _model(_workflow(source), _a, [_a, _b]);
+    final moving = model.openNext();
+    await source.started.putIfAbsent('b', Completer<void>.new).future;
+    final resource = Completer<void>();
+    final reading = model.sourceWork(() => resource.future);
+    var lateCalls = 0;
+    Future<void> lateWork() async => lateCalls++;
+    model.beginClose();
+    await expectLater(model.sourceWork(lateWork), throwsStateError);
+    model.close();
+    await expectLater(model.sourceWork(lateWork), throwsStateError);
+    var released = false;
+    final release = model.settled.then((_) => released = true);
+    await pumpEventQueue();
+    expect(released, isFalse);
+    source.gates['b']!.complete(RichReadingContent(html: 'b'));
+    await moving;
+    await pumpEventQueue();
+    expect(released, isFalse);
+    resource.complete();
+    await reading;
+    await release;
+    expect(released, isTrue);
+    await expectLater(model.sourceWork(lateWork), throwsStateError);
+    expect(lateCalls, 0);
+    expect(model.state.target.chapter.source, _a);
+    model.dispose();
+  });
+
   test('navigation follows sequence; busy requests do not queue', () async {
     final source = _Source()..gates['c'] = Completer();
     final workflow = _workflow(source);

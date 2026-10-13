@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_chapter.dart';
@@ -66,6 +68,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
   int _generation = 0;
   bool _closed = false;
   bool _closing = false;
+  bool get isClosing => _closing || _closed;
 
   static List<MangaChapter> _normalize(List<MangaChapter> chapters) {
     _validate(chapters.map((chapter) => chapter.source));
@@ -98,7 +101,9 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
         target.pages.length - displayedIndex > 5) {
       return;
     }
-    await _chapterPrefetch?.execute(chapter);
+    await sourceWork(() async {
+      await _chapterPrefetch?.execute(chapter);
+    });
   }
 
   void cancelChapterPrefetch() => _chapterPrefetch?.cancelPending();
@@ -126,6 +131,30 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
     return true;
   }
 
+  final _closedSignal = Completer<void>();
+  final _pendingSourceWork = <Future<void>>{};
+
+  /// Retains this reader's source ownership until dismissed work settles.
+  Future<T> sourceWork<T>(Future<T> Function() operation) {
+    if (_closing || _closed) {
+      return Future<T>.error(StateError('Reader is closing.'));
+    }
+    final result = Future<T>.sync(operation);
+    late final Future<void> pending;
+    pending = result
+        .then<void>((_) {}, onError: (Object _, StackTrace _) {})
+        .whenComplete(() => _pendingSourceWork.remove(pending));
+    _pendingSourceWork.add(pending);
+    return result;
+  }
+
+  Future<void> get settled async {
+    await _closedSignal.future;
+    while (_pendingSourceWork.isNotEmpty) {
+      await Future.wait(_pendingSourceWork.toList());
+    }
+  }
+
   Future<void> openPrevious() => _move(-1);
   Future<void> openNext() => _move(1);
 
@@ -142,9 +171,11 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
       ),
     );
     try {
-      final target = await _openChapter.execute(
-        _chapters[index],
-        pageListLoader: _pageListLoader,
+      final target = await sourceWork(
+        () => _openChapter.execute(
+          _chapters[index],
+          pageListLoader: _pageListLoader,
+        ),
       );
       if (_closed || generation != _generation) return;
       _publish(MangaChapterReaderUiState(target: target, chapterIndex: index));
@@ -251,6 +282,7 @@ final class MangaChapterReaderViewModel extends ChangeNotifier {
   void close() {
     if (_closed) return;
     _closed = true;
+    _closedSignal.complete();
     _generation++;
     discardChapterPrefetch();
   }

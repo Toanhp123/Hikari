@@ -4,6 +4,17 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/application/media/open_media.dart';
+import 'package:hikari/application/media/read_remote_chapter_list.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
+import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/manga.dart';
+import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/core/ui/patterns/chapter_row.dart';
+import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
+import 'package:hikari/features/library/widgets/library_button.dart';
+import 'package:hikari/features/catalog/catalog_chapters_view_model.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
@@ -33,8 +44,43 @@ class CatalogDetailPage extends StatefulWidget {
     required this.openRelated,
     required this.openSourceSearch,
     this.readArtwork,
+    required this.chapterOpener,
+    required this.chapterLists,
+    required this.loadReadingTarget,
+    this.library,
+    required this.selectSourceSearch,
+    required this.openMangaChapter,
+    required this.openNovelChapter,
   });
 
+  final OpenMedia chapterOpener;
+  final ReadRemoteChapterList chapterLists;
+  final LoadSeriesReadingTarget loadReadingTarget;
+  final LibraryRepository? library;
+  final Future<CatalogSourcePickerCandidate?> Function(
+    CatalogEntry,
+    SourceId?,
+    String?,
+    Set<SourceId>?,
+    String?,
+  )
+  selectSourceSearch;
+  final Future<void> Function(
+    BuildContext,
+    Media,
+    MangaChapter,
+    List<MangaChapter>,
+    bool Function(),
+  )
+  openMangaChapter;
+  final Future<void> Function(
+    BuildContext,
+    Media,
+    NovelChapter,
+    List<NovelChapter>,
+    bool Function(),
+  )
+  openNovelChapter;
   final CatalogEntry initialEntry;
   final LoadCatalogEntryDetails loadDetails;
   final ResolveCatalogSource resolveCatalogSource;
@@ -42,6 +88,7 @@ class CatalogDetailPage extends StatefulWidget {
     BuildContext context,
     Media media, {
     MediaMetadata? previewMetadata,
+    bool Function()? canNavigate,
   })
   openMedia;
   final void Function(CatalogEntry entry) openRelated;
@@ -59,21 +106,77 @@ class CatalogDetailPage extends StatefulWidget {
   State<CatalogDetailPage> createState() => _CatalogDetailPageState();
 }
 
-class _CatalogDetailPageState extends State<CatalogDetailPage> {
-  late final CatalogDetailViewModel _viewModel = CatalogDetailViewModel(
+class _CatalogDetailPageState extends State<CatalogDetailPage>
+    with SingleTickerProviderStateMixin {
+  late CatalogDetailViewModel _viewModel = CatalogDetailViewModel(
     initialEntry: widget.initialEntry,
     loadDetails: widget.loadDetails,
   );
   bool _descriptionExpanded = false;
+  CatalogChaptersViewModel? _chapters;
+  late final TabController _tabs = TabController(length: 2, vsync: this);
+  bool get _chapterTab => _tabs.index == 1;
+  bool _searchExpanded = false;
+  int _selectionGeneration = 0;
+  int _identityGeneration = 0;
+  final _informationScroll = ScrollController();
+  final _chapterScroll = ScrollController();
+
+  void _createChapters() {
+    _chapters = CatalogChaptersViewModel(
+      openMedia: widget.chapterOpener,
+      chapterLists: widget.chapterLists,
+      loadReadingTarget: widget.loadReadingTarget,
+    );
+  }
+
+  @override
+  void didUpdateWidget(CatalogDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialEntry.id != widget.initialEntry.id ||
+        oldWidget.initialEntry.type != widget.initialEntry.type ||
+        oldWidget.chapterOpener != widget.chapterOpener ||
+        oldWidget.chapterLists != widget.chapterLists ||
+        oldWidget.loadDetails != widget.loadDetails ||
+        oldWidget.loadReadingTarget != widget.loadReadingTarget) {
+      _selectionGeneration++;
+      _identityGeneration++;
+      _viewModel.dispose();
+      _viewModel = CatalogDetailViewModel(
+        initialEntry: widget.initialEntry,
+        loadDetails: widget.loadDetails,
+      );
+      _chapters?.dispose();
+      _chapters = null;
+      _createChapters();
+      _tabs.index = 0;
+      _descriptionExpanded = false;
+      _searchExpanded = false;
+      if (_informationScroll.hasClients) _informationScroll.jumpTo(0);
+      if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
+      unawaited(_viewModel.load());
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _tabs.addListener(_tabChanged);
+    _createChapters();
     unawaited(_viewModel.load());
+  }
+
+  void _tabChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _selectionGeneration++;
+    _tabs.dispose();
+    _chapters?.dispose();
+    _informationScroll.dispose();
+    _chapterScroll.dispose();
     _viewModel.dispose();
     super.dispose();
   }
@@ -86,6 +189,15 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
       return;
     }
 
+    _tabs.index = 1;
+    if (_chapters?.media != null) return;
+    await _chooseSource();
+  }
+
+  Future<void> _chooseSource() async {
+    final state = _viewModel.state;
+    final entry = state.entry;
+    final generation = ++_selectionGeneration;
     final picker = CatalogSourcePickerViewModel(
       entry: entry,
       details: state.details,
@@ -99,24 +211,221 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
     } finally {
       picker.dispose();
     }
-    if (!mounted || result == null) return;
-
-    final candidate = result.candidate;
-    if (candidate != null) {
-      await widget.openMedia(
-        context,
-        candidate.media,
-        previewMetadata: candidate.metadata,
-      );
+    if (!mounted || generation != _selectionGeneration || result == null) {
       return;
     }
-    widget.openSourceSearch(
-      entry,
-      result.source?.id,
-      result.source?.displayName,
-      result.sourceIds,
-      result.sourceLanguage,
-    );
+
+    var candidate = result.candidate;
+    if (candidate == null) {
+      candidate = await widget.selectSourceSearch(
+        entry,
+        result.source?.id,
+        result.source?.displayName,
+        result.sourceIds,
+        result.sourceLanguage,
+      );
+      if (!mounted || generation != _selectionGeneration) return;
+    }
+    if (candidate != null) {
+      _searchExpanded = false;
+      if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
+      await _chapters!.select(candidate.media, candidate.metadata);
+    }
+  }
+
+  Future<void> _openChapter(Object? chapter) async {
+    final owner = _chapters;
+    if (owner == null) return;
+    bool Function() operationCurrent = () => false;
+    try {
+      await owner.open((selected, current) async {
+        operationCurrent = current;
+        switch (chapter) {
+          case MangaChapter c:
+            if (!c.canReadPages || !owner.mangaSequence.contains(c)) return;
+            await widget.openMangaChapter(
+              context,
+              selected,
+              c,
+              List.unmodifiable(owner.mangaSequence),
+              current,
+            );
+          case NovelChapter c:
+            if (!owner.novelSequence.contains(c)) return;
+            await widget.openNovelChapter(
+              context,
+              selected,
+              c,
+              List.unmodifiable(owner.novelSequence),
+              current,
+            );
+          default:
+            if (owner.direct && current()) {
+              await widget.openMedia(
+                context,
+                selected,
+                previewMetadata: owner.metadata,
+                canNavigate: current,
+              );
+            }
+        }
+      });
+    } catch (_) {
+      if (mounted && operationCurrent()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not open this chapter. Check source access and try again.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  List<Widget> _chapterSlivers() {
+    final owner = _chapters;
+    final selected = owner?.media;
+    final chapters = selected?.type == MediaType.manga
+        ? owner!.displayManga
+        : owner?.displayNovel ?? const [];
+    final Object? primary = selected?.type == MediaType.manga
+        ? owner!.manga.where((c) => c.source == owner.primary).firstOrNull
+        : owner?.novel.where((c) => c.source == owner.primary).firstOrNull;
+    return [
+      SliverToBoxAdapter(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: HikariBreakpoints.maxContentWidth,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(HikariSpacing.md),
+                  child: Wrap(
+                    spacing: HikariSpacing.md,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (selected != null)
+                        Text(owner!.sourceName ?? selected.title),
+                      TextButton(
+                        onPressed: () => unawaited(_chooseSource()),
+                        child: Text(
+                          selected == null ? 'Choose source' : 'Change source',
+                        ),
+                      ),
+                      if (selected != null && widget.library != null)
+                        LibraryButton(
+                          repository: widget.library!,
+                          media: selected,
+                          artwork: owner?.metadata?.cover,
+                        ),
+                    ],
+                  ),
+                ),
+                if (owner?.fromCache == true)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: HikariSpacing.md,
+                    ),
+                    child: Text(
+                      '${owner!.cacheStale ? 'Cached chapters · stale' : 'Cached chapters · fresh'} · fetched ${owner.fetchedAt!.toLocal().toIso8601String()}',
+                    ),
+                  ),
+                if (owner?.loading == true || owner?.opening == true)
+                  const LinearProgressIndicator(
+                    semanticsLabel: 'Loading chapters',
+                  ),
+                if (owner?.failed == true)
+                  Semantics(
+                    liveRegion: true,
+                    child: Padding(
+                      padding: const EdgeInsets.all(HikariSpacing.md),
+                      child: Column(
+                        children: [
+                          Text(
+                            owner!.hasChapters
+                                ? 'Could not refresh chapters. Showing the last loaded list.'
+                                : 'Could not load chapters. Check source access and try again.',
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                unawaited(owner.load(forceRefresh: true)),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (owner?.hasChapters == true || owner?.direct == true)
+                  PrimaryReadingCta(
+                    label: owner!.isContinuation
+                        ? 'Continue reading'
+                        : 'Start reading',
+                    enabled: !owner.opening,
+                    onPressed: primary == null && !owner.direct
+                        ? null
+                        : () => unawaited(_openChapter(primary)),
+                  ),
+                if (owner?.hasChapters == true)
+                  ChapterControlBar(
+                    autofocus: false,
+                    totalChapters: owner!.manga.length + owner.novel.length,
+                    filteredChapters: owner.searchQuery.trim().isEmpty
+                        ? null
+                        : chapters.length,
+                    reverseSourceOrder: owner.reverseSourceOrder,
+                    onToggleSourceOrder: owner.toggleSourceOrder,
+                    isSearchExpanded: _searchExpanded,
+                    onToggleSearchExpanded: () => setState(() {
+                      _searchExpanded = !_searchExpanded;
+                      if (!_searchExpanded) owner.setSearchQuery('');
+                    }),
+                    searchQuery: owner.searchQuery,
+                    onSearchChanged: owner.setSearchQuery,
+                    onClearSearch: () => owner.setSearchQuery(''),
+                  ),
+                if (owner?.hasChapters == true && chapters.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(HikariSpacing.lg),
+                    child: Text(
+                      owner!.searchQuery.isEmpty
+                          ? 'No readable chapters found.'
+                          : 'No chapters matching "${owner.searchQuery}"',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      SliverList.builder(
+        itemCount: chapters.length,
+        itemBuilder: (context, index) => Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: HikariBreakpoints.maxContentWidth,
+            ),
+            child: ChapterRow(
+              isContinuation:
+                  owner?.isContinuation == true &&
+                  switch (chapters[index]) {
+                    MangaChapter c => c.source == owner?.primary,
+                    NovelChapter c => c.source == owner?.primary,
+                    _ => false,
+                  },
+              chapter: chapters[index],
+              sourceName: owner?.sourceName ?? '',
+              enabled: owner?.opening != true,
+              onTap: () => unawaited(_openChapter(chapters[index])),
+            ),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: HikariSpacing.xxxl)),
+    ];
   }
 
   Future<_CatalogSourcePickerResult?> _showSourceSheet(
@@ -195,84 +504,129 @@ class _CatalogDetailPageState extends State<CatalogDetailPage> {
         (textScale - 1.0).clamp(0.0, 1.0) * 160.0;
 
     return ListenableBuilder(
-      listenable: _viewModel,
+      listenable: Listenable.merge([_viewModel, ?_chapters]),
       builder: (context, _) {
         final state = _viewModel.state;
         return HikariScaffold(
           useSafeArea: false,
-          body: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                pinned: true,
-                stretch: true,
-                expandedHeight: heroHeight,
-                backgroundColor: colors.surface.withValues(alpha: 0.96),
-                surfaceTintColor: Colors.transparent,
-                title: Text(
-                  state.entry.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          body: SafeArea(
+            top: false,
+            child: RefreshIndicator.adaptive(
+              onRefresh: () => _chapterTab
+                  ? (_chapters?.load(forceRefresh: true) ??
+                        Future<void>.value())
+                  : _viewModel.load(forceRefresh: true),
+              child: CustomScrollView(
+                key: PageStorageKey((
+                  widget.initialEntry.id,
+                  widget.initialEntry.type,
+                  _identityGeneration,
+                  _chapterTab,
+                )),
+                controller: _chapterTab ? _chapterScroll : _informationScroll,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
                 ),
-                actions: [
-                  HikariRefreshAction(
-                    tooltip: 'Refresh',
-                    refreshing: state.refreshing,
-                    onPressed: state.status == CatalogDetailStatus.loading
+                slivers: [
+                  SliverAppBar(
+                    pinned: true,
+                    stretch: true,
+                    expandedHeight:
+                        heroHeight +
+                        (state.entry.type == MediaType.anime ? 0 : 48),
+                    bottom: state.entry.type == MediaType.anime
                         ? null
-                        : () => unawaited(_viewModel.load(forceRefresh: true)),
-                  ),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  collapseMode: CollapseMode.pin,
-                  background: CatalogDetailHero(
-                    entry: state.entry,
-                    details: state.details,
-                    onPrimaryAction: () => unawaited(_handlePrimaryAction()),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: HikariBreakpoints.maxContentWidth,
+                        : TabBar(
+                            controller: _tabs,
+                            tabs: const [
+                              Tab(text: 'Information'),
+                              Tab(text: 'Chapters'),
+                            ],
+                          ),
+                    backgroundColor: colors.surface.withValues(alpha: 0.96),
+                    surfaceTintColor: Colors.transparent,
+                    title: Text(
+                      state.entry.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        HikariSpacing.lg,
-                        HikariSpacing.xl,
-                        HikariSpacing.lg,
-                        HikariSpacing.xxxl,
+                    actions: [
+                      HikariRefreshAction(
+                        tooltip: 'Refresh',
+                        refreshing: _chapterTab
+                            ? _chapters?.loading == true
+                            : state.refreshing,
+                        onPressed: _chapterTab
+                            ? (_chapters?.media == null || _chapters!.loading
+                                  ? null
+                                  : () => unawaited(
+                                      _chapters!.load(forceRefresh: true),
+                                    ))
+                            : state.status == CatalogDetailStatus.loading
+                            ? null
+                            : () => unawaited(
+                                _viewModel.load(forceRefresh: true),
+                              ),
                       ),
-                      child: state.initialLoading
-                          ? CatalogDetailLoadingBody(title: state.entry.title)
-                          : state.details != null
-                          ? CatalogDetailContent(
-                              details: state.details!,
-                              refreshFailed: state.refreshFailed,
-                              descriptionExpanded: _descriptionExpanded,
-                              onToggleDescription: () => setState(
-                                () => _descriptionExpanded =
-                                    !_descriptionExpanded,
-                              ),
-                              onRetry: () => unawaited(
-                                _viewModel.load(forceRefresh: true),
-                              ),
-                              openRelated: widget.openRelated,
-                            )
-                          : CatalogDetailFallbackBody(
-                              entry: state.entry,
-                              failed: state.failed,
-                              onRetry: () => unawaited(
-                                _viewModel.load(forceRefresh: true),
-                              ),
-                            ),
+                    ],
+                    flexibleSpace: FlexibleSpaceBar(
+                      collapseMode: CollapseMode.pin,
+                      background: CatalogDetailHero(
+                        entry: state.entry,
+                        details: state.details,
+                        onPrimaryAction: () =>
+                            unawaited(_handlePrimaryAction()),
+                      ),
                     ),
                   ),
-                ),
+                  if (_chapterTab)
+                    ..._chapterSlivers()
+                  else
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: HikariBreakpoints.maxContentWidth,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              HikariSpacing.lg,
+                              HikariSpacing.xl,
+                              HikariSpacing.lg,
+                              HikariSpacing.xxxl,
+                            ),
+                            child: state.initialLoading
+                                ? CatalogDetailLoadingBody(
+                                    title: state.entry.title,
+                                  )
+                                : state.details != null
+                                ? CatalogDetailContent(
+                                    details: state.details!,
+                                    refreshFailed: state.refreshFailed,
+                                    descriptionExpanded: _descriptionExpanded,
+                                    onToggleDescription: () => setState(
+                                      () => _descriptionExpanded =
+                                          !_descriptionExpanded,
+                                    ),
+                                    onRetry: () => unawaited(
+                                      _viewModel.load(forceRefresh: true),
+                                    ),
+                                    openRelated: widget.openRelated,
+                                  )
+                                : CatalogDetailFallbackBody(
+                                    entry: state.entry,
+                                    failed: state.failed,
+                                    onRetry: () => unawaited(
+                                      _viewModel.load(forceRefresh: true),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },

@@ -8,6 +8,7 @@ import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
 
 sealed class MediaOpenTarget {
   const MediaOpenTarget(this.media, {this.lease});
@@ -56,10 +57,15 @@ final class MangaSeriesOpenTarget extends MediaOpenTarget {
               details.metadata.cover!.sourceId != seriesSource.id)) {
         throw StateError('Manga source returned foreign references.');
       }
+      validateSeriesChapterSequence(
+        media.source,
+        details.chapters.map((chapter) => chapter.source),
+      );
       await chapterLists?.persistManga(
         media.source,
         details.chaptersInReadingOrder,
         request: request,
+        chapterListOrder: details.chapterListOrder,
       );
       return details;
     } finally {
@@ -109,10 +115,15 @@ final class NovelSeriesOpenTarget extends MediaOpenTarget {
               details.metadata.cover!.sourceId != source.id)) {
         throw StateError('Novel source returned foreign references.');
       }
+      validateSeriesChapterSequence(
+        media.source,
+        details.chapters.map((chapter) => chapter.source),
+      );
       await chapterLists?.persistNovel(
         media.source,
         details.chaptersInReadingOrder,
         request: request,
+        chapterListOrder: details.chapterListOrder,
       );
       return details;
     } finally {
@@ -161,6 +172,8 @@ final class OpenMedia {
   final SourceRegistry _sources;
   final ProgressRepository _progressRepository;
   final ReadRemoteChapterList? chapterLists;
+
+  String? sourceNameFor(SourceId id) => _sources.find(id)?.name;
 
   Future<MediaOpenTarget> execute(
     Media media, {

@@ -419,26 +419,28 @@ class _ResolvingState extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Finding $title on $sourceName',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xxl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Center(child: CircularProgressIndicator()),
-            const SizedBox(height: HikariSpacing.lg),
-            Text(
-              'Finding “$title” on $sourceName…',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium!,
-            ),
-            const SizedBox(height: HikariSpacing.xs),
-            Text(
-              'Checking the catalog title and known aliases.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium!
-                  .copyWith(color: colors.onSurfaceVariant),
-            ),
-          ],
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: HikariSpacing.lg),
+              Text(
+                'Finding “$title” on $sourceName…',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium!,
+              ),
+              const SizedBox(height: HikariSpacing.xs),
+              Text(
+                'Checking the catalog title and known aliases.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium!
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -261,11 +261,16 @@ class _NovelReaderPageState extends State<NovelReaderPage>
 
   Future<void> _reload() async {
     final reload = widget.reloadContent;
-    if (_chapterTransitionBusy || reload == null || _reloading) return;
+    if (widget.closing ||
+        _chapterTransitionBusy ||
+        reload == null ||
+        _reloading) {
+      return;
+    }
     setState(() => _reloading = true);
     try {
       final content = await reload();
-      if (!mounted) return;
+      if (!mounted || widget.closing) return;
       final progression = _restored
           ? _position
           : resumeText(widget.initialProgress);
@@ -279,7 +284,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         _restoringReload = true;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+        if (!mounted || widget.closing) return;
         if (_scroll.hasClients && _scroll.position.maxScrollExtent > 0) {
           final offset =
               progression.clamp(0.0, 1.0) * _scroll.position.maxScrollExtent;
@@ -290,7 +295,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         _restoringReload = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || widget.closing) return;
       setState(() => _reloading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not reload this chapter.')),
