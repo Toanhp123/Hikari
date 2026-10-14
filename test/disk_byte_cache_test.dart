@@ -405,6 +405,182 @@ void main() {
     expect(await cache.sizeBytes('art'), 0);
   });
 
+  test('maintenance clear waits for writes and isolates namespaces', () async {
+    final started = Completer<void>();
+    final release = Completer<void>();
+    final cache = _cache(
+      root,
+      {'art': 64, 'pages': 64, 'other': 64},
+      beforePublish: () async {
+        if (!started.isCompleted) {
+          started.complete();
+          await release.future;
+        }
+      },
+    );
+    addTearDown(cache.close);
+    final writing = cache.write('art', 'cover', Uint8List(2));
+    await started.future;
+    final clearing = cache.clearNamespaces(['art', 'pages']);
+    release.complete();
+    await writing;
+    await clearing;
+    expect(await cache.sizes(['art', 'pages', 'other']), {
+      'art': 0,
+      'pages': 0,
+      'other': 0,
+    });
+    await cache.write('other', 'keep', Uint8List(3));
+    await cache.clearNamespaces(['art', 'pages']);
+    expect(await cache.read('other', 'keep'), Uint8List(3));
+  });
+
+  test('maintenance failure does not report success', () async {
+    final cache = _cache(root, {'art': 64});
+    addTearDown(cache.close);
+    await cache.write('art', 'cover', Uint8List.fromList([7]));
+    final dir = Directory(p.join(root.path, 'hikari', 'cache-v1'));
+    final blob =
+        (await dir.list().where((e) => e.path.endsWith('.blob')).first) as File;
+    await blob.delete();
+    await Directory(blob.path).create();
+    await expectLater(
+      cache.clearNamespaces(['art']),
+      throwsA(isA<FileSystemException>()),
+    );
+    // This is not reported as a successful clear and metadata remains indexed.
+    expect(await cache.sizes(['art']), {'art': 1});
+  });
+
+  test('profiling reports hits, misses, hash and trim without keys', () async {
+    final samples = <CacheIoSample>[];
+    final cache = _cache(root, {'art': 4}, onIoSample: samples.add);
+    addTearDown(cache.close);
+
+    expect(await cache.read('art', 'private/title'), isNull);
+    await cache.write('art', 'private/title', Uint8List.fromList([1, 2]));
+    expect(await cache.read('art', 'private/title'), [1, 2]);
+    await cache.write('art', 'another/private/title', Uint8List(4));
+    expect(await cache.read('art', 'private/title'), isNull);
+
+    expect(samples.map((sample) => sample.operation), [
+      'read',
+      'write',
+      'read',
+      'write',
+      'read',
+    ]);
+    expect(
+      samples
+          .where((sample) => sample.operation == 'read')
+          .map((sample) => sample.hit),
+      [false, true, false],
+    );
+    expect(samples[1].bytes, 2);
+    expect(samples[2].bytes, 2);
+    expect(samples[3].bytes, 4);
+    for (final sample in samples) {
+      expect(sample.queueWaitMicros, greaterThanOrEqualTo(0));
+      expect(sample.executionMicros, greaterThanOrEqualTo(0));
+      expect(sample.hashMicros, greaterThanOrEqualTo(0));
+      expect(sample.trimMicros, greaterThanOrEqualTo(0));
+      expect(sample.failed, isFalse);
+      expect(sample.toTimelineArguments().keys, isNot(contains('key')));
+      expect(
+        sample.toTimelineArguments().toString(),
+        isNot(contains('private')),
+      );
+    }
+    expect(samples[0].bytes, 0);
+  });
+
+  test('profiling separates queued wait from execution', () async {
+    final publishing = Completer<void>();
+    final release = Completer<void>();
+    final samples = <CacheIoSample>[];
+    final cache = _cache(
+      root,
+      {'art': 64},
+      onIoSample: samples.add,
+      beforePublish: () async {
+        publishing.complete();
+        await release.future;
+      },
+    );
+    addTearDown(cache.close);
+
+    final write = cache.write('art', 'first', Uint8List.fromList([1]));
+    await publishing.future;
+    final read = cache.read('art', 'first');
+    final clear = cache.clearNamespaces(['art']);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(samples, isEmpty);
+    release.complete();
+    await write;
+    expect(await read, [1]);
+    await clear;
+
+    expect(samples.map((sample) => sample.operation), [
+      'write',
+      'read',
+      'clearNamespaces',
+    ]);
+    expect(samples[1].queueWaitMicros, greaterThan(0));
+    expect(samples[2].queueWaitMicros, greaterThan(0));
+    expect(samples[1].hit, isTrue);
+    expect(await cache.read('art', 'first'), isNull);
+  });
+
+  test(
+    'profiling does not change fail-open or maintenance error behavior',
+    () async {
+      final samples = <CacheIoSample>[];
+      final cache = _cache(
+        root,
+        {'art': 64},
+        onIoSample: samples.add,
+        beforePublish: () async => throw StateError('disk'),
+      );
+      addTearDown(cache.close);
+      await cache.write('art', 'key', Uint8List.fromList([1]));
+      expect(samples.single.failed, isTrue);
+      expect(await cache.read('art', 'key'), isNull);
+      expect(samples.last.hit, isFalse);
+      await cache.close();
+
+      // Even a broken observer must not turn a successful write into failure.
+      final unobserved = _cache(root, {
+        'art': 64,
+      }, onIoSample: (_) => throw StateError('observer failed'));
+      addTearDown(unobserved.close);
+      await unobserved.write('art', 'works', Uint8List.fromList([9]));
+      expect(await unobserved.read('art', 'works'), [9]);
+      await unobserved.clearNamespaces(['art']);
+      expect(await unobserved.read('art', 'works'), isNull);
+    },
+  );
+
+  test('profiling preserves clear failure propagation', () async {
+    final samples = <CacheIoSample>[];
+    final cache = _cache(root, {'art': 64}, onIoSample: samples.add);
+    addTearDown(cache.close);
+    await cache.write('art', 'cover', Uint8List.fromList([7]));
+
+    final dir = Directory(p.join(root.path, 'hikari', 'cache-v1'));
+    final blob =
+        (await dir.list().where((entry) => entry.path.endsWith('.blob')).first)
+            as File;
+    await blob.delete();
+    await Directory(blob.path).create();
+    await expectLater(
+      cache.clearNamespaces(['art']),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(samples.last.operation, 'clearNamespaces');
+    expect(samples.last.failed, isTrue);
+    expect(await cache.sizes(['art']), {'art': 1});
+  });
+
   test('corrupt blob becomes miss', () async {
     final cache = _cache(root, {'art': 64});
     addTearDown(cache.close);
@@ -447,6 +623,7 @@ DiskByteCache _cache(
   Future<void> Function()? beforePublish,
   Future<void> Function()? beforeIndexPublish,
   Future<void> Function()? beforeReplacementCleanup,
+  void Function(CacheIoSample)? onIoSample,
 }) => DiskByteCache(
   cacheBaseDirectory: () async => root,
   namespaceByteBudgets: budgets,
@@ -455,4 +632,5 @@ DiskByteCache _cache(
   beforePublish: beforePublish,
   beforeIndexPublish: beforeIndexPublish,
   beforeReplacementCleanup: beforeReplacementCleanup,
+  onIoSample: onIoSample,
 );

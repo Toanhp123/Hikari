@@ -181,17 +181,36 @@ final class HomeViewModel extends ChangeNotifier {
   Future<void> refresh() async {
     final tasks = <Future<void>>[];
     if (_repository != null) tasks.add(reload());
-    if (_discoverCatalog != null) tasks.add(reloadCatalog());
+    if (_discoverCatalog != null) {
+      tasks.add(reloadCatalog(forceRefresh: true));
+    }
     await Future.wait(tasks);
   }
 
-  Future<void> reloadCatalog() async {
+  Future<void> reloadCatalog({bool forceRefresh = false}) async {
     final discoverCatalog = _discoverCatalog;
     if (discoverCatalog == null || _disposed) return;
     final revision = ++_catalogRevision;
     _publish(_state.copyWith(clearCatalogError: true));
     try {
-      final discovery = await discoverCatalog.execute();
+      CatalogSnapshot<CatalogDiscovery>? cached;
+      if (!forceRefresh) {
+        cached = await discoverCatalog.cached();
+        if (_disposed || revision != _catalogRevision) return;
+        if (cached != null) {
+          _publish(
+            _state.copyWith(
+              catalogDiscovery: cached.data,
+              clearCatalogError: true,
+            ),
+          );
+          if (cached.isFresh) return;
+        }
+      }
+      // Stale snapshots are displayed first, but never suppress revalidation.
+      final discovery = forceRefresh || cached != null
+          ? await discoverCatalog.refresh()
+          : await discoverCatalog.execute();
       if (_disposed || revision != _catalogRevision) return;
       _publish(
         _state.copyWith(catalogDiscovery: discovery, clearCatalogError: true),

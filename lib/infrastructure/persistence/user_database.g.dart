@@ -1906,6 +1906,239 @@ class SeriesContinuationRecordsCompanion
   }
 }
 
+class $CatalogSourceSelectionsTable extends CatalogSourceSelections
+    with
+        TableInfo<$CatalogSourceSelectionsTable, CatalogSourceSelectionRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CatalogSourceSelectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _catalogProviderMeta = VerificationMeta(
+    'catalogProvider',
+  );
+  @override
+  late final GeneratedColumn<String> catalogProvider = GeneratedColumn<String>(
+    'catalog_provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _catalogItemIdMeta = VerificationMeta(
+    'catalogItemId',
+  );
+  @override
+  late final GeneratedColumn<String> catalogItemId = GeneratedColumn<String>(
+    'catalog_item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaTypeMeta = VerificationMeta('mediaType');
+  @override
+  late final GeneratedColumn<String> mediaType = GeneratedColumn<String>(
+    'media_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceIdMeta = VerificationMeta('sourceId');
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceTitleMeta = VerificationMeta(
+    'sourceTitle',
+  );
+  @override
+  late final GeneratedColumn<String> sourceTitle = GeneratedColumn<String>(
+    'source_title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    catalogProvider,
+    catalogItemId,
+    mediaType,
+    sourceId,
+    itemId,
+    sourceTitle,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'catalog_source_selections';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CatalogSourceSelectionRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('catalog_provider')) {
+      context.handle(
+        _catalogProviderMeta,
+        catalogProvider.isAcceptableOrUnknown(
+          data['catalog_provider']!,
+          _catalogProviderMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_catalogProviderMeta);
+    }
+    if (data.containsKey('catalog_item_id')) {
+      context.handle(
+        _catalogItemIdMeta,
+        catalogItemId.isAcceptableOrUnknown(
+          data['catalog_item_id']!,
+          _catalogItemIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_catalogItemIdMeta);
+    }
+    if (data.containsKey('media_type')) {
+      context.handle(
+        _mediaTypeMeta,
+        mediaType.isAcceptableOrUnknown(data['media_type']!, _mediaTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaTypeMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('source_title')) {
+      context.handle(
+        _sourceTitleMeta,
+        sourceTitle.isAcceptableOrUnknown(
+          data['source_title']!,
+          _sourceTitleMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceTitleMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    catalogProvider,
+    catalogItemId,
+    mediaType,
+  };
+  @override
+  CatalogSourceSelectionRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final prefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CatalogSourceSelectionRecord(
+      catalogProvider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${prefix}catalog_provider'],
+      )!,
+      catalogItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${prefix}catalog_item_id'],
+      )!,
+      mediaType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${prefix}media_type'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${prefix}source_id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${prefix}item_id'],
+      )!,
+      sourceTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${prefix}source_title'],
+      )!,
+    );
+  }
+
+  @override
+  $CatalogSourceSelectionsTable createAlias(String alias) =>
+      $CatalogSourceSelectionsTable(attachedDatabase, alias);
+}
+
+class CatalogSourceSelectionRecord extends DataClass
+    implements Insertable<CatalogSourceSelectionRecord> {
+  final String catalogProvider;
+  final String catalogItemId;
+  final String mediaType;
+  final String sourceId;
+  final String itemId;
+  final String sourceTitle;
+  const CatalogSourceSelectionRecord({
+    required this.catalogProvider,
+    required this.catalogItemId,
+    required this.mediaType,
+    required this.sourceId,
+    required this.itemId,
+    required this.sourceTitle,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) => {
+    'catalog_provider': Variable<String>(catalogProvider),
+    'catalog_item_id': Variable<String>(catalogItemId),
+    'media_type': Variable<String>(mediaType),
+    'source_id': Variable<String>(sourceId),
+    'item_id': Variable<String>(itemId),
+    'source_title': Variable<String>(sourceTitle),
+  };
+
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return {
+      'catalogProvider': serializer.toJson<String>(catalogProvider),
+      'catalogItemId': serializer.toJson<String>(catalogItemId),
+      'mediaType': serializer.toJson<String>(mediaType),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'itemId': serializer.toJson<String>(itemId),
+      'sourceTitle': serializer.toJson<String>(sourceTitle),
+    };
+  }
+}
+
 abstract class _$UserDatabase extends GeneratedDatabase {
   _$UserDatabase(QueryExecutor e) : super(e);
   $UserDatabaseManager get managers => $UserDatabaseManager(this);
@@ -1917,6 +2150,8 @@ abstract class _$UserDatabase extends GeneratedDatabase {
       $MihonContinuationRecordsTable(this);
   late final $SeriesContinuationRecordsTable seriesContinuationRecords =
       $SeriesContinuationRecordsTable(this);
+  late final $CatalogSourceSelectionsTable catalogSourceSelections =
+      $CatalogSourceSelectionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1926,6 +2161,7 @@ abstract class _$UserDatabase extends GeneratedDatabase {
     libraryRecords,
     mihonContinuationRecords,
     seriesContinuationRecords,
+    catalogSourceSelections,
   ];
 }
 

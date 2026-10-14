@@ -20,6 +20,9 @@ import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/features/home/home_page.dart';
+import 'package:hikari/features/source_search/source_search_page.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
 import 'package:hikari/features/manga_reader/manga_reader_page.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
@@ -33,14 +36,26 @@ const _seriesMedia = Media(
   source: SourceMediaRef(sourceId: SourceId('fake'), itemId: 'series'),
 );
 
-Future<void> _openCatalogSourceSearch(WidgetTester tester) async {
-  await tester.tap(find.text('View details'));
+Future<void> _openStandaloneSourceSearch(WidgetTester tester) async {
+  final dependencies = tester
+      .widget<HikariApp>(find.byType(HikariApp))
+      .dependencies;
+  final home = tester.widget<HomePage>(find.byType(HomePage));
+  final context = tester.element(find.byType(HomePage));
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => SourceSearchPage(
+        openMedia: (context, media, {previewMetadata}) =>
+            home.openMedia(context, media),
+        searchManga: dependencies.searchManga,
+        library: dependencies.libraryRepository,
+        readArtwork: dependencies.readSourceArtwork.execute,
+        initialQuery: 'test',
+        initialFilter: SourceSearchFilter.manga,
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Read'));
-  await tester.pumpAndSettle();
-  expect(find.text('Read from'), findsOneWidget);
-  await tester.tap(find.text('Search all sources'));
-  await tester.pump();
   for (var i = 0; i < 20 && find.text('Series').evaluate().isEmpty; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
@@ -491,7 +506,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await _openCatalogSourceSearch(tester);
+        await _openStandaloneSourceSearch(tester);
 
         expect(find.text('Second series'), findsOneWidget);
       } finally {
@@ -515,13 +530,14 @@ void main() {
         HikariApp(
           dependencies: AppDependencies.create(
             database: db,
+            cache: _TestByteCache(),
             catalogProvider: _TestCatalogProvider(MediaType.manga),
             additionalSources: [UnavailableRemote()],
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await _openCatalogSourceSearch(tester);
+      await _openStandaloneSourceSearch(tester);
       await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
@@ -553,13 +569,14 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          cache: _TestByteCache(),
           catalogProvider: _TestCatalogProvider(MediaType.manga),
           additionalSources: [FakeRemote()],
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
@@ -917,7 +934,17 @@ void main() {
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
     );
     final cache = _TestByteCache()
-      ..values['manga-page-v1/["fake","page-0"]'] = Uint8List.fromList([1]);
+      ..values['manga-page-v1/["fake","page-0"]'] = Uint8List.fromList([1])
+      ..values['manga-page-list-v1/["fake","chapter"]'] = Uint8List.fromList(
+        utf8.encode(
+          jsonEncode({
+            'version': 1,
+            'source': 'fake',
+            'chapter': 'chapter',
+            'pages': ['page-0', 'page-1'],
+          }),
+        ),
+      );
     final dependencies = AppDependencies.create(
       database: db,
       catalogProvider: _TestCatalogProvider(MediaType.manga),
@@ -926,13 +953,13 @@ void main() {
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
     await tester.pumpAndSettle();
     expect(remote.pageReads, 0);
-    expect(cache.writes, isEmpty);
+    expect(cache.writes, ['remote-chapter-list-v1/["manga","fake","series"]']);
     expect(find.text('Could not decode this page.'), findsOneWidget);
     final baseline = (await progress.load(chapter))!;
     expect((baseline.position as PagePosition).pageIndex, 0);
@@ -959,6 +986,7 @@ void main() {
     expect(find.text('Could not decode this page.'), findsNothing);
     expect(cache.values['manga-page-v1/["fake","page-0"]'], validPng);
     expect(cache.writes, [
+      'remote-chapter-list-v1/["manga","fake","series"]',
       'manga-page-v1/["fake","page-0"]',
       'manga-page-v1/["fake","page-1"]',
     ]);
@@ -992,7 +1020,7 @@ void main() {
 
       await tester.pumpWidget(HikariApp(dependencies: dependencies));
       await tester.pumpAndSettle();
-      await _openCatalogSourceSearch(tester);
+      await _openStandaloneSourceSearch(tester);
       await tester.tapAt(tester.getCenter(find.text('Series')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Chapter'));
@@ -1079,7 +1107,7 @@ void main() {
     );
     await tester.pumpWidget(HikariApp(dependencies: dependencies));
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
@@ -1138,7 +1166,11 @@ void main() {
     });
     final db = UserDatabase(NativeDatabase.memory());
     final cache = _TestByteCache();
-    final dependencies = AppDependencies.create(database: db, cache: cache);
+    final dependencies = AppDependencies.create(
+      database: db,
+      catalogProvider: _TestCatalogProvider(MediaType.manga),
+      cache: cache,
+    );
     await SqliteLibraryRepository(db).upsert(
       LibraryEntry(
         media: const Media(
@@ -1193,13 +1225,14 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          cache: _TestByteCache(),
           catalogProvider: _TestCatalogProvider(MediaType.manga),
           additionalSources: [ResumableRemote()],
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await _openCatalogSourceSearch(tester);
+    await _openStandaloneSourceSearch(tester);
     await tester.tapAt(tester.getCenter(find.text('Series')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter'));
@@ -1235,6 +1268,7 @@ void main() {
       HikariApp(
         dependencies: AppDependencies.create(
           database: db,
+          cache: _TestByteCache(),
           additionalSources: [remote],
         ),
       ),

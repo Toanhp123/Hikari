@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/features/settings/settings_page.dart';
 
 void main() {
@@ -343,6 +344,12 @@ void main() {
         home: SettingsPage(
           onToggleOled: (val) => oledToggled = val,
           onClearCache: () async => cacheCleared = true,
+          loadCacheUsage: () async => const CacheUsage({
+            'Source artwork': 1024,
+            'Manga pages': 2048,
+            'Novel chapters': 0,
+            'Novel resources': 0,
+          }),
         ),
       ),
     );
@@ -358,11 +365,94 @@ void main() {
     expect(oledToggled, isTrue);
 
     // Clear Cache
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Cached temporary data: 3.0 KiB'),
+      findsOneWidget,
+    );
+    expect(find.text('Manga pages'), findsOneWidget);
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
+    expect(cacheCleared, isFalse);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(cacheCleared, isFalse);
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear cache'));
+    await tester.pumpAndSettle();
     expect(cacheCleared, isTrue);
-    expect(find.text('Cache cleared.'), findsOneWidget);
+    expect(find.text('Temporary cache cleared.'), findsOneWidget);
   });
+  testWidgets('failed clear is never shown as successful', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          onClearCache: () async => throw StateError('failed disk operation'),
+          loadCacheUsage: () async => const CacheUsage({'Manga pages': 20}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear cache'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Could not clear all temporary cache. Try again.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Cached temporary data: 20 B'), findsOneWidget);
+  });
+
+  testWidgets('cache size failure can be retried', (tester) async {
+    var attempts = 0;
+    Future<CacheUsage> load() async {
+      if (++attempts == 1) throw StateError('metadata unavailable');
+      return const CacheUsage({'Source artwork': 12});
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(onClearCache: () async {}, loadCacheUsage: load),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Cache size unavailable.'), findsOneWidget);
+    await tester.tap(find.text('Retry cache size'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Cached temporary data: 12 B'), findsOneWidget);
+    expect(attempts, 2);
+  });
+
+  testWidgets('cache stats retry and stale completion protection', (
+    tester,
+  ) async {
+    final old = Completer<CacheUsage>();
+    var requests = 0;
+    Future<CacheUsage> read() {
+      requests++;
+      if (requests == 1) return old.future;
+      return Future.value(const CacheUsage({'Manga pages': 3}));
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(onClearCache: () async {}, loadCacheUsage: read),
+      ),
+    );
+    expect(find.text('Measuring cache…'), findsOneWidget);
+    // Clearing starts a newer stats request; the original must not overwrite it.
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear cache'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Cached temporary data: 3 B'), findsOneWidget);
+    old.complete(const CacheUsage({'Manga pages': 99}));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Cached temporary data: 3 B'), findsOneWidget);
+  });
+
   testWidgets('Settings uses the canonical app bar title style', (
     tester,
   ) async {

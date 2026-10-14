@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -54,7 +57,11 @@ class LocalMediaSource
   @override
   String get name => 'Local media';
   static const _channel = MethodChannel('hikari/local_media');
-  late final _copies = ArchiveCopyPool(_materialize, _deleteMaterialized);
+  late final _copies = ArchiveCopyPool(
+    _materialize,
+    _deleteMaterialized,
+    exists: (path) => File(path).exists(),
+  );
 
   @override
   MediaOpenLease? acquireOpenLease(SourceMediaRef ref) {
@@ -64,7 +71,42 @@ class LocalMediaSource
     return _LocalArchiveLease(_copies, archive.locator);
   }
 
-  Future<void> close() => _copies.close();
+  String? _rootId;
+  LocalMediaScanResult? _completed;
+  Future<LocalMediaScanResult>? _flight;
+  Future<bool>? _picker;
+  int _generation = 0;
+  String? _token;
+  bool _closed = false;
+  static int _nextToken = 0;
+  static const _trace = bool.fromEnvironment('HIKARI_LOCAL_SCAN_TRACE');
+
+  Future<void> _cancelScan() async {
+    _generation++;
+    _flight = null;
+    final token = _token;
+    _token = null;
+    if (token != null) {
+      try {
+        await _channel.invokeMethod<void>('cancelScan', token);
+      } on PlatformException {
+        // Dart generation still prevents obsolete publication if native closed.
+      } on MissingPluginException {
+        // Engine teardown can detach the channel before source cleanup.
+      }
+    }
+  }
+
+  Future<void> close() async {
+    if (_closed) return _copies.close();
+    _closed = true;
+    _completed = null;
+    try {
+      await _cancelScan();
+    } finally {
+      await _copies.close();
+    }
+  }
 
   LocalArchiveRef? _archiveRef(SourceMediaRef ref) {
     if (ref.sourceId != id) throw ArgumentError('Wrong source.');
@@ -85,21 +127,97 @@ class LocalMediaSource
     return media.itemId;
   }
 
-  /// Legacy list contract remains available to source-search callers.
-  Future<List<Media>?> scanSelectedRoot() async {
-    final root = await _root('selectedTree');
-    if (root == null) return null;
-    return (await _scan(root, includeArtwork: false)).media;
+  /// Search revalidates the grant/root, then joins or reuses session discovery.
+  Future<List<Media>?> scanSelectedRoot() async =>
+      (await _selectedSnapshot(fresh: false))?.media;
+
+  /// Explicit refresh enumerates again, unless same-root work is in flight.
+  Future<LocalMediaScanResult?> scanSelectedRootSnapshot() =>
+      _selectedSnapshot(fresh: true);
+
+  void _checkGeneration(int generation) {
+    if (_closed || generation != _generation) {
+      throw const LocalMediaScanCancelledException();
+    }
   }
 
-  /// UI-facing snapshot: the root display name is never used as an identity.
-  Future<LocalMediaScanResult?> scanSelectedRootSnapshot() async {
+  Future<LocalMediaScanResult?> _selectedSnapshot({required bool fresh}) async {
+    while (_picker != null) {
+      await _picker;
+    }
+    var generation = _generation;
+    _checkGeneration(generation);
     try {
       final root = await _root('selectedTree');
+      _checkGeneration(generation);
+      if (root == null || root.id != _rootId) {
+        final hadRoot = _rootId != null;
+        _completed = null;
+        _rootId = root?.id;
+        if (hadRoot || _token != null) {
+          final cancelled = _cancelScan();
+          generation = _generation;
+          await cancelled;
+          _checkGeneration(generation);
+        }
+      }
       if (root == null) return null;
-      return await _scan(root);
+      final flight = _flight;
+      if (flight != null) return await flight;
+      final cached = _completed;
+      if (!fresh && cached != null) {
+        if (_trace) {
+          developer.Timeline.instantSync(
+            'LocalScan',
+            arguments: {'reuse': 1, 'cancelled': 0, 'failed': 0},
+          );
+        }
+        return LocalMediaScanResult(
+          rootName: root.name,
+          media: cached.media,
+          artwork: cached.artwork,
+        );
+      }
+      final token = '${++_nextToken}';
+      _token = token;
+      late final Future<LocalMediaScanResult> future;
+      future = _scan(root, generation, token)
+          .then((result) {
+            _checkGeneration(generation);
+            _completed = result;
+            return result;
+          })
+          .catchError((Object error, StackTrace stack) {
+            _checkGeneration(generation);
+            if (error is PlatformException) {
+              if (error.code == 'access') {
+                _completed = null;
+                throw const LocalMediaAccessException();
+              }
+              if (error.code == 'cancelled' || error.code == 'closed') {
+                throw const LocalMediaScanCancelledException();
+              }
+            }
+            Error.throwWithStackTrace(error, stack);
+          })
+          .whenComplete(() {
+            if (identical(_flight, future)) {
+              _flight = null;
+              _token = null;
+            }
+          });
+      _flight = future;
+      return await future;
     } on PlatformException catch (error) {
-      if (error.code == 'access') throw const LocalMediaAccessException();
+      _checkGeneration(generation);
+      if (error.code == 'cancelled' || error.code == 'closed') {
+        throw const LocalMediaScanCancelledException();
+      }
+      if (error.code == 'access') {
+        _completed = null;
+        await _cancelScan();
+        throw const LocalMediaAccessException();
+      }
       rethrow;
     }
   }
@@ -117,7 +235,21 @@ class LocalMediaSource
     );
   }
 
-  Future<bool> chooseRoot() async => await _root('pickTree') != null;
+  Future<bool> chooseRoot() {
+    if (_closed) return Future.error(const LocalMediaScanCancelledException());
+    return _picker ??= _chooseRoot().whenComplete(() => _picker = null);
+  }
+
+  Future<bool> _chooseRoot() async {
+    // Cancel before native picker can release the previous persisted grant.
+    await _cancelScan();
+    final root = await _root('pickTree');
+    if (_closed) throw const LocalMediaScanCancelledException();
+    if (root == null) return false;
+    if (root.id != _rootId) _completed = null;
+    _rootId = root.id;
+    return true;
+  }
 
   /// Read only the saved root's display name; do not enumerate its contents.
   /// The Android adapter verifies the persisted grant when resolving the root.
@@ -127,8 +259,12 @@ class LocalMediaSource
   Future<LocalEntry?> _root(String method) async {
     final selected = await _channel.invokeMapMethod<String, Object?>(method);
     if (selected == null) return null;
+    final id = selected['id'];
+    if (id is! String || id.isEmpty) {
+      throw StateError('Invalid document identifier.');
+    }
     return LocalEntry(
-      id: selected['id']! as String,
+      id: id,
       parentId: null,
       name: selected['name']! as String,
       isDirectory: true,
@@ -136,58 +272,137 @@ class LocalMediaSource
   }
 
   Future<LocalMediaScanResult> _scan(
-    LocalEntry root, {
-    bool includeArtwork = true,
-  }) async {
+    LocalEntry root,
+    int generation,
+    String token,
+  ) async {
+    final total = Stopwatch()..start();
+    final traversal = Stopwatch()..start();
+    final classification = Stopwatch();
+    var queries = 0;
+    var received = 1; // Synthetic root counts toward the total bound.
+    var nativeQueue = 0;
+    var nativeQuery = 0;
+    var cancelled = false;
+    var failed = false;
     final entries = <LocalEntry>[root];
     final pending = <String>[root.id];
     final visited = <String>{};
-    while (pending.isNotEmpty) {
-      final id = pending.removeLast();
-      if (!visited.add(id)) continue;
-      final children = await _children(id);
-      entries.addAll(children);
-      if (entries.length > 50000) {
-        throw StateError(
-          'Folder exceeds 50,000 entries. Choose a smaller folder.',
+    try {
+      while (pending.isNotEmpty) {
+        _checkGeneration(generation);
+        final id = pending.removeLast();
+        if (!visited.add(id)) continue;
+        queries++;
+        final response = await _channel.invokeMapMethod<String, Object?>(
+          'scanChildren',
+          {'id': id, 'token': token, 'remaining': 50000 - received},
+        );
+        _checkGeneration(generation);
+        final rows = response?['rows'];
+        if (rows is! List) throw StateError('Folder could not be read.');
+        nativeQueue += (response?['queueMicros'] as num?)?.toInt() ?? 0;
+        nativeQuery += (response?['queryMicros'] as num?)?.toInt() ?? 0;
+        received += rows.length;
+        if (received > 50000) {
+          throw StateError(
+            'Folder exceeds 50,000 entries. Choose a smaller folder.',
+          );
+        }
+        final seen = <String>{};
+        for (final row in rows) {
+          if (row is! Map ||
+              row['id'] is! String ||
+              (row['id'] as String).isEmpty ||
+              row['name'] is! String ||
+              row['isDirectory'] is! bool) {
+            throw StateError('Invalid directory entry.');
+          }
+          final child = LocalEntry(
+            id: row['id'] as String,
+            parentId: id,
+            name: row['name'] as String,
+            isDirectory: row['isDirectory'] as bool,
+          );
+          if (!seen.add(child.id)) continue;
+          // Files may legitimately have multiple parents. Keep each parent edge.
+          if (child.isDirectory) {
+            if (visited.contains(child.id)) continue;
+            pending.add(child.id);
+          }
+          entries.add(child);
+        }
+        _checkGeneration(generation);
+      }
+      traversal.stop();
+      classification.start();
+      _checkGeneration(generation);
+      final classified = await compute(classifyLocalEntries, entries);
+      _checkGeneration(generation);
+      final identities = <SourceMediaRef>{};
+      final media = classified
+          .where((item) => identities.add(item.source))
+          .toList();
+      final firstPage = <String, LocalEntry>{};
+      for (final entry in entries.where(isPage)) {
+        final parent = entry.parentId;
+        if (parent == null) continue;
+        final current = firstPage[parent];
+        if (current == null || _compareArtwork(entry, current) < 0) {
+          firstPage[parent] = entry;
+        }
+      }
+      final artwork = <SourceMediaRef, SourceMediaRef>{};
+      for (final item in media.where((item) => item.type == MediaType.manga)) {
+        final page = firstPage[item.source.itemId];
+        if (page == null) continue;
+        final preview = LocalArtworkRef.tryEncode(page.id);
+        if (preview != null) {
+          artwork[item.source] = SourceMediaRef(sourceId: id, itemId: preview);
+        }
+      }
+      classification.stop();
+      _checkGeneration(generation);
+      return LocalMediaScanResult(
+        rootName: root.name,
+        media: media,
+        artwork: artwork,
+      );
+    } catch (error) {
+      failed = true;
+      cancelled =
+          error is LocalMediaScanCancelledException ||
+          (error is PlatformException &&
+              (error.code == 'cancelled' || error.code == 'closed'));
+      rethrow;
+    } finally {
+      if (_trace) {
+        developer.Timeline.instantSync(
+          'LocalScan',
+          arguments: {
+            'directories': visited.length,
+            'entries': received,
+            'queries': queries,
+            'totalMicros': total.elapsedMicroseconds,
+            'traversalMicros': traversal.elapsedMicroseconds,
+            'classificationMicros': classification.elapsedMicroseconds,
+            'nativeQueueMicros': nativeQueue,
+            'nativeQueryMicros': nativeQuery,
+            'reuse': 0,
+            'cancelled': cancelled ? 1 : 0,
+            'failed': failed && !cancelled ? 1 : 0,
+          },
         );
       }
-      pending.addAll(children.where((e) => e.isDirectory).map((e) => e.id));
     }
-    final media = await compute(classifyLocalEntries, entries);
-    if (!includeArtwork) {
-      return LocalMediaScanResult(rootName: root.name, media: media);
-    }
-    final pagesByParent = <String, List<LocalEntry>>{};
-    for (final entry in entries.where(isPage)) {
-      final parent = entry.parentId;
-      if (parent != null) {
-        pagesByParent.putIfAbsent(parent, () => []).add(entry);
-      }
-    }
-    final artwork = <SourceMediaRef, SourceMediaRef>{};
-    for (final item in media.where((item) => item.type == MediaType.manga)) {
-      final pages = pagesByParent[item.source.itemId];
-      if (pages == null || pages.isEmpty) continue;
-      pages.sort((a, b) {
-        final aCover = a.name.toLowerCase().startsWith('cover.');
-        final bCover = b.name.toLowerCase().startsWith('cover.');
-        if (aCover != bCover) return aCover ? -1 : 1;
-        final nameOrder = compareLocalNames(a.name, b.name);
-        return nameOrder != 0 ? nameOrder : a.id.compareTo(b.id);
-      });
-      final preview = LocalArtworkRef.tryEncode(pages.first.id);
-      if (preview == null) continue; // Preview failure must not discard media.
-      artwork[item.source] = SourceMediaRef(
-        sourceId: SourceId.local,
-        itemId: preview,
-      );
-    }
-    return LocalMediaScanResult(
-      rootName: root.name,
-      media: media,
-      artwork: artwork,
-    );
+  }
+
+  static int _compareArtwork(LocalEntry a, LocalEntry b) {
+    final aCover = a.name.toLowerCase().startsWith('cover.');
+    final bCover = b.name.toLowerCase().startsWith('cover.');
+    if (aCover != bCover) return aCover ? -1 : 1;
+    final order = compareLocalNames(a.name, b.name);
+    return order != 0 ? order : a.id.compareTo(b.id);
   }
 
   Future<List<LocalEntry>> _children(String id) async {

@@ -1,12 +1,14 @@
 import 'package:hikari/application/media/open_media.dart';
-import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/series_continuation.dart';
 
+/// A persisted chapter is enough to start reading. Fetching the series chapter
+/// list is an independent operation and must not block the initial reader.
 sealed class SeriesContinuationOpenTarget {
   const SeriesContinuationOpenTarget(this.parent, this.chapter);
+
   final MediaOpenTarget parent;
   final SourceMediaRef chapter;
   Media get series => parent.media;
@@ -14,17 +16,66 @@ sealed class SeriesContinuationOpenTarget {
 }
 
 final class MangaContinuationOpenTarget extends SeriesContinuationOpenTarget {
-  const MangaContinuationOpenTarget(super.parent, super.chapter, this.sequence);
-  final List<MangaChapter> sequence;
+  const MangaContinuationOpenTarget(super.parent, super.chapter);
+
   MangaChapter get selected =>
-      sequence.singleWhere((item) => item.source == chapter);
+      MangaChapter(title: series.title, source: chapter);
+
+  /// An evictable cached sequence is optional navigation metadata, not a
+  /// prerequisite to open the saved chapter.
+  Future<List<MangaChapter>?> readCachedSequence() async {
+    final parent = this.parent as MangaSeriesOpenTarget;
+    final chapters = await parent.chapterLists?.readManga(series.source);
+    if (chapters == null ||
+        !chapters.any((item) => item.source == chapter && item.canReadPages)) {
+      return null;
+    }
+    return chapters;
+  }
+
+  /// Only accept a complete, source-owned sequence containing this chapter.
+  /// A missing chapter is not permission to silently resume another one.
+  Future<List<MangaChapter>> refreshSequence() async {
+    final parent = this.parent as MangaSeriesOpenTarget;
+    final chapters = (await parent.loadDetails()).chaptersInReadingOrder;
+    validateSeriesChapterSequence(
+      series.source,
+      chapters.map((item) => item.source),
+    );
+    if (!chapters.any((item) => item.source == chapter && item.canReadPages)) {
+      throw StateError('Saved manga chapter is not in the source sequence.');
+    }
+    return chapters;
+  }
 }
 
 final class NovelContinuationOpenTarget extends SeriesContinuationOpenTarget {
-  const NovelContinuationOpenTarget(super.parent, super.chapter, this.sequence);
-  final List<NovelChapter> sequence;
+  const NovelContinuationOpenTarget(super.parent, super.chapter);
+
   NovelChapter get selected =>
-      sequence.singleWhere((item) => item.source == chapter);
+      NovelChapter(title: series.title, source: chapter);
+
+  Future<List<NovelChapter>?> readCachedSequence() async {
+    final parent = this.parent as NovelSeriesOpenTarget;
+    final chapters = await parent.chapterLists?.readNovel(series.source);
+    if (chapters == null || !chapters.any((item) => item.source == chapter)) {
+      return null;
+    }
+    return chapters;
+  }
+
+  Future<List<NovelChapter>> refreshSequence() async {
+    final parent = this.parent as NovelSeriesOpenTarget;
+    final chapters = (await parent.loadDetails()).chaptersInReadingOrder;
+    validateSeriesChapterSequence(
+      series.source,
+      chapters.map((item) => item.source),
+    );
+    if (!chapters.any((item) => item.source == chapter)) {
+      throw StateError('Saved novel chapter is not in the source sequence.');
+    }
+    return chapters;
+  }
 }
 
 final class OpenSeriesContinuation {
@@ -38,45 +89,14 @@ final class OpenSeriesContinuation {
   ) async {
     SeriesContinuation(series: media.source, chapter: chapter);
     final parent = await _openMedia.execute(media);
-    try {
-      switch (parent) {
-        case MangaSeriesOpenTarget():
-          final details = await parent.loadDetails();
-          final sequence = details.chaptersInReadingOrder;
-          validateSeriesChapterSequence(
-            media.source,
-            sequence.map((item) => item.source),
-          );
-          final selected = resolveSeriesReadingTarget(
-            media.source,
-            sequence
-                .where((item) => item.canReadPages)
-                .map((item) => item.source)
-                .toList(),
-            chapter,
-          ).chapter;
-          if (selected == null) {
-            throw StateError('Series has no readable chapters.');
-          }
-          return MangaContinuationOpenTarget(parent, selected, sequence);
-        case NovelSeriesOpenTarget():
-          final details = await parent.loadDetails();
-          final sequence = details.chaptersInReadingOrder;
-          final selected = resolveSeriesReadingTarget(
-            media.source,
-            sequence.map((item) => item.source).toList(),
-            chapter,
-          ).chapter;
-          if (selected == null) {
-            throw StateError('Series has no readable chapters.');
-          }
-          return NovelContinuationOpenTarget(parent, selected, sequence);
-        default:
-          throw StateError('Saved continuation requires a remote series.');
-      }
-    } catch (_) {
-      await parent.release();
-      rethrow;
+    switch (parent) {
+      case MangaSeriesOpenTarget():
+        return MangaContinuationOpenTarget(parent, chapter);
+      case NovelSeriesOpenTarget():
+        return NovelContinuationOpenTarget(parent, chapter);
+      default:
+        await parent.release();
+        throw StateError('Saved continuation requires a remote series.');
     }
   }
 }

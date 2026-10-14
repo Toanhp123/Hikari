@@ -113,6 +113,37 @@ void main() {
     },
   );
 
+  test('foreground read delays speculative pages until it completes', () async {
+    final source = _PageSource()..holdFirst = true;
+    final reader = ReadMangaPage(_Cache());
+    final prefetch = PrefetchMangaPages(reader);
+
+    final foreground = reader.execute(source, pages[5]);
+    await source.started.future;
+    final pending = prefetch.execute(source, pages, 0);
+    await Future<void>.delayed(Duration.zero);
+    expect(source.reads, ['5']);
+
+    source.gate.complete(Uint8List.fromList([1]));
+    await foreground;
+    await pending;
+    expect(source.reads, ['5', '1', '2']);
+  });
+
+  test('cancel while waiting for foreground skips all queued pages', () async {
+    final source = _PageSource()..holdFirst = true;
+    final reader = ReadMangaPage(_Cache());
+    final prefetch = PrefetchMangaPages(reader);
+
+    final foreground = reader.execute(source, pages[5]);
+    await source.started.future;
+    final pending = prefetch.execute(source, pages, 0);
+    prefetch.cancelPending();
+    source.gate.complete(Uint8List.fromList([1]));
+    await Future.wait([foreground, pending]);
+    expect(source.reads, ['5']);
+  });
+
   test(
     'failures are swallowed without retries and later requests work',
     () async {

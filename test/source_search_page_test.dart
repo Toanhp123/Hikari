@@ -25,7 +25,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: HikariTheme.darkTheme(),
-        home: SourceSearchPage(catalogScopeLabel: name, openMedia: (_, _) {}),
+        home: SourceSearchPage(
+          catalogScopeLabel: name,
+          openMedia: (_, _, {previewMetadata}) {},
+        ),
       ),
     );
 
@@ -48,7 +51,7 @@ void main() {
           theme: HikariTheme.darkTheme(),
           home: SourceSearchPage(
             scanLocalMedia: () async => [item1],
-            openMedia: (_, item) => tappedMedia = item,
+            openMedia: (_, item, {previewMetadata}) => tappedMedia = item,
           ),
         ),
       );
@@ -83,7 +86,7 @@ void main() {
         theme: HikariTheme.darkTheme(),
         home: SourceSearchPage(
           scanLocalMedia: () async => [novel],
-          openMedia: (_, _) {},
+          openMedia: (_, _, {previewMetadata}) {},
         ),
       ),
     );
@@ -123,7 +126,7 @@ void main() {
         theme: HikariTheme.darkTheme(),
         home: SourceSearchPage(
           scanLocalMedia: () async => [manga],
-          openMedia: (_, _) {},
+          openMedia: (_, _, {previewMetadata}) {},
         ),
       ),
     );
@@ -170,7 +173,7 @@ void main() {
           readArtwork: artwork.execute,
           initialQuery: 'Covered title',
           fixedMediaType: MediaType.manga,
-          openMedia: (_, _) {},
+          openMedia: (_, _, {previewMetadata}) {},
         ),
       ),
     );
@@ -210,7 +213,7 @@ void main() {
           readArtwork: artwork.execute,
           initialQuery: 'Covered title',
           fixedMediaType: MediaType.manga,
-          openMedia: (_, _) {},
+          openMedia: (_, _, {previewMetadata}) {},
         ),
       ),
     );
@@ -233,7 +236,7 @@ void main() {
       MaterialApp(
         theme: HikariTheme.darkTheme(),
         home: SourceSearchPage(
-          openMedia: (_, _) {},
+          openMedia: (_, _, {previewMetadata}) {},
           initialSourceId: const SourceId('test:manga'),
           sourceName: 'Manga source [en]',
           initialFilter: SourceSearchFilter.manga,

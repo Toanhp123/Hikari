@@ -7,6 +7,7 @@ import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart';
 import 'package:hikari/features/source_search/widgets/source_search_content.dart';
 
@@ -29,7 +30,8 @@ class SourceSearchPage extends StatefulWidget {
     this.catalogScopeLabel,
   }) : assert((initialSourceId == null) == (sourceName == null));
 
-  final void Function(BuildContext, Media) openMedia;
+  final void Function(BuildContext, Media, {MediaMetadata? previewMetadata})
+  openMedia;
   final SearchManga? searchManga;
   final SearchNovels? searchNovels;
   final Future<List<Media>?> Function()? scanLocalMedia;

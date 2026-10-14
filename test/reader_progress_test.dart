@@ -500,6 +500,87 @@ void main() {
     },
   );
   testWidgets(
+    'manga reload page bypasses cache and keeps prior image on failure',
+    (tester) async {
+      var reads = 0;
+      var reloads = 0;
+      var failReload = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MangaReaderPage(
+            title: 'Refresh page',
+            loadPages: () async => [ref],
+            readPage: (_) async {
+              reads++;
+              return png;
+            },
+            reloadPage: (_) async {
+              reloads++;
+              if (failReload) throw StateError('network unavailable');
+              return png;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Reload page'), findsOneWidget);
+      await tester.tap(find.byTooltip('Reload page'));
+      await tester.pumpAndSettle();
+      expect(reloads, 1);
+      expect(reads, 1);
+      expect(find.text('Could not load this page.'), findsNothing);
+      expect(find.byType(Image), findsWidgets);
+      failReload = false;
+      await tester.tap(find.byTooltip('Reload page'));
+      await tester.pumpAndSettle();
+      expect(reloads, 2);
+      expect(reads, 1);
+    },
+  );
+
+  testWidgets('novel chapter refresh revalidates illustrations once per ref', (
+    tester,
+  ) async {
+    const artwork = SourceMediaRef(
+      sourceId: SourceId('novel'),
+      itemId: 'illustration',
+    );
+    RichReadingContent chapter() => RichReadingContent(
+      html: '<p>Chapter</p><img src="figure"><img src="figure">',
+      resources: {'figure': artwork},
+    );
+    var reads = 0;
+    var reloads = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NovelReaderPage(
+          title: 'Novel refresh',
+          loadContent: () async => chapter(),
+          readResource: (_) async {
+            reads++;
+            return png;
+          },
+          reloadContent: () async => chapter(),
+          reloadResource: (_) async {
+            reloads++;
+            return png;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, greaterThan(0));
+    expect(reloads, 0);
+    await tester.tap(find.byTooltip('Reload chapter'));
+    await tester.pumpAndSettle();
+    expect(reloads, 1);
+    final view = tester.widget<NovelContentView>(find.byType(NovelContentView));
+    expect(view.resourceRefreshGeneration, 1);
+    await tester.pump();
+    expect(reloads, 1);
+  });
+
+  testWidgets(
     'illustration retry reloads bytes and changed ref reads new resource',
     (tester) async {
       const first = SourceMediaRef(sourceId: SourceId('source'), itemId: 'one');
@@ -934,6 +1015,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('Previous chapter'), findsNothing);
     expect(find.byTooltip('Next chapter'), findsNothing);
+    expect(find.byTooltip('Reload page'), findsNothing);
     await tester.pumpWidget(
       MaterialApp(
         home: NovelReaderPage(

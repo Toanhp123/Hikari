@@ -25,8 +25,10 @@ final class PrefetchMangaPages {
         if (generation != _generation) return;
         final index = displayedIndex + offset;
         if (index >= pages.length) return;
+        await _readMangaPage.waitForForeground();
+        if (generation != _generation) return;
         try {
-          await _readMangaPage.execute(source, pages[index]);
+          await _readMangaPage.prefetch(source, pages[index]);
         } catch (_) {
           // Speculative read failures do not affect foreground reading.
         }

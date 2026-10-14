@@ -134,15 +134,21 @@ void main() {
           return {'id': 'root-$root', 'name': 'Root $root'};
         case 'selectedTree':
           return {'id': 'root-$root', 'name': 'Root $root'};
-        case 'children':
+        case 'scanChildren':
           scans++;
-          return [
-            {
-              'id': 'book-$root',
-              'name': 'Book $root.txt',
-              'isDirectory': false,
-            },
-          ];
+          return {
+            'rows': [
+              {
+                'id': 'book-$root',
+                'name': 'Book $root.txt',
+                'isDirectory': false,
+              },
+            ],
+            'queueMicros': 0,
+            'queryMicros': 0,
+          };
+        case 'cancelScan':
+          return null;
         case 'read':
           return Uint8List.fromList(utf8.encode('Local reading content'));
       }

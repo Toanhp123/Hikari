@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -18,27 +19,50 @@ final class ReadSourceArtwork {
 
   final SourceRegistry _sources;
   final ByteCache? _cache;
-  final Map<SourceMediaRef, Future<Uint8List?>> _inFlight = {};
+  final Map<SourceMediaRef, _ArtworkFlight> _inFlight = {};
 
   Future<Uint8List?> execute(SourceMediaRef artwork) {
-    final source = _sources.find(artwork.sourceId);
+    final current = _inFlight[artwork];
+    if (current != null) return current.future;
+    return _start(artwork, reload: false);
+  }
 
-    final pending = _inFlight[artwork];
-    if (pending != null) return pending;
-    final load = _load(source is ArtworkSource ? source : null, artwork);
-    final shared = load.whenComplete(() {
-      _inFlight.remove(artwork);
-    });
-    _inFlight[artwork] = shared;
-    return shared;
+  /// Bypasses cached artwork without discarding it if the source fails.
+  /// A reload waits for an older read so the old request cannot overwrite it.
+  Future<Uint8List?> reload(SourceMediaRef artwork) {
+    final current = _inFlight[artwork];
+    if (current?.reload == true) return current!.future;
+    return _start(artwork, reload: true, predecessor: current?.future);
+  }
+
+  Future<Uint8List?> _start(
+    SourceMediaRef artwork, {
+    required bool reload,
+    Future<Uint8List?>? predecessor,
+  }) {
+    final flight = _ArtworkFlight(reload: reload);
+    _inFlight[artwork] = flight;
+    flight.future = _load(artwork, reload: reload, predecessor: predecessor)
+        .whenComplete(() {
+          if (identical(_inFlight[artwork], flight)) _inFlight.remove(artwork);
+        });
+    return flight.future;
   }
 
   Future<Uint8List?> _load(
-    ArtworkSource? source,
-    SourceMediaRef artwork,
-  ) async {
+    SourceMediaRef artwork, {
+    required bool reload,
+    Future<Uint8List?>? predecessor,
+  }) async {
+    if (predecessor != null) {
+      try {
+        await predecessor;
+      } catch (_) {
+        // Explicit reload proceeds even if the earlier request failed.
+      }
+    }
     final cache = _cache;
-    if (cache != null) {
+    if (!reload && cache != null) {
       try {
         final cached = await cache.read(cacheNamespace, cacheKey(artwork));
         if (cached != null && cached.isNotEmpty) return cached;
@@ -47,8 +71,9 @@ final class ReadSourceArtwork {
       }
     }
 
-    // A removed/disabled extension can still display previously cached covers.
-    if (source == null) return null;
+    // An absent/disabled extension can still use cached artwork on normal reads.
+    final source = _sources.find(artwork.sourceId);
+    if (source is! ArtworkSource) return null;
     final bytes = await source.readArtwork(artwork);
     if (bytes.isEmpty || cache == null) return bytes.isEmpty ? null : bytes;
     try {
@@ -61,4 +86,11 @@ final class ReadSourceArtwork {
 
   static String cacheKey(SourceMediaRef artwork) =>
       jsonEncode([artwork.sourceId.value, artwork.itemId]);
+}
+
+final class _ArtworkFlight {
+  _ArtworkFlight({required this.reload});
+
+  final bool reload;
+  late final Future<Uint8List?> future;
 }

@@ -176,6 +176,54 @@ void main() {
     },
   );
 
+  test(
+    'artwork reload refreshes bytes without losing prior cache on failure',
+    () async {
+      final cache = _MemoryCache();
+      final source = _ArtworkSource();
+      final artwork = _art('test:artwork', 'updated-cover');
+      final reader = ReadSourceArtwork(SourceRegistry([source]), cache: cache);
+      expect(await reader.execute(artwork), [1, 2, 3]);
+      source.bytes = Uint8List.fromList([9]);
+      expect(await reader.reload(artwork), [9]);
+      expect(await reader.execute(artwork), [9]);
+      expect(source.reads, 2);
+
+      source.failNext = true;
+      await expectLater(reader.reload(artwork), throwsStateError);
+      expect(await reader.execute(artwork), [9]);
+      expect(source.reads, 3);
+
+      final unavailable = ReadSourceArtwork(SourceRegistry([]), cache: cache);
+      expect(await unavailable.reload(artwork), isNull);
+      expect(await unavailable.execute(artwork), [9]);
+    },
+  );
+
+  test('artwork reload supersedes an older in-flight read', () async {
+    final cache = _MemoryCache();
+    final source = _ArtworkSource();
+    final pending = Completer<Uint8List>();
+    source.gate = pending;
+    final reader = ReadSourceArtwork(SourceRegistry([source]), cache: cache);
+    final artwork = _art('test:artwork', 'racing-cover');
+
+    final first = reader.execute(artwork);
+    await source.started.future;
+    source.bytes = Uint8List.fromList([7]);
+    final reload = reader.reload(artwork);
+    final duplicateReload = reader.reload(artwork);
+    final normal = reader.execute(artwork);
+    expect(source.reads, 1);
+    pending.complete(Uint8List.fromList([2]));
+    expect(await first, [2]);
+    expect(await reload, [7]);
+    expect(await duplicateReload, [7]);
+    expect(await normal, [7]);
+    expect(await reader.execute(artwork), [7]);
+    expect(source.reads, 2);
+  });
+
   test('cache key uses unambiguous stable JSON tuple', () {
     expect(ReadSourceArtwork.cacheKey(_art('a:b', 'c')), '["a:b","c"]');
     expect(ReadSourceArtwork.cacheKey(_art('a', 'b:c')), '["a","b:c"]');
@@ -230,6 +278,11 @@ void main() {
         3,
       ]);
       expect(secondSource.reads, 0);
+      // Replacing the extension instance keeps its stable identity and disk
+      // cache, but explicit refresh can replace old artwork in place.
+      expect(await secondDependencies.readSourceArtwork.reload(artwork), [9]);
+      expect(await secondDependencies.readSourceArtwork.execute(artwork), [9]);
+      expect(secondSource.reads, 1);
     },
   );
 

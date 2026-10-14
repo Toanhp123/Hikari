@@ -58,9 +58,10 @@ widgets render data supplied by Home instead of executing `DiscoverCatalog` them
 completions and exposes explicit idle/loading/ready/empty/error state.
 
 `CatalogDetailViewModel` owns metadata loading/retry and preserves the last successful
-detail when a refresh fails. Catalog Detail uses an explicit refresh action rather than
-pull-to-refresh because it is a metadata detail route, not a top-updating collection.
-Description expansion remains in the page because it is purely visual ephemeral state.
+detail when a refresh fails. Independent `CatalogChaptersViewModel` owns source selection
+and chapters. Explicit refresh and pull-to-refresh affect only the active tab; see
+[Catalog](CATALOG.md) for navigation and snapshot policy. Description expansion remains
+in the page because it is purely visual ephemeral state.
 
 ### Source search
 

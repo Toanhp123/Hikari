@@ -12,6 +12,8 @@ class MangaReaderTopBar extends StatelessWidget {
     this.credit,
     this.onPreviousChapter,
     this.onNextChapter,
+    this.onReloadPage,
+    this.onRefreshPages,
     this.chapterNavigationLoading = false,
   });
 
@@ -20,6 +22,8 @@ class MangaReaderTopBar extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback? onPreviousChapter;
   final VoidCallback? onNextChapter;
+  final VoidCallback? onReloadPage;
+  final VoidCallback? onRefreshPages;
   final bool chapterNavigationLoading;
 
   @override
@@ -94,6 +98,26 @@ class MangaReaderTopBar extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onRefreshPages != null)
+                IconButton(
+                  tooltip: 'Refresh page list',
+                  onPressed: chapterNavigationLoading ? null : onRefreshPages,
+                  icon: const Icon(Icons.sync_rounded),
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                ),
+              if (onReloadPage != null)
+                IconButton(
+                  tooltip: 'Reload page',
+                  onPressed: chapterNavigationLoading ? null : onReloadPage,
+                  icon: const Icon(Icons.refresh_rounded),
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                ),
             ],
           ),
         ),

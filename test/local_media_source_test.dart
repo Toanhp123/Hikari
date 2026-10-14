@@ -19,13 +19,27 @@ void main() {
   const channel = MethodChannel('hikari/local_media');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  final source = LocalMediaSource();
+  void setHandler(Future<Object?> Function(MethodCall) handler) {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'cancelScan') return null;
+      if (call.method != 'scanChildren') return handler(call);
+      final args = call.arguments as Map;
+      final rows = await handler(MethodCall('children', args['id']));
+      return {'rows': rows, 'queueMicros': 0, 'queryMicros': 0};
+    });
+  }
+
+  late LocalMediaSource source;
+  setUp(() => source = LocalMediaSource());
   const ref = SourceMediaRef(sourceId: SourceId.local, itemId: 'opaque');
-  tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+  tearDown(() async {
+    await source.close();
+    messenger.setMockMethodCallHandler(channel, null);
+  });
 
   for (final failingMethod in ['selectedTree', 'children']) {
     test('scan snapshot normalizes access loss from $failingMethod', () async {
-      messenger.setMockMethodCallHandler(channel, (call) async {
+      setHandler((call) async {
         if (call.method == failingMethod) {
           throw PlatformException(code: 'access');
         }
@@ -67,7 +81,7 @@ void main() {
     var copies = 0;
     var deletions = 0;
     final local = LocalMediaSource();
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       if (call.method == 'materialize') {
         final copy = fixture.copySync('${directory.path}/copy-${++copies}');
         return {'path': copy.path};
@@ -93,12 +107,12 @@ void main() {
     ]);
     expect(copies, 1);
     expect(deletions, 0);
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       expect(call.method, 'deleteMaterialized');
       return false;
     });
-    await expectLater(lease!.release(), throwsStateError);
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    await lease!.release();
+    setHandler((call) async {
       if (call.method == 'materialize') {
         return {
           'path': fixture.copySync('${directory.path}/copy-${++copies}').path,
@@ -141,10 +155,7 @@ void main() {
   test(
     'wrong source and malformed archive cannot reach platform reads',
     () async {
-      messenger.setMockMethodCallHandler(
-        channel,
-        (_) async => fail('Unexpected platform call'),
-      );
+      setHandler((_) async => fail('Unexpected platform call'));
       await expectLater(
         source.pages(
           const SourceMediaRef(sourceId: SourceId('other'), itemId: 'folder'),
@@ -214,7 +225,7 @@ void main() {
   });
 
   test('missing stored root is a normal null restore result', () async {
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       expect(call.method, 'selectedTree');
       return null;
     });
@@ -223,7 +234,7 @@ void main() {
   });
 
   test('picker cancellation is a normal null result', () async {
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       expect(call.method, 'pickTree');
       return null;
     });
@@ -233,7 +244,7 @@ void main() {
 
   test('stored root scans without opening picker', () async {
     final calls = <String>[];
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       calls.add(call.method);
       if (call.method == 'selectedTree') {
         return {'id': 'tree', 'name': 'Selected folder'};
@@ -254,7 +265,7 @@ void main() {
 
   test('explicit selection persists a root without scanning it yet', () async {
     final calls = <String>[];
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       calls.add(call.method);
       expect(call.method, 'pickTree');
       return {'id': 'new-tree', 'name': 'New folder'};
@@ -267,7 +278,7 @@ void main() {
   test(
     'recursive stored-root scan includes root and nested manga once',
     () async {
-      messenger.setMockMethodCallHandler(channel, (call) async {
+      setHandler((call) async {
         if (call.method == 'selectedTree') {
           return {'id': 'root', 'name': 'Root pages'};
         }
@@ -321,7 +332,7 @@ void main() {
 
   test('scan snapshot keeps folder label and image-only previews', () async {
     final calls = <String>[];
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       calls.add(call.method);
       if (call.method == 'selectedTree') {
         return {'id': 'content://provider/root', 'name': 'My comics'};
@@ -374,15 +385,12 @@ void main() {
     expect(LocalArtworkRef.tryDecode('hikari-local-art:invalid!'), isNull);
     expect(LocalArtworkRef.tryEncode('file:///private/file.png'), isNull);
     expect(LocalArtworkRef.tryEncode('invalid-id'), isNull);
-    messenger.setMockMethodCallHandler(
-      channel,
-      (_) async => fail('No native read expected'),
-    );
+    setHandler((_) async => fail('No native read expected'));
     expect(await source.readArtwork(ref), isEmpty);
   });
 
   test('pages read on demand and sort numerically', () async {
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       expect(call.method, 'children');
       return [
         for (final name in ['10.jpg', '1.JPG', '2.png', 'ignored.txt'])
@@ -397,7 +405,7 @@ void main() {
   });
 
   test('malformed UTF-8 is replaced instead of throwing', () async {
-    messenger.setMockMethodCallHandler(channel, (call) async {
+    setHandler((call) async {
       expect(call.method, 'read');
       return Uint8List.fromList([0x61, 0xff, 0x62]);
     });
@@ -405,8 +413,7 @@ void main() {
   });
 
   test('stored-root failure propagates to feature recovery', () async {
-    messenger.setMockMethodCallHandler(
-      channel,
+    setHandler(
       (call) async => throw PlatformException(
         code: 'storage',
         message: 'Permission revoked',

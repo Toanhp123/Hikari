@@ -36,7 +36,14 @@ final class LibraryButtonViewModel extends ChangeNotifier {
 
   final LibraryRepository _repository;
   final Media _media;
-  final SourceMediaRef? artwork;
+  SourceMediaRef? artwork;
+
+  void updateArtwork(SourceMediaRef? artwork) {
+    if (_disposed || this.artwork == artwork) return;
+    this.artwork = artwork;
+    _artworkSyncStarted = false;
+    if (_state.saved == true && !_state.busy) _syncArtwork();
+  }
 
   StreamSubscription<List<LibraryEntry>>? _subscription;
   LibraryButtonUiState _state = const LibraryButtonUiState();

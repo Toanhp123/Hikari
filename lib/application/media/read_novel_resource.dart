@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:hikari/application/media/foreground_read_gate.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -9,12 +10,29 @@ import 'package:hikari/domain/media/novel.dart';
 final class ReadNovelResource {
   static const cacheNamespace = 'novel-resource-v1';
 
-  ReadNovelResource(this._cache);
+  ReadNovelResource(this._cache, {ForegroundReadGate? readGate})
+    : _foreground = readGate ?? ForegroundReadGate();
 
   final ByteCache _cache;
+  final ForegroundReadGate _foreground;
+
+  Future<void> waitForForeground() => _foreground.waitForIdle();
+
   final Map<SourceMediaRef, _ResourceFlight> _inFlight = {};
 
   Future<Uint8List> execute(
+    NovelChapterSource source,
+    SourceMediaRef resource,
+  ) => _foreground.track(() => _execute(source, resource));
+
+  /// Prefetch workflows wait for foreground work and recheck their generation
+  /// before invoking this method.
+  Future<Uint8List> prefetch(
+    NovelChapterSource source,
+    SourceMediaRef resource,
+  ) => _execute(source, resource);
+
+  Future<Uint8List> _execute(
     NovelChapterSource source,
     SourceMediaRef resource,
   ) {
@@ -28,7 +46,15 @@ final class ReadNovelResource {
     return _start(source, resource, reload: false);
   }
 
-  Future<Uint8List> reload(NovelChapterSource source, SourceMediaRef resource) {
+  Future<Uint8List> reload(
+    NovelChapterSource source,
+    SourceMediaRef resource,
+  ) => _foreground.track(() => _reload(source, resource));
+
+  Future<Uint8List> _reload(
+    NovelChapterSource source,
+    SourceMediaRef resource,
+  ) {
     if (resource.sourceId != source.id) {
       return Future.error(
         StateError('Novel source received foreign resource reference.'),

@@ -41,8 +41,9 @@ final class CatalogDetailViewModel extends ChangeNotifier {
   int _loadRevision = 0;
   bool _disposed = false;
 
-  Future<void> load() async {
+  Future<void> load({bool forceRefresh = false}) async {
     final revision = ++_loadRevision;
+    final id = _state.initialEntry.id;
     _publish(
       CatalogDetailUiState(
         initialEntry: _state.initialEntry,
@@ -50,14 +51,35 @@ final class CatalogDetailViewModel extends ChangeNotifier {
         status: CatalogDetailStatus.loading,
       ),
     );
+    CatalogSnapshot<CatalogEntryDetails>? cached;
     try {
-      final details = await _loadDetails.execute(_state.initialEntry.id);
+      if (_state.details == null) {
+        cached = await _loadDetails.cached(id);
+        if (_disposed || revision != _loadRevision) return;
+        if (cached != null) {
+          _publish(
+            CatalogDetailUiState(
+              initialEntry: _state.initialEntry,
+              details: cached.data,
+              status: cached.isFresh && !forceRefresh
+                  ? CatalogDetailStatus.ready
+                  : CatalogDetailStatus.loading,
+            ),
+          );
+          if (cached.isFresh && !forceRefresh) return;
+        }
+      }
+      final details = forceRefresh || cached != null
+          ? await _loadDetails.refresh(id)
+          : await _loadDetails.execute(id);
       if (_disposed || revision != _loadRevision) return;
       _publish(
         CatalogDetailUiState(
           initialEntry: _state.initialEntry,
-          details: details,
-          status: CatalogDetailStatus.ready,
+          details: details ?? _state.details,
+          status: details == null && _state.details != null
+              ? CatalogDetailStatus.error
+              : CatalogDetailStatus.ready,
         ),
       );
     } catch (_) {

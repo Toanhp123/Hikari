@@ -149,6 +149,10 @@ final class LocalMediaViewModel extends ChangeNotifier {
       );
     } catch (error) {
       if (_disposed || generation != _generation) return;
+      if (error is LocalMediaScanCancelledException) {
+        _publish(staleState);
+        return;
+      }
       _publish(
         staleState.hasScanResult
             ? LocalMediaUiState(

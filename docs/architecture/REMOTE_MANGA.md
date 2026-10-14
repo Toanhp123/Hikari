@@ -35,7 +35,7 @@ Schema version 3 migrates valid prior generic `mihon-v1:` user references and th
 
 Without an extension, saved references encounter the existing missing-source error. Rows and continuation are not deleted. Reinstalling the compatible extension and restarting Hikari makes those references resolvable again.
 
-Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Remote page-byte caching, its initial budget and exclusions are recorded in [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md). Decode retry refetches bytes instead of repeating cached corrupt data. Series-level “resume last chapter” remains deferred.
+Library stores the top-level series snapshot. Remote reader progress remains keyed by the selected chapter `SourceMediaRef` and `PagePosition`. Reopening the same chapter resumes its page. Series Continue opens the exact saved chapter, with an optional validated canonical cached sequence for navigation; sequence refresh runs independently from reader opening. The source remains required, progress is not migrated across sources, and caching guarantees neither downloads nor offline reading. Remote page-byte caching, its initial budget and exclusions are recorded in [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md). Decode retry refetches bytes instead of repeating cached corrupt data.
 
 ## Verification boundary
 
@@ -43,4 +43,4 @@ Automated tests cover zero-remote-source composition/UI, generic external-source
 
 Physical Android verification should cover installed trusted extension discovery, search, series, chapters, pages, reader, progress/Library and restart/reinstall. See the device checklist in [EXTENSIONS](EXTENSIONS.md).
 
-[ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md) records why the direct provider was removed. Deferred work includes series-level last-chapter resume, canonical cross-source identity/dedup, downloads, account sync and extension repository/install/update UI.
+[ADR-008](../decisions/ADR-008-external-remote-provider-ownership.md) records why the direct provider was removed. Deferred work includes canonical cross-source identity/dedup, downloads, account sync and extension repository/install/update UI.

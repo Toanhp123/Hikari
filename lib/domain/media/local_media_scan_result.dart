@@ -5,6 +5,11 @@ final class LocalMediaAccessException implements Exception {
   const LocalMediaAccessException();
 }
 
+/// Discovery was superseded or its source closed; not a provider failure.
+final class LocalMediaScanCancelledException implements Exception {
+  const LocalMediaScanCancelledException();
+}
+
 /// A completed scan of one SAF tree. Opaque document identifiers stay in
 /// [SourceMediaRef]; presentation only receives the human-readable root name.
 final class LocalMediaScanResult {

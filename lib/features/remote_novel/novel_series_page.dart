@@ -50,6 +50,8 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
     widget.target.loadDetails,
     loadReadingTarget: widget.loadReadingTarget,
     series: widget.target.media.source,
+    previewMetadata: widget.target.previewMetadata,
+    readCachedDetails: widget.target.readCachedDetails,
   );
   bool _isOpeningChapter = false;
   int _openingGeneration = 0;
@@ -57,7 +59,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
   @override
   void initState() {
     super.initState();
-    unawaited(_viewModel.load());
+    unawaited(_viewModel.load(useCached: true));
   }
 
   @override
@@ -69,10 +71,12 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         widget.target.loadDetails,
         loadReadingTarget: widget.loadReadingTarget,
         series: widget.target.media.source,
+        previewMetadata: widget.target.previewMetadata,
+        readCachedDetails: widget.target.readCachedDetails,
       );
       _openingGeneration++;
       _isOpeningChapter = false;
-      unawaited(_viewModel.load());
+      unawaited(_viewModel.load(useCached: true));
     } else {
       final ownerChanged =
           (oldWidget.dependencyOwner ?? oldWidget.target.source) !=
@@ -85,6 +89,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         widget.target.loadDetails,
         widget.loadReadingTarget,
         ownerChanged: ownerChanged,
+        readCachedDetails: widget.target.readCachedDetails,
       );
     }
   }
@@ -140,7 +145,12 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
     final source = widget.target.source;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.target.media.title),
+        title: ListenableBuilder(
+          listenable: _viewModel,
+          builder: (_, _) => Text(
+            _viewModel.effectiveMetadata?.title ?? widget.target.media.title,
+          ),
+        ),
         actions: [
           ListenableBuilder(
             listenable: _viewModel,
@@ -158,7 +168,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
               builder: (_, _) => LibraryButton(
                 repository: widget.library!,
                 media: widget.target.media,
-                artwork: _viewModel.state.details?.metadata.cover,
+                artwork: _viewModel.effectiveMetadata?.cover,
               ),
             ),
         ],

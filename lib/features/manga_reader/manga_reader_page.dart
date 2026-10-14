@@ -18,6 +18,10 @@ class MangaReaderPage extends StatefulWidget {
     this.initialProgress,
     this.saveProgress,
     this.reloadPage,
+    this.refreshPages,
+    this.fetchFreshPage,
+    this.onFreshPageValidated,
+    this.onPagesRefreshed,
     this.onPageDisplayed,
     this.onPreviousChapter,
     this.onNextChapter,
@@ -34,6 +38,10 @@ class MangaReaderPage extends StatefulWidget {
   final Future<List<SourceMediaRef>> Function() loadPages;
   final Future<Uint8List> Function(SourceMediaRef) readPage;
   final Future<Uint8List> Function(SourceMediaRef)? reloadPage;
+  final Future<List<SourceMediaRef>> Function()? refreshPages;
+  final Future<Uint8List> Function(SourceMediaRef)? fetchFreshPage;
+  final Future<void> Function(SourceMediaRef, Uint8List)? onFreshPageValidated;
+  final Future<void> Function(List<SourceMediaRef>)? onPagesRefreshed;
   final ValueChanged<int>? onPageDisplayed;
   final Future<void> Function()? onPreviousChapter;
   final Future<void> Function()? onNextChapter;
@@ -51,6 +59,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   ImageProvider? _image;
   bool _loading = true;
   bool _failed = false;
+  bool _refreshing = false;
   int _index = 0;
   ImageProvider? _savedImage;
   ImageProvider? _notifiedImage;
@@ -105,6 +114,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
   bool get _readerInteractionBusy =>
       widget.closing ||
       _loading ||
+      _refreshing ||
       _handingOffChapter ||
       widget.chapterNavigationLoading;
 
@@ -164,7 +174,13 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
     }
   }
 
-  Future<void> _loadCurrent({bool reloadFromSource = false}) async {
+  Future<void> _loadCurrent({
+    bool reloadFromSource = false,
+    bool preserveOnFailure = false,
+  }) async {
+    final previousImage = preserveOnFailure ? _image : null;
+    final previousSavedImage = preserveOnFailure ? _savedImage : null;
+    final previousNotifiedImage = preserveOnFailure ? _notifiedImage : null;
     final generation = ++_loadGeneration;
     _retryRequiresReload = reloadFromSource;
     _releaseImage();
@@ -197,10 +213,112 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
       });
     } catch (_) {
       if (!mounted || generation != _loadGeneration) return;
+      if (previousImage != null) {
+        setState(() {
+          _image = previousImage;
+          _savedImage = previousSavedImage;
+          _notifiedImage = previousNotifiedImage;
+          _retryRequiresReload = false;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not reload this page.')),
+        );
+      } else {
+        setState(() {
+          _failed = true;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  /// Reconcile references without moving the reader until the replacement
+  /// page bytes are available. A failed refresh leaves the existing session.
+  Future<void> _refreshPages() async {
+    final previousPages = _pages;
+    final fetch = widget.refreshPages;
+    if (_readerInteractionBusy || previousPages == null || fetch == null) {
+      return;
+    }
+    final generation = ++_loadGeneration;
+    final previousPage = previousPages.isEmpty ? null : previousPages[_index];
+    setState(() => _refreshing = true);
+    try {
+      final freshPages = await fetch();
+      if (!mounted || widget.closing || generation != _loadGeneration) return;
+      var index = _index;
+      if (previousPage != null) {
+        final matched = freshPages.indexOf(previousPage);
+        if (matched >= 0) index = matched;
+      }
+      if (freshPages.isEmpty) {
+        index = 0;
+      } else if (index >= freshPages.length) {
+        index = freshPages.length - 1;
+      }
+
+      ImageProvider? image;
+      Uint8List? selectedBytes;
+      if (freshPages.isNotEmpty) {
+        // Stage source bytes until the replacement image has been decoded.
+        final read =
+            widget.fetchFreshPage ?? widget.reloadPage ?? widget.readPage;
+        final bytes = await read(freshPages[index]);
+        if (!mounted || widget.closing || generation != _loadGeneration) return;
+        final candidateImage = ResizeImage(
+          MemoryImage(bytes),
+          width: 2048,
+          height: 4096,
+          policy: ResizeImagePolicy.fit,
+          allowUpscaling: false,
+        );
+        // Resolve the same provider that will be displayed. Checking image
+        // signatures cannot detect truncated or otherwise corrupt files.
+        Object? decodeError;
+        await precacheImage(
+          candidateImage,
+          context,
+          onError: (error, _) {
+            decodeError = error;
+          },
+        );
+        if (decodeError != null) {
+          throw StateError('Could not decode refreshed manga page.');
+        }
+        if (!mounted || widget.closing || generation != _loadGeneration) return;
+        image = candidateImage;
+        selectedBytes = bytes;
+      }
+      if (!mounted || widget.closing || generation != _loadGeneration) return;
+      await _saveBarrier();
+      if (!mounted || widget.closing || generation != _loadGeneration) return;
+      if (selectedBytes != null) {
+        await widget.onFreshPageValidated?.call(
+          freshPages[index],
+          selectedBytes,
+        );
+      }
+      await widget.onPagesRefreshed?.call(freshPages);
+      if (!mounted || widget.closing || generation != _loadGeneration) return;
+      _transform.value = Matrix4.identity();
       setState(() {
-        _failed = true;
-        _loading = false;
+        _pages = List.unmodifiable(freshPages);
+        _index = index;
+        _image = image;
+        _savedImage = null;
+        _notifiedImage = null;
+        _hasNavigated = true;
+        _failed = false;
+        _refreshing = false;
+        _retryRequiresReload = false;
       });
+    } catch (_) {
+      if (!mounted || widget.closing || generation != _loadGeneration) return;
+      setState(() => _refreshing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not refresh chapter pages.')),
+      );
     }
   }
 
@@ -305,6 +423,15 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                     ? null
                     : () => _handoffChapter(widget.onNextChapter),
                 chapterNavigationLoading: _readerInteractionBusy,
+                onRefreshPages: widget.refreshPages == null
+                    ? null
+                    : _refreshPages,
+                onReloadPage: widget.reloadPage == null
+                    ? null
+                    : () => _loadCurrent(
+                        reloadFromSource: true,
+                        preserveOnFailure: true,
+                      ),
               ),
             ),
           if (_showControls && pages != null && pages.isNotEmpty)
@@ -321,7 +448,7 @@ class _MangaReaderPageState extends State<MangaReaderPage> {
                 onJumpToPage: _jumpToPage,
               ),
             ),
-          if (_handingOffChapter)
+          if (_handingOffChapter || _refreshing)
             const Positioned(
               top: 4,
               left: 0,

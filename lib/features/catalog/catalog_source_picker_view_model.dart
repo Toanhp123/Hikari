@@ -207,7 +207,9 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
     );
   }
 
-  Future<Media?> selectSource(CatalogSourcePickerSource source) async {
+  Future<CatalogSourcePickerCandidate?> selectSource(
+    CatalogSourcePickerSource source,
+  ) async {
     if (!_state.visibleSources.any((visible) => visible.id == source.id)) {
       return null;
     }
@@ -232,7 +234,12 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
       if (_disposed || revision != _revision) return null;
 
       final match = resolution.match;
-      if (match != null) return match.media;
+      if (match != null) {
+        return CatalogSourcePickerCandidate(
+          media: match.media,
+          metadata: match.metadata,
+        );
+      }
 
       _publish(
         CatalogSourcePickerUiState(
@@ -266,7 +273,7 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
     return null;
   }
 
-  Future<Media?> retry() async {
+  Future<CatalogSourcePickerCandidate?> retry() async {
     final selected = _state.selectedSource;
     if (selected == null) return null;
     return selectSource(selected);

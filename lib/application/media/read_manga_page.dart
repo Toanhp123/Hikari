@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:hikari/application/media/foreground_read_gate.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -9,12 +10,25 @@ import 'package:hikari/domain/media/manga.dart';
 final class ReadMangaPage {
   static const cacheNamespace = 'manga-page-v1';
 
-  ReadMangaPage(this._cache);
+  ReadMangaPage(this._cache, {ForegroundReadGate? readGate})
+    : _foreground = readGate ?? ForegroundReadGate();
 
   final ByteCache _cache;
+  final ForegroundReadGate _foreground;
+
+  Future<void> waitForForeground() => _foreground.waitForIdle();
+
   final Map<SourceMediaRef, _PageFlight> _inFlight = {};
 
-  Future<Uint8List> execute(MangaPageSource source, SourceMediaRef page) {
+  Future<Uint8List> execute(MangaPageSource source, SourceMediaRef page) =>
+      _foreground.track(() => _execute(source, page));
+
+  /// Prefetch workflows wait for foreground work and recheck their generation
+  /// before invoking this method.
+  Future<Uint8List> prefetch(MangaPageSource source, SourceMediaRef page) =>
+      _execute(source, page);
+
+  Future<Uint8List> _execute(MangaPageSource source, SourceMediaRef page) {
     if (page.sourceId != source.id) {
       return Future.error(
         StateError('Manga source received foreign page reference.'),
@@ -25,7 +39,10 @@ final class ReadMangaPage {
     return _start(source, page, reload: false);
   }
 
-  Future<Uint8List> reload(MangaPageSource source, SourceMediaRef page) {
+  Future<Uint8List> reload(MangaPageSource source, SourceMediaRef page) =>
+      _foreground.track(() => _reload(source, page));
+
+  Future<Uint8List> _reload(MangaPageSource source, SourceMediaRef page) {
     if (page.sourceId != source.id) {
       return Future.error(
         StateError('Manga source received foreign page reference.'),
@@ -35,6 +52,41 @@ final class ReadMangaPage {
     if (current?.reload == true) return current!.future;
     final predecessor = current?.future;
     return _start(source, page, reload: true, predecessor: predecessor);
+  }
+
+  /// Loads source bytes without replacing an existing cached image. The
+  /// reader can validate image decoding before committing the replacement.
+  Future<Uint8List> fetchFresh(MangaPageSource source, SourceMediaRef page) {
+    if (page.sourceId != source.id) {
+      return Future.error(
+        StateError('Manga source received foreign page reference.'),
+      );
+    }
+    return _foreground.track(() => source.readPage(page));
+  }
+
+  Future<void> persist(
+    MangaPageSource source,
+    SourceMediaRef page,
+    Uint8List bytes,
+  ) async {
+    if (page.sourceId != source.id) {
+      throw StateError('Manga source received foreign page reference.');
+    }
+    if (bytes.isEmpty) return;
+    final predecessor = _inFlight[page]?.future;
+    if (predecessor != null) {
+      try {
+        await predecessor;
+      } catch (_) {
+        // A pending prefetch failure must not suppress validated bytes.
+      }
+    }
+    try {
+      await _cache.write(cacheNamespace, cacheKey(page), bytes);
+    } catch (_) {
+      // Cache persistence must not hide a successfully decoded source image.
+    }
   }
 
   Future<Uint8List> _start(

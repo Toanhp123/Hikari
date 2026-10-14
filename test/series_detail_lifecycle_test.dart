@@ -71,6 +71,45 @@ Widget _page(
 }
 
 void main() {
+  testWidgets('native Manga Source Detail shows cached chapters even offline', (
+    tester,
+  ) async {
+    var sourceLoads = 0;
+    final media = Media(
+      title: 'Offline series',
+      type: MediaType.manga,
+      source: _ref('cached'),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MangaSeriesPage(
+          media: media,
+          sourceName: 'Source',
+          loadDetails: () async {
+            sourceLoads++;
+            throw StateError('network unavailable');
+          },
+          readCachedDetails: () async => MangaSeriesDetails(
+            metadata: MediaMetadata(title: 'Offline series'),
+            chapterListOrder: ChapterListOrder.readingOrder,
+            chapters: [
+              MangaChapter(title: 'Offline chapter', source: _ref('chapter')),
+            ],
+          ),
+          openChapter: (_, _, _, _) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Offline chapter'), findsOneWidget);
+    expect(sourceLoads, 1);
+    await tester.tap(find.byTooltip('Refresh'));
+    await tester.pumpAndSettle();
+    expect(sourceLoads, 2);
+    expect(find.text('Offline chapter'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final manga in [true, false]) {
     final kind = manga ? 'manga' : 'novel';
     testWidgets(

@@ -550,6 +550,55 @@ class _NovelSource implements NovelChapterSource {
 
 void main() {
   testWidgets(
+    'failed page-list persistence preserves the active manga target',
+    (tester) async {
+      final source = _MangaReaderSource();
+      final workflow = OpenMangaChapter(SourceRegistry([source]), _Progress());
+      final chapter = MangaChapter(title: 'Chapter A', source: _mangaA);
+      final viewModel = MangaChapterReaderViewModel(
+        initialTarget: await workflow.execute(chapter),
+        chaptersInReadingOrder: [chapter],
+        openChapter: workflow,
+      );
+      final previousTarget = viewModel.state.target;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MangaChapterReaderPage(
+            viewModel: viewModel,
+            readPage: (source, page) => source.readPage(page),
+            reloadPage: (source, page) => source.readPage(page),
+            fetchFreshPages: (_, _) async => [
+              const SourceMediaRef(sourceId: _mangaId, itemId: 'new-page'),
+            ],
+            fetchFreshPage: (source, page) => source.readPage(page),
+            persistPages: (_, _, _) async => throw StateError('disk failure'),
+            createPrefetch: () => PrefetchMangaPages(ReadMangaPage(_Cache())),
+            prefetchPages: (prefetch, source, pages, index) =>
+                prefetch.execute(source, pages, index),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => precacheImage(
+          tester.widget<Image>(find.byType(Image)).image,
+          tester.element(find.byType(MangaReaderPage)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Refresh page list'));
+      await tester.pumpAndSettle();
+
+      expect(viewModel.state.target, same(previousTarget));
+      expect(find.text('Page 1 of 2'), findsOneWidget);
+      expect(find.text('Could not refresh chapter pages.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
     'manga next-chapter prefetch waits for the final five pages and reuses page list',
     (tester) async {
       final source = _MangaPrefetchSource();

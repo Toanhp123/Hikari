@@ -15,6 +15,10 @@ class MangaChapterReaderPage extends StatefulWidget {
     required this.viewModel,
     required this.readPage,
     required this.reloadPage,
+    this.fetchFreshPage,
+    this.persistFreshPage,
+    this.fetchFreshPages,
+    this.persistPages,
     required this.createPrefetch,
     required this.prefetchPages,
   });
@@ -22,6 +26,18 @@ class MangaChapterReaderPage extends StatefulWidget {
   final MangaChapterReaderViewModel viewModel;
   final Future<Uint8List> Function(MangaPageSource, SourceMediaRef) readPage;
   final Future<Uint8List> Function(MangaPageSource, SourceMediaRef) reloadPage;
+  final Future<Uint8List> Function(MangaPageSource, SourceMediaRef)?
+  fetchFreshPage;
+  final Future<void> Function(MangaPageSource, SourceMediaRef, Uint8List)?
+  persistFreshPage;
+  final Future<List<SourceMediaRef>> Function(MangaPageSource, SourceMediaRef)?
+  fetchFreshPages;
+  final Future<void> Function(
+    MangaPageSource,
+    SourceMediaRef,
+    List<SourceMediaRef>,
+  )?
+  persistPages;
   final PrefetchMangaPages Function() createPrefetch;
   final Future<void> Function(
     PrefetchMangaPages,
@@ -87,6 +103,7 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     if (identical(_observedTarget, target)) return;
     _prefetch.cancelPending();
     _viewModel.discardChapterPrefetch();
+    _pageGeneration++;
     _observedTarget = target;
     _prefetch = widget.createPrefetch();
   }
@@ -125,11 +142,14 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
     required int generation,
     required int displayedIndex,
   }) async {
-    await widget.prefetchPages(
-      prefetch,
-      target.source,
-      target.pages,
-      displayedIndex,
+    if (_closed || _viewModel.isClosing) return;
+    await _viewModel.sourceWork(
+      () => widget.prefetchPages(
+        prefetch,
+        target.source,
+        target.pages,
+        displayedIndex,
+      ),
     );
     if (_closed ||
         _viewModel.state.openingAdjacent ||
@@ -170,21 +190,63 @@ class _MangaChapterReaderPageState extends State<MangaChapterReaderPage> {
         final generation = _pageGeneration;
         return MangaReaderPage(
           key: ValueKey(target.chapter.source),
-          title: target.chapter.title,
+          title: _viewModel.currentChapter.title,
           credit: [
             target.source.name,
-            if (target.chapter.scanlator != null) target.chapter.scanlator!,
+            if (_viewModel.currentChapter.scanlator != null)
+              _viewModel.currentChapter.scanlator!,
           ].join(' · '),
           loadPages: () async => target.pages,
           readPage: (page) {
             prefetch.cancelPending();
             _viewModel.cancelChapterPrefetch();
-            return widget.readPage(target.source, page);
+            return _viewModel.sourceWork(
+              () => widget.readPage(target.source, page),
+            );
+          },
+          refreshPages:
+              widget.fetchFreshPages == null || widget.persistPages == null
+              ? null
+              : () {
+                  _prefetch.cancelPending();
+                  _viewModel.discardChapterPrefetch();
+                  return _viewModel.sourceWork(
+                    () => widget.fetchFreshPages!(
+                      target.source,
+                      target.chapter.source,
+                    ),
+                  );
+                },
+          fetchFreshPage: widget.fetchFreshPage == null
+              ? null
+              : (page) => _viewModel.sourceWork(
+                  () => widget.fetchFreshPage!(target.source, page),
+                ),
+          onFreshPageValidated: widget.persistFreshPage == null
+              ? null
+              : (page, bytes) =>
+                    widget.persistFreshPage!(target.source, page, bytes),
+          onPagesRefreshed: (pages) async {
+            if (_closed || !identical(target, _viewModel.state.target)) {
+              throw StateError('Manga chapter changed during refresh.');
+            }
+            // Do not publish the new target if the persistence callback fails.
+            await widget.persistPages?.call(
+              target.source,
+              target.chapter.source,
+              pages,
+            );
+            if (_closed || !identical(target, _viewModel.state.target)) {
+              throw StateError('Manga chapter changed during refresh.');
+            }
+            _viewModel.acceptRefreshedPages(target, pages);
           },
           reloadPage: (page) {
             prefetch.cancelPending();
             _viewModel.cancelChapterPrefetch();
-            return widget.reloadPage(target.source, page);
+            return _viewModel.sourceWork(
+              () => widget.reloadPage(target.source, page),
+            );
           },
           onPageDisplayed: (index) {
             if (_closed ||

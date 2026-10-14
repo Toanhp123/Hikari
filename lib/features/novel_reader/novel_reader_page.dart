@@ -75,6 +75,20 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   Future<void> _saveTail = Future<void>.value();
   bool _handingOffChapter = false;
   int _saveRevision = 0;
+  int _resourceRefreshGeneration = 0;
+  final Map<SourceMediaRef, Future<Uint8List>> _refreshedResources = {};
+
+  Future<Uint8List> _readRefreshedResource(SourceMediaRef resource) =>
+      _refreshedResources.putIfAbsent(
+        resource,
+        () => (widget.reloadResource ?? widget.readResource!)(resource),
+      );
+
+  Future<Uint8List> _retryRefreshedResource(SourceMediaRef resource) {
+    final future = widget.reloadResource!(resource);
+    _refreshedResources[resource] = future;
+    return future;
+  }
 
   late NovelReaderTheme _readerTheme;
   late double _fontSize;
@@ -212,6 +226,10 @@ class _NovelReaderPageState extends State<NovelReaderPage>
           : await widget.loadContent?.call();
       if (!mounted) return;
       setState(() {
+        if (fresh && content != null) {
+          _resourceRefreshGeneration++;
+          _refreshedResources.clear();
+        }
         _text = text;
         _content = content;
         _loading = false;
@@ -243,15 +261,22 @@ class _NovelReaderPageState extends State<NovelReaderPage>
 
   Future<void> _reload() async {
     final reload = widget.reloadContent;
-    if (_chapterTransitionBusy || reload == null || _reloading) return;
+    if (widget.closing ||
+        _chapterTransitionBusy ||
+        reload == null ||
+        _reloading) {
+      return;
+    }
     setState(() => _reloading = true);
     try {
       final content = await reload();
-      if (!mounted) return;
+      if (!mounted || widget.closing) return;
       final progression = _restored
           ? _position
           : resumeText(widget.initialProgress);
       setState(() {
+        _resourceRefreshGeneration++;
+        _refreshedResources.clear();
         _content = content;
         _text = null;
         _error = null;
@@ -259,7 +284,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         _restoringReload = true;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+        if (!mounted || widget.closing) return;
         if (_scroll.hasClients && _scroll.position.maxScrollExtent > 0) {
           final offset =
               progression.clamp(0.0, 1.0) * _scroll.position.maxScrollExtent;
@@ -270,7 +295,7 @@ class _NovelReaderPageState extends State<NovelReaderPage>
         _restoringReload = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || widget.closing) return;
       setState(() => _reloading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not reload this chapter.')),
@@ -421,8 +446,17 @@ class _NovelReaderPageState extends State<NovelReaderPage>
                             child: _content != null
                                 ? NovelContentView(
                                     content: _content!,
-                                    readResource: widget.readResource!,
-                                    reloadResource: widget.reloadResource,
+                                    readResource:
+                                        _resourceRefreshGeneration == 0
+                                        ? widget.readResource!
+                                        : _readRefreshedResource,
+                                    reloadResource:
+                                        widget.reloadResource == null ||
+                                            _resourceRefreshGeneration == 0
+                                        ? widget.reloadResource
+                                        : _retryRefreshedResource,
+                                    resourceRefreshGeneration:
+                                        _resourceRefreshGeneration,
                                     textStyle: TextStyle(
                                       color: _readerTheme.fg,
                                       fontSize: _fontSize,

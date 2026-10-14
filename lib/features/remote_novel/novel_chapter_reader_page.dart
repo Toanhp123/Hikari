@@ -39,7 +39,7 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
   bool _closed = false;
   late final NovelChapterReaderViewModel _viewModel = widget.viewModel;
   late final PrefetchNovelChapter _prefetch;
-  SourceMediaRef? _prefetchOrigin;
+  (SourceMediaRef, SourceMediaRef?)? _prefetchOrigin;
   bool _exiting = false;
   bool _readyToPop = false;
   // The route survives chapter keys; per-chapter progress and scroll do not.
@@ -83,14 +83,17 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
   }
 
   void _scheduleNextChapter() {
-    if (_closed) return;
+    if (_closed || _viewModel.isClosing) return;
     final current = _viewModel.state.target.chapter.source;
-    if (_prefetchOrigin == current) return;
-    _prefetchOrigin = current;
-    _prefetch.cancelPending();
     final next = _viewModel.nextChapter;
+    final origin = (current, next?.source);
+    if (_prefetchOrigin == origin) return;
+    _prefetchOrigin = origin;
+    _prefetch.cancelPending();
     if (next != null) {
-      unawaited(widget.prefetchChapter(_prefetch, next));
+      unawaited(
+        _viewModel.sourceWork(() => widget.prefetchChapter(_prefetch, next)),
+      );
     }
   }
 
@@ -143,18 +146,21 @@ class _NovelChapterReaderPageState extends State<NovelChapterReaderPage> {
         final chapter = target.chapter;
         return NovelReaderPage(
           key: ValueKey(chapter.source),
-          title: chapter.title,
+          title: _viewModel.currentChapter.title,
           initialReaderTheme: _readerTheme,
           initialFontSize: _fontSize,
           onReaderThemeChanged: (value) => _readerTheme = value,
           onFontSizeChanged: (value) => _fontSize = value,
           loadContent: () async => target.content,
-          reloadContent: () =>
-              widget.reloadContent(target.source, chapter.source),
-          readResource: (resource) =>
-              widget.readResource(target.source, resource),
-          reloadResource: (resource) =>
-              widget.reloadResource(target.source, resource),
+          reloadContent: () => _viewModel.sourceWork(
+            () => widget.reloadContent(target.source, chapter.source),
+          ),
+          readResource: (resource) => _viewModel.sourceWork(
+            () => widget.readResource(target.source, resource),
+          ),
+          reloadResource: (resource) => _viewModel.sourceWork(
+            () => widget.reloadResource(target.source, resource),
+          ),
           initialProgress: target.progress.initialProgress,
           saveProgress: (position, completed) =>
               _viewModel.saveProgress(target, position, completed),

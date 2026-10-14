@@ -230,11 +230,9 @@ void main() {
       registry,
       progress,
     ).execute(openedMangaTarget.selected);
-    expect(openedMangaTarget.sequence, hasLength(1));
-    expect(openedMangaTarget.sequence.single.source, _mangaChapterRef);
     expect(
-      () => openedMangaTarget.sequence.add(openedMangaTarget.selected),
-      throwsUnsupportedError,
+      (await openedMangaTarget.refreshSequence()).single.source,
+      _mangaChapterRef,
     );
     expect(openedMangaTarget.selected.source, _mangaChapterRef);
     final mangaPosition =
@@ -257,11 +255,9 @@ void main() {
       progress,
       ReadNovelChapterContent(_NoCache()),
     ).execute(openedNovelTarget.selected);
-    expect(openedNovelTarget.sequence, hasLength(1));
-    expect(openedNovelTarget.sequence.single.source, _novelChapterRef);
     expect(
-      () => openedNovelTarget.sequence.add(openedNovelTarget.selected),
-      throwsUnsupportedError,
+      (await openedNovelTarget.refreshSequence()).single.source,
+      _novelChapterRef,
     );
     expect(openedNovelTarget.selected.source, _novelChapterRef);
     final novelPosition =
@@ -270,34 +266,35 @@ void main() {
     await openedNovel.release();
   });
 
-  test(
-    'resume falls back for missing chapter but rejects unavailable source',
-    () async {
-      const manga = Media(
-        title: 'Manga',
-        type: MediaType.manga,
-        source: _mangaSeriesRef,
-      );
-      const missing = SourceMediaRef(sourceId: _id, itemId: 'missing');
-      final openSeries = OpenSeriesContinuation(OpenMedia(registry, progress));
-      final fallback = await openSeries.execute(manga, missing);
-      expect(fallback.chapter, _mangaChapterRef);
-      await fallback.release();
+  test('resume keeps saved chapter and rejects unavailable source', () async {
+    const manga = Media(
+      title: 'Manga',
+      type: MediaType.manga,
+      source: _mangaSeriesRef,
+    );
+    const missing = SourceMediaRef(sourceId: _id, itemId: 'missing');
+    final openSeries = OpenSeriesContinuation(OpenMedia(registry, progress));
+    final fallback = await openSeries.execute(manga, missing);
+    expect(fallback.chapter, missing);
+    await expectLater(
+      (fallback as MangaContinuationOpenTarget).refreshSequence(),
+      throwsStateError,
+    );
+    await fallback.release();
 
-      final unavailableRegistry = SourceRegistry([
-        _MangaSource(available: false),
-        novelSource,
-      ]);
-      await expectLater(
-        OpenSeriesContinuation(OpenMedia(unavailableRegistry, progress))
-            .execute(manga, _mangaChapterRef),
-        throwsStateError,
-      );
-    },
-  );
+    final unavailableRegistry = SourceRegistry([
+      _MangaSource(available: false),
+      novelSource,
+    ]);
+    await expectLater(
+      OpenSeriesContinuation(OpenMedia(unavailableRegistry, progress))
+          .execute(manga, _mangaChapterRef),
+      throwsStateError,
+    );
+  });
 
   test(
-    'resume rejects duplicate chapter sequence and releases acquired lease',
+    'resume opens independently of a broken sequence and releases lease',
     () async {
       final leased = _LeasedMangaSource();
       final leasedRegistry = SourceRegistry([leased]);
@@ -307,11 +304,14 @@ void main() {
         source: _mangaSeriesRef,
       );
 
+      final result = await OpenSeriesContinuation(
+        OpenMedia(leasedRegistry, progress),
+      ).execute(manga, _mangaChapterRef);
       await expectLater(
-        OpenSeriesContinuation(OpenMedia(leasedRegistry, progress))
-            .execute(manga, _mangaChapterRef),
+        (result as MangaContinuationOpenTarget).refreshSequence(),
         throwsStateError,
       );
+      await result.release();
       expect(leased.released, 1);
     },
   );

@@ -14,15 +14,56 @@ The pure technical `core/cache` layer declares the generic `ByteCache` contract.
 
 This cache is not durable user state (Library, Progress, or Mihon continuation), private plugin continuation/preferences storage, downloaded content, opened-media archive materialization, Flutter's decoded in-memory `ImageCache`, or native/extension HTTP response caching. Downloads and cache entries do not share paths: finalized exact opaque filenames prevent readers from observing partial download materialization. No title-derived filenames. Retention is byte LRU, not freshness or TTL.
 
-Catalog response caching, persistent manga page-list caching, downloads, UI/settings, generic freshness, and automatic background maintenance remain out of scope. Remote manga reader keeps its bounded next-two-page byte prefetch for the current chapter and adds one-chapter lookahead only after entering the final five pages. Current-chapter page-ahead finishes first; the lookahead then fetches the next chapter page list into a one-slot reader-session handoff and warms at most its first two page bytes serially through `ReadMangaPage`. The page list is never written to `ByteCache`, empty/foreign/failed speculative lists are never handed to foreground open, and foreground navigation consumes or joins the valid in-flight list before normal source fallback. Speculative failures never surface reader errors, stale byte warming is generation-cancelled, target changes discard the session slot, and no progress/user state is opened for prefetched chapters. It does not preload an entire manga chapter, previous chapters, decoded Flutter images, local content, or durable downloads. Remote novel reader permits bounded one-chapter lookahead in declared reading order. That speculative workflow first warms normalized chapter content, then its unique registered resources serially through the existing cache workflows; failures are swallowed, stale queued work is cancelled by reader-session generation, and no progress/user state is opened for prefetched chapters. It does not prefetch multiple chapters, previous chapters, decoded Flutter images, local novel/publication content, or durable downloads. There is no TTL or source/plugin revision invalidation: content can remain stale until byte eviction, explicit reload, cache clear, or namespace-version change. This is a known limit because registered sources expose no immutable plugin revision for cache keys. Adapter parsing may depend on provider/plugin state not represented in stable reference keys; upstream source changes therefore require explicit reload or future version plumbing. Settings UI remains out of scope.
+Catalog response caching, persistent manga page-list caching, downloads, UI/settings, generic freshness, and automatic background maintenance remain out of scope. Remote manga reader keeps its bounded next-two-page byte prefetch for the current chapter and adds one-chapter lookahead only after entering the final five pages. Current-chapter page-ahead finishes first; the lookahead then fetches the next chapter page list into a one-slot reader-session handoff and warms at most its first two page bytes serially through `ReadMangaPage`. The page list is never written to `ByteCache`, empty/foreign/failed speculative lists are never handed to foreground open, and foreground navigation consumes or joins the valid in-flight list before normal source fallback. Speculative failures never surface reader errors, stale byte warming is generation-cancelled, target changes discard the session slot, and no progress/user state is opened for prefetched chapters. It does not preload an entire manga chapter, previous chapters, decoded Flutter images, local content, or durable downloads. Remote novel reader permits bounded one-chapter lookahead in declared reading order. That speculative workflow first warms normalized chapter content, then its unique registered resources serially through the existing cache workflows; failures are swallowed, stale queued work is cancelled by reader-session generation, and no progress/user state is opened for prefetched chapters. It does not prefetch multiple chapters, previous chapters, decoded Flutter images, local novel/publication content, or durable downloads. There is no TTL or source/plugin revision invalidation: content can remain stale until byte eviction, explicit reload, cache clear, or namespace-version change. See [ADR-021](ADR-021-remote-reading-cache-freshness.md) for the later explicit reader/artwork refresh contract; this paragraph describes the original foundation. This is a known limit because registered sources expose no immutable plugin revision for cache keys. Adapter parsing may depend on provider/plugin state not represented in stable reference keys; upstream source changes therefore require explicit reload or future version plumbing. Settings UI remains out of scope.
 
 Remote manga page-byte caching and remote novel chapter/resource caching are independent consumers with separate namespaces and budgets; the 128 MiB manga, 32 MiB novel-content and 64 MiB novel-resource limits are initial policy, not permanent product promises. Local folder/CBZ page bytes, local novel text and publication resources stay outside the remote cache. Remote novel resources are normalized source-owned bytes, separate from native/extension HTTP response caching and downloads.
 
 Cache writes currently remain awaited on the read path, providing deterministic immediate-repeat reuse and same-reference request coalescing. Bounded manga page-ahead, manga next-chapter first-page warming, and novel chapter/resource lookahead use this existing behavior without adding decoded-image warming or broader speculative scheduling. Awaiting writes is not required for index/blob consistency, which is handled by publishing the blob before its index entry.
 
+## Phase 4.4 follow-up — bounded Novel resource lookahead
+
+The original one-chapter, serial Novel prefetch workflow remains. To prevent
+chapters with many illustrations from warming every resource speculatively,
+`PrefetchNovelChapter` now stops after at most four unique resource requests or
+8 MiB of returned resource bytes per lookahead, whichever is reached first.
+Failed requests consume a request slot. The byte ceiling is **soft** because
+`NovelChapterSource.readResource` returns a complete `Uint8List`, and even a
+single response may cross the ceiling; cached hits are also included in the
+accounting. This is not a network transfer hard cap or a change to the 64 MiB
+novel-resource disk namespace budget. Foreground reading is unrestricted and
+continues to load remaining illustrations on demand. These are initial
+heuristics to validate with real-device measurements, not measured optima.
+
+## Phase 4.6 follow-up — decoded reader images
+
+Remote and local publication illustrations share `NovelContentView`. Source
+bytes remain full-resolution in the normal resource read/cache workflow;
+only decoded Flutter images are now bounded by reader layout width × DPR
+(rounded to stable buckets, maximum 2048 px) and height 4096 px using
+`ResizeImagePolicy.fit` with upscaling disabled. This avoids retaining full
+resolution illustrations solely to display them within the reading column.
+Refresh/retry still use new bytes; no stable-ref-only decoded image cache is
+introduced because it could serve stale images. Manga's existing 2048 × 4096
+fit decode and 4× zoom behavior stay unchanged pending image profiling. See
+[`docs/quality/IMAGE_DECODE_PROFILE_VALIDATION.md`](../quality/IMAGE_DECODE_PROFILE_VALIDATION.md).
+
 ## Follow-up debt
 
 `DiskByteCache` currently serializes both reads and mutations through one process-local queue. This keeps index/blob reconciliation and close behavior simple, but independent cache hits cannot read immutable blobs concurrently. Treat this as measured performance debt rather than a correctness bug. Novel chapter lookahead deliberately stays at one chapter and serial resource reads, so it does not introduce parallel speculative cache-hit fan-out. If profiling shows reader/artwork/prefetch queue latency, benchmark the current queue and evaluate allowing concurrent immutable blob reads while keeping metadata mutations, eviction, recovery, and close transitions serialized. Any optimization must preserve atomic blob publication, LRU accounting, fail-open behavior, and the existing close/race guarantees; do not replace the queue with unbounded fire-and-forget I/O.
+
+## Phase 4.5 follow-up — measurable I/O before concurrency changes
+
+`DiskByteCache` retains its one-instance serialized queue. Optional cache I/O
+profiling now records admission-to-execution queue wait, operation duration,
+blob SHA-256 cost, write LRU trim cost, byte counts and read hit/miss. The
+instrumentation uses a monotonic stopwatch and DevTools `TimelineTask` only
+when explicitly enabled by `--dart-define=HIKARI_CACHE_TRACE=true`, or an
+injected sample observer for tests. No cache keys or user identifiers are
+reported. Errors in test observers do not change cache behavior, and tracing
+is off by default. This is instrumentation, **not evidence yet** that
+concurrent blob reads are needed. On-device profiling and correctness tests
+must precede any queue redesign; see
+[Cache I/O profile validation](../quality/CACHE_IO_PROFILE_VALIDATION.md).
 
 ## Alternatives
 

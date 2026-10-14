@@ -1,4 +1,5 @@
 import 'package:hikari/application/progress/progress_session.dart';
+import 'package:hikari/application/media/read_manga_page_list.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -19,13 +20,18 @@ final class MangaChapterOpenTarget {
   final ProgressSession progress;
 }
 
-/// Prepares a chapter before navigation so stale remote references fail before
-/// the reader route is pushed.
+/// Resolves a chapter and its cached or source-provided page references
+/// before pushing the reader route.
 final class OpenMangaChapter {
-  const OpenMangaChapter(this._sources, this._progressRepository);
+  const OpenMangaChapter(
+    this._sources,
+    this._progressRepository, [
+    this._pageList,
+  ]);
 
   final SourceRegistry _sources;
   final ProgressRepository _progressRepository;
+  final ReadMangaPageList? _pageList;
 
   Future<MangaChapterOpenTarget> execute(
     MangaChapter chapter, {
@@ -48,7 +54,8 @@ final class OpenMangaChapter {
     );
     final pages =
         await (pageListLoader?.call(source, chapter.source) ??
-            source.pages(chapter.source));
+            (_pageList?.execute(source, chapter.source) ??
+                source.pages(chapter.source)));
     if (pages.any((page) => page.sourceId != source.id)) {
       throw StateError('Manga source returned foreign page references.');
     }

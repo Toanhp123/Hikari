@@ -1,14 +1,18 @@
+import 'package:hikari/application/cache/cache_management.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/application/progress/load_continue_reading.dart';
+import 'package:hikari/application/media/foreground_read_gate.dart';
 import 'package:hikari/application/media/open_manga_chapter.dart';
 import 'package:hikari/application/media/open_series_continuation.dart';
 import 'package:hikari/application/media/prefetch_manga_chapter.dart';
 import 'package:hikari/application/media/prefetch_novel_chapter.dart';
 import 'package:hikari/application/media/prefetch_manga_pages.dart';
 import 'package:hikari/application/media/read_manga_page.dart';
+import 'package:hikari/application/media/read_manga_page_list.dart';
+import 'package:hikari/application/media/read_remote_chapter_list.dart';
 import 'package:hikari/application/media/read_novel_chapter_content.dart';
 import 'package:hikari/application/media/read_novel_resource.dart';
 import 'package:hikari/application/media/open_media.dart';
@@ -18,7 +22,9 @@ import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
+import 'package:hikari/core/cache/cache_maintenance.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/catalog/catalog_source_selection.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -27,25 +33,63 @@ import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/infrastructure/cache/disk_byte_cache.dart';
 import 'package:hikari/infrastructure/catalog/anilist/anilist_catalog_provider.dart';
+import 'package:hikari/infrastructure/catalog/anilist/anilist_metadata_cache.dart';
 import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/playback/media_kit_video_session.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_catalog_source_selection_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_series_continuation_repository.dart';
 import 'package:hikari/domain/progress/series_continuation.dart';
 
 /// Composition root for application workflows and replaceable infrastructure.
 final class AppDependencies {
-  static const _sourceArtworkCacheBudgetBytes = 64 * 1024 * 1024;
-  static const _mangaPageCacheBudgetBytes = 128 * 1024 * 1024;
-  static const _novelChapterCacheBudgetBytes = 32 * 1024 * 1024;
-  static const _novelResourceCacheBudgetBytes = 64 * 1024 * 1024;
+  /// Single production policy for disk byte budgets and Settings maintenance.
+  /// Stable namespace IDs remain owned by their cache consumers.
+  static const _managedCache = [
+    (
+      namespace: ReadSourceArtwork.cacheNamespace,
+      label: 'Source artwork',
+      budgetBytes: 64 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadMangaPage.cacheNamespace,
+      label: 'Manga pages',
+      budgetBytes: 128 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadMangaPageList.cacheNamespace,
+      label: 'Manga page lists',
+      budgetBytes: 8 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadRemoteChapterList.cacheNamespace,
+      label: 'Remote chapter lists',
+      budgetBytes: 8 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadNovelChapterContent.cacheNamespace,
+      label: 'Novel chapters',
+      budgetBytes: 32 * 1024 * 1024,
+    ),
+    (
+      namespace: ReadNovelResource.cacheNamespace,
+      label: 'Novel resources',
+      budgetBytes: 64 * 1024 * 1024,
+    ),
+    (
+      namespace: AniListMetadataCache.namespace,
+      label: 'Catalog metadata',
+      budgetBytes: 12 * 1024 * 1024,
+    ),
+  ];
 
   AppDependencies._(
     this._database,
     this._ownsDatabase, {
     required this.libraryRepository,
+    required this.catalogSourceSelections,
     required this.progressRepository,
     required this.seriesContinuationRepository,
     required this.openSeriesContinuation,
@@ -65,12 +109,14 @@ final class AppDependencies {
     required this.searchNovels,
     required this.readSourceArtwork,
     required this.readMangaPage,
+    required this.readMangaPageList,
     required this.readNovelChapterContent,
     required this.readNovelResource,
     required this.openNovelChapter,
     required this.createNovelChapterPrefetch,
     required this.videoSession,
     required this.cache,
+    required this.cacheManagement,
     required this.ownsCache,
   });
 
@@ -86,7 +132,6 @@ final class AppDependencies {
     Iterable<MediaSource> additionalSources = const [],
   }) {
     final resolvedLocalSource = localMediaSource ?? LocalMediaSource();
-    final resolvedCatalogProvider = catalogProvider ?? AniListCatalogProvider();
     final sourceRegistry = SourceRegistry([
       resolvedLocalSource,
       ...additionalSources,
@@ -95,23 +140,37 @@ final class AppDependencies {
     final resolvedCache =
         cache ??
         DiskByteCache(
-          namespaceByteBudgets: const {
-            ReadSourceArtwork.cacheNamespace: _sourceArtworkCacheBudgetBytes,
-            ReadMangaPage.cacheNamespace: _mangaPageCacheBudgetBytes,
-            ReadNovelChapterContent.cacheNamespace:
-                _novelChapterCacheBudgetBytes,
-            ReadNovelResource.cacheNamespace: _novelResourceCacheBudgetBytes,
+          namespaceByteBudgets: {
+            for (final entry in _managedCache)
+              entry.namespace: entry.budgetBytes,
           },
         );
-    final readMangaPage = ReadMangaPage(resolvedCache);
-    final readNovelChapterContent = ReadNovelChapterContent(resolvedCache);
-    final readNovelResource = ReadNovelResource(resolvedCache);
+    final resolvedCatalogProvider =
+        catalogProvider ?? AniListCatalogProvider(cache: resolvedCache);
+    final readGate = ForegroundReadGate();
+    final readMangaPage = ReadMangaPage(resolvedCache, readGate: readGate);
+    final readMangaPageList = ReadMangaPageList(
+      resolvedCache,
+      readGate: readGate,
+    );
+    final readNovelChapterContent = ReadNovelChapterContent(
+      resolvedCache,
+      readGate: readGate,
+    );
+    final readNovelResource = ReadNovelResource(
+      resolvedCache,
+      readGate: readGate,
+    );
     final libraryRepository = SqliteLibraryRepository(resolvedDatabase);
     final progressRepository = SqliteProgressRepository(resolvedDatabase);
     final seriesContinuationRepository = SqliteSeriesContinuationRepository(
       resolvedDatabase,
     );
-    final openMedia = OpenMedia(sourceRegistry, progressRepository);
+    final openMedia = OpenMedia(
+      sourceRegistry,
+      progressRepository,
+      chapterLists: ReadRemoteChapterList(resolvedCache),
+    );
     final searchManga = SearchManga(sourceRegistry);
     final searchNovels = SearchNovels(sourceRegistry);
 
@@ -119,6 +178,9 @@ final class AppDependencies {
       resolvedDatabase,
       database == null || ownsDatabase,
       libraryRepository: libraryRepository,
+      catalogSourceSelections: SqliteCatalogSourceSelectionRepository(
+        resolvedDatabase,
+      ),
       progressRepository: progressRepository,
       seriesContinuationRepository: seriesContinuationRepository,
       openSeriesContinuation: OpenSeriesContinuation(openMedia),
@@ -138,9 +200,16 @@ final class AppDependencies {
         searchNovels: searchNovels,
       ),
       openMedia: openMedia,
-      openMangaChapter: OpenMangaChapter(sourceRegistry, progressRepository),
-      createMangaChapterPrefetch: () =>
-          PrefetchMangaChapter(sourceRegistry, readMangaPage),
+      openMangaChapter: OpenMangaChapter(
+        sourceRegistry,
+        progressRepository,
+        readMangaPageList,
+      ),
+      createMangaChapterPrefetch: () => PrefetchMangaChapter(
+        sourceRegistry,
+        readMangaPage,
+        readMangaPageList,
+      ),
       searchManga: searchManga,
       searchNovels: searchNovels,
       readSourceArtwork: ReadSourceArtwork(
@@ -148,6 +217,7 @@ final class AppDependencies {
         cache: resolvedCache,
       ),
       readMangaPage: readMangaPage,
+      readMangaPageList: readMangaPageList,
       readNovelChapterContent: readNovelChapterContent,
       readNovelResource: readNovelResource,
       openNovelChapter: OpenNovelChapter(
@@ -162,11 +232,20 @@ final class AppDependencies {
       ),
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
+      cacheManagement: resolvedCache is CacheMaintenance
+          ? CacheManagement(
+              resolvedCache as CacheMaintenance,
+              namespaces: {
+                for (final entry in _managedCache) entry.namespace: entry.label,
+              },
+            )
+          : null,
       ownsCache: cache == null || ownsCache,
     );
   }
 
   final LibraryRepository libraryRepository;
+  final CatalogSourceSelectionRepository catalogSourceSelections;
   final ProgressRepository progressRepository;
   final SeriesContinuationRepository seriesContinuationRepository;
   final OpenSeriesContinuation openSeriesContinuation;
@@ -184,12 +263,14 @@ final class AppDependencies {
   final SearchNovels searchNovels;
   final ReadSourceArtwork readSourceArtwork;
   final ReadMangaPage readMangaPage;
+  final ReadMangaPageList readMangaPageList;
   final ReadNovelChapterContent readNovelChapterContent;
   final ReadNovelResource readNovelResource;
   final OpenNovelChapter openNovelChapter;
   final PrefetchNovelChapter Function() createNovelChapterPrefetch;
   final MediaKitVideoSession videoSession;
   final ByteCache cache;
+  final CacheManagement? cacheManagement;
   final bool ownsCache;
 
   final UserDatabase _database;

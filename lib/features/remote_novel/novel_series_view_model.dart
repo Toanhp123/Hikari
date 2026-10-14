@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/core/ui/patterns/chapter_list_filter.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/progress/series_continuation.dart';
 
@@ -31,7 +32,22 @@ final class NovelSeriesViewModel extends ChangeNotifier {
     this._loadDetails, {
     this._loadReadingTarget,
     this.series,
-  });
+    this._readCachedDetails,
+    MediaMetadata? previewMetadata,
+  }) : _previewMetadata = previewMetadata {
+    if (previewMetadata?.cover case final cover?) {
+      if (series != null && cover.sourceId != series!.sourceId) {
+        throw ArgumentError.value(
+          previewMetadata,
+          'previewMetadata',
+          'Preview cover belongs to another source.',
+        );
+      }
+    }
+  }
+  MediaMetadata? _previewMetadata;
+  MediaMetadata? get effectiveMetadata =>
+      _state.details?.metadata ?? _previewMetadata;
   final SourceMediaRef? series;
   Future<SeriesReadingTarget> Function(List<SourceMediaRef>)?
   _loadReadingTarget;
@@ -42,7 +58,7 @@ final class NovelSeriesViewModel extends ChangeNotifier {
   int _continuationGeneration = 0;
 
   Future<void> refreshReadingTarget() async {
-    if (_disposed || _state.status == NovelSeriesStatus.loading) return;
+    if (_disposed || _state.details == null) return;
     final generation = ++_continuationGeneration;
     final sequence = _readingSequence;
     final fallback = sequence.firstOrNull;
@@ -79,24 +95,28 @@ final class NovelSeriesViewModel extends ChangeNotifier {
   }
 
   Future<NovelDetails> Function() _loadDetails;
+  Future<NovelDetails?> Function()? _readCachedDetails;
 
   void updateDependencies(
     Future<NovelDetails> Function() loadDetails,
     Future<SeriesReadingTarget> Function(List<SourceMediaRef>)? readingTarget, {
     required bool ownerChanged,
+    Future<NovelDetails?> Function()? readCachedDetails,
   }) {
     if (_disposed) return;
     _loadDetails = loadDetails;
+    _readCachedDetails = readCachedDetails;
     _loadReadingTarget = readingTarget;
     if (ownerChanged) {
       // A new provider must not retain the previous provider's metadata,
       // even if its first request fails. Ordinary refreshes keep their snapshot.
+      _previewMetadata = null;
       _state = const NovelSeriesUiState();
       _readingSequence = const [];
       _displayChapters = const [];
       _primaryChapter = null;
       _isContinuation = false;
-      unawaited(load());
+      unawaited(load(useCached: true));
     }
   }
 
@@ -147,7 +167,7 @@ final class NovelSeriesViewModel extends ChangeNotifier {
         : List.unmodifiable(filtered);
   }
 
-  Future<void> load() async {
+  Future<void> load({bool useCached = false}) async {
     if (_disposed) return;
     final generation = ++_generation;
     _continuationGeneration++;
@@ -160,6 +180,42 @@ final class NovelSeriesViewModel extends ChangeNotifier {
       ),
     );
     try {
+      if (useCached && _state.details == null && _readCachedDetails != null) {
+        // Initial navigation presents evictable chapters first. Manual refresh
+        // skips the cache and loads full metadata directly from the source.
+        NovelDetails? cachedDetails;
+        try {
+          final snapshot = await _readCachedDetails!();
+          if (snapshot != null && series != null) {
+            validateSeriesChapterSequence(
+              series!,
+              snapshot.chapters.map((chapter) => chapter.source),
+            );
+          }
+          cachedDetails = snapshot;
+        } catch (_) {
+          // A corrupt or evicted snapshot must not block the source.
+        }
+        if (_disposed || generation != _generation) return;
+        if (cachedDetails != null) {
+          _state = NovelSeriesUiState(
+            status: NovelSeriesStatus.ready,
+            details: cachedDetails,
+          );
+          _readingSequence = cachedDetails.chaptersInReadingOrder;
+          _deriveChapters();
+          notifyListeners();
+          unawaited(refreshReadingTarget());
+          // Native Source Detail still needs the source's full metadata.
+          // Revalidate without discarding the cached chapter navigation.
+          _publish(
+            NovelSeriesUiState(
+              status: NovelSeriesStatus.loading,
+              details: cachedDetails,
+            ),
+          );
+        }
+      }
       final details = await Future.sync(_loadDetails);
       if (_disposed || generation != _generation) return;
       if (series case final parent?) {
@@ -168,6 +224,7 @@ final class NovelSeriesViewModel extends ChangeNotifier {
           details.chapters.map((chapter) => chapter.source),
         );
       }
+      _previewMetadata = null;
       _state = NovelSeriesUiState(
         status: NovelSeriesStatus.ready,
         details: details,

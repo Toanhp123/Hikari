@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/core/ui/patterns/chapter_row.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -40,10 +41,11 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
   @override
   Widget build(BuildContext context) {
     final state = widget.viewModel.state;
-    if (state.initialLoading) {
+    final metadata = widget.viewModel.effectiveMetadata;
+    if (state.initialLoading && metadata == null) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
-    if (state.failed) {
+    if (state.failed && metadata == null) {
       return Center(
         child: SingleChildScrollView(
           child: Column(
@@ -60,12 +62,11 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
       );
     }
 
-    final details = state.details!;
-    final allChapters = details.chapters;
+    final details = state.details;
+    final allChapters = details?.chapters ?? const [];
     final primaryChapter = widget.viewModel.primaryChapter;
     final searchQuery = widget.viewModel.searchQuery;
     final displayChapters = widget.viewModel.displayChapters;
-    final colorScheme = Theme.of(context).colorScheme;
 
     return RefreshIndicator.adaptive(
       onRefresh: widget.onRefresh,
@@ -89,21 +90,43 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
                       ),
                     ],
                   ),
-                MediaMetadataView(
-                  metadata: details.metadata,
-                  sourceName: widget.sourceName,
-                  readArtwork: widget.readArtwork,
-                  artworkOwner: widget.artworkOwner,
-                ),
-                PrimaryReadingCta(
-                  label: widget.viewModel.isContinuation
-                      ? 'Continue reading'
-                      : 'Start reading',
-                  enabled: !widget.openingChapter,
-                  onPressed: primaryChapter == null
-                      ? null
-                      : () => widget.onOpenChapter(primaryChapter),
-                ),
+                if (metadata != null)
+                  MediaMetadataView(
+                    key: const ValueKey('series-metadata'),
+                    metadata: metadata,
+                    sourceName: widget.sourceName,
+                    readArtwork: widget.readArtwork,
+                    artworkOwner: widget.artworkOwner,
+                  ),
+                if (widget.viewModel.state.initialLoading)
+                  const LinearProgressIndicator(
+                    semanticsLabel: 'Loading chapters',
+                  ),
+                if (widget.viewModel.state.failed)
+                  Semantics(
+                    liveRegion: true,
+                    child: MaterialBanner(
+                      content: const Text(
+                        'Could not load chapters. Check source access and try again.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => unawaited(widget.onRefresh()),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (details != null)
+                  PrimaryReadingCta(
+                    label: widget.viewModel.isContinuation
+                        ? 'Continue reading'
+                        : 'Start reading',
+                    enabled: !widget.openingChapter,
+                    onPressed: primaryChapter == null
+                        ? null
+                        : () => widget.onOpenChapter(primaryChapter),
+                  ),
                 if (allChapters.isNotEmpty)
                   ChapterControlBar(
                     totalChapters: allChapters.length,
@@ -123,12 +146,12 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
                     onSearchChanged: widget.viewModel.setSearchQuery,
                     onClearSearch: () => widget.viewModel.setSearchQuery(''),
                   ),
-                if (allChapters.isEmpty)
+                if (details != null && allChapters.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(HikariSpacing.lg),
                     child: Text('No readable chapters found.'),
                   )
-                else if (displayChapters.isEmpty)
+                else if (details != null && displayChapters.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(HikariSpacing.lg),
                     child: Column(
@@ -145,35 +168,11 @@ class _NovelSeriesContentState extends State<NovelSeriesContent> {
             );
           }
           final chapter = displayChapters[index - 1];
-          final subtitle = [
-            if (chapter.chapterNumber != null)
-              'Chapter ${chapter.chapterNumber}',
-            ...chapter.scanlators,
-            if (chapter.releaseLabel != null)
-              chapter.releaseLabel!
-            else if (chapter.releaseDate != null)
-              chapter.releaseDate!.toIso8601String().split('T').first,
-          ].join(' · ');
-          final isInteractive = !widget.openingChapter;
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpacing.md,
-              vertical: HikariSpacing.xs,
-            ),
-            child: ListTile(
-              key: ValueKey(chapter.source),
-              shape: const RoundedRectangleBorder(
-                borderRadius: HikariRadius.borderMd,
-              ),
-              tileColor: colorScheme.surfaceContainerLow,
-              title: Text(chapter.title),
-              subtitle: Text(subtitle),
-              trailing: isInteractive
-                  ? const Icon(Icons.chevron_right_rounded)
-                  : null,
-              enabled: isInteractive,
-              onTap: isInteractive ? () => widget.onOpenChapter(chapter) : null,
-            ),
+          return ChapterRow(
+            chapter: chapter,
+            sourceName: widget.sourceName,
+            enabled: !widget.openingChapter,
+            onTap: () => widget.onOpenChapter(chapter),
           );
         },
       ),

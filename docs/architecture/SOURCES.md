@@ -65,6 +65,8 @@ Mihon declares reverse reading order because its chapter contract supplies desce
 
 Mihon collapses exact stable chapter identities (derived from URLs) before saving continuation state, retaining the first occurrence and its metadata. Different URLs remain distinct even when chapter numbers match. Chapter numbers, titles, dates and scanlators are metadata, never sequence authority.
 
+Native source-first Manga/Novel Detail now reads the exact cached chapter-list snapshot on initial navigation, without treating it as a full metadata cache. It presents the saved chapter sequence while refreshing source metadata and the chapter list; a failed refresh keeps cached chapters available. A manual refresh always calls the source. Catalog Chapters retains its separate fresh/stale policy. Cached chapter references alone do **not** guarantee offline-readable Manga page bytes or Novel HTML/resources; those live in independent disposable caches. This behavior requires the source capability to remain registered. An uninstalled/unavailable extension is not restored or emulated by the chapter-list cache.
+
 Remote chapter-list UI continues to render `chapters` in structural source order and passes selected chapter with immutable `chaptersInReadingOrder` snapshot. Feature-local manga and novel reader sessions validate unique stable chapter references, filter unreadable manga targets, and publish adjacent targets only after successful open. See [Presentation architecture](PRESENTATION.md) for reader route lifetime, fresh progress sessions and handoff behavior. Direct/local readers remain single-chapter sessions.
 
 Do not add a capability for a hypothetical future. Add one when a real vertical needs
@@ -110,6 +112,8 @@ Episode discovery, stream selection, headers and DRM remain separate future requ
 `OpenMangaChapter` resolves `MangaPageSource`, loads chapter progress and resolves pages
 before navigation. `OpenNovelChapter` does the equivalent for `NovelChapterSource`,
 returning rich HTML with registered resources rather than coercing it to plain text.
+Explicit Manga/Novel reader refreshes bypass cached source bytes while preserving older cache
+entries on failure; see [ADR-021](../decisions/ADR-021-remote-reading-cache-freshness.md).
 Remote novel content/resources use application cache workflows only after adapter
 normalization; local `NovelTextSource` and `PublicationSource` paths remain uncached
 by these workflows. See [ADR-012](../decisions/ADR-012-reconstructible-cache-foundation.md).
@@ -142,6 +146,124 @@ small capability for the proven case where an opened item needs a source-owned r
 to stay alive. `OpenMedia` acquires the lease only after the requested open capability
 has been validated; the returned target owns release. Presentation never checks a
 specific source ID to retain or release provider/local resources.
+
+## Source preview handoff (Phase 5.2)
+
+Catalog resolution maps `CatalogSourceCandidate` into the existing presentation
+`CatalogSourcePickerCandidate` at the view-model boundary for exact-match and explicit
+candidate selection; widgets do not depend on application workflows. Source Search forwards its selected result's own optional
+`MediaMetadata`. Both routes call `OpenMedia.execute(media, previewMetadata: ...)`;
+AniList metadata is never converted into source preview metadata. Entry points without
+source metadata, including Library and Continue, pass none. A preview cover with a
+foreign `SourceId` is rejected with `ArgumentError` by `OpenMedia` and by series view
+models when a series reference is available.
+
+Series targets carry preview metadata without requesting details. Manga/Novel series
+view models own that initial preview separately from complete details. Effective
+metadata is **full details metadata, otherwise preview**: the first successful full
+response replaces the entire preview, including null cover/summary and empty lists.
+No field merging or fake chapter details is permitted. Initial loading and initial
+failure remain chapter-based states; preview can display during either, with progress
+or an announced error and Retry, but no reading CTA, chapter controls, or empty-list
+claim until actual details arrive. The same metadata header remains mounted across
+preview-to-full transitions; unchanged cover/owner retains its artwork future.
+
+Ordinary rebuilds do not reload details or restore discarded preview. A changed series
+reference creates a new view model with its new initial preview. Provider-owner changes
+clear old preview and details before loading and retain generation/continuation guards.
+Library save can use the effective cover while details are pending; artwork-only
+updates preserve pending membership mutations. Stored media title, progress, added time,
+and non-null saved artwork are not refreshed from source details. Existing SQL
+fill-null-only artwork policy is unchanged. Preview is route-local, not offline Detail
+persistence, and does not replace fresh complete chapter loading (ADR-024).
+
+### Request audit
+
+No same-identity/same-semantics duplicate request was established; no request removal,
+new dedupe coordinator, cache, alias fanout, or dependency was added.
+
+| Path | Retained work / handoff |
+| --- | --- |
+| Catalog discovery/search | Existing AniList cache and in-flight request dedupe; discovery identity stays catalog-only |
+| Catalog details | Existing cached detail workflow; catalog artwork never becomes source artwork |
+| Catalog exact source match | Existing bounded title/alias search; selected candidate keeps its source metadata |
+| Catalog ambiguous candidate | Explicit confirmation remains; chosen candidate keeps its own metadata |
+| Manual Source Search | Manga/Novel result metadata follows selected source media |
+| Source Detail entry | Preview renders immediately; one fresh complete detail load still required |
+| Detail refresh | Mihon `loadSeries` refreshes metadata, memo and chapters; LNReader `parseNovel` plus pages 2..N yields complete chapters |
+| Library save/reopen | Effective artwork may fill missing saved artwork; reopen does not manufacture preview or update saved title/progress |
+| Continue / reader | Reader-first open and independent cached-sequence/fresh reconciliation unchanged; artwork uses existing source artwork workflow |
+
+Upstream evidence supports distinguishing previews from full details, not copying
+upstream persistence or merge behavior: Mihon `SMangaImpl.initialized=false`
+([pinned source](https://github.com/mihonapp/mihon/blob/1ca9b0efb817b54948436e19906de9a5a2dca6b2/source-api/src/main/kotlin/eu/kanade/tachiyomi/source/model/SMangaImpl.kt));
+LNReader `NovelItem` versus `SourceNovel` and distinct `parseNovel`/`parsePage`
+([pinned types](https://github.com/LNReader/lnreader/blob/14d87add614960b5d1f300092339fa191399c393/src/plugins/types/index.ts),
+[plugin contract](https://github.com/LNReader/lnreader-plugins/blob/master/docs/docs.md));
+Kotatsu emits provisional metadata with `isLoaded=false`
+([pinned use case](https://github.com/KotatsuApp/Kotatsu/blob/34f6e5232bf7f0bcdf8f3fbddb986697518e82a4/app/src/main/kotlin/org/koitharu/kotatsu/details/domain/DetailsLoadUseCase.kt)).
+Whole-response precedence and route-local ownership above are Hikari design choices,
+not claims of identical upstream behavior or measured performance improvements.
+
+## Local SAF discovery (Phase 5.3)
+
+`LocalMediaSource` owns one in-flight traversal and one complete session snapshot,
+keyed by opaque root ID. `scanSelectedRoot()` validates the persisted grant and
+resolves the selected root on every call, then joins same-root work or reuses the
+completed snapshot. Source Search has no second completed-catalog cache.
+`scanSelectedRootSnapshot()` is explicit refresh: it traverses afresh unless a
+same-root traversal is already running. Root display names are not identities;
+validated reuse updates the display label without rewriting Library or Progress.
+
+Picker opening cancels obsolete traversal before native replacement can release
+the old grant. Searches wait for the picker outcome and revalidate afterward.
+Picker cancellation preserves the completed snapshot. Root replacement, absent
+root, access loss and source close invalidate it; transient same-root errors keep
+the prior complete snapshot and Local's stale-result warning (ADR-018). Cancelled
+work never publishes partial data and is not shown as provider failure. Page
+disposal does not cancel app-lifetime source work that another consumer may join.
+Source close cancels discovery without changing archive lease/copy ownership.
+Reader folder pages still query on demand, never from the discovery snapshot.
+
+Android uses one serialized discovery worker for root description, picker commit
+and scan-only child queries; existing serialized reader worker handles folder
+pages, reads, archive materialization/deletion and startup cleanup. Old grant
+release passes a barrier behind already submitted reader work, then checks and
+releases on the discovery worker, serialized with picker grant/commit mutations. Cancellation control is
+handled outside both queues, with local atomic checks before/after each query and
+through cursor iteration. No remote `CancellationSignal.cancel()` is invoked on
+the UI thread: provider Binder cancellation may itself block. Cancellation is
+cooperative, not a deadline or guaranteed provider interruption. A blocked old
+query can delay replacement discovery, but does not occupy Hikari's reader
+executor. Providers may still serialize their own operations. Each accepted
+MethodChannel call owns exactly one completion, including queued work on close.
+
+Traversal is iterative and bounded to **50,000 received entries including root**.
+Raw rows count even when duplicates are skipped. Each directory is queried at
+most once; repeated rows within a directory are collapsed, shared file-parent
+edges retained, and classified media deduplicated by stable source reference.
+Malformed identifiers/types, null cursors, cursor exceptions and `EXTRA_LOADING`
+fail the scan instead of caching partial results. Child queries project ID,
+display name and MIME together: baseline already had no per-file query N+1.
+Classification/natural sorting stay off the UI isolate via existing `compute`.
+Folder artwork uses a single-pass minimum with unchanged cover/natural-name/ID
+priority. No eager file reads or archive materialization are added.
+
+No persistent index is introduced. Nullable size/modification metadata and
+ContentObserver notifications do not establish recursive subtree freshness or a
+complete change journal; explicit refresh remains authority, and even a full
+walk is not an atomic provider snapshot. Upstream evidence and profiling limits
+are recorded in [ADR-018](../decisions/ADR-018-local-media-scan-presentation.md).
+
+Opt-in `--dart-define=HIKARI_LOCAL_SCAN_TRACE=true` emits numeric-only `LocalScan`
+DevTools timeline events: directory/raw-entry/query counts, total/traversal/
+classification microseconds, summed native queue/query microseconds and
+reuse/cancelled/failed flags. Native timings accompany scan rows only; there are
+no URI, name, title, document ID or error-content trace fields, persistent logs,
+or uploads. Native timings are available only for completed query responses;
+cancelled/failed queries do not contribute them. Root validation is separate
+from traversal timing. Reuse events contain status flags only. Do not ship
+instrumentation enabled or infer Android speedups from desktop fixtures.
 
 ## Composition and ownership
 

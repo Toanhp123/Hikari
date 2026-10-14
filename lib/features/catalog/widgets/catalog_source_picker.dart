@@ -19,7 +19,7 @@ class CatalogSourcePicker extends StatelessWidget {
   });
 
   final CatalogSourcePickerViewModel viewModel;
-  final ValueChanged<Media> onOpenMedia;
+  final ValueChanged<CatalogSourcePickerCandidate> onOpenMedia;
   final void Function(CatalogSourcePickerSource?, Set<SourceId>?)
   onManualSearch;
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
@@ -92,7 +92,7 @@ class CatalogSourcePicker extends StatelessWidget {
       CatalogSourcePickerStatus.candidates => CatalogSourceCandidateList(
         source: state.selectedSource!,
         candidates: state.candidates,
-        onSelect: (candidate) => onOpenMedia(candidate.media),
+        onSelect: onOpenMedia,
         onChooseAnother: viewModel.chooseAnotherSource,
         onManualSearch: () => onManualSearch(state.selectedSource, null),
         readArtwork: readArtwork,
@@ -419,26 +419,28 @@ class _ResolvingState extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: 'Finding $title on $sourceName',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xxl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Center(child: CircularProgressIndicator()),
-            const SizedBox(height: HikariSpacing.lg),
-            Text(
-              'Finding “$title” on $sourceName…',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium!,
-            ),
-            const SizedBox(height: HikariSpacing.xs),
-            Text(
-              'Checking the catalog title and known aliases.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium!
-                  .copyWith(color: colors.onSurfaceVariant),
-            ),
-          ],
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: HikariSpacing.lg),
+              Text(
+                'Finding “$title” on $sourceName…',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium!,
+              ),
+              const SizedBox(height: HikariSpacing.xs),
+              Text(
+                'Checking the catalog title and known aliases.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium!
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ),
     );

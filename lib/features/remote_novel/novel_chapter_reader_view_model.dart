@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:hikari/application/media/open_novel_chapter.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -40,7 +42,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
     );
   }
 
-  final List<NovelChapter> _chapters;
+  List<NovelChapter> _chapters;
   final OpenNovelChapter _openChapter;
   final Future<void> Function(NovelChapterOpenTarget target)?
   onChapterActivated;
@@ -48,6 +50,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
   onProgress;
   late NovelChapterReaderUiState _state;
   NovelChapterReaderUiState get state => _state;
+  NovelChapter get currentChapter => _chapters[_state.chapterIndex];
   bool get canOpenPrevious => _state.chapterIndex > 0;
   bool get canOpenNext => _state.chapterIndex < _chapters.length - 1;
   NovelChapter? get nextChapter =>
@@ -57,6 +60,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
   int _generation = 0;
   bool _closed = false;
   bool _closing = false;
+  bool get isClosing => _closing || _closed;
 
   static void _validate(Iterable<SourceMediaRef> refs) {
     final seen = <SourceMediaRef>{};
@@ -66,6 +70,52 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
           'Chapter sequence has missing or duplicate source references.',
         );
       }
+    }
+  }
+
+  /// Updates adjacent navigation without replacing the active reader target.
+  /// A delayed response cannot reset the current chapter or reading position.
+  bool reconcileSequence(List<NovelChapter> chapters) {
+    if (_closed || _closing || _state.openingAdjacent) return false;
+    final normalized = List<NovelChapter>.unmodifiable(chapters);
+    _validate(normalized.map((item) => item.source));
+    if (normalized.any(
+      (item) => item.source.sourceId != _state.target.chapter.source.sourceId,
+    )) {
+      throw ArgumentError('Chapter sequence has foreign source references.');
+    }
+    final index = normalized.indexWhere(
+      (item) => item.source == _state.target.chapter.source,
+    );
+    if (index < 0) return false;
+    _chapters = normalized;
+    _publish(
+      NovelChapterReaderUiState(target: _state.target, chapterIndex: index),
+    );
+    return true;
+  }
+
+  final _closedSignal = Completer<void>();
+  final _pendingSourceWork = <Future<void>>{};
+
+  /// Retains this reader's source ownership until dismissed work settles.
+  Future<T> sourceWork<T>(Future<T> Function() operation) {
+    if (_closing || _closed) {
+      return Future<T>.error(StateError('Reader is closing.'));
+    }
+    final result = Future<T>.sync(operation);
+    late final Future<void> pending;
+    pending = result
+        .then<void>((_) {}, onError: (Object _, StackTrace _) {})
+        .whenComplete(() => _pendingSourceWork.remove(pending));
+    _pendingSourceWork.add(pending);
+    return result;
+  }
+
+  Future<void> get settled async {
+    await _closedSignal.future;
+    while (_pendingSourceWork.isNotEmpty) {
+      await Future.wait(_pendingSourceWork.toList());
     }
   }
 
@@ -85,7 +135,9 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
       ),
     );
     try {
-      final target = await _openChapter.execute(_chapters[index]);
+      final target = await sourceWork(
+        () => _openChapter.execute(_chapters[index]),
+      );
       if (_closed || generation != _generation) return;
       _publish(NovelChapterReaderUiState(target: target, chapterIndex: index));
       _scheduleChapterActivation(target);
@@ -161,6 +213,7 @@ final class NovelChapterReaderViewModel extends ChangeNotifier {
   void close() {
     if (_closed) return;
     _closed = true;
+    _closedSignal.complete();
     _generation++;
   }
 

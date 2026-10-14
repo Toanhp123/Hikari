@@ -11,12 +11,14 @@ import 'package:hikari/application/progress/save_series_chapter_progress.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/settings/appearance_settings.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/catalog_search_page.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/library/library_page.dart';
@@ -32,6 +34,7 @@ import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_novel/novel_series_page.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_reader_view_model.dart';
 import 'package:hikari/features/remote_novel/novel_chapter_reader_view_model.dart';
+import 'package:hikari/features/reading/continue_reading_page.dart';
 import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart'
     show SourceSearchFilter;
@@ -160,8 +163,95 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
-  void _openCatalogDetail(BuildContext context, CatalogEntry entry) {
-    Navigator.of(context).push(
+  late final _catalogReadingTarget = LoadSeriesReadingTarget(
+    _dependencies.seriesContinuationRepository,
+  );
+
+  Future<void> _openMangaSeriesChapter(
+    BuildContext context,
+    Media selected,
+    MangaChapter chapter,
+    List<MangaChapter> sequence,
+    bool Function() current,
+  ) async {
+    MediaOpenTarget? target;
+    try {
+      target = await _dependencies.openMedia.execute(selected);
+      if (!context.mounted || !current()) return;
+      if (target is! MangaSeriesOpenTarget) {
+        throw StateError('Series source unavailable.');
+      }
+      await _openMangaChapter(
+        context,
+        chapter,
+        sequence,
+        seriesRef: selected.source,
+        canNavigate: current,
+        retainUntilSettled: (settled) {
+          final owned = target!;
+          target = null;
+          unawaited(
+            settled.then<void>((_) {}).whenComplete(owned.release).catchError((
+              Object error,
+              StackTrace stack,
+            ) {
+              FlutterError.reportError(
+                FlutterErrorDetails(exception: error, stack: stack),
+              );
+            }),
+          );
+        },
+      );
+    } finally {
+      await target?.release();
+    }
+  }
+
+  Future<void> _openNovelSeriesChapter(
+    BuildContext context,
+    Media selected,
+    NovelChapter chapter,
+    List<NovelChapter> sequence,
+    bool Function() current,
+  ) async {
+    MediaOpenTarget? target;
+    try {
+      target = await _dependencies.openMedia.execute(selected);
+      if (!context.mounted || !current()) return;
+      if (target is! NovelSeriesOpenTarget) {
+        throw StateError('Series source unavailable.');
+      }
+      await _openNovelChapter(
+        context,
+        chapter,
+        sequence,
+        seriesRef: selected.source,
+        canNavigate: current,
+        retainUntilSettled: (settled) {
+          final owned = target!;
+          target = null;
+          unawaited(
+            settled.then<void>((_) {}).whenComplete(owned.release).catchError((
+              Object error,
+              StackTrace stack,
+            ) {
+              FlutterError.reportError(
+                FlutterErrorDetails(exception: error, stack: stack),
+              );
+            }),
+          );
+        },
+      );
+    } finally {
+      await target?.release();
+    }
+  }
+
+  Future<void> _openCatalogDetail(
+    BuildContext context,
+    CatalogEntry entry,
+  ) async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CatalogDetailPage(
           initialEntry: entry,
@@ -169,6 +259,24 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
           resolveCatalogSource: _dependencies.resolveCatalogSource,
           readArtwork: _dependencies.readSourceArtwork.execute,
           openMedia: _openMedia,
+          chapterOpener: _dependencies.openMedia,
+          chapterLists: _dependencies.openMedia.chapterLists!,
+          loadReadingTarget: _catalogReadingTarget,
+          library: _dependencies.libraryRepository,
+          sourceSelections: _dependencies.catalogSourceSelections,
+          openMangaChapter: _openMangaSeriesChapter,
+          openNovelChapter: _openNovelSeriesChapter,
+          selectSourceSearch:
+              (item, sourceId, sourceName, sourceIds, language) =>
+                  _openCatalogSourceSearch(
+                    context,
+                    item,
+                    sourceId: sourceId,
+                    sourceName: sourceName,
+                    sourceIds: sourceIds,
+                    sourceLanguage: language,
+                    selectOnly: true,
+                  ),
           openRelated: (related) => _openCatalogDetail(context, related),
           openSourceSearch: (item, sourceId, sourceName, sourceIds, language) =>
               _openCatalogSourceSearch(
@@ -182,15 +290,34 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         ),
       ),
     );
+    if (mounted) setState(() => _homeRefreshRevision++);
   }
 
-  void _openCatalogSourceSearch(
+  void _openStandaloneSourceSearch(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SourceSearchPage(
+          openMedia: _openMedia,
+          searchManga: _dependencies.searchManga,
+          searchNovels: _dependencies.searchNovels,
+          scanLocalMedia: _dependencies.localMediaSource.isAvailable
+              ? _dependencies.localMediaSource.scanSelectedRoot
+              : null,
+          library: _dependencies.libraryRepository,
+          readArtwork: _dependencies.readSourceArtwork.execute,
+        ),
+      ),
+    );
+  }
+
+  Future<CatalogSourcePickerCandidate?> _openCatalogSourceSearch(
     BuildContext context,
     CatalogEntry entry, {
     SourceId? sourceId,
     String? sourceName,
     Set<SourceId>? sourceIds,
     String? sourceLanguage,
+    bool selectOnly = false,
   }) {
     final mediaLabel = switch (entry.type) {
       MediaType.anime => 'Anime',
@@ -202,10 +329,18 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       final language? => language.toUpperCase(),
       null => sourceName == null ? 'All languages' : 'Language unspecified',
     };
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
+    return Navigator.of(context).push<CatalogSourcePickerCandidate>(
+      MaterialPageRoute<CatalogSourcePickerCandidate>(
         builder: (_) => SourceSearchPage(
-          openMedia: _openMedia,
+          openMedia: selectOnly
+              ? (searchContext, media, {previewMetadata}) =>
+                    Navigator.of(searchContext).pop(
+                      CatalogSourcePickerCandidate(
+                        media: media,
+                        metadata: previewMetadata,
+                      ),
+                    )
+              : _openMedia,
           library: _dependencies.libraryRepository,
           readArtwork: _dependencies.readSourceArtwork.execute,
           searchManga: _dependencies.searchManga,
@@ -229,17 +364,27 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _openMedia(BuildContext context, Media media) async {
-    if (_isOpeningMedia) return;
-    _isOpeningMedia = true;
+  Future<void> _openMedia(
+    BuildContext context,
+    Media media, {
+    MediaMetadata? previewMetadata,
+    bool Function()? canNavigate,
+  }) async {
+    final contextual = canNavigate != null;
+    bool current() => context.mounted && (canNavigate?.call() ?? true);
+    if (!current() || (!contextual && _isOpeningMedia)) return;
+    if (!contextual) _isOpeningMedia = true;
     MediaOpenTarget? target;
     try {
-      target = await _dependencies.openMedia.execute(media);
-      if (!context.mounted) return;
+      target = await _dependencies.openMedia.execute(
+        media,
+        previewMetadata: previewMetadata,
+      );
+      if (!context.mounted || !current()) return;
       await _pushMediaTarget(context, target);
       if (mounted) setState(() => _homeRefreshRevision++);
     } catch (_) {
-      if (context.mounted) {
+      if (context.mounted && current()) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -249,14 +394,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         );
       }
     } finally {
-      _isOpeningMedia = false;
+      if (!contextual) _isOpeningMedia = false;
       try {
         await target?.release();
       } catch (error, stackTrace) {
         FlutterError.reportError(
           FlutterErrorDetails(exception: error, stack: stackTrace),
         );
-        if (context.mounted) {
+        if (context.mounted && current()) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -288,12 +433,12 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
                 .execute(novel.media.source, chapters),
         openChapter: (context, chapter, sequence, canNavigate) =>
-            _openNovelChapter(
+            _openNovelSeriesChapter(
               context,
+              novel.media,
               chapter,
               sequence,
-              seriesRef: novel.media.source,
-              canNavigate: canNavigate,
+              canNavigate,
             ),
         library: _dependencies.libraryRepository,
         readArtwork: _dependencies.readSourceArtwork.execute,
@@ -327,12 +472,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
 
   Widget _buildMangaSeriesPage(MangaSeriesOpenTarget target) => MangaSeriesPage(
     media: target.media,
+    previewMetadata: target.previewMetadata,
     dependencyOwner: (
       target.seriesSource,
       _dependencies.seriesContinuationRepository,
     ),
     sourceName: target.seriesSource.name,
     loadDetails: target.loadDetails,
+    readCachedDetails: target.readCachedDetails,
     loadReadingTarget: (chapters) =>
         LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
             .execute(target.media.source, chapters),
@@ -340,13 +487,14 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         ? _dependencies.readSourceArtwork.execute
         : null,
     library: _dependencies.libraryRepository,
-    openChapter: (context, chapter, sequence, canNavigate) => _openMangaChapter(
-      context,
-      chapter,
-      sequence,
-      seriesRef: target.media.source,
-      canNavigate: canNavigate,
-    ),
+    openChapter: (context, chapter, sequence, canNavigate) =>
+        _openMangaSeriesChapter(
+          context,
+          target.media,
+          chapter,
+          sequence,
+          canNavigate,
+        ),
   );
 
   Future<void> _continueReading(
@@ -372,45 +520,78 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     ContinueReadingItem item,
   ) async {
     final chapter = item.chapter;
-    if (chapter == null) {
-      await _openMedia(context, item.media);
-      return;
-    }
+    if (chapter == null) return;
     SeriesContinuationOpenTarget? target;
+    final pendingOpens = <Future<ReaderLaunch>>[];
     try {
-      target = await _dependencies.openSeriesContinuation.execute(
+      // Resolve stable source capability only. Details must not gate the route.
+      final continuation = await _dependencies.openSeriesContinuation.execute(
         item.media,
         chapter,
       );
+      target = continuation;
       if (!context.mounted) return;
-      switch (target) {
-        case MangaContinuationOpenTarget():
-          await _openMangaChapter(
-            context,
-            target.selected,
-            target.sequence,
-            seriesRef: target.series.source,
-          );
-        case NovelContinuationOpenTarget():
-          await _openNovelChapter(
-            context,
-            target.selected,
-            target.sequence,
-            seriesRef: target.series.source,
-          );
-      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ContinueReadingPage(
+            open: () {
+              final opening = switch (continuation) {
+                MangaContinuationOpenTarget() => _prepareMangaChapterReader(
+                  continuation.selected,
+                  [continuation.selected],
+                  seriesRef: continuation.series.source,
+                  cachedSequence: continuation.readCachedSequence,
+                  refreshSequence: continuation.refreshSequence,
+                ),
+                NovelContinuationOpenTarget() => _prepareNovelChapterReader(
+                  continuation.selected,
+                  [continuation.selected],
+                  seriesRef: continuation.series.source,
+                  cachedSequence: continuation.readCachedSequence,
+                  refreshSequence: continuation.refreshSequence,
+                ),
+              };
+              pendingOpens.add(opening);
+              return opening;
+            },
+          ),
+        ),
+      );
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Could not resume this chapter. Check source access and try again.',
-            ),
+            content: Text('Could not open saved chapter. Try again.'),
           ),
         );
       }
     } finally {
-      await target?.release();
+      final opened = target;
+      if (opened != null) {
+        // A user can back out while a source request is still in flight.
+        // Keep the source lease until the request has finished, but unblock Home.
+        unawaited(() async {
+          try {
+            for (final pending in pendingOpens) {
+              try {
+                final reader = await pending;
+                await reader.settled;
+              } catch (_) {
+                // The route owns the loading error UI.
+              }
+            }
+            await opened.release();
+          } catch (error, stack) {
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: error,
+                stack: stack,
+                context: ErrorDescription('releasing Continue Reading source'),
+              ),
+            );
+          }
+        }());
+      }
     }
   }
 
@@ -444,9 +625,45 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     List<NovelChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
     bool Function()? canNavigate,
+    void Function(Future<void>)? retainUntilSettled,
+  }) async {
+    final ready = await _prepareNovelChapterReader(
+      chapter,
+      chaptersInReadingOrder,
+      seriesRef: seriesRef,
+    );
+    MaterialPageRoute<void>? route;
+    var installed = false;
+    try {
+      if (!context.mounted || (canNavigate != null && !canNavigate())) {
+        ready.abandon();
+        return;
+      }
+      route = MaterialPageRoute<void>(builder: (_) => ready.reader);
+      final returned = Navigator.of(context).push(route);
+      installed = true;
+      await returned;
+    } catch (_) {
+      ready.abandon();
+      rethrow;
+    } finally {
+      retainUntilSettled?.call(
+        Future.wait<void>([
+          ready.settled,
+          if (installed) route!.completed.then<void>((_) {}),
+        ]),
+      );
+    }
+  }
+
+  Future<ReaderLaunch> _prepareNovelChapterReader(
+    NovelChapter chapter,
+    List<NovelChapter> chaptersInReadingOrder, {
+    SourceMediaRef? seriesRef,
+    Future<List<NovelChapter>?> Function()? cachedSequence,
+    Future<List<NovelChapter>> Function()? refreshSequence,
   }) async {
     final initialTarget = await _dependencies.openNovelChapter.execute(chapter);
-    if (!context.mounted || (canNavigate != null && !canNavigate())) return;
     final saveProgress = seriesRef == null
         ? null
         : SaveSeriesChapterProgress(
@@ -477,24 +694,40 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         }
       },
     );
-    try {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => NovelChapterReaderPage(
-            viewModel: viewModel,
-            reloadContent: _dependencies.readNovelChapterContent.reload,
-            readResource: _dependencies.readNovelResource.execute,
-            reloadResource: _dependencies.readNovelResource.reload,
-            createPrefetch: _dependencies.createNovelChapterPrefetch,
-            prefetchChapter: _dependencies.prefetchNovelChapter,
-          ),
-        ),
-      );
-    } catch (_) {
-      viewModel.close();
-      viewModel.dispose();
-      rethrow;
-    }
+    final settled = cachedSequence == null && refreshSequence == null
+        ? Future<void>.value()
+        : () async {
+            if (cachedSequence != null) {
+              try {
+                final cached = await cachedSequence();
+                if (cached != null) viewModel.reconcileSequence(cached);
+              } catch (_) {
+                // Missing or corrupt cache must not block reading.
+              }
+            }
+            if (refreshSequence != null) {
+              try {
+                viewModel.reconcileSequence(await refreshSequence());
+              } catch (_) {
+                // The last valid sequence remains available offline.
+              }
+            }
+          }();
+    return (
+      reader: NovelChapterReaderPage(
+        viewModel: viewModel,
+        reloadContent: _dependencies.readNovelChapterContent.reload,
+        readResource: _dependencies.readNovelResource.execute,
+        reloadResource: _dependencies.readNovelResource.reload,
+        createPrefetch: _dependencies.createNovelChapterPrefetch,
+        prefetchChapter: _dependencies.prefetchNovelChapter,
+      ),
+      settled: Future.wait([settled, viewModel.settled]),
+      abandon: () {
+        viewModel.close();
+        viewModel.dispose();
+      },
+    );
   }
 
   Future<void> _openMangaChapter(
@@ -503,9 +736,45 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     List<MangaChapter> chaptersInReadingOrder, {
     SourceMediaRef? seriesRef,
     bool Function()? canNavigate,
+    void Function(Future<void>)? retainUntilSettled,
+  }) async {
+    final ready = await _prepareMangaChapterReader(
+      chapter,
+      chaptersInReadingOrder,
+      seriesRef: seriesRef,
+    );
+    MaterialPageRoute<void>? route;
+    var installed = false;
+    try {
+      if (!context.mounted || (canNavigate != null && !canNavigate())) {
+        ready.abandon();
+        return;
+      }
+      route = MaterialPageRoute<void>(builder: (_) => ready.reader);
+      final returned = Navigator.of(context).push(route);
+      installed = true;
+      await returned;
+    } catch (_) {
+      ready.abandon();
+      rethrow;
+    } finally {
+      retainUntilSettled?.call(
+        Future.wait<void>([
+          ready.settled,
+          if (installed) route!.completed.then<void>((_) {}),
+        ]),
+      );
+    }
+  }
+
+  Future<ReaderLaunch> _prepareMangaChapterReader(
+    MangaChapter chapter,
+    List<MangaChapter> chaptersInReadingOrder, {
+    SourceMediaRef? seriesRef,
+    Future<List<MangaChapter>?> Function()? cachedSequence,
+    Future<List<MangaChapter>> Function()? refreshSequence,
   }) async {
     final initialTarget = await _dependencies.openMangaChapter.execute(chapter);
-    if (!context.mounted || (canNavigate != null && !canNavigate())) return;
     final chapterPrefetch = _dependencies.createMangaChapterPrefetch();
     final saveProgress = seriesRef == null
         ? null
@@ -539,23 +808,43 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
         }
       },
     );
-    try {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => MangaChapterReaderPage(
-            viewModel: viewModel,
-            readPage: _dependencies.readMangaPage.execute,
-            reloadPage: _dependencies.readMangaPage.reload,
-            createPrefetch: _dependencies.createMangaPagePrefetch,
-            prefetchPages: _dependencies.prefetchMangaPages,
-          ),
-        ),
-      );
-    } catch (_) {
-      viewModel.close();
-      viewModel.dispose();
-      rethrow;
-    }
+    final settled = cachedSequence == null && refreshSequence == null
+        ? Future<void>.value()
+        : () async {
+            if (cachedSequence != null) {
+              try {
+                final cached = await cachedSequence();
+                if (cached != null) viewModel.reconcileSequence(cached);
+              } catch (_) {
+                // Missing or corrupt cache must not block reading.
+              }
+            }
+            if (refreshSequence != null) {
+              try {
+                viewModel.reconcileSequence(await refreshSequence());
+              } catch (_) {
+                // The last valid sequence remains available offline.
+              }
+            }
+          }();
+    return (
+      reader: MangaChapterReaderPage(
+        viewModel: viewModel,
+        readPage: _dependencies.readMangaPage.execute,
+        reloadPage: _dependencies.readMangaPage.reload,
+        fetchFreshPage: _dependencies.readMangaPage.fetchFresh,
+        persistFreshPage: _dependencies.readMangaPage.persist,
+        fetchFreshPages: _dependencies.readMangaPageList.fetchFresh,
+        persistPages: _dependencies.readMangaPageList.persist,
+        createPrefetch: _dependencies.createMangaPagePrefetch,
+        prefetchPages: _dependencies.prefetchMangaPages,
+      ),
+      settled: Future.wait([settled, viewModel.settled]),
+      abandon: () {
+        viewModel.close();
+        viewModel.dispose();
+      },
+    );
   }
 
   @override
@@ -587,6 +876,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             AppTab.search: CatalogSearchPage(
               searchCatalog: _dependencies.searchCatalog,
               openDetail: _openCatalogDetail,
+              openSourceSearch: _openStandaloneSourceSearch,
             ),
             AppTab.local: LocalMediaPage(
               scanSelectedRoot: localSource.scanSelectedRootSnapshot,
@@ -605,6 +895,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                   _navigationController.selectTab(AppTab.search),
             ),
             AppTab.settings: SettingsPage(
+              loadCacheUsage: _dependencies.cacheManagement?.usage,
+              onClearCache: _dependencies.cacheManagement?.clear,
               isOled: _isOled,
               selectedAccent: _accentColor,
               appearanceSaveStatus: widget.appearanceRepository == null

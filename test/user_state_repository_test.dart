@@ -222,7 +222,7 @@ void main() {
         expect(
           (await old.customSelect('PRAGMA user_version').getSingle())
               .data['user_version'],
-          5,
+          6,
         );
         await old.validateDatabaseSchema();
       } finally {
@@ -314,7 +314,7 @@ void main() {
       expect(
         (await v4.customSelect('PRAGMA user_version').getSingle())
             .data['user_version'],
-        5,
+        6,
       );
       await v4.validateDatabaseSchema();
     } finally {

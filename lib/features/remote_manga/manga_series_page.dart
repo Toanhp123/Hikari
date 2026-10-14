@@ -9,6 +9,7 @@ import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/features/library/widgets/library_button.dart';
 import 'package:hikari/features/remote_manga/manga_series_view_model.dart';
 import 'package:hikari/features/remote_manga/widgets/manga_series_content.dart';
@@ -20,6 +21,8 @@ class MangaSeriesPage extends StatefulWidget {
     required this.sourceName,
     required this.loadDetails,
     this.dependencyOwner,
+    this.previewMetadata,
+    this.readCachedDetails,
     this.readArtwork,
     this.loadReadingTarget,
     this.library,
@@ -31,6 +34,8 @@ class MangaSeriesPage extends StatefulWidget {
   /// Stable provider/repository identity; not a per-build callback.
   final Object? dependencyOwner;
   final Media media;
+  final MediaMetadata? previewMetadata;
+  final Future<MangaSeriesDetails?> Function()? readCachedDetails;
   final String sourceName;
   final Future<MangaSeriesDetails> Function() loadDetails;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
@@ -54,6 +59,8 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
     widget.loadDetails,
     loadReadingTarget: widget.loadReadingTarget,
     series: widget.media.source,
+    previewMetadata: widget.previewMetadata,
+    readCachedDetails: widget.readCachedDetails,
   );
   bool _isOpeningChapter = false;
   int _openingGeneration = 0;
@@ -61,7 +68,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
   @override
   void initState() {
     super.initState();
-    unawaited(_viewModel.load());
+    unawaited(_viewModel.load(useCached: true));
   }
 
   @override
@@ -73,10 +80,12 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
         widget.loadDetails,
         loadReadingTarget: widget.loadReadingTarget,
         series: widget.media.source,
+        previewMetadata: widget.previewMetadata,
+        readCachedDetails: widget.readCachedDetails,
       );
       _openingGeneration++;
       _isOpeningChapter = false;
-      unawaited(_viewModel.load());
+      unawaited(_viewModel.load(useCached: true));
     } else {
       final ownerChanged = oldWidget.dependencyOwner != widget.dependencyOwner;
       if (ownerChanged) {
@@ -87,6 +96,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
         widget.loadDetails,
         widget.loadReadingTarget,
         ownerChanged: ownerChanged,
+        readCachedDetails: widget.readCachedDetails,
       );
     }
   }
@@ -140,7 +150,11 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(widget.media.title),
+      title: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (_, _) =>
+            Text(_viewModel.effectiveMetadata?.title ?? widget.media.title),
+      ),
       actions: [
         ListenableBuilder(
           listenable: _viewModel,
@@ -158,7 +172,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
             builder: (_, _) => LibraryButton(
               repository: widget.library!,
               media: widget.media,
-              artwork: _viewModel.state.details?.metadata.cover,
+              artwork: _viewModel.effectiveMetadata?.cover,
             ),
           ),
       ],

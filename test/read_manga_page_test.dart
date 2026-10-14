@@ -107,6 +107,23 @@ void main() {
     expect(source.reads, 0);
   });
 
+  test(
+    'staged refresh does not overwrite cached bytes until accepted',
+    () async {
+      final cache = _MemoryCache();
+      final source = _PageSource()..bytes = Uint8List.fromList([1]);
+      final reader = ReadMangaPage(cache);
+      final page = _page('remote', 'staged');
+      expect(await reader.execute(source, page), [1]);
+      source.bytes = Uint8List.fromList([2]);
+      final candidate = await reader.fetchFresh(source, page);
+      expect(candidate, [2]);
+      expect(await reader.execute(source, page), [1]);
+      await reader.persist(source, page, candidate);
+      expect(await reader.execute(source, page), [2]);
+    },
+  );
+
   test('fresh reload skips stale cache and replaces cached bytes', () async {
     final cache = _MemoryCache()
       ..values['${ReadMangaPage.cacheNamespace}/["remote","page"]'] =
