@@ -51,6 +51,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
     loadReadingTarget: widget.loadReadingTarget,
     series: widget.target.media.source,
     previewMetadata: widget.target.previewMetadata,
+    readCachedDetails: widget.target.readCachedDetails,
   );
   bool _isOpeningChapter = false;
   int _openingGeneration = 0;
@@ -58,7 +59,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
   @override
   void initState() {
     super.initState();
-    unawaited(_viewModel.load());
+    unawaited(_viewModel.load(useCached: true));
   }
 
   @override
@@ -71,10 +72,11 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         loadReadingTarget: widget.loadReadingTarget,
         series: widget.target.media.source,
         previewMetadata: widget.target.previewMetadata,
+        readCachedDetails: widget.target.readCachedDetails,
       );
       _openingGeneration++;
       _isOpeningChapter = false;
-      unawaited(_viewModel.load());
+      unawaited(_viewModel.load(useCached: true));
     } else {
       final ownerChanged =
           (oldWidget.dependencyOwner ?? oldWidget.target.source) !=
@@ -87,6 +89,7 @@ class _NovelSeriesPageState extends State<NovelSeriesPage> {
         widget.target.loadDetails,
         widget.loadReadingTarget,
         ownerChanged: ownerChanged,
+        readCachedDetails: widget.target.readCachedDetails,
       );
     }
   }

@@ -1,4 +1,5 @@
 import 'package:hikari/application/media/read_remote_chapter_list.dart';
+import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/application/progress/progress_session.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -45,6 +46,22 @@ final class MangaSeriesOpenTarget extends MediaOpenTarget {
   final MangaSeriesSource seriesSource;
   final ReadRemoteChapterList? chapterLists;
   final MediaMetadata? previewMetadata;
+
+  /// A chapter-list snapshot is navigation metadata. Full source metadata is
+  /// intentionally not cached; use the preview (or the persisted media title).
+  Future<MangaSeriesDetails?> readCachedDetails() async {
+    final snapshots = chapterLists;
+    if (snapshots == null) return null;
+    final snapshot = await snapshots.readMangaSnapshot(media.source);
+    if (snapshot == null) return null;
+    return MangaSeriesDetails(
+      metadata: previewMetadata ?? MediaMetadata(title: media.title),
+      chapters: snapshot.chapterListOrder == ChapterListOrder.readingOrder
+          ? snapshot.chapters
+          : snapshot.chapters.reversed.toList(growable: false),
+      chapterListOrder: snapshot.chapterListOrder,
+    );
+  }
 
   Future<MangaSeriesDetails> loadDetails() async {
     final request = chapterLists?.beginRefresh(media.source, MediaType.manga);
@@ -100,6 +117,20 @@ final class NovelSeriesOpenTarget extends MediaOpenTarget {
   final NovelSeriesSource source;
   final ReadRemoteChapterList? chapterLists;
   final MediaMetadata? previewMetadata;
+
+  Future<NovelDetails?> readCachedDetails() async {
+    final snapshots = chapterLists;
+    if (snapshots == null) return null;
+    final snapshot = await snapshots.readNovelSnapshot(media.source);
+    if (snapshot == null) return null;
+    return NovelDetails(
+      metadata: previewMetadata ?? MediaMetadata(title: media.title),
+      chapters: snapshot.chapterListOrder == ChapterListOrder.readingOrder
+          ? snapshot.chapters
+          : snapshot.chapters.reversed.toList(growable: false),
+      chapterListOrder: snapshot.chapterListOrder,
+    );
+  }
 
   Future<NovelDetails> loadDetails() async {
     final request = chapterLists?.beginRefresh(

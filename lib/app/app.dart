@@ -479,6 +479,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
     ),
     sourceName: target.seriesSource.name,
     loadDetails: target.loadDetails,
+    readCachedDetails: target.readCachedDetails,
     loadReadingTarget: (chapters) =>
         LoadSeriesReadingTarget(_dependencies.seriesContinuationRepository)
             .execute(target.media.source, chapters),

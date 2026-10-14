@@ -336,6 +336,62 @@ void main() {
   );
 
   test(
+    'native Manga and Novel detail reconstruct structural order offline',
+    () async {
+      final disk = _MemoryCache();
+      final lists = ReadRemoteChapterList(disk);
+      final mangaSource = _MangaSource();
+      final novelSource = _NovelSource();
+      final mangaOpen = OpenMedia(
+        SourceRegistry([mangaSource]),
+        _Progress(),
+        chapterLists: lists,
+      );
+      final novelOpen = OpenMedia(
+        SourceRegistry([novelSource]),
+        _Progress(),
+        chapterLists: lists,
+      );
+      final manga = await mangaOpen.execute(_manga) as MangaSeriesOpenTarget;
+      final novel = await novelOpen.execute(_novel) as NovelSeriesOpenTarget;
+      await manga.loadDetails();
+      await novel.loadDetails();
+      mangaSource.offline = true;
+      novelSource.offline = true;
+      // Recreating the reader of persisted bytes models a cold process start.
+      final restarted = ReadRemoteChapterList(disk);
+      final coldManga = await OpenMedia(
+        SourceRegistry([mangaSource]),
+        _Progress(),
+        chapterLists: restarted,
+      ).execute(_manga) as MangaSeriesOpenTarget;
+      final coldNovel = await OpenMedia(
+        SourceRegistry([novelSource]),
+        _Progress(),
+        chapterLists: restarted,
+      ).execute(_novel) as NovelSeriesOpenTarget;
+      final mangaCached = (await coldManga.readCachedDetails())!;
+      final novelCached = (await coldNovel.readCachedDetails())!;
+      expect(mangaCached.chaptersInReadingOrder.map((c) => c.source), [
+        _two,
+        _one,
+      ]);
+      expect(novelCached.chaptersInReadingOrder.map((c) => c.source), [
+        _two,
+        _one,
+      ]);
+      expect(mangaCached.metadata.title, _manga.title);
+      expect(novelCached.metadata.title, _novel.title);
+      expect(mangaSource.calls, 1);
+      expect(novelSource.calls, 1);
+      await coldManga.release();
+      await coldNovel.release();
+      await manga.release();
+      await novel.release();
+    },
+  );
+
+  test(
     'a delayed older request cannot replace the newer chapter order',
     () async {
       final source = _MangaSource();

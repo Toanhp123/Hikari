@@ -65,6 +65,8 @@ Mihon declares reverse reading order because its chapter contract supplies desce
 
 Mihon collapses exact stable chapter identities (derived from URLs) before saving continuation state, retaining the first occurrence and its metadata. Different URLs remain distinct even when chapter numbers match. Chapter numbers, titles, dates and scanlators are metadata, never sequence authority.
 
+Native source-first Manga/Novel Detail now reads the exact cached chapter-list snapshot on initial navigation, without treating it as a full metadata cache. It presents the saved chapter sequence while refreshing source metadata and the chapter list; a failed refresh keeps cached chapters available. A manual refresh always calls the source. Catalog Chapters retains its separate fresh/stale policy. Cached chapter references alone do **not** guarantee offline-readable Manga page bytes or Novel HTML/resources; those live in independent disposable caches. This behavior requires the source capability to remain registered. An uninstalled/unavailable extension is not restored or emulated by the chapter-list cache.
+
 Remote chapter-list UI continues to render `chapters` in structural source order and passes selected chapter with immutable `chaptersInReadingOrder` snapshot. Feature-local manga and novel reader sessions validate unique stable chapter references, filter unreadable manga targets, and publish adjacent targets only after successful open. See [Presentation architecture](PRESENTATION.md) for reader route lifetime, fresh progress sessions and handoff behavior. Direct/local readers remain single-chapter sessions.
 
 Do not add a capability for a hypothetical future. Add one when a real vertical needs

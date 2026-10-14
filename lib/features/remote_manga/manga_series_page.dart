@@ -22,6 +22,7 @@ class MangaSeriesPage extends StatefulWidget {
     required this.loadDetails,
     this.dependencyOwner,
     this.previewMetadata,
+    this.readCachedDetails,
     this.readArtwork,
     this.loadReadingTarget,
     this.library,
@@ -34,6 +35,7 @@ class MangaSeriesPage extends StatefulWidget {
   final Object? dependencyOwner;
   final Media media;
   final MediaMetadata? previewMetadata;
+  final Future<MangaSeriesDetails?> Function()? readCachedDetails;
   final String sourceName;
   final Future<MangaSeriesDetails> Function() loadDetails;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
@@ -58,6 +60,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
     loadReadingTarget: widget.loadReadingTarget,
     series: widget.media.source,
     previewMetadata: widget.previewMetadata,
+    readCachedDetails: widget.readCachedDetails,
   );
   bool _isOpeningChapter = false;
   int _openingGeneration = 0;
@@ -65,7 +68,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
   @override
   void initState() {
     super.initState();
-    unawaited(_viewModel.load());
+    unawaited(_viewModel.load(useCached: true));
   }
 
   @override
@@ -78,10 +81,11 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
         loadReadingTarget: widget.loadReadingTarget,
         series: widget.media.source,
         previewMetadata: widget.previewMetadata,
+        readCachedDetails: widget.readCachedDetails,
       );
       _openingGeneration++;
       _isOpeningChapter = false;
-      unawaited(_viewModel.load());
+      unawaited(_viewModel.load(useCached: true));
     } else {
       final ownerChanged = oldWidget.dependencyOwner != widget.dependencyOwner;
       if (ownerChanged) {
@@ -92,6 +96,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
         widget.loadDetails,
         widget.loadReadingTarget,
         ownerChanged: ownerChanged,
+        readCachedDetails: widget.readCachedDetails,
       );
     }
   }
