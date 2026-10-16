@@ -714,8 +714,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                     pinned: true,
                     // NestedScrollView does not support an outer stretching
                     // header. The shared hero retains its collapsing behavior.
-                    expandedHeight:
-                        heroHeight + (hasTabBar ? 48.0 : 0.0),
+                    expandedHeight: heroHeight + (hasTabBar ? 48.0 : 0.0),
                     bottom: !hasTabBar
                         ? null
                         : TabBar(

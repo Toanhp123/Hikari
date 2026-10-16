@@ -215,9 +215,9 @@ void main() {
     expect(hero.hasTabBar, isTrue);
 
     final tabBarTop = tester.getTopLeft(find.byType(TabBar)).dy;
-    final coverBottom = tester.getBottomLeft(
-      find.bySemanticsLabel('${_related.title} cover'),
-    ).dy;
+    final coverBottom = tester
+        .getBottomLeft(find.bySemanticsLabel('${_related.title} cover'))
+        .dy;
     final readButtonBottom = tester.getBottomLeft(find.text('Read')).dy;
 
     expect(coverBottom, lessThan(tabBarTop));

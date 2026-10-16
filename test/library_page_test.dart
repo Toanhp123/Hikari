@@ -4,13 +4,19 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/application/progress/load_continue_reading.dart';
+import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/local_media_scan_result.dart';
+import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_series_continuation_repository.dart';
 
 void main() {
   const media = Media(
@@ -25,6 +31,71 @@ void main() {
     library = SqliteLibraryRepository(db);
   });
   tearDown(() => db.close());
+  testWidgets('Library reuses chapter progress and refreshes after reading', (
+    tester,
+  ) async {
+    final progress = SqliteProgressRepository(db);
+    final continuations = SqliteSeriesContinuationRepository(db);
+    const chapter = SourceMediaRef(
+      sourceId: SourceId.local,
+      itemId: 'book-chapter',
+    );
+    await library.upsert(
+      LibraryEntry(media: media, addedAt: DateTime.utc(2026)),
+    );
+    await continuations.save(
+      SeriesContinuation(series: media.source, chapter: chapter),
+    );
+    await progress.save(
+      MediaProgress(
+        media: chapter,
+        position: TextPosition(progression: 0.4),
+        completed: false,
+        updatedAt: DateTime.utc(2026),
+      ),
+    );
+
+    Widget page(int revision) => MaterialApp(
+      theme: HikariTheme.darkTheme(),
+      home: LibraryPage(
+        repository: library,
+        loadContinueReading: LoadContinueReading(progress, continuations),
+        progressRevision: revision,
+        openMedia: (_, _) {},
+      ),
+    );
+
+    await tester.pumpWidget(page(0));
+    await tester.pumpAndSettle();
+    expect(find.byType(MediaProgressBar), findsOneWidget);
+    await tester.tap(find.byTooltip('Switch to list view'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chapter 40% read'), findsOneWidget);
+
+    await progress.save(
+      MediaProgress(
+        media: chapter,
+        position: TextPosition(progression: 0.75),
+        completed: false,
+        updatedAt: DateTime.utc(2026, 1, 2),
+      ),
+    );
+    await tester.pumpWidget(page(1));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chapter 75% read'), findsOneWidget);
+    expect(find.textContaining('Chapter 40% read'), findsNothing);
+
+    // Removing Library membership does not delete chapter progress.
+    await tester.tap(find.byTooltip('Remove from library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    expect((await progress.load(chapter))?.position, isA<TextPosition>());
+    expect(await library.contains(media.source), isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets(
     'library empty state and persisted snapshots open without scan then remove',
     (tester) async {
@@ -62,6 +133,13 @@ void main() {
       expect(opened!.source, media.source);
       await tester.tap(find.byTooltip('Remove from library'));
       await tester.pumpAndSettle();
+      expect(find.text('Remove from Library?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(media.source), isTrue);
+      await tester.tap(find.byTooltip('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
       await tester.pumpAndSettle();
       expect(await library.contains(media.source), isFalse);
       await tester.pumpAndSettle();

@@ -11,8 +11,9 @@ import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/progress/continue_reading_item.dart';
+import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/library/library_view_model.dart';
-import 'package:hikari/features/library/widgets/library_button.dart';
 
 Widget _emptyContent(BuildContext context) => const SizedBox.shrink();
 
@@ -20,22 +21,20 @@ class LibraryContent extends StatelessWidget {
   const LibraryContent({
     super.key,
     required this.state,
-    required this.repository,
     this.readArtwork,
     required this.openMedia,
     required this.onReload,
     required this.onSelectMediaType,
-    required this.onRepositoryChanged,
+    required this.onRemove,
     this.onBrowseCatalog,
   });
 
   final LibraryUiState state;
-  final LibraryRepository repository;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
   final VoidCallback onReload;
   final ValueChanged<MediaType?> onSelectMediaType;
-  final VoidCallback onRepositoryChanged;
+  final void Function(LibraryEntry) onRemove;
   final VoidCallback? onBrowseCatalog;
 
   @override
@@ -74,6 +73,9 @@ class LibraryContent extends StatelessWidget {
     }
 
     final visibleEntries = state.visibleEntries;
+    final readingBySource = <SourceMediaRef, ContinueReadingItem>{
+      for (final item in state.continueItems) item.media.source: item,
+    };
     final savedCountLabel = visibleEntries.length == 1
         ? '1 saved title'
         : '${visibleEntries.length} saved titles';
@@ -109,6 +111,23 @@ class LibraryContent extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (state.progressError != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      HikariSpacing.lg,
+                      0,
+                      HikariSpacing.lg,
+                      HikariSpacing.sm,
+                    ),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        'Some reading progress is unavailable.',
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -135,17 +154,17 @@ class LibraryContent extends StatelessWidget {
                   : state.viewMode == LibraryViewMode.grid
                   ? _LibraryGrid(
                       entries: visibleEntries,
-                      repository: repository,
+                      readingBySource: readingBySource,
                       readArtwork: readArtwork,
                       openMedia: openMedia,
-                      onRepositoryChanged: onRepositoryChanged,
+                      onRemove: onRemove,
                     )
                   : _LibraryList(
                       entries: visibleEntries,
-                      repository: repository,
+                      readingBySource: readingBySource,
                       readArtwork: readArtwork,
                       openMedia: openMedia,
-                      onRepositoryChanged: onRepositoryChanged,
+                      onRemove: onRemove,
                     ),
             ),
           ),
@@ -190,17 +209,17 @@ class _LibraryFilters extends StatelessWidget {
 class _LibraryGrid extends StatelessWidget {
   const _LibraryGrid({
     required this.entries,
-    required this.repository,
+    required this.readingBySource,
     this.readArtwork,
     required this.openMedia,
-    required this.onRepositoryChanged,
+    required this.onRemove,
   });
 
   final List<LibraryEntry> entries;
-  final LibraryRepository repository;
+  final Map<SourceMediaRef, ContinueReadingItem> readingBySource;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
-  final VoidCallback onRepositoryChanged;
+  final void Function(LibraryEntry) onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -212,19 +231,26 @@ class _LibraryGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = entries[index];
         final media = entry.media;
+        final progress = readingBySource[media.source];
         final badge = mediaTypeBadgeColors(context, media.type);
         return Stack(
           children: [
             Positioned.fill(
               child: Builder(
                 builder: (context) {
-                  Widget poster(Uint8List? bytes) => MediaPoster(
-                    title: media.title,
-                    imageBytes: bytes,
-                    badgeText: mediaTypeBadgeLabel(media.type),
-                    badgeColor: badge.background,
-                    badgeForegroundColor: badge.foreground,
-                    onTap: () => openMedia(context, media),
+                  Widget poster(Uint8List? bytes) => Semantics(
+                    value: progress == null ? null : _readingLabel(progress),
+                    child: MediaPoster(
+                      title: media.title,
+                      imageBytes: bytes,
+                      progress: progress?.completed == true
+                          ? null
+                          : progress?.progress,
+                      badgeText: mediaTypeBadgeLabel(media.type),
+                      badgeColor: badge.background,
+                      badgeForegroundColor: badge.foreground,
+                      onTap: () => openMedia(context, media),
+                    ),
                   );
                   final artwork = entry.artwork;
                   return artwork != null && readArtwork != null
@@ -241,11 +267,7 @@ class _LibraryGrid extends StatelessWidget {
             Positioned(
               top: 4,
               right: 4,
-              child: LibraryButton(
-                repository: repository,
-                media: media,
-                onChanged: onRepositoryChanged,
-              ),
+              child: _LibraryRemoveButton(onPressed: () => onRemove(entry)),
             ),
           ],
         );
@@ -257,17 +279,17 @@ class _LibraryGrid extends StatelessWidget {
 class _LibraryList extends StatelessWidget {
   const _LibraryList({
     required this.entries,
-    required this.repository,
+    required this.readingBySource,
     this.readArtwork,
     required this.openMedia,
-    required this.onRepositoryChanged,
+    required this.onRemove,
   });
 
   final List<LibraryEntry> entries;
-  final LibraryRepository repository;
+  final Map<SourceMediaRef, ContinueReadingItem> readingBySource;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
-  final VoidCallback onRepositoryChanged;
+  final void Function(LibraryEntry) onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -281,6 +303,7 @@ class _LibraryList extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = entries[index];
         final media = entry.media;
+        final progress = readingBySource[media.source];
         return Material(
           color: colors.surfaceContainer,
           shape: RoundedRectangleBorder(
@@ -335,19 +358,53 @@ class _LibraryList extends StatelessWidget {
               ),
             ),
             subtitle: Text(
-              mediaTypeLabel(media.type),
+              progress == null
+                  ? mediaTypeLabel(media.type)
+                  : '${mediaTypeLabel(media.type)} · ${_readingLabel(progress)}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: colors.onSurfaceVariant),
             ),
             onTap: () => openMedia(context, media),
-            trailing: LibraryButton(
-              repository: repository,
-              media: media,
-              onChanged: onRepositoryChanged,
-            ),
+            trailing: _LibraryRemoveButton(onPressed: () => onRemove(entry)),
           ),
         );
       },
     );
   }
+}
+
+/// A saved item is already known to be in Library; do not create a separate
+/// membership subscription for every visible row or poster.
+class _LibraryRemoveButton extends StatelessWidget {
+  const _LibraryRemoveButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: 'Remove from library',
+    onPressed: onPressed,
+    icon: const Icon(Icons.bookmark_rounded),
+  );
+}
+
+String _readingLabel(ContinueReadingItem item) {
+  final chapter = item.chapter != null;
+  if (chapter && item.completed) return 'Last chapter completed';
+  return switch (item.position) {
+    PagePosition(:final pageCount) when pageCount == 0 =>
+      chapter ? 'Resume chapter' : 'Resume reading',
+    PagePosition(:final pageIndex, :final pageCount) when chapter =>
+      'Chapter page ${pageIndex + 1} of $pageCount',
+    PagePosition(:final pageIndex, :final pageCount) =>
+      'Page ${pageIndex + 1} of $pageCount',
+    TextPosition(:final progression) when chapter =>
+      'Chapter ${(progression * 100).round()}% read',
+    TextPosition(:final progression) => '${(progression * 100).round()}% read',
+    VideoPosition() => 'Resume video',
+    DocumentPosition() => 'Resume reading',
+    _ => 'Continue reading',
+  };
 }

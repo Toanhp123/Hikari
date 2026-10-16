@@ -197,6 +197,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Remove from library'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Local'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Add to library'), findsOneWidget);
