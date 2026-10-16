@@ -687,13 +687,14 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final heroHeight =
-        (context.isCompact ? 440.0 : 400.0) +
+        (context.isCompact ? 370.0 : 380.0) +
         (textScale - 1.0).clamp(0.0, 1.0) * 160.0;
 
     return ListenableBuilder(
       listenable: Listenable.merge([_viewModel, ?_chapters]),
       builder: (context, _) {
         final state = _viewModel.state;
+        final hasTabBar = state.entry.type != MediaType.anime;
         return HikariScaffold(
           useSafeArea: false,
           body: SafeArea(
@@ -714,9 +715,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                     // NestedScrollView does not support an outer stretching
                     // header. The shared hero retains its collapsing behavior.
                     expandedHeight:
-                        heroHeight +
-                        (state.entry.type == MediaType.anime ? 0 : 48),
-                    bottom: state.entry.type == MediaType.anime
+                        heroHeight + (hasTabBar ? 48.0 : 0.0),
+                    bottom: !hasTabBar
                         ? null
                         : TabBar(
                             controller: _tabs,
@@ -756,6 +756,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                       background: CatalogDetailHero(
                         entry: state.entry,
                         details: state.details,
+                        hasTabBar: hasTabBar,
                         onPrimaryAction: () =>
                             unawaited(_handlePrimaryAction()),
                       ),

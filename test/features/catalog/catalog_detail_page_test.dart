@@ -192,6 +192,38 @@ void main() {
     },
   );
 
+  testWidgets('manga hero content clears TabBar header without overlapping', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        _detail(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final hero = tester.widget<CatalogDetailHero>(
+      find.byType(CatalogDetailHero),
+    );
+    expect(hero.hasTabBar, isTrue);
+
+    final tabBarTop = tester.getTopLeft(find.byType(TabBar)).dy;
+    final coverBottom = tester.getBottomLeft(
+      find.bySemanticsLabel('${_related.title} cover'),
+    ).dy;
+    final readButtonBottom = tester.getBottomLeft(find.text('Read')).dy;
+
+    expect(coverBottom, lessThan(tabBarTop));
+    expect(readButtonBottom, lessThan(tabBarTop));
+  });
+
   testWidgets('missing source retains choice and offers Change source', (
     tester,
   ) async {
