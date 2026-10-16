@@ -10,6 +10,8 @@ import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
+import 'package:hikari/features/local_media/local_media_view_model.dart';
+import 'package:hikari/features/local_media/widgets/local_media_folder_summary.dart';
 
 void main() {
   const media = Media(
@@ -204,6 +206,138 @@ void main() {
     expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(find.byTooltip('Rescan folder'), findsOneWidget);
   });
+
+  testWidgets('selected folder summary is compact and keeps its action', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async => [media],
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(find.byType(LocalMediaFolderSummary)).height,
+      lessThan(110),
+    );
+    expect(find.text('Media folder'), findsOneWidget);
+    expect(find.text('1 local item'), findsOneWidget);
+    expect(find.text('Choose folder'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long folder names and large text fit a narrow summary', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var selections = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(2.2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: LocalMediaFolderSummary(
+            rootName: 'A very long selected folder name that cannot fit',
+            status: LocalMediaStatus.ready,
+            total: 1,
+            busy: false,
+            failure: null,
+            onChooseRoot: () => selections++,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose folder'), findsOneWidget);
+    await tester.tap(find.text('Choose folder'));
+    expect(selections, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('lost access labels retained items as a previous scan', (
+    tester,
+  ) async {
+    var scans = 0;
+    var selections = 0;
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () async {
+          if (scans++ == 0) return [media];
+          throw const LocalMediaAccessException();
+        },
+        chooseRoot: () async {
+          selections++;
+          return false;
+        },
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Rescan folder'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 local item · Previous scan'), findsOneWidget);
+    expect(find.text('Spirited Away'), findsOneWidget);
+    expect(
+      find.textContaining('Access to this folder was lost'),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Rescan folder'), findsNothing);
+    await tester.tap(find.text('Choose again'));
+    await tester.pumpAndSettle();
+    expect(selections, 1);
+    expect(find.text('Spirited Away'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'empty previous scan does not suggest refreshing revoked access',
+    (tester) async {
+      var scans = 0;
+      await tester.pumpWidget(
+        host(
+          scanSelectedRoot: () async {
+            if (scans++ == 0) return <Media>[];
+            throw const LocalMediaAccessException();
+          },
+          chooseRoot: () async => false,
+          openMedia: (_, _) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final refresh = tester
+          .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+          .show();
+      await tester.pump();
+      await tester.pumpAndSettle();
+      await refresh;
+      await tester.pumpAndSettle();
+
+      expect(find.text('0 local items · Previous scan'), findsOneWidget);
+      expect(
+        find.text(
+          'The previous scan is empty. Choose the folder again to restore access.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('No local media found.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('explicit reselection replaces current results', (tester) async {
     var scans = 0;

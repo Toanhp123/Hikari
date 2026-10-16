@@ -47,6 +47,14 @@ class LocalMediaContent extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final visible = state.visibleMedia;
     final hasItems = state.media.isNotEmpty;
+    final emptyFolderMessage = switch (state.failure) {
+      LocalMediaFailure.accessLost when state.hasScanResult => 'The previous scan is empty. Choose the folder again to restore access.',
+      _ when state.refreshFailed =>
+        'The previous scan is empty. Try rescanning or choose another folder.',
+      _ when state.hasScanResult =>
+        'Try another folder or pull down to scan again.',
+      _ => 'Choose a folder to find local media.',
+    };
     final scrollView = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(
@@ -59,6 +67,7 @@ class LocalMediaContent extends StatelessWidget {
               child: LocalMediaFolderSummary(
                 rootName: state.rootName,
                 status: state.status,
+                failure: state.failure,
                 total: state.hasScanResult ? state.media.length : null,
                 busy: state.busy,
                 onChooseRoot: onChooseRoot,
@@ -219,9 +228,7 @@ class LocalMediaContent extends StatelessWidget {
                           emptyTitle: state.hasScanResult
                               ? 'No local media found.'
                               : 'Your media, on this device',
-                          emptyMessage: state.hasScanResult
-                              ? 'Try another folder or pull down to scan again.'
-                              : 'Choose a folder to find local media.',
+                          emptyMessage: emptyFolderMessage,
                           emptyIcon: Icons.folder_open_rounded,
                           errorTitle: switch (state.failure) {
                             LocalMediaFailure.accessLost =>
