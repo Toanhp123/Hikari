@@ -208,6 +208,15 @@ void main() {
     expect(await library.contains(media.source), isTrue);
     await tester.tap(find.byTooltip('Remove from library'));
     await tester.pumpAndSettle();
+    expect(find.text('Remove from Library?'), findsOneWidget);
+    expect(await library.contains(media.source), isTrue);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(await library.contains(media.source), isTrue);
+    await tester.tap(find.byTooltip('Remove from library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
     expect(await library.contains(media.source), isFalse);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();

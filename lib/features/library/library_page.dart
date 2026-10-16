@@ -9,6 +9,7 @@ import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_view_model.dart';
 import 'package:hikari/features/library/widgets/library_content.dart';
+import 'package:hikari/features/library/widgets/library_removal_confirmation.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({
@@ -58,27 +59,11 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _removeAfterConfirmation(LibraryEntry entry) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove from Library?'),
-        content: Text(
-          'Remove "${entry.media.title}" from your saved titles? '
-          'Reading progress is kept.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmLibraryRemoval(
+      context,
+      title: entry.media.title,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     try {
       await _viewModel.remove(entry.media.source);
     } catch (_) {

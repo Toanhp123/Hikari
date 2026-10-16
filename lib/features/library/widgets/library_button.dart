@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_button_view_model.dart';
+import 'package:hikari/features/library/widgets/library_removal_confirmation.dart';
 
 class LibraryButton extends StatefulWidget {
   const LibraryButton({
@@ -25,6 +26,7 @@ class LibraryButton extends StatefulWidget {
 
 class _LibraryButtonState extends State<LibraryButton> {
   late LibraryButtonViewModel _viewModel;
+  bool _confirmingRemoval = false;
 
   @override
   void initState() {
@@ -60,9 +62,32 @@ class _LibraryButtonState extends State<LibraryButton> {
     super.dispose();
   }
 
-  Future<void> _toggle() async {
-    final updated = await _viewModel.toggle();
-    if (!mounted) return;
+  Future<void> _handlePressed() async {
+    if (_confirmingRemoval) return;
+    final viewModel = _viewModel;
+    if (viewModel.state.saved == true) {
+      setState(() => _confirmingRemoval = true);
+      try {
+        final confirmed = await confirmLibraryRemoval(
+          context,
+          title: widget.media.title,
+        );
+        if (!mounted || viewModel != _viewModel || !confirmed) return;
+        await _updateMembership(viewModel, viewModel.remove());
+      } finally {
+        if (mounted) setState(() => _confirmingRemoval = false);
+      }
+      return;
+    }
+    await _updateMembership(viewModel, viewModel.add());
+  }
+
+  Future<void> _updateMembership(
+    LibraryButtonViewModel viewModel,
+    Future<bool> update,
+  ) async {
+    final updated = await update;
+    if (!mounted || viewModel != _viewModel) return;
     if (updated) {
       widget.onChanged?.call();
       return;
@@ -84,11 +109,11 @@ class _LibraryButtonState extends State<LibraryButton> {
               : state.saved!
               ? 'Remove from library'
               : 'Add to library',
-          onPressed: state.busy
+          onPressed: state.busy || _confirmingRemoval
               ? null
               : state.saved == null
               ? () => unawaited(_viewModel.load())
-              : () => unawaited(_toggle()),
+              : () => unawaited(_handlePressed()),
           icon: state.busy
               ? const SizedBox(
                   width: 24,
