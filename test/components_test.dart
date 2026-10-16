@@ -92,6 +92,30 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
+
+    testWidgets(
+      'uses canonical foreground color for text and icons matching button variant',
+      (tester) async {
+        await tester.pumpWidget(
+          testWrapper(
+            HikariButton(
+              label: 'Primary Action',
+              icon: const Icon(Icons.explore_outlined),
+              onPressed: () {},
+            ),
+          ),
+        );
+
+        final scheme = HikariTheme.darkTheme().colorScheme;
+        final textWidget = tester.widget<Text>(find.text('Primary Action'));
+        expect(textWidget.style?.color, scheme.onPrimary);
+
+        final iconTheme = IconTheme.of(
+          tester.element(find.byIcon(Icons.explore_outlined)),
+        );
+        expect(iconTheme.color, scheme.onPrimary);
+      },
+    );
   });
 
   group('HikariIconButton', () {

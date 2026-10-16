@@ -370,7 +370,18 @@ void main() {
       find.textContaining('Cached temporary data: 3.0 KiB'),
       findsOneWidget,
     );
+    expect(find.text('Manga pages'), findsNothing);
+    final collapsedHeight = tester.getSize(find.byType(ExpansionTile)).height;
+    await tester.tap(find.text('Cache breakdown'));
+    await tester.pumpAndSettle();
     expect(find.text('Manga pages'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(ExpansionTile)).height,
+      greaterThan(collapsedHeight),
+    );
+    await tester.tap(find.text('Cache breakdown'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manga pages'), findsNothing);
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
     expect(cacheCleared, isFalse);
@@ -384,6 +395,94 @@ void main() {
     expect(cacheCleared, isTrue);
     expect(find.text('Temporary cache cleared.'), findsOneWidget);
   });
+  testWidgets('cache breakdown stays collapsed and retains state on refresh', (
+    tester,
+  ) async {
+    var bytes = 1024;
+    var measurements = 0;
+    Future<CacheUsage> load() async {
+      measurements++;
+      return CacheUsage({'Manga pages': bytes});
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          onClearCache: () async {
+            bytes = 0;
+          },
+          loadCacheUsage: load,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Cache breakdown'), findsOneWidget);
+    expect(find.text('Manga pages'), findsNothing);
+    expect(find.textContaining('1.0 KiB'), findsOneWidget);
+
+    await tester.tap(find.text('Cache breakdown'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manga pages'), findsOneWidget);
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Your Library, reading progress, selected sources'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Clear cache'));
+    await tester.pumpAndSettle();
+    expect(measurements, 2);
+    expect(find.text('Manga pages'), findsOneWidget);
+    expect(find.textContaining('Cached temporary data: 0 B'), findsOneWidget);
+  });
+
+  testWidgets('cache sizes include GiB in summary and breakdown', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          onClearCache: () async {},
+          loadCacheUsage: () async =>
+              const CacheUsage({'Manga pages': 2 * 1024 * 1024 * 1024}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('2.0 GiB'), findsOneWidget);
+    expect(find.text('Manga pages'), findsNothing);
+    await tester.tap(find.text('Cache breakdown'));
+    await tester.pumpAndSettle();
+    expect(find.text('2.0 GiB'), findsOneWidget);
+    expect(find.text('Manga pages'), findsOneWidget);
+  });
+
+  testWidgets('narrow large text keeps clear action and details reachable', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 660));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: SettingsPage(
+            onClearCache: () async {},
+            loadCacheUsage: () async => const CacheUsage({'Manga pages': 1024}),
+          ),
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(find.text('Cache breakdown'), 100);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Clear'), findsOneWidget);
+    await tester.tap(find.text('Cache breakdown'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manga pages'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('failed clear is never shown as successful', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -419,6 +518,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Cache size unavailable.'), findsOneWidget);
+    expect(find.text('Cache breakdown'), findsNothing);
     await tester.tap(find.text('Retry cache size'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Cached temporary data: 12 B'), findsOneWidget);

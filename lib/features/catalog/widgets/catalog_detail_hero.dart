@@ -12,18 +12,23 @@ class CatalogDetailHero extends StatelessWidget {
     required this.entry,
     required this.details,
     required this.onPrimaryAction,
+    this.hasTabBar = false,
   });
 
   final CatalogEntry entry;
   final CatalogEntryDetails? details;
   final VoidCallback onPrimaryAction;
+  final bool hasTabBar;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isCompact = context.isCompact;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final topPadding = textScale > 1.25 ? 44.0 : 72.0;
+    final topPadding = textScale > 1.25 ? 44.0 : (isCompact ? 56.0 : 72.0);
+    final bottomPadding =
+        (isCompact ? HikariSpacing.lg : HikariSpacing.xl) +
+        (hasTabBar ? 48.0 : 0.0);
     final imageUrl = (entry.bannerUrl?.isNotEmpty ?? false)
         ? entry.bannerUrl
         : entry.coverUrl;
@@ -80,7 +85,7 @@ class CatalogDetailHero extends StatelessWidget {
                   HikariSpacing.lg,
                   topPadding,
                   HikariSpacing.lg,
-                  HikariSpacing.xl,
+                  bottomPadding,
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,

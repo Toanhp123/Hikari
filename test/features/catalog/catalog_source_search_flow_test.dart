@@ -24,6 +24,7 @@ import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 import 'package:hikari/features/remote_manga/manga_series_page.dart';
 import 'package:hikari/features/remote_manga/manga_chapter_reader_page.dart';
 import 'package:hikari/features/remote_novel/novel_chapter_reader_page.dart';
@@ -34,6 +35,81 @@ import 'package:hikari/infrastructure/local_media/local_media_source.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 
 void main() {
+  testWidgets(
+    'Change source supersedes a confirmed source with pending chapters',
+    (tester) async {
+      final database = UserDatabase(NativeDatabase.memory());
+      final pending = Completer<MangaSeriesDetails>();
+      final first = _MangaCatalogSource(
+        id: const SourceId('test:first'),
+        languageCode: 'en',
+      )..detailsGate = pending;
+      final second = _MangaCatalogSource(
+        id: const SourceId('test:second'),
+        languageCode: 'fr',
+      );
+      final dependencies = _dependencies(
+        database: database,
+        local: _LocalCatalog(),
+        entry: _entry(MediaType.manga),
+        additionalSources: [first, second],
+      );
+      addTearDown(() async {
+        await dependencies.dispose();
+        await database.close();
+      });
+      try {
+        await tester.pumpWidget(HikariApp(dependencies: dependencies));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('View details'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Read'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(first.displayName).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('EN'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(first.detailLoads, 1);
+        await tester.tap(find.text('Change source'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.byType(CatalogSourcePicker), findsOneWidget);
+        await tester.tap(find.text(second.displayName).first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(find.text('FR'));
+        await tester.pumpAndSettle();
+        expect(second.detailLoads, 1);
+        await tester.drag(find.byType(NestedScrollView), const Offset(0, -500));
+        await tester.pumpAndSettle();
+        expect(find.text('Chapter 30'), findsOneWidget);
+        pending.complete(
+          MangaSeriesDetails(
+            metadata: MediaMetadata(title: 'Late source A'),
+            chapterListOrder: ChapterListOrder.readingOrder,
+            chapters: const [],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Late source A'), findsNothing);
+        expect(find.text('Chapter 30'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        if (!pending.isCompleted) {
+          pending.complete(
+            MangaSeriesDetails(
+              metadata: MediaMetadata(title: 'A'),
+              chapterListOrder: ChapterListOrder.readingOrder,
+              chapters: const [],
+            ),
+          );
+        }
+        await _unmount(tester);
+      }
+    },
+  );
+
   testWidgets(
     'mounted closing novel rejects late reload and unseen illustration',
     (tester) async {
@@ -414,7 +490,10 @@ void main() {
             find.text(type == MediaType.manga ? manga.displayName : novel.name),
           );
           await tester.pumpAndSettle();
-          final scroll = find.byType(CustomScrollView);
+          final scroll = find.descendant(
+            of: find.byKey(const ValueKey('catalog-chapters-tab')),
+            matching: find.byType(CustomScrollView),
+          );
           await tester.drag(scroll, const Offset(0, -450));
           await tester.pumpAndSettle();
           await tester.tap(find.byTooltip('Reverse chapter order'));
@@ -424,12 +503,32 @@ void main() {
           await tester.enterText(find.byType(TextField), '2');
           await tester.testTextInput.receiveAction(TextInputAction.done);
           await tester.pumpAndSettle();
-          await tester.ensureVisible(find.text('Chapter 2').first);
+          await Scrollable.ensureVisible(
+            tester.element(find.text('Chapter 2').first),
+            alignment: 0.5,
+          );
           await tester.pumpAndSettle();
-          final controller = tester
-              .widget<CustomScrollView>(scroll)
-              .controller!;
-          final offset = controller.offset;
+          double chaptersOffset() => tester
+              .state<ScrollableState>(
+                find.descendant(
+                  of: scroll,
+                  matching: find.byWidgetPredicate(
+                    (widget) =>
+                        widget is Scrollable &&
+                        widget.axisDirection == AxisDirection.down,
+                  ),
+                ),
+              )
+              .position
+              .pixels;
+          double currentOffset() {
+            final header = tester.state<NestedScrollViewState>(
+              find.byType(NestedScrollView),
+            );
+            return header.outerController.offset + chaptersOffset();
+          }
+
+          final offset = currentOffset();
           await tester.tap(find.text('Chapter 2').first);
           await tester.pumpAndSettle();
           expect(find.byType(MangaSeriesPage), findsNothing);
@@ -480,18 +579,17 @@ void main() {
             tester.widget<TextField>(find.byType(TextField)).controller!.text,
             '2',
           );
-          expect(controller.offset, closeTo(offset, 1));
+          expect(currentOffset(), closeTo(offset, 1));
           expect(manga.detailLoads + novel.detailLoads, 1);
           expect(manga.searches + novel.searches, 1);
           // Detached tab positions restore without source requests.
-          final tabOffset = controller.offset;
+          final tabOffset = currentOffset();
           expect(tabOffset, greaterThan(0));
           await tester.tap(find.text('Information'));
           await tester.pumpAndSettle();
-          await tester.ensureVisible(find.text('Chapters'));
           await tester.tap(find.text('Chapters'));
           await tester.pumpAndSettle();
-          expect(controller.offset, closeTo(tabOffset, 1));
+          expect(currentOffset(), closeTo(tabOffset, 1));
           expect(manga.detailLoads + novel.detailLoads, 1);
           // Cancel source replacement must retain current list/filter/order.
           await tester.drag(scroll, const Offset(0, 1800));
@@ -792,7 +890,7 @@ void main() {
         await tester.tap(find.text(source.displayName));
         await tester.pumpAndSettle();
 
-        expect(find.text('Is this the right title?'), findsOneWidget);
+        expect(find.text('Choose matching title'), findsOneWidget);
         expect(find.text('Source Author'), findsOneWidget);
         expect(source.artworkReads, 1);
         expect(
@@ -839,8 +937,8 @@ void main() {
       await tester.tap(find.text(source.displayName));
       await tester.pumpAndSettle();
 
-      expect(find.text('Is this the right title?'), findsOneWidget);
-      await tester.tap(find.text('Search manually in Manga source · EN'));
+      expect(find.text('Choose matching title'), findsOneWidget);
+      await tester.tap(find.text('Search manually'));
       await tester.pumpAndSettle();
 
       final page = tester.widget<SourceSearchPage>(
@@ -891,7 +989,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(source.name));
       await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('Search manually in'));
+      await tester.tap(find.text('Search manually'));
       await tester.pumpAndSettle();
       expect(
         tester
@@ -1223,6 +1321,7 @@ final class _MangaCatalogSource
   int searches = 0;
   int detailLoads = 0;
   int artworkReads = 0;
+  Completer<MangaSeriesDetails>? detailsGate;
 
   @override
   final SourceId id;
@@ -1277,6 +1376,7 @@ final class _MangaCatalogSource
   @override
   Future<MangaSeriesDetails> loadDetails(SourceMediaRef manga) async {
     detailLoads++;
+    if (detailsGate case final gate?) return gate.future;
     return MangaSeriesDetails(
       metadata: MediaMetadata(title: 'Catalog title'),
       chapterListOrder: ChapterListOrder.reverseReadingOrder,

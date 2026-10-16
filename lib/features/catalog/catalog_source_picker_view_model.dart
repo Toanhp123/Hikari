@@ -210,7 +210,10 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
   Future<CatalogSourcePickerCandidate?> selectSource(
     CatalogSourcePickerSource source,
   ) async {
-    if (!_state.visibleSources.any((visible) => visible.id == source.id)) {
+    if (_disposed ||
+        (_state.status == CatalogSourcePickerStatus.resolving &&
+            _state.selectedSource?.id == source.id) ||
+        !_state.visibleSources.any((visible) => visible.id == source.id)) {
       return null;
     }
     final revision = ++_revision;

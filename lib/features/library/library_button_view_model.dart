@@ -65,14 +65,13 @@ final class LibraryButtonViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> toggle() async {
-    if (_state.busy) return false;
+  /// Adds membership only. Changes from other surfaces cannot turn this
+  /// explicit user action into a removal.
+  Future<bool> add() async {
+    if (_disposed || _state.busy) return false;
     _publish(_state.copyWith(busy: true));
     try {
-      final saved = await _repository.contains(_media.source);
-      if (saved) {
-        await _repository.remove(_media.source);
-      } else {
+      if (!await _repository.contains(_media.source)) {
         await _repository.upsert(
           LibraryEntry(
             media: _media,
@@ -81,15 +80,30 @@ final class LibraryButtonViewModel extends ChangeNotifier {
           ),
         );
       }
-      if (_disposed) return true;
-      _publish(_state.copyWith(saved: !saved));
+      if (!_disposed) _publish(_state.copyWith(saved: true));
       return true;
     } catch (_) {
       return false;
     } finally {
-      if (!_disposed) {
-        _publish(_state.copyWith(busy: false));
+      if (!_disposed) _publish(_state.copyWith(busy: false));
+    }
+  }
+
+  /// Removes membership only. A confirmation must never fall back to adding
+  /// the title if it was removed elsewhere while the dialog was open.
+  Future<bool> remove() async {
+    if (_disposed || _state.busy) return false;
+    _publish(_state.copyWith(busy: true));
+    try {
+      if (await _repository.contains(_media.source)) {
+        await _repository.remove(_media.source);
       }
+      if (!_disposed) _publish(_state.copyWith(saved: false));
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      if (!_disposed) _publish(_state.copyWith(busy: false));
     }
   }
 

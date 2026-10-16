@@ -2,12 +2,14 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/progress/load_continue_reading.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_view_model.dart';
 import 'package:hikari/features/library/widgets/library_content.dart';
+import 'package:hikari/features/library/widgets/library_removal_confirmation.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({
@@ -15,10 +17,14 @@ class LibraryPage extends StatefulWidget {
     required this.repository,
     required this.openMedia,
     this.readArtwork,
+    this.loadContinueReading,
+    this.progressRevision = 0,
     this.onNavigateToSearch,
   });
 
   final LibraryRepository repository;
+  final LoadContinueReading? loadContinueReading;
+  final int progressRevision;
   final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
   final void Function(BuildContext, Media) openMedia;
   final VoidCallback? onNavigateToSearch;
@@ -28,7 +34,47 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-  late final LibraryViewModel _viewModel = LibraryViewModel(widget.repository);
+  late final LibraryViewModel _viewModel = LibraryViewModel(
+    widget.repository,
+    loadContinueReading: widget.loadContinueReading,
+  );
+
+  @override
+  void didUpdateWidget(LibraryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progressRevision != widget.progressRevision) {
+      _viewModel.refreshProgress();
+    }
+  }
+
+  final _pendingRemovals = <SourceMediaRef>{};
+
+  Future<void> _confirmRemove(LibraryEntry entry) async {
+    if (!_pendingRemovals.add(entry.media.source)) return;
+    try {
+      await _removeAfterConfirmation(entry);
+    } finally {
+      _pendingRemovals.remove(entry.media.source);
+    }
+  }
+
+  Future<void> _removeAfterConfirmation(LibraryEntry entry) async {
+    final confirmed = await confirmLibraryRemoval(
+      context,
+      title: entry.media.title,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _viewModel.remove(entry.media.source);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not remove this title. Try again.'),
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -66,12 +112,11 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
           body: LibraryContent(
             state: state,
-            repository: widget.repository,
             readArtwork: widget.readArtwork,
             openMedia: widget.openMedia,
             onReload: _viewModel.reload,
             onSelectMediaType: _viewModel.selectMediaType,
-            onRepositoryChanged: _viewModel.repositoryChanged,
+            onRemove: _confirmRemove,
             onBrowseCatalog: widget.onNavigateToSearch,
           ),
         );

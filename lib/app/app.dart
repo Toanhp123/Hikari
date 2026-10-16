@@ -66,6 +66,7 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
   AppearanceSaveStatus? _appearanceSaveStatus;
   int _appearanceSaveRevision = 0;
   int _homeRefreshRevision = 0;
+  int _libraryProgressRevision = 0;
   int _localScanRevision = 0;
   int _settingsFolderRevision = 0;
 
@@ -858,6 +859,11 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
       home: Builder(
         builder: (context) => AppNavigationShell(
           controller: _navigationController,
+          onTabChanged: (tab) {
+            if (tab == AppTab.library) {
+              setState(() => _libraryProgressRevision++);
+            }
+          },
           tabs: {
             AppTab.home: HomePage(
               openMedia: _openMedia,
@@ -889,6 +895,8 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
             ),
             AppTab.library: LibraryPage(
               repository: libraryRepository,
+              loadContinueReading: _dependencies.loadContinueReading,
+              progressRevision: _homeRefreshRevision + _libraryProgressRevision,
               readArtwork: _dependencies.readSourceArtwork.execute,
               openMedia: _openMedia,
               onNavigateToSearch: () =>

@@ -124,8 +124,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   int _identityGeneration = 0;
   Future<void>? _restoreOperation;
   Future<void> _saveOperation = Future<void>.value();
-  final _informationScroll = ScrollController();
-  final _chapterScroll = ScrollController();
+  int _chapterScrollVersion = 0;
 
   void _createChapters() {
     _chapters = CatalogChaptersViewModel(
@@ -159,8 +158,6 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       _tabs.index = 0;
       _descriptionExpanded = false;
       _searchExpanded = false;
-      if (_informationScroll.hasClients) _informationScroll.jumpTo(0);
-      if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
       unawaited(_viewModel.load());
     }
   }
@@ -244,8 +241,6 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     _selectionGeneration++;
     _tabs.dispose();
     _chapters?.dispose();
-    _informationScroll.dispose();
-    _chapterScroll.dispose();
     _viewModel.dispose();
     super.dispose();
   }
@@ -264,7 +259,20 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     await _chooseSource();
   }
 
+  Object? _sourcePickerSession;
+
   Future<void> _chooseSource() async {
+    if (_sourcePickerSession != null || !mounted) return;
+    final session = Object();
+    _sourcePickerSession = session;
+    try {
+      await _chooseSourceOnce();
+    } finally {
+      if (identical(_sourcePickerSession, session)) _sourcePickerSession = null;
+    }
+  }
+
+  Future<void> _chooseSourceOnce() async {
     final state = _viewModel.state;
     final entry = state.entry;
     final generation = ++_selectionGeneration;
@@ -320,7 +328,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     // request fails. Cancel/failure before confirmation leaves it unchanged.
     _rememberSelection(entry, selected);
     _searchExpanded = false;
-    if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
+    _chapterScrollVersion++;
+    _sourcePickerSession = null;
     await _chapters!.select(candidate.media, candidate.metadata);
   }
 
@@ -375,6 +384,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   }
 
   List<Widget> _chapterSlivers() {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final owner = _chapters;
     final selected = owner?.media;
     final chapters = selected?.type == MediaType.manga
@@ -394,18 +405,44 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(HikariSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HikariSpacing.md,
+                    vertical: HikariSpacing.xs,
+                  ),
                   child: Wrap(
-                    spacing: HikariSpacing.md,
+                    alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: HikariSpacing.md,
+                    runSpacing: HikariSpacing.xs,
                     children: [
-                      if (selected != null)
-                        Text(owner!.sourceName ?? selected.title),
-                      TextButton(
-                        onPressed: () => unawaited(_chooseSource()),
-                        child: Text(
-                          selected == null ? 'Choose source' : 'Change source',
-                        ),
+                      Wrap(
+                        spacing: HikariSpacing.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (selected != null)
+                            Text(
+                              owner!.sourceName ?? selected.title,
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.onSurface,
+                              ),
+                            ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: HikariSpacing.sm,
+                                vertical: HikariSpacing.xs,
+                              ),
+                            ),
+                            onPressed: () => unawaited(_chooseSource()),
+                            child: Text(
+                              selected == null
+                                  ? 'Choose source'
+                                  : 'Change source',
+                            ),
+                          ),
+                        ],
                       ),
                       if (selected != null && widget.library != null)
                         LibraryButton(
@@ -418,11 +455,38 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                 ),
                 if (owner?.fromCache == true)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: HikariSpacing.md,
+                    padding: const EdgeInsets.fromLTRB(
+                      HikariSpacing.md,
+                      0,
+                      HikariSpacing.md,
+                      HikariSpacing.xs,
                     ),
-                    child: Text(
-                      '${owner!.cacheStale ? 'Cached chapters · stale' : 'Cached chapters · fresh'} · fetched ${owner.fetchedAt!.toLocal().toIso8601String()}',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          owner!.cacheStale
+                              ? Icons.cloud_off_outlined
+                              : Icons.cloud_done_outlined,
+                          size: 14,
+                          color: owner.cacheStale
+                              ? colors.error
+                              : colors.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: HikariSpacing.xs),
+                        Flexible(
+                          child: Text(
+                            owner.cacheStale
+                                ? 'Cached chapters · stale'
+                                : 'Cached chapters · fresh',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: owner.cacheStale
+                                  ? colors.error
+                                  : colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 if (owner?.loading == true || owner?.opening == true)
@@ -528,28 +592,36 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       useSafeArea: true,
       showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-      builder: (sheetContext) => ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.78,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
         ),
-        child: CatalogSourcePicker(
-          viewModel: picker,
-          onOpenMedia: (candidate) => Navigator.of(sheetContext).pop((
-            candidate: candidate,
-            source: null,
-            sourceIds: null,
-            sourceLanguage: null,
-          )),
-          readArtwork: widget.readArtwork,
-          onManualSearch: (source, sourceIds) =>
-              Navigator.of(sheetContext).pop((
-                candidate: null,
-                source: source,
-                sourceIds: sourceIds,
-                sourceLanguage: source == null
-                    ? picker.state.selectedLanguage
-                    : source.languageCode,
+        child: SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.88,
+            ),
+            child: CatalogSourcePicker(
+              viewModel: picker,
+              onOpenMedia: (candidate) => Navigator.of(sheetContext).pop((
+                candidate: candidate,
+                source: null,
+                sourceIds: null,
+                sourceLanguage: null,
               )),
+              readArtwork: widget.readArtwork,
+              onManualSearch: (source, sourceIds) =>
+                  Navigator.of(sheetContext).pop((
+                    candidate: null,
+                    source: source,
+                    sourceIds: sourceIds,
+                    sourceLanguage: source == null
+                        ? picker.state.selectedLanguage
+                        : source.languageCode,
+                  )),
+            ),
+          ),
         ),
       ),
     );
@@ -586,46 +658,119 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     );
   }
 
+  Widget _tabContent({required bool chapters}) => KeyedSubtree(
+    key: ValueKey(
+      chapters ? 'catalog-chapters-tab' : 'catalog-information-tab',
+    ),
+    child: Builder(
+      builder: (nestedContext) => RefreshIndicator.adaptive(
+        onRefresh: () => chapters
+            ? (_chapters?.load(forceRefresh: true) ?? Future<void>.value())
+            : _viewModel.load(forceRefresh: true),
+        child: CustomScrollView(
+          key: PageStorageKey((
+            widget.initialEntry.id,
+            widget.initialEntry.type,
+            _identityGeneration,
+            chapters,
+            chapters ? _chapterScrollVersion : 0,
+          )),
+          // NestedScrollView owns the controllers that coordinate the shared
+          // collapsing hero with each tab's independently retained scroll.
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            SliverOverlapInjector(
+              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                nestedContext,
+              ),
+            ),
+            if (chapters)
+              ..._chapterSlivers()
+            else
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: HikariBreakpoints.maxContentWidth,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        HikariSpacing.lg,
+                        HikariSpacing.xl,
+                        HikariSpacing.lg,
+                        HikariSpacing.xxxl,
+                      ),
+                      child: _viewModel.state.initialLoading
+                          ? CatalogDetailLoadingBody(
+                              title: _viewModel.state.entry.title,
+                            )
+                          : _viewModel.state.details != null
+                          ? CatalogDetailContent(
+                              details: _viewModel.state.details!,
+                              refreshFailed: _viewModel.state.refreshFailed,
+                              descriptionExpanded: _descriptionExpanded,
+                              onToggleDescription: () => setState(
+                                () => _descriptionExpanded =
+                                    !_descriptionExpanded,
+                              ),
+                              onRetry: () => unawaited(
+                                _viewModel.load(forceRefresh: true),
+                              ),
+                              openRelated: widget.openRelated,
+                            )
+                          : CatalogDetailFallbackBody(
+                              entry: _viewModel.state.entry,
+                              failed: _viewModel.state.failed,
+                              onRetry: () => unawaited(
+                                _viewModel.load(forceRefresh: true),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final heroHeight =
-        (context.isCompact ? 440.0 : 400.0) +
+        (context.isCompact ? 370.0 : 380.0) +
         (textScale - 1.0).clamp(0.0, 1.0) * 160.0;
 
     return ListenableBuilder(
       listenable: Listenable.merge([_viewModel, ?_chapters]),
       builder: (context, _) {
         final state = _viewModel.state;
+        final hasTabBar = state.entry.type != MediaType.anime;
         return HikariScaffold(
           useSafeArea: false,
           body: SafeArea(
             top: false,
-            child: RefreshIndicator.adaptive(
-              onRefresh: () => _chapterTab
-                  ? (_chapters?.load(forceRefresh: true) ??
-                        Future<void>.value())
-                  : _viewModel.load(forceRefresh: true),
-              child: CustomScrollView(
-                key: PageStorageKey((
-                  widget.initialEntry.id,
-                  widget.initialEntry.type,
-                  _identityGeneration,
-                  _chapterTab,
-                )),
-                controller: _chapterTab ? _chapterScroll : _informationScroll,
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                slivers: [
-                  SliverAppBar(
+            child: NestedScrollView(
+              key: ValueKey((
+                widget.initialEntry.id,
+                widget.initialEntry.type,
+                _identityGeneration,
+              )),
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                    context,
+                  ),
+                  sliver: SliverAppBar(
                     pinned: true,
-                    stretch: true,
-                    expandedHeight:
-                        heroHeight +
-                        (state.entry.type == MediaType.anime ? 0 : 48),
-                    bottom: state.entry.type == MediaType.anime
+                    // NestedScrollView does not support an outer stretching
+                    // header. The shared hero retains its collapsing behavior.
+                    expandedHeight: heroHeight + (hasTabBar ? 48.0 : 0.0),
+                    bottom: !hasTabBar
                         ? null
                         : TabBar(
                             controller: _tabs,
@@ -665,58 +810,23 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                       background: CatalogDetailHero(
                         entry: state.entry,
                         details: state.details,
+                        hasTabBar: hasTabBar,
                         onPrimaryAction: () =>
                             unawaited(_handlePrimaryAction()),
                       ),
                     ),
                   ),
-                  if (_chapterTab)
-                    ..._chapterSlivers()
-                  else
-                    SliverToBoxAdapter(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: HikariBreakpoints.maxContentWidth,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              HikariSpacing.lg,
-                              HikariSpacing.xl,
-                              HikariSpacing.lg,
-                              HikariSpacing.xxxl,
-                            ),
-                            child: state.initialLoading
-                                ? CatalogDetailLoadingBody(
-                                    title: state.entry.title,
-                                  )
-                                : state.details != null
-                                ? CatalogDetailContent(
-                                    details: state.details!,
-                                    refreshFailed: state.refreshFailed,
-                                    descriptionExpanded: _descriptionExpanded,
-                                    onToggleDescription: () => setState(
-                                      () => _descriptionExpanded =
-                                          !_descriptionExpanded,
-                                    ),
-                                    onRetry: () => unawaited(
-                                      _viewModel.load(forceRefresh: true),
-                                    ),
-                                    openRelated: widget.openRelated,
-                                  )
-                                : CatalogDetailFallbackBody(
-                                    entry: state.entry,
-                                    failed: state.failed,
-                                    onRetry: () => unawaited(
-                                      _viewModel.load(forceRefresh: true),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
+                ),
+              ],
+              body: state.entry.type == MediaType.anime
+                  ? _tabContent(chapters: false)
+                  : TabBarView(
+                      controller: _tabs,
+                      children: [
+                        _tabContent(chapters: false),
+                        _tabContent(chapters: true),
+                      ],
                     ),
-                ],
-              ),
             ),
           ),
         );
