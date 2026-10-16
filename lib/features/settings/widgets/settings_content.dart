@@ -199,60 +199,94 @@ class SettingsContent extends StatelessWidget {
                   if (onChooseLocalFolder != null && onClearCache != null)
                     const Divider(height: 1),
                   if (onClearCache != null)
-                    ListTile(
-                      leading: const Icon(Icons.cleaning_services_rounded),
-                      title: const Text('Temporary Cache'),
-                      subtitle: Text(
-                        isLoadingCacheUsage
-                            ? 'Measuring cache…'
-                            : cacheUsageUnavailable
-                            ? 'Cache size unavailable.'
-                            : cacheUsage == null
-                            ? 'Clear cached reading, artwork and catalog metadata.'
-                            : 'Cached temporary data: '
-                                  '${_formatCacheBytes(cacheUsage!.totalBytes)}',
-                      ),
-                      trailing: SizedBox(
-                        width: 96,
-                        child: HikariButton(
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact =
+                            constraints.maxWidth < 400 ||
+                            MediaQuery.textScalerOf(context).scale(1) > 1.5;
+                        final clearButton = HikariButton(
                           label: 'Clear',
                           size: HikariButtonSize.small,
                           variant: HikariButtonVariant.secondary,
                           isLoading: isClearingCache,
                           onPressed: onClearCache,
-                        ),
-                      ),
+                        );
+                        return Column(
+                          children: [
+                            ListTile(
+                              leading: const Icon(
+                                Icons.cleaning_services_rounded,
+                              ),
+                              title: const Text('Temporary Cache'),
+                              subtitle: Text(
+                                isLoadingCacheUsage
+                                    ? 'Measuring cache…'
+                                    : cacheUsageUnavailable
+                                    ? 'Cache size unavailable.'
+                                    : cacheUsage == null
+                                    ? 'Clear cached reading, artwork and catalog metadata.'
+                                    : 'Cached temporary data: '
+                                          '${_formatCacheBytes(cacheUsage!.totalBytes)}',
+                              ),
+                              trailing: compact
+                                  ? null
+                                  : SizedBox(width: 96, child: clearButton),
+                            ),
+                            if (compact)
+                              Padding(
+                                padding: const EdgeInsetsDirectional.only(
+                                  end: HikariSpacing.md,
+                                  bottom: HikariSpacing.sm,
+                                ),
+                                child: Align(
+                                  alignment: AlignmentDirectional.centerEnd,
+                                  child: clearButton,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                   if (cacheUsage != null && onClearCache != null)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(
+                    ExpansionTile(
+                      key: const PageStorageKey<String>(
+                        'settings-cache-breakdown',
+                      ),
+                      title: const Text('Cache breakdown'),
+                      tilePadding: const EdgeInsets.symmetric(
+                        horizontal: HikariSpacing.md,
+                      ),
+                      childrenPadding: const EdgeInsetsDirectional.only(
                         start: HikariSpacing.md,
                         end: HikariSpacing.md,
                         bottom: HikariSpacing.md,
                       ),
-                      child: Column(
-                        children: [
-                          for (final entry in cacheUsage!.byCategory.entries)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: HikariSpacing.xs,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(child: Text(entry.key)),
-                                  Text(_formatCacheBytes(entry.value)),
-                                ],
-                              ),
+                      shape: const Border(),
+                      collapsedShape: const Border(),
+                      children: [
+                        for (final entry in cacheUsage!.byCategory.entries)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: HikariSpacing.xs,
                             ),
-                          Text(
-                            'Indexed reading, artwork and catalog metadata. '
-                            'Local files, native HTTP cache and image memory '
-                            'are excluded.',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: colors.onSurfaceVariant),
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(entry.key)),
+                                const SizedBox(width: HikariSpacing.sm),
+                                Text(_formatCacheBytes(entry.value)),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        const SizedBox(height: HikariSpacing.sm),
+                        Text(
+                          'Indexed reading, artwork and catalog metadata. '
+                          'Local files, native HTTP cache and image memory '
+                          'are excluded. Library, reading progress and '
+                          'selected sources are kept when clearing cache.',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
                     ),
                   if (cacheUsageUnavailable && onRetryCacheUsage != null)
                     Align(
@@ -288,14 +322,17 @@ class SettingsContent extends StatelessWidget {
   }
 }
 
-/// A single color choice with a 48dp target, focus feedback and non-color cue.
+/// Format logical bytes in IEC units without implying total app disk usage.
 String _formatCacheBytes(int bytes) {
   if (bytes < 1024) return '$bytes B';
   final kib = bytes / 1024;
   if (kib < 1024) return '${kib.toStringAsFixed(1)} KiB';
-  return '${(kib / 1024).toStringAsFixed(1)} MiB';
+  final mib = kib / 1024;
+  if (mib < 1024) return '${mib.toStringAsFixed(1)} MiB';
+  return '${(mib / 1024).toStringAsFixed(1)} GiB';
 }
 
+/// A single color choice with a 48dp target, focus feedback and non-color cue.
 class _AccentSwatch extends StatelessWidget {
   const _AccentSwatch({
     required this.label,

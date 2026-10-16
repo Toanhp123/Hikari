@@ -195,7 +195,7 @@ class _SettingsPageState extends State<SettingsPage> {
         content: const Text(
           'Cached manga pages, novel chapters, artwork and catalog metadata '
           'will be loaded again when needed. Local previews may be rebuilt. '
-          'Your Library, reading progress and local files will not be deleted.',
+          'Your Library, reading progress, selected sources and local files will not be deleted.',
         ),
         actions: [
           TextButton(
