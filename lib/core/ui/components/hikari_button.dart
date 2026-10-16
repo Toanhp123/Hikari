@@ -49,11 +49,20 @@ class HikariButton extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final effectiveOnPressed = isLoading ? null : onPressed;
     final text = Theme.of(context).textTheme;
-    final labelStyle = switch (size) {
+    final baseLabelStyle = switch (size) {
       HikariButtonSize.small => text.labelMedium,
       HikariButtonSize.medium => text.labelLarge,
       HikariButtonSize.large => text.titleMedium,
     };
+    final foregroundColor = effectiveOnPressed == null
+        ? colors.onSurface.withValues(alpha: 0.38)
+        : switch (variant) {
+            HikariButtonVariant.primary => colors.onPrimary,
+            HikariButtonVariant.secondary => colors.onSurface,
+            HikariButtonVariant.ghost => colors.onSurfaceVariant,
+            HikariButtonVariant.danger => colors.onError,
+          };
+    final labelStyle = baseLabelStyle?.copyWith(color: foregroundColor);
     final commonStyle = ButtonStyle(
       minimumSize: WidgetStatePropertyAll(
         Size(
@@ -79,17 +88,20 @@ class HikariButton extends StatelessWidget {
         if (isLoading) ...[
           ExcludeSemantics(
             child: SizedBox(
-              width: labelStyle?.fontSize ?? 14,
-              height: labelStyle?.fontSize ?? 14,
+              width: baseLabelStyle?.fontSize ?? 14,
+              height: baseLabelStyle?.fontSize ?? 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: colors.onSurfaceVariant,
+                color: foregroundColor,
               ),
             ),
           ),
           const SizedBox(width: HikariSpacing.xs),
         ] else if (icon != null) ...[
-          ExcludeSemantics(child: icon!),
+          IconTheme(
+            data: IconThemeData(color: foregroundColor, size: HikariSize.icon),
+            child: ExcludeSemantics(child: icon!),
+          ),
           const SizedBox(width: HikariSpacing.xs),
         ],
         Flexible(

@@ -94,54 +94,62 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: HikariSpacing.sm,
-                  vertical: HikariSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: HikariRadius.borderSm,
-                ),
-                child: Text(
-                  _countLabel,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HikariSpacing.sm,
+                    vertical: HikariSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHigh,
+                    borderRadius: HikariRadius.borderSm,
+                  ),
+                  child: Text(
+                    _countLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-              IconButton(
-                tooltip: widget.reverseSourceOrder
-                    ? 'Restore source order'
-                    : 'Reverse chapter order',
-                onPressed: widget.onToggleSourceOrder,
-                icon: Icon(
-                  widget.reverseSourceOrder
-                      ? Icons.arrow_upward_rounded
-                      : Icons.arrow_downward_rounded,
-                  color: widget.reverseSourceOrder
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-              IconButton(
-                tooltip: widget.isSearchExpanded
-                    ? 'Close search'
-                    : 'Search chapters',
-                onPressed: widget.onToggleSearchExpanded,
-                icon: Icon(
-                  widget.isSearchExpanded
-                      ? Icons.close_rounded
-                      : Icons.search_rounded,
-                  color: widget.isSearchExpanded
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: widget.reverseSourceOrder
+                        ? 'Restore source order'
+                        : 'Reverse chapter order',
+                    onPressed: widget.onToggleSourceOrder,
+                    icon: Icon(
+                      widget.reverseSourceOrder
+                          ? Icons.arrow_upward_rounded
+                          : Icons.arrow_downward_rounded,
+                      color: widget.reverseSourceOrder
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: widget.isSearchExpanded
+                        ? 'Close search'
+                        : 'Search chapters',
+                    onPressed: widget.onToggleSearchExpanded,
+                    icon: Icon(
+                      widget.isSearchExpanded
+                          ? Icons.close_rounded
+                          : Icons.search_rounded,
+                      color: widget.isSearchExpanded
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

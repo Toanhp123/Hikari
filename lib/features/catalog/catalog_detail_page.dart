@@ -384,6 +384,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   }
 
   List<Widget> _chapterSlivers() {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final owner = _chapters;
     final selected = owner?.media;
     final chapters = selected?.type == MediaType.manga
@@ -403,18 +405,44 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(HikariSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HikariSpacing.md,
+                    vertical: HikariSpacing.xs,
+                  ),
                   child: Wrap(
-                    spacing: HikariSpacing.md,
+                    alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: HikariSpacing.md,
+                    runSpacing: HikariSpacing.xs,
                     children: [
-                      if (selected != null)
-                        Text(owner!.sourceName ?? selected.title),
-                      TextButton(
-                        onPressed: () => unawaited(_chooseSource()),
-                        child: Text(
-                          selected == null ? 'Choose source' : 'Change source',
-                        ),
+                      Wrap(
+                        spacing: HikariSpacing.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (selected != null)
+                            Text(
+                              owner!.sourceName ?? selected.title,
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.onSurface,
+                              ),
+                            ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: HikariSpacing.sm,
+                                vertical: HikariSpacing.xs,
+                              ),
+                            ),
+                            onPressed: () => unawaited(_chooseSource()),
+                            child: Text(
+                              selected == null
+                                  ? 'Choose source'
+                                  : 'Change source',
+                            ),
+                          ),
+                        ],
                       ),
                       if (selected != null && widget.library != null)
                         LibraryButton(
@@ -427,11 +455,38 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                 ),
                 if (owner?.fromCache == true)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: HikariSpacing.md,
+                    padding: const EdgeInsets.fromLTRB(
+                      HikariSpacing.md,
+                      0,
+                      HikariSpacing.md,
+                      HikariSpacing.xs,
                     ),
-                    child: Text(
-                      '${owner!.cacheStale ? 'Cached chapters · stale' : 'Cached chapters · fresh'} · fetched ${owner.fetchedAt!.toLocal().toIso8601String()}',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          owner!.cacheStale
+                              ? Icons.cloud_off_outlined
+                              : Icons.cloud_done_outlined,
+                          size: 14,
+                          color: owner.cacheStale
+                              ? colors.error
+                              : colors.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: HikariSpacing.xs),
+                        Flexible(
+                          child: Text(
+                            owner.cacheStale
+                                ? 'Cached chapters · stale'
+                                : 'Cached chapters · fresh',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: owner.cacheStale
+                                  ? colors.error
+                                  : colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 if (owner?.loading == true || owner?.opening == true)
