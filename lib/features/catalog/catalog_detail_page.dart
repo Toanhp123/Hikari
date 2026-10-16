@@ -124,8 +124,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   int _identityGeneration = 0;
   Future<void>? _restoreOperation;
   Future<void> _saveOperation = Future<void>.value();
-  final _informationScroll = ScrollController();
-  final _chapterScroll = ScrollController();
+  int _chapterScrollVersion = 0;
 
   void _createChapters() {
     _chapters = CatalogChaptersViewModel(
@@ -159,8 +158,6 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       _tabs.index = 0;
       _descriptionExpanded = false;
       _searchExpanded = false;
-      if (_informationScroll.hasClients) _informationScroll.jumpTo(0);
-      if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
       unawaited(_viewModel.load());
     }
   }
@@ -244,8 +241,6 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     _selectionGeneration++;
     _tabs.dispose();
     _chapters?.dispose();
-    _informationScroll.dispose();
-    _chapterScroll.dispose();
     _viewModel.dispose();
     super.dispose();
   }
@@ -320,7 +315,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     // request fails. Cancel/failure before confirmation leaves it unchanged.
     _rememberSelection(entry, selected);
     _searchExpanded = false;
-    if (_chapterScroll.hasClients) _chapterScroll.jumpTo(0);
+    _chapterScrollVersion++;
     await _chapters!.select(candidate.media, candidate.metadata);
   }
 
@@ -586,6 +581,85 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     );
   }
 
+  Widget _tabContent({required bool chapters}) => KeyedSubtree(
+    key: ValueKey(
+      chapters ? 'catalog-chapters-tab' : 'catalog-information-tab',
+    ),
+    child: Builder(
+      builder: (nestedContext) => RefreshIndicator.adaptive(
+        onRefresh: () => chapters
+            ? (_chapters?.load(forceRefresh: true) ?? Future<void>.value())
+            : _viewModel.load(forceRefresh: true),
+        child: CustomScrollView(
+          key: PageStorageKey((
+            widget.initialEntry.id,
+            widget.initialEntry.type,
+            _identityGeneration,
+            chapters,
+            chapters ? _chapterScrollVersion : 0,
+          )),
+          // NestedScrollView owns the controllers that coordinate the shared
+          // collapsing hero with each tab's independently retained scroll.
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            SliverOverlapInjector(
+              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                nestedContext,
+              ),
+            ),
+            if (chapters)
+              ..._chapterSlivers()
+            else
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: HikariBreakpoints.maxContentWidth,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        HikariSpacing.lg,
+                        HikariSpacing.xl,
+                        HikariSpacing.lg,
+                        HikariSpacing.xxxl,
+                      ),
+                      child: _viewModel.state.initialLoading
+                          ? CatalogDetailLoadingBody(
+                              title: _viewModel.state.entry.title,
+                            )
+                          : _viewModel.state.details != null
+                          ? CatalogDetailContent(
+                              details: _viewModel.state.details!,
+                              refreshFailed: _viewModel.state.refreshFailed,
+                              descriptionExpanded: _descriptionExpanded,
+                              onToggleDescription: () => setState(
+                                () => _descriptionExpanded =
+                                    !_descriptionExpanded,
+                              ),
+                              onRetry: () => unawaited(
+                                _viewModel.load(forceRefresh: true),
+                              ),
+                              openRelated: widget.openRelated,
+                            )
+                          : CatalogDetailFallbackBody(
+                              entry: _viewModel.state.entry,
+                              failed: _viewModel.state.failed,
+                              onRetry: () => unawaited(
+                                _viewModel.load(forceRefresh: true),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -602,26 +676,21 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
           useSafeArea: false,
           body: SafeArea(
             top: false,
-            child: RefreshIndicator.adaptive(
-              onRefresh: () => _chapterTab
-                  ? (_chapters?.load(forceRefresh: true) ??
-                        Future<void>.value())
-                  : _viewModel.load(forceRefresh: true),
-              child: CustomScrollView(
-                key: PageStorageKey((
-                  widget.initialEntry.id,
-                  widget.initialEntry.type,
-                  _identityGeneration,
-                  _chapterTab,
-                )),
-                controller: _chapterTab ? _chapterScroll : _informationScroll,
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                slivers: [
-                  SliverAppBar(
+            child: NestedScrollView(
+              key: ValueKey((
+                widget.initialEntry.id,
+                widget.initialEntry.type,
+                _identityGeneration,
+              )),
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                    context,
+                  ),
+                  sliver: SliverAppBar(
                     pinned: true,
-                    stretch: true,
+                    // NestedScrollView does not support an outer stretching
+                    // header. The shared hero retains its collapsing behavior.
                     expandedHeight:
                         heroHeight +
                         (state.entry.type == MediaType.anime ? 0 : 48),
@@ -670,53 +739,17 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                       ),
                     ),
                   ),
-                  if (_chapterTab)
-                    ..._chapterSlivers()
-                  else
-                    SliverToBoxAdapter(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: HikariBreakpoints.maxContentWidth,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              HikariSpacing.lg,
-                              HikariSpacing.xl,
-                              HikariSpacing.lg,
-                              HikariSpacing.xxxl,
-                            ),
-                            child: state.initialLoading
-                                ? CatalogDetailLoadingBody(
-                                    title: state.entry.title,
-                                  )
-                                : state.details != null
-                                ? CatalogDetailContent(
-                                    details: state.details!,
-                                    refreshFailed: state.refreshFailed,
-                                    descriptionExpanded: _descriptionExpanded,
-                                    onToggleDescription: () => setState(
-                                      () => _descriptionExpanded =
-                                          !_descriptionExpanded,
-                                    ),
-                                    onRetry: () => unawaited(
-                                      _viewModel.load(forceRefresh: true),
-                                    ),
-                                    openRelated: widget.openRelated,
-                                  )
-                                : CatalogDetailFallbackBody(
-                                    entry: state.entry,
-                                    failed: state.failed,
-                                    onRetry: () => unawaited(
-                                      _viewModel.load(forceRefresh: true),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
+                ),
+              ],
+              body: state.entry.type == MediaType.anime
+                  ? _tabContent(chapters: false)
+                  : TabBarView(
+                      controller: _tabs,
+                      children: [
+                        _tabContent(chapters: false),
+                        _tabContent(chapters: true),
+                      ],
                     ),
-                ],
-              ),
             ),
           ),
         );

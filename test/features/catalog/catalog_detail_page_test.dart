@@ -23,6 +23,7 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
+import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 
@@ -76,11 +77,116 @@ void main() {
       expect(choices.reads, 1);
       expect(memory.reads, greaterThan(0));
       expect(choices.saves, 0); // restore must not rewrite a preference
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -450));
+      await tester.drag(
+        find.descendant(
+          of: find.byKey(const ValueKey('catalog-chapters-tab')),
+          matching: find.byType(CustomScrollView),
+        ),
+        const Offset(0, -450),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Saved chapter 1'), findsOneWidget);
       expect(find.text('Change source'), findsOneWidget);
       expect(find.textContaining('Cached chapters · fresh'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'shared hero stays above both tabs and chapter scroll does not reset the header',
+    (tester) async {
+      tester.view.physicalSize = const Size(400, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const selected = Media(
+        title: 'Saved candidate',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('test:manga'),
+          itemId: 'saved-series',
+        ),
+      );
+      final choices = _Choices()..selected = selected;
+      final cache = ReadRemoteChapterList(_MemoryCache());
+      await cache.persistManga(selected.source, [
+        for (var index = 0; index < 36; index++)
+          MangaChapter(
+            title: 'Chapter $index',
+            source: SourceMediaRef(
+              sourceId: const SourceId('test:manga'),
+              itemId: 'chapter-$index',
+            ),
+          ),
+      ], chapterListOrder: ChapterListOrder.readingOrder);
+      await tester.pumpWidget(
+        _app(
+          _detail(
+            initialEntry: _related,
+            loadDetails: LoadCatalogEntryDetails(_Provider()),
+            resolveCatalogSource: _resolver(),
+            sourceSelections: choices,
+            chapterCache: cache,
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(CatalogDetailHero), findsOneWidget);
+      expect(choices.reads, 0);
+      await tester.tap(find.text('Chapters'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CatalogDetailHero), findsOneWidget);
+      expect(choices.reads, 1);
+      final chapterView = find.descendant(
+        of: find.byKey(const ValueKey('catalog-chapters-tab')),
+        matching: find.byType(CustomScrollView),
+      );
+      await tester.drag(chapterView, const Offset(0, -850));
+      await tester.pumpAndSettle();
+      final chapterScrollable = tester.state<ScrollableState>(
+        find.descendant(
+          of: chapterView,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        ),
+      );
+      final chapterOffset = chapterScrollable.position.pixels;
+      expect(chapterOffset, greaterThan(0));
+      final header = tester.state<NestedScrollViewState>(
+        find.byType(NestedScrollView),
+      );
+      final headerOffset = header.outerController.offset;
+      expect(headerOffset, greaterThan(0));
+      await tester.tap(find.text('Information'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CatalogDetailHero), findsOneWidget);
+      expect(header.outerController.offset, closeTo(headerOffset, 1));
+      await tester.tap(find.text('Chapters'));
+      await tester.pumpAndSettle();
+      final restoredChapterView = find.descendant(
+        of: find.byKey(const ValueKey('catalog-chapters-tab')),
+        matching: find.byType(CustomScrollView),
+      );
+      final restored = tester.state<ScrollableState>(
+        find.descendant(
+          of: restoredChapterView,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        ),
+      );
+      expect(restored.position.pixels, closeTo(chapterOffset, 1));
+      expect(header.outerController.offset, closeTo(headerOffset, 1));
+      expect(choices.reads, 1, reason: 'Switching tabs must not restore twice');
       expect(tester.takeException(), isNull);
     },
   );
@@ -1202,14 +1308,8 @@ void main() {
 Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
   final matches = finder.evaluate().toList(growable: false);
   expect(matches, isNotEmpty, reason: 'Scroll target not found: $finder');
-  final target = find.byWidget(matches.first.widget);
-  final verticalScroll = find.byWidgetPredicate(
-    (widget) =>
-        widget is Scrollable && widget.axisDirection == AxisDirection.down,
-  );
-  expect(verticalScroll, findsOneWidget);
-  await tester.scrollUntilVisible(target, 300, scrollable: verticalScroll);
-  await tester.pump();
+  await tester.ensureVisible(finder.first);
+  await tester.pumpAndSettle();
 }
 
 Widget _app(Widget child) =>

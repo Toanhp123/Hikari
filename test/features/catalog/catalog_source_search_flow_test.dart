@@ -414,7 +414,10 @@ void main() {
             find.text(type == MediaType.manga ? manga.displayName : novel.name),
           );
           await tester.pumpAndSettle();
-          final scroll = find.byType(CustomScrollView);
+          final scroll = find.descendant(
+            of: find.byKey(const ValueKey('catalog-chapters-tab')),
+            matching: find.byType(CustomScrollView),
+          );
           await tester.drag(scroll, const Offset(0, -450));
           await tester.pumpAndSettle();
           await tester.tap(find.byTooltip('Reverse chapter order'));
@@ -424,12 +427,32 @@ void main() {
           await tester.enterText(find.byType(TextField), '2');
           await tester.testTextInput.receiveAction(TextInputAction.done);
           await tester.pumpAndSettle();
-          await tester.ensureVisible(find.text('Chapter 2').first);
+          await Scrollable.ensureVisible(
+            tester.element(find.text('Chapter 2').first),
+            alignment: 0.5,
+          );
           await tester.pumpAndSettle();
-          final controller = tester
-              .widget<CustomScrollView>(scroll)
-              .controller!;
-          final offset = controller.offset;
+          double chaptersOffset() => tester
+              .state<ScrollableState>(
+                find.descendant(
+                  of: scroll,
+                  matching: find.byWidgetPredicate(
+                    (widget) =>
+                        widget is Scrollable &&
+                        widget.axisDirection == AxisDirection.down,
+                  ),
+                ),
+              )
+              .position
+              .pixels;
+          double currentOffset() {
+            final header = tester.state<NestedScrollViewState>(
+              find.byType(NestedScrollView),
+            );
+            return header.outerController.offset + chaptersOffset();
+          }
+
+          final offset = currentOffset();
           await tester.tap(find.text('Chapter 2').first);
           await tester.pumpAndSettle();
           expect(find.byType(MangaSeriesPage), findsNothing);
@@ -480,18 +503,17 @@ void main() {
             tester.widget<TextField>(find.byType(TextField)).controller!.text,
             '2',
           );
-          expect(controller.offset, closeTo(offset, 1));
+          expect(currentOffset(), closeTo(offset, 1));
           expect(manga.detailLoads + novel.detailLoads, 1);
           expect(manga.searches + novel.searches, 1);
           // Detached tab positions restore without source requests.
-          final tabOffset = controller.offset;
+          final tabOffset = currentOffset();
           expect(tabOffset, greaterThan(0));
           await tester.tap(find.text('Information'));
           await tester.pumpAndSettle();
-          await tester.ensureVisible(find.text('Chapters'));
           await tester.tap(find.text('Chapters'));
           await tester.pumpAndSettle();
-          expect(controller.offset, closeTo(tabOffset, 1));
+          expect(currentOffset(), closeTo(tabOffset, 1));
           expect(manga.detailLoads + novel.detailLoads, 1);
           // Cancel source replacement must retain current list/filter/order.
           await tester.drag(scroll, const Offset(0, 1800));
