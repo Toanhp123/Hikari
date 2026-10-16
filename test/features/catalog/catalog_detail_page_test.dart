@@ -26,6 +26,7 @@ import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
+import 'package:hikari/features/catalog/widgets/catalog_source_candidate_list.dart';
 
 void main() {
   testWidgets(
@@ -502,6 +503,539 @@ void main() {
       },
     );
   }
+
+  for (final (size, scale) in [
+    (const Size(320, 640), 3.0),
+    (const Size(375, 667), 2.0),
+    (const Size(640, 320), 3.0),
+  ]) {
+    testWidgets('picker long labels fit $size at text scale $scale', (
+      tester,
+    ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final model = CatalogSourcePickerViewModel(
+        entry: CatalogEntry(
+          id: _related.id,
+          title: 'Long catalog title ' * 12,
+          type: MediaType.manga,
+        ),
+        resolver: _resolver([
+          _PickerMangaSource(
+            id: const SourceId('long'),
+            displayName: 'Very long provider name ' * 8,
+            languageCode: 'all',
+          ),
+        ]),
+      );
+      addTearDown(model.dispose);
+      await tester.pumpWidget(
+        _app(
+          MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: CatalogSourcePicker(
+                  viewModel: model,
+                  onOpenMedia: (_) {},
+                  onManualSearch: (_, _) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byTooltip('Close').hitTestable(), findsOneWidget);
+      final tile = tester.widget<ListTile>(find.byType(ListTile));
+      expect(tile.subtitle, isA<Text>());
+      expect(tile.trailing, isA<Icon>());
+    });
+  }
+
+  testWidgets('two language variants stay compact', (tester) async {
+    final model = CatalogSourcePickerViewModel(
+      entry: _related,
+      resolver: _resolver([
+        for (final language in ['en', 'fr'])
+          _PickerMangaSource(
+            id: SourceId(language),
+            displayName: 'Source',
+            languageCode: language,
+            presentationGroupId: 'group',
+          ),
+      ]),
+    );
+    addTearDown(model.dispose);
+    model.chooseGroup(model.state.sources.first);
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CatalogSourcePicker(
+              viewModel: model,
+              onOpenMedia: (_) {},
+              onManualSearch: (_, _) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byType(CatalogSourcePicker)).height,
+      lessThan(400),
+    );
+  });
+
+  testWidgets(
+    'candidate recovery stays before lazy rows with reserved artwork',
+    (tester) async {
+      final source = _PickerMangaSource(
+        id: const SourceId('candidates'),
+        displayName: 'Long source name ' * 4,
+        languageCode: 'en',
+      );
+      source.searchGate = Completer<MangaSearchPage>()
+        ..complete(
+          MangaSearchPage(
+            results: [
+              for (var i = 0; i < 20; i++)
+                MangaPreview(
+                  media: Media(
+                    title: 'Long candidate title $i ' * 5,
+                    type: MediaType.manga,
+                    source: SourceMediaRef(sourceId: source.id, itemId: '$i'),
+                  ),
+                  metadata: MediaMetadata(
+                    title: 'Candidate $i',
+                    authors: ['Author $i'],
+                    cover: SourceMediaRef(
+                      sourceId: source.id,
+                      itemId: 'cover:$i',
+                    ),
+                  ),
+                ),
+            ],
+            hasNextPage: false,
+            page: 1,
+          ),
+        );
+      final model = CatalogSourcePickerViewModel(
+        entry: _related,
+        resolver: _resolver([source]),
+      );
+      addTearDown(model.dispose);
+      await model.selectSource(model.state.sources.single);
+      var manualCalls = 0;
+      var artworkReads = 0;
+      await tester.pumpWidget(
+        _app(
+          Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: CatalogSourcePicker(
+                viewModel: model,
+                onOpenMedia: (_) {},
+                onManualSearch: (_, _) => manualCalls++,
+                readArtwork: (_) async {
+                  artworkReads++;
+                  return null;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Search manually').hitTestable(), findsOneWidget);
+      expect(find.text('Change source').hitTestable(), findsOneWidget);
+      expect(find.text('Author 0'), findsOneWidget);
+      final candidateSemantics = tester.ensureSemantics();
+      expect(
+        tester.getSemantics(
+          find.text(model.state.candidates.first.media.title),
+        ),
+        matchesSemantics(
+          isButton: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          isFocusable: true,
+          label: '${model.state.candidates.first.media.title}\nAuthor 0',
+        ),
+      );
+      candidateSemantics.dispose();
+      final artwork = find.byWidgetPredicate(
+        (widget) =>
+            widget is SizedBox && widget.width == 50 && widget.height == 70,
+      );
+      expect(artwork, findsWidgets);
+      final firstReads = artworkReads;
+      model.notifyListeners();
+      await tester.pumpAndSettle();
+      expect(artworkReads, firstReads);
+      expect(artworkReads, lessThan(model.state.candidates.length));
+      await tester.tap(find.text('Search manually'));
+      await tester.tap(find.text('Search manually'));
+      expect(manualCalls, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'resolving offers change source and ignores removed widget completion',
+    (tester) async {
+      final source = _PickerMangaSource(
+        id: const SourceId('pending'),
+        displayName: 'Pending source',
+        languageCode: 'en',
+      );
+      source.searchGate = Completer<MangaSearchPage>();
+      final model = CatalogSourcePickerViewModel(
+        entry: _related,
+        resolver: _resolver([source]),
+      );
+      addTearDown(model.dispose);
+      var opened = 0;
+      await tester.pumpWidget(
+        _app(
+          Scaffold(
+            body: CatalogSourcePicker(
+              viewModel: model,
+              onOpenMedia: (_) => opened++,
+              onManualSearch: (_, _) {},
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Pending source'));
+      await tester.pump();
+      expect(find.text('Change source'), findsOneWidget);
+      await tester.pumpWidget(_app(const SizedBox()));
+      source.searchGate!.complete(
+        MangaSearchPage(
+          results: [
+            MangaPreview(
+              media: Media(
+                title: _related.title,
+                type: MediaType.manga,
+                source: SourceMediaRef(sourceId: source.id, itemId: 'match'),
+              ),
+              metadata: MediaMetadata(title: _related.title),
+            ),
+          ],
+          hasNextPage: false,
+          page: 1,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(opened, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'source errors avoid unsupported diagnosis and retry empty result',
+    (tester) async {
+      final source = _PickerMangaSource(
+        id: const SourceId('error'),
+        displayName: 'Error source',
+        languageCode: 'en',
+      );
+      source.searchGate = Completer<MangaSearchPage>();
+      final model = CatalogSourcePickerViewModel(
+        entry: _related,
+        resolver: _resolver([source]),
+      );
+      addTearDown(model.dispose);
+      final pending = model.selectSource(model.state.sources.single);
+      source.searchGate!.completeError(StateError('invalid response'));
+      await pending;
+      await tester.pumpWidget(
+        _app(
+          Scaffold(
+            body: CatalogSourcePicker(
+              viewModel: model,
+              onOpenMedia: (_) {},
+              onManualSearch: (_, _) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('did not respond'), findsNothing);
+      expect(find.text('Could not search this source'), findsOneWidget);
+      source.searchGate = null;
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+      expect(find.text('No match found'), findsOneWidget);
+      await tester.tap(find.text('Change source'));
+      await tester.pumpAndSettle();
+      expect(find.text('Error source'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('candidate list remains lazy at short height and large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(640, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var reads = 0;
+    final candidates = [
+      for (var i = 0; i < 80; i++)
+        CatalogSourcePickerCandidate(
+          media: Media(
+            title: 'Long candidate $i ' * 8,
+            type: MediaType.manga,
+            source: SourceMediaRef(
+              sourceId: const SourceId('test'),
+              itemId: '$i',
+            ),
+          ),
+          metadata: MediaMetadata(
+            title: 'Title',
+            authors: ['Long author ' * 8],
+            cover: SourceMediaRef(
+              sourceId: const SourceId('test'),
+              itemId: 'cover:$i',
+            ),
+          ),
+        ),
+    ];
+    await tester.pumpWidget(
+      _app(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(3)),
+          child: Scaffold(
+            body: CatalogSourceCandidateList(
+              source: CatalogSourcePickerSource(
+                id: const SourceId('test'),
+                displayName: 'Long source ' * 10,
+                languageCode: 'all',
+              ),
+              candidates: candidates,
+              onSelect: (_) {},
+              onChooseAnother: () {},
+              onManualSearch: () {},
+              readArtwork: (_) async {
+                reads++;
+                return null;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (final label in ['Search manually', 'Change source']) {
+      await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
+      expect(find.text(label).hitTestable(), findsOneWidget);
+    }
+    expect(reads, lessThan(candidates.length));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rapid Read opens one source picker', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        _detail(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final read = tester.widget<FilledButton>(
+      find.ancestor(of: find.text('Read'), matching: find.byType(FilledButton)),
+    );
+    read.onPressed!();
+    read.onPressed!();
+    await tester.pumpAndSettle();
+    expect(
+      find.byType(CatalogSourcePicker, skipOffstage: false),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byType(CatalogSourcePicker, skipOffstage: false),
+      findsOneWidget,
+    );
+  });
+
+  for (final size in [const Size(320, 568), const Size(640, 320)]) {
+    testWidgets('modal states recover with keyboard and safe area at $size', (
+      tester,
+    ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final source = _PickerMangaSource(
+        id: const SourceId('modal'),
+        displayName: 'Long source name ' * 6,
+        languageCode: 'all',
+      );
+      final model = CatalogSourcePickerViewModel(
+        entry: _related,
+        resolver: _resolver([source]),
+      );
+      addTearDown(model.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(3),
+              padding: const EdgeInsets.only(bottom: 24),
+              viewInsets: const EdgeInsets.only(bottom: 80),
+            ),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () {
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    useSafeArea: true,
+                    builder: (context) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(context).bottom,
+                      ),
+                      child: SafeArea(
+                        top: false,
+                        child: CatalogSourcePicker(
+                          viewModel: model,
+                          onOpenMedia: (_) {},
+                          onManualSearch: (_, _) {},
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Close').hitTestable(), findsOneWidget);
+      source.searchGate = Completer<MangaSearchPage>();
+      final pending = model.selectSource(model.state.sources.single);
+      await tester.pump();
+      await Scrollable.ensureVisible(
+        tester.element(find.text('Change source')),
+        alignment: 0.5,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        find.text('Change source').hitTestable(),
+        findsOneWidget,
+        reason:
+            'Change source ${tester.getRect(find.text('Change source'))}; picker ${tester.getRect(find.byType(CatalogSourcePicker))}',
+      );
+      source.searchGate!.completeError(StateError('bad response'));
+      await pending;
+      await tester.pumpAndSettle();
+      for (final label in ['Retry', 'Search manually', 'Change source']) {
+        await Scrollable.ensureVisible(
+          tester.element(find.text(label)),
+          alignment: 0.5,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(label).hitTestable(), findsOneWidget);
+      }
+      expect(find.byTooltip('Close').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('production sheet fits landscape keyboard with large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(640, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final keyboard = ValueNotifier(false);
+    addTearDown(keyboard.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => ValueListenableBuilder<bool>(
+          valueListenable: keyboard,
+          builder: (context, visible, _) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(visible ? 3 : 1),
+              viewInsets: EdgeInsets.only(bottom: visible ? 200 : 0),
+            ),
+            child: child!,
+          ),
+        ),
+        home: _detail(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver([
+            _PickerMangaSource(
+              id: const SourceId('source'),
+              displayName: 'Source',
+              languageCode: 'en',
+            ),
+          ]),
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    tester
+        .widget<FilledButton>(
+          find.ancestor(
+            of: find.text('Read'),
+            matching: find.byType(FilledButton),
+          ),
+        )
+        .onPressed!();
+    await tester.pumpAndSettle();
+    expect(find.byType(CatalogSourcePicker), findsOneWidget);
+    // Catalog hero text scaling is outside this picker regression.
+    final reportError = FlutterError.onError!;
+    FlutterError.onError = (details) {
+      if (!details.toString().contains('catalog_detail_hero.dart')) {
+        reportError(details);
+      }
+    };
+    addTearDown(() => FlutterError.onError = reportError);
+    keyboard.value = true;
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await Scrollable.ensureVisible(
+      tester.element(find.byTooltip('Close')),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Close').hitTestable(), findsOneWidget);
+  });
 
   testWidgets('large source lists build only visible rows', (tester) async {
     await tester.pumpWidget(
@@ -1238,7 +1772,7 @@ void main() {
         await tester.pumpAndSettle();
         if (!automatic) {
           expect(opened, isNull);
-          expect(find.text('Is this the right title?'), findsOneWidget);
+          expect(find.text('Choose matching title'), findsOneWidget);
           await tester.tap(find.text('Chosen book'));
           await tester.pumpAndSettle();
         }

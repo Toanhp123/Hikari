@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -32,48 +31,38 @@ class CatalogSourceCandidateList extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return ListView.builder(
       shrinkWrap: candidates.length <= 8,
-      itemCount: candidates.length + 2,
+      itemCount: candidates.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Is this the right title?',
+                'Choose matching title',
                 style: Theme.of(context).textTheme.titleMedium!,
               ),
               const SizedBox(height: HikariSpacing.xs),
               Text(
-                'Hikari found possible matches on ${source.contextLabel}, but none was safe '
-                'to open automatically.',
+                '${source.contextLabel} · ${candidates.length} possible matches',
                 style: Theme.of(context).textTheme.bodyMedium!
                     .copyWith(color: colors.onSurfaceVariant, height: 1.45),
               ),
+              const SizedBox(height: HikariSpacing.sm),
+              Wrap(
+                spacing: HikariSpacing.sm,
+                children: [
+                  OutlinedButton(
+                    onPressed: onManualSearch,
+                    child: const Text('Search manually'),
+                  ),
+                  TextButton(
+                    onPressed: onChooseAnother,
+                    child: const Text('Change source'),
+                  ),
+                ],
+              ),
               const SizedBox(height: HikariSpacing.md),
             ],
-          );
-        }
-        if (index == candidates.length + 1) {
-          return Padding(
-            padding: const EdgeInsets.only(top: HikariSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                HikariButton(
-                  label: 'Search manually in ${source.contextLabel}',
-                  variant: HikariButtonVariant.secondary,
-                  isFullWidth: true,
-                  onPressed: onManualSearch,
-                ),
-                const SizedBox(height: HikariSpacing.sm),
-                HikariButton(
-                  label: 'Choose another source',
-                  variant: HikariButtonVariant.ghost,
-                  isFullWidth: true,
-                  onPressed: onChooseAnother,
-                ),
-              ],
-            ),
           );
         }
         final candidate = candidates[index - 1];
@@ -106,36 +95,44 @@ class _CandidateTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final authors = candidate.metadata?.authors ?? const <String>[];
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: HikariSpacing.md,
-        vertical: HikariSpacing.xs,
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(HikariSpacing.md),
+          child: Row(
+            children: [
+              _CandidateArtwork(candidate: candidate, readArtwork: readArtwork),
+              const SizedBox(width: HikariSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      candidate.media.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge!
+                          .copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    if (authors.isNotEmpty)
+                      Text(
+                        authors.first,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall!
+                            .copyWith(color: colors.onSurfaceVariant),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: HikariSpacing.xs),
+              Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant),
+            ],
+          ),
+        ),
       ),
-      leading: _CandidateArtwork(
-        candidate: candidate,
-        readArtwork: readArtwork,
-      ),
-      title: Text(
-        candidate.media.title,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.bodyLarge!
-            .copyWith(fontWeight: FontWeight.w600),
-      ),
-      subtitle: authors.isEmpty
-          ? null
-          : Text(
-              authors.first,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall!
-                  .copyWith(color: colors.onSurfaceVariant),
-            ),
-      trailing: Icon(
-        Icons.arrow_forward_rounded,
-        color: colors.onSurfaceVariant,
-      ),
-      onTap: onTap,
     );
   }
 }
@@ -157,7 +154,7 @@ class _CandidateArtwork extends StatelessWidget {
           child: Image.memory(
             bytes,
             fit: BoxFit.cover,
-            cacheWidth: mediaArtworkCacheWidth(context, 44),
+            cacheWidth: mediaArtworkCacheWidth(context, 50),
             errorBuilder: (_, _, _) => _placeholder(colors),
           ),
         );
@@ -175,7 +172,7 @@ class _CandidateArtwork extends StatelessWidget {
           )
         : content(null);
 
-    return SizedBox(width: 44, height: 58, child: image);
+    return SizedBox(width: 50, height: 70, child: image);
   }
 
   Widget _placeholder(ColorScheme colors, {bool loading = false}) {

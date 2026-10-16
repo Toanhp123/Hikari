@@ -307,6 +307,56 @@ void main() {
     expect(model.state.candidates, hasLength(2));
   });
 
+  test('repeated resolving source starts only one request', () async {
+    final pending = Completer<MangaSearchPage>();
+    var requests = 0;
+    final model = _model(
+      _MangaSource(
+        onSearch: (_) {
+          requests++;
+          return pending.future;
+        },
+      ),
+      title: 'Title',
+    );
+    addTearDown(model.dispose);
+    final source = model.state.sources.single;
+    final first = model.selectSource(source);
+    await Future<void>.delayed(Duration.zero);
+    final repeated = model.selectSource(source);
+    await Future<void>.delayed(Duration.zero);
+    pending.complete(
+      MangaSearchPage(
+        results: [_preview('Title')],
+        hasNextPage: false,
+        page: 1,
+      ),
+    );
+    expect(requests, 1);
+    expect(await repeated, isNull);
+    expect((await first)?.media.title, 'Title');
+  });
+
+  test('change source invalidates pending exact match', () async {
+    final pending = Completer<MangaSearchPage>();
+    final model = _model(
+      _MangaSource(onSearch: (_) => pending.future),
+      title: 'Title',
+    );
+    addTearDown(model.dispose);
+    final result = model.selectSource(model.state.sources.single);
+    model.chooseAnotherSource();
+    pending.complete(
+      MangaSearchPage(
+        results: [_preview('Title')],
+        hasNextPage: false,
+        page: 1,
+      ),
+    );
+    expect(await result, isNull);
+    expect(model.state.status, CatalogSourcePickerStatus.choosing);
+  });
+
   test('stale resolution cannot replace a newer source choice', () async {
     final first = Completer<MangaSearchPage>();
     final slow = _MangaSource(

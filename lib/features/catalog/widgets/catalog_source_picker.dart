@@ -3,13 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_candidate_list.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker_list_surface.dart';
 
-class CatalogSourcePicker extends StatelessWidget {
+class CatalogSourcePicker extends StatefulWidget {
   const CatalogSourcePicker({
     super.key,
     required this.viewModel,
@@ -25,6 +24,35 @@ class CatalogSourcePicker extends StatelessWidget {
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
+  State<CatalogSourcePicker> createState() => _CatalogSourcePickerState();
+}
+
+class _CatalogSourcePickerState extends State<CatalogSourcePicker> {
+  bool _completed = false;
+
+  CatalogSourcePickerViewModel get viewModel => widget.viewModel;
+
+  void _openMedia(CatalogSourcePickerCandidate candidate) {
+    if (!mounted || _completed) return;
+    _completed = true;
+    widget.onOpenMedia(candidate);
+  }
+
+  void _manualSearch(CatalogSourcePickerSource? source, Set<SourceId>? ids) {
+    if (!mounted || _completed) return;
+    _completed = true;
+    viewModel.chooseAnotherSource();
+    widget.onManualSearch(source, ids);
+  }
+
+  void _close() {
+    if (_completed) return;
+    _completed = true;
+    viewModel.chooseAnotherSource();
+    Navigator.of(context).pop();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: viewModel,
@@ -32,35 +60,55 @@ class CatalogSourcePicker extends StatelessWidget {
         final state = viewModel.state;
         return ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 540, maxHeight: 640),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              HikariSpacing.lg,
-              HikariSpacing.sm,
-              HikariSpacing.lg,
-              HikariSpacing.lg,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Header(
-                  title: viewModel.entry.title,
-                  onClose: () => Navigator.of(context).pop(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final content = Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  HikariSpacing.lg,
+                  HikariSpacing.sm,
+                  HikariSpacing.lg,
+                  HikariSpacing.lg,
                 ),
-                const SizedBox(height: HikariSpacing.lg),
-                Flexible(
-                  child: PopScope<Object?>(
-                    canPop:
-                        state.status !=
-                        CatalogSourcePickerStatus.choosingLanguage,
-                    onPopInvokedWithResult: (didPop, _) {
-                      if (!didPop) viewModel.handleSystemBack();
-                    },
-                    child: _buildBody(context, state),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Header(onClose: _close),
+                    const SizedBox(height: HikariSpacing.sm),
+                    Flexible(
+                      child: PopScope<Object?>(
+                        canPop:
+                            state.status !=
+                            CatalogSourcePickerStatus.choosingLanguage,
+                        onPopInvokedWithResult: (didPop, _) {
+                          if (didPop) {
+                            _completed = true;
+                            viewModel.chooseAnotherSource();
+                          } else {
+                            viewModel.handleSystemBack();
+                          }
+                        },
+                        child: _buildBody(context, state),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+              final headerHeight =
+                  MediaQuery.textScalerOf(context).scale(28) +
+                  HikariSpacing.sm * 2 +
+                  HikariSpacing.lg;
+              if (constraints.maxHeight <
+                  headerHeight + HikariSize.touchTarget) {
+                return SingleChildScrollView(
+                  child: SizedBox(
+                    height: headerHeight + HikariSize.touchTarget * 2,
+                    child: content,
                   ),
-                ),
-              ],
-            ),
+                );
+              }
+              return content;
+            },
           ),
         );
       },
@@ -68,7 +116,7 @@ class CatalogSourcePicker extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, CatalogSourcePickerUiState state) {
-    final body = switch (state.status) {
+    return switch (state.status) {
       CatalogSourcePickerStatus.choosing ||
       CatalogSourcePickerStatus.choosingLanguage => _SourceList(
         viewModel: viewModel,
@@ -78,7 +126,7 @@ class CatalogSourcePicker extends StatelessWidget {
         showLanguageFilter: state.showLanguageFilter,
         onSelectLanguage: viewModel.selectLanguage,
         onSelect: (source) => unawaited(_selectSource(source)),
-        onSearchAll: () => onManualSearch(
+        onSearchAll: () => _manualSearch(
           null,
           state.selectedLanguage == null
               ? null
@@ -86,16 +134,16 @@ class CatalogSourcePicker extends StatelessWidget {
         ),
       ),
       CatalogSourcePickerStatus.resolving => _ResolvingState(
-        title: viewModel.entry.title,
         sourceName: state.selectedSource!.contextLabel,
+        onChooseAnother: viewModel.chooseAnotherSource,
       ),
       CatalogSourcePickerStatus.candidates => CatalogSourceCandidateList(
         source: state.selectedSource!,
         candidates: state.candidates,
-        onSelect: onOpenMedia,
+        onSelect: _openMedia,
         onChooseAnother: viewModel.chooseAnotherSource,
-        onManualSearch: () => onManualSearch(state.selectedSource, null),
-        readArtwork: readArtwork,
+        onManualSearch: () => _manualSearch(state.selectedSource, null),
+        readArtwork: widget.readArtwork,
       ),
       CatalogSourcePickerStatus.empty => _MessageState(
         icon: Icons.search_off_rounded,
@@ -103,86 +151,57 @@ class CatalogSourcePicker extends StatelessWidget {
         message:
             'Nothing on ${state.selectedSource!.contextLabel} matched the catalog title safely.',
         primaryLabel: 'Search manually',
-        onPrimary: () => onManualSearch(state.selectedSource, null),
-        secondaryLabel: 'Choose another source',
+        onPrimary: () => _manualSearch(state.selectedSource, null),
+        secondaryLabel: 'Change source',
         onSecondary: viewModel.chooseAnotherSource,
       ),
       CatalogSourcePickerStatus.error => _MessageState(
         icon: Icons.cloud_off_rounded,
         title: 'Could not search this source',
         message:
-            '${state.selectedSource!.contextLabel} did not respond. '
-            'Retry it or choose another source.',
+            'Search on ${state.selectedSource!.contextLabel} could not be completed. '
+            'Retry or search manually.',
         primaryLabel: 'Retry',
         onPrimary: () => unawaited(_retry()),
-        secondaryLabel: 'Choose another source',
+        onManualSearch: () => _manualSearch(state.selectedSource, null),
+        secondaryLabel: 'Change source',
         onSecondary: viewModel.chooseAnotherSource,
       ),
     };
-    final duration = HikariMotion.duration(context, HikariMotion.fast);
-    return AnimatedSwitcher(
-      duration: duration,
-      switchInCurve: HikariMotion.curveStandard,
-      switchOutCurve: HikariMotion.curveExit,
-      layoutBuilder: (currentChild, previousChildren) => Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          for (final child in previousChildren)
-            IgnorePointer(
-              child: ExcludeFocus(child: ExcludeSemantics(child: child)),
-            ),
-          ?currentChild,
-        ],
-      ),
-      child: KeyedSubtree(key: ValueKey(state.status), child: body),
-    );
   }
 
   Future<void> _selectSource(CatalogSourcePickerSource source) async {
     final media = await viewModel.selectSource(source);
-    if (media != null) onOpenMedia(media);
+    if (media != null) _openMedia(media);
   }
 
   Future<void> _retry() async {
     final media = await viewModel.retry();
-    if (media != null) onOpenMedia(media);
+    if (media != null) _openMedia(media);
   }
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.title, required this.onClose});
+  const _Header({required this.onClose});
 
-  final String title;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Read from',
-                style: Theme.of(context).textTheme.titleLarge!,
-              ),
-            ),
-            IconButton(
-              tooltip: 'Close',
-              onPressed: onClose,
-              icon: const Icon(Icons.close_rounded),
-            ),
-          ],
+        Expanded(
+          child: Text(
+            'Read from',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
         ),
-        const SizedBox(height: HikariSpacing.xs),
-        Text(
-          title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium!
-              .copyWith(color: colors.onSurfaceVariant),
+        IconButton(
+          tooltip: 'Close',
+          onPressed: onClose,
+          icon: const Icon(Icons.close_rounded),
         ),
       ],
     );
@@ -222,32 +241,35 @@ class _SourceList extends StatelessWidget {
     final onSearchAll = this.onSearchAll;
     if (viewModel.state.status == CatalogSourcePickerStatus.choosingLanguage) {
       final variants = viewModel.variantsForSelectedGroup;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextButton.icon(
-            onPressed: viewModel.leaveGroup,
-            icon: const Icon(Icons.arrow_back_rounded),
-            label: const Text('Back'),
-          ),
-          Text(
-            'Choose language',
-            style: Theme.of(context).textTheme.titleMedium!,
-          ),
-          Text(viewModel.state.selectedGroup!.displayName),
-          Expanded(
-            child: ListView.builder(
-              itemCount: variants.length,
-              itemBuilder: (context, index) {
-                final variant = variants[index];
-                return _SourceTile(
-                  source: variant,
-                  onTap: () => onSelect(variant),
-                );
-              },
-            ),
-          ),
-        ],
+      return ListView.builder(
+        shrinkWrap: variants.length <= 8,
+        itemCount: variants.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton.icon(
+                  onPressed: viewModel.leaveGroup,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('Back'),
+                ),
+                Text(
+                  'Choose language',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Text(viewModel.state.selectedGroup!.displayName),
+                const SizedBox(height: HikariSpacing.sm),
+              ],
+            );
+          }
+          final variant = variants[index - 1];
+          return CatalogSourcePickerListSurface(
+            index: index - 1,
+            count: variants.length,
+            child: _SourceTile(source: variant, onTap: () => onSelect(variant)),
+          );
+        },
       );
     }
     if (groups.isEmpty) {
@@ -272,7 +294,9 @@ class _SourceList extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Choose an installed source. Hikari will match this catalog title automatically.',
+                'Choose a source for ${viewModel.entry.title}.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium!
                     .copyWith(color: colors.onSurfaceVariant, height: 1.45),
               ),
@@ -289,15 +313,8 @@ class _SourceList extends StatelessWidget {
                         ? controller.close()
                         : controller.open(),
                     icon: const Icon(Icons.language_rounded),
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Language: ${selectedLanguage?.toUpperCase() ?? 'All'}',
-                        ),
-                        const SizedBox(width: HikariSpacing.xs),
-                        const Icon(Icons.arrow_drop_down_rounded),
-                      ],
+                    label: Text(
+                      'Language: ${selectedLanguage?.toUpperCase() ?? 'All'}',
                     ),
                   ),
                   menuChildren: [
@@ -329,13 +346,13 @@ class _SourceList extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                HikariButton(
-                  label: selectedLanguage == null
-                      ? 'Search all sources'
-                      : 'Search ${selectedLanguage.toUpperCase()} sources',
-                  variant: HikariButtonVariant.ghost,
-                  isFullWidth: true,
+                TextButton(
                   onPressed: onSearchAll,
+                  child: Text(
+                    selectedLanguage == null
+                        ? 'Search all sources'
+                        : 'Search ${selectedLanguage.toUpperCase()} sources',
+                  ),
                 ),
                 if (selectedLanguage != null) ...[
                   const SizedBox(height: HikariSpacing.xs),
@@ -389,19 +406,16 @@ class _SourceTile extends StatelessWidget {
         style: Theme.of(context).textTheme.bodyLarge!
             .copyWith(fontWeight: FontWeight.w600),
       ),
-      subtitle: groupedCount != null ? Text('$groupedCount languages') : null,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (groupedCount == null)
-            Text(
-              source.languageCode == 'all'
-                  ? 'Multiple languages'
-                  : source.languageCode?.toUpperCase() ?? 'Unspecified',
-              style: Theme.of(context).textTheme.bodySmall!,
-            ),
-          Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant),
-        ],
+      subtitle: Text(
+        groupedCount != null
+            ? '$groupedCount languages'
+            : source.languageCode == 'all'
+            ? 'Multiple languages'
+            : source.languageCode?.toUpperCase() ?? 'Unspecified',
+      ),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        color: colors.onSurfaceVariant,
       ),
       onTap: onTap,
     );
@@ -409,26 +423,34 @@ class _SourceTile extends StatelessWidget {
 }
 
 class _ResolvingState extends StatelessWidget {
-  const _ResolvingState({required this.title, required this.sourceName});
+  const _ResolvingState({
+    required this.sourceName,
+    required this.onChooseAnother,
+  });
 
-  final String title;
   final String sourceName;
+  final VoidCallback onChooseAnother;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
-      label: 'Finding $title on $sourceName',
+      liveRegion: true,
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xxl),
+          padding: const EdgeInsets.symmetric(vertical: HikariSpacing.sm),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              TextButton(
+                onPressed: onChooseAnother,
+                child: const Text('Change source'),
+              ),
+              const SizedBox(height: HikariSpacing.sm),
               const Center(child: CircularProgressIndicator()),
               const SizedBox(height: HikariSpacing.lg),
               Text(
-                'Finding “$title” on $sourceName…',
+                'Finding matches on $sourceName…',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium!,
               ),
@@ -456,6 +478,7 @@ class _MessageState extends StatelessWidget {
     required this.onPrimary,
     this.secondaryLabel,
     this.onSecondary,
+    this.onManualSearch,
   });
 
   final IconData icon;
@@ -465,6 +488,7 @@ class _MessageState extends StatelessWidget {
   final VoidCallback onPrimary;
   final String? secondaryLabel;
   final VoidCallback? onSecondary;
+  final VoidCallback? onManualSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -490,19 +514,15 @@ class _MessageState extends StatelessWidget {
                   .copyWith(color: colors.onSurfaceVariant, height: 1.45),
             ),
             const SizedBox(height: HikariSpacing.lg),
-            HikariButton(
-              label: primaryLabel,
-              isFullWidth: true,
-              onPressed: onPrimary,
-            ),
+            FilledButton(onPressed: onPrimary, child: Text(primaryLabel)),
+            if (onManualSearch != null)
+              TextButton(
+                onPressed: onManualSearch,
+                child: const Text('Search manually'),
+              ),
             if (secondaryLabel != null && onSecondary != null) ...[
               const SizedBox(height: HikariSpacing.sm),
-              HikariButton(
-                label: secondaryLabel!,
-                variant: HikariButtonVariant.ghost,
-                isFullWidth: true,
-                onPressed: onSecondary,
-              ),
+              TextButton(onPressed: onSecondary, child: Text(secondaryLabel!)),
             ],
           ],
         ),

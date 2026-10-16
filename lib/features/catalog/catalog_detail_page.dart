@@ -259,7 +259,20 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     await _chooseSource();
   }
 
+  Object? _sourcePickerSession;
+
   Future<void> _chooseSource() async {
+    if (_sourcePickerSession != null || !mounted) return;
+    final session = Object();
+    _sourcePickerSession = session;
+    try {
+      await _chooseSourceOnce();
+    } finally {
+      if (identical(_sourcePickerSession, session)) _sourcePickerSession = null;
+    }
+  }
+
+  Future<void> _chooseSourceOnce() async {
     final state = _viewModel.state;
     final entry = state.entry;
     final generation = ++_selectionGeneration;
@@ -316,6 +329,7 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
     _rememberSelection(entry, selected);
     _searchExpanded = false;
     _chapterScrollVersion++;
+    _sourcePickerSession = null;
     await _chapters!.select(candidate.media, candidate.metadata);
   }
 
@@ -523,28 +537,36 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       useSafeArea: true,
       showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-      builder: (sheetContext) => ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.78,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
         ),
-        child: CatalogSourcePicker(
-          viewModel: picker,
-          onOpenMedia: (candidate) => Navigator.of(sheetContext).pop((
-            candidate: candidate,
-            source: null,
-            sourceIds: null,
-            sourceLanguage: null,
-          )),
-          readArtwork: widget.readArtwork,
-          onManualSearch: (source, sourceIds) =>
-              Navigator.of(sheetContext).pop((
-                candidate: null,
-                source: source,
-                sourceIds: sourceIds,
-                sourceLanguage: source == null
-                    ? picker.state.selectedLanguage
-                    : source.languageCode,
+        child: SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.88,
+            ),
+            child: CatalogSourcePicker(
+              viewModel: picker,
+              onOpenMedia: (candidate) => Navigator.of(sheetContext).pop((
+                candidate: candidate,
+                source: null,
+                sourceIds: null,
+                sourceLanguage: null,
               )),
+              readArtwork: widget.readArtwork,
+              onManualSearch: (source, sourceIds) =>
+                  Navigator.of(sheetContext).pop((
+                    candidate: null,
+                    source: source,
+                    sourceIds: sourceIds,
+                    sourceLanguage: source == null
+                        ? picker.state.selectedLanguage
+                        : source.languageCode,
+                  )),
+            ),
+          ),
         ),
       ),
     );
