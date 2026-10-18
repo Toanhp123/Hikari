@@ -9,6 +9,7 @@ enum AppearanceSaveStatus { saved, saving, failed }
 class SettingsContent extends StatelessWidget {
   const SettingsContent({
     super.key,
+    this.onManagePlugins,
     required this.isOled,
     this.selectedAccent,
     this.appearanceSaveStatus,
@@ -29,6 +30,7 @@ class SettingsContent extends StatelessWidget {
     this.onChooseLocalFolder,
   });
 
+  final VoidCallback? onManagePlugins;
   final bool isOled;
   final Color? selectedAccent;
   final AppearanceSaveStatus? appearanceSaveStatus;
@@ -59,6 +61,20 @@ class SettingsContent extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(HikariSpacing.lg),
           children: [
+            if (onManagePlugins != null) ...[
+              _SectionHeader(title: 'Extensions'),
+              Card(
+                child: ListTile(
+                  title: const Text('Plugins'),
+                  subtitle: const Text(
+                    'Repositories, installed revisions and runtime status',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: onManagePlugins,
+                ),
+              ),
+              const SizedBox(height: HikariSpacing.lg),
+            ],
             const _SectionHeader(title: 'Appearance'),
             _SettingsCard(
               children: [

@@ -1,0 +1,469 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/plugins/plugin_management.dart';
+import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/domain/plugins/novel_plugins.dart';
+import 'package:hikari/domain/plugins/plugins.dart';
+
+class NovelActionsPage extends StatefulWidget {
+  const NovelActionsPage({
+    super.key,
+    required this.management,
+    required this.pluginId,
+  });
+  final PluginManagement management;
+  final PluginId pluginId;
+  @override
+  State<NovelActionsPage> createState() => _NovelActionsPageState();
+}
+
+class _NovelActionsPageState extends State<NovelActionsPage>
+    with WidgetsBindingObserver {
+  PluginManagement get session => widget.management;
+  NovelPluginGateway get gateway => session.novelGateway!;
+  PluginId get id => widget.pluginId;
+  NovelArtifactInventory? get current =>
+      session.novels.where((row) => row.current.metadata.id == id).firstOrNull;
+  bool _busy = false, _foreground = true, _stageUsable = true;
+  int _epoch = 0;
+  static int _sequence = 0;
+  String? _request, _error;
+  StagedNovelArtifact? _stage;
+  NovelArtifactInventory? _base;
+  PluginOffer? _offer;
+  RepositoryId? _owner;
+  String _origins = '';
+  bool get _active => mounted && _foreground;
+  bool _boundary(int epoch) =>
+      _active &&
+      epoch == _epoch &&
+      !session.novelMutationsLocked &&
+      (ModalRoute.of(context)?.isCurrent ?? false);
+  bool _sameRow(NovelArtifactInventory? a, NovelArtifactInventory? b) =>
+      sameNovelArtifact(a?.current, b?.current) &&
+      sameNovelArtifact(a?.previous, b?.previous) &&
+      a?.status == b?.status &&
+      a?.previousStatus == b?.previousStatus &&
+      a?.admission == b?.admission &&
+      a?.previousAdmission == b?.previousAdmission;
+  bool _sameOwner(RepositoryId? owner) =>
+      session.manager!.state.owners[id] == owner;
+  bool _sameOffer() =>
+      _sameOwner(_owner) &&
+      session.manager!.offersFor(id).any((row) => identical(row, _offer));
+  @override
+  void initState() {
+    super.initState();
+    _foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    WidgetsBinding.instance.addObserver(this);
+    final owner = session.manager?.state.owners[id];
+    final site = session.manager
+        ?.offersFor(id)
+        .where((row) => row.repositoryId == owner)
+        .firstOrNull
+        ?.siteUrl;
+    _origins = site?.origin ?? '';
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) _epoch++;
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (!_active || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+    } on NovelAdmissionRejected catch (error) {
+      _error =
+          'Admission rejected: ${error.reason}. No compatibility or trust proven.';
+    } on NovelPublicationFailure {
+      /* App-owned sticky evidence rendered below. */
+    } catch (_) {
+      _error = 'Novel action failed or outcome unknown. Refresh evidence; never automatically repeat code evaluation or infer rollback.';
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  List<Widget> _tuple(NovelArtifact artifact) {
+    final m = artifact.metadata;
+    return [
+      SelectableText('ID: ${m.id.upstreamId}'),
+      SelectableText('Name: ${m.name}'),
+      SelectableText('Version: ${m.version.value}'),
+      SelectableText('Repository: ${m.repositoryId}'),
+      SelectableText('Digest: ${artifact.digest}'),
+      SelectableText('Site: ${m.site}'),
+      for (final origin in m.origins) SelectableText('Exact origin: $origin'),
+    ];
+  }
+
+  Future<bool> _confirm(
+    String title,
+    List<Widget> contents,
+    String action,
+  ) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: contents,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(action),
+            ),
+          ],
+        ),
+      ) ==
+      true;
+  static const _evaluationWarning = Text(
+    'Explicit consent permits native evaluation of this exact code and origin policy. Repository self-declaration is not trust. Bounded admission is not JS safety or provider compatibility. Running sources stay frozen; restart required for changed sources.',
+  );
+  Future<void> _fresh(
+    int epoch,
+    NovelArtifactInventory? displayed,
+    RepositoryId? owner, {
+    bool offer = false,
+  }) async {
+    final rows = await gateway.inventory();
+    if (!session.novelMutationsLocked) session.novels = List.unmodifiable(rows);
+    if (!_boundary(epoch) ||
+        !_sameRow(current, displayed) ||
+        !_sameOwner(owner) ||
+        offer && !_sameOffer()) {
+      throw StateError('Novel consent boundary changed');
+    }
+  }
+
+  Future<void> _download() => _run(() async {
+    if (session.novelMutationsLocked) return;
+    _owner = session.manager!.state.owners[id];
+    _offer = session.manager!
+        .offersFor(id)
+        .where((row) => row.repositoryId == _owner)
+        .singleOrNull;
+    final offer = _offer;
+    if (offer == null ||
+        offer.siteUrl == null ||
+        offer.customJsUrl != null ||
+        offer.customCssUrl != null) {
+      throw StateError('Unsupported owner offer');
+    }
+    final metadata = NovelArtifactMetadata(
+      id: id,
+      name: offer.name,
+      version: offer.version as NovelPluginVersion,
+      repositoryId: offer.repositoryId,
+      site: offer.siteUrl.toString(),
+      origins: _origins
+          .split(RegExp(r'[\s,]+'))
+          .where((value) => value.isNotEmpty),
+    );
+    final epoch = _epoch;
+    final rows = await gateway.inventory();
+    if (!_boundary(epoch) || !_sameOffer()) return;
+    session.novels = List.unmodifiable(rows);
+    _base = current;
+    final request =
+        'novel-ui-${DateTime.now().microsecondsSinceEpoch}-${_sequence++}';
+    setState(() => _request = request);
+    try {
+      final staged = await session.novelActions!.stage(
+        id,
+        origins: metadata.origins,
+        requestId: request,
+      );
+      if (!_boundary(epoch) || _request != request || !_sameOffer()) {
+        await gateway.discard(staged.token);
+        return;
+      }
+      _stage = staged;
+      _stageUsable = true;
+    } finally {
+      if (_request == request) _request = null;
+    }
+  });
+  Future<void> _cancel() async {
+    final request = _request;
+    if (_active) {
+      setState(() => _request = null);
+    } else {
+      _request = null;
+    }
+    if (request != null) {
+      try {
+        await gateway.cancel(request);
+      } catch (_) {
+        if (_active) {
+          setState(
+            () => _error = 'Cancellation not confirmed. Late staged bytes will be discarded.',
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _discard() async {
+    final stage = _stage;
+    if (stage != null) {
+      await gateway.discard(stage.token);
+      _stage = null;
+    }
+  }
+
+  Future<void> _install() => _run(() async {
+    final stage = _stage!;
+    final epoch = _epoch;
+    if (!_stageUsable ||
+        !await _confirm('Consent to exact Novel bundle?', [
+          ..._tuple(stage.artifact),
+          _evaluationWarning,
+        ], 'Evaluate and install')) {
+      return;
+    }
+    await _fresh(epoch, _base, _owner, offer: true);
+    _stageUsable = false; // Native may consume/move stage before returning an ambiguous failure.
+    try {
+      await session.mutateNovel((actions) => actions.install(stage));
+      _stage = null;
+    } finally {
+      if (!mounted) {
+        try {
+          await gateway.discard(stage.token);
+        } catch (_) {
+          /* Native may already consume stage. */
+        }
+      }
+    }
+  });
+  Future<void> _currentAction(String action) => _run(() async {
+    final displayed = current!;
+    final owner = session.manager!.state.owners[id];
+    final epoch = _epoch;
+    final offers = session.manager!.offersFor(id);
+    final contents = <Widget>[
+      const Text('Current exact tuple'),
+      ..._tuple(displayed.current),
+      if (action == 'rollback') ...[
+        const Text('Previous target exact tuple'),
+        ..._tuple(displayed.previous!),
+      ],
+      if (action != 'uninstall')
+        _evaluationWarning
+      else
+        const Text(
+          'Library, Progress and references remain unchanged. Running loaded revision stays frozen until restart; loaded reader may fail after removal.',
+        ),
+    ];
+    final label = switch (action) {
+      'admit' => 'Evaluate current',
+      'rollback' => 'Consent and rollback',
+      _ => 'Remove stored bundle',
+    };
+    if (!await _confirm('$action Novel bundle?', contents, label)) return;
+    await _fresh(epoch, displayed, owner);
+    final freshOffers = session.manager!.offersFor(id);
+    if (freshOffers.length != offers.length ||
+        !offers.every(freshOffers.contains)) {
+      throw StateError('Novel offer changed during consent');
+    }
+    await session.mutateNovel(
+      (actions) => switch (action) {
+        'admit' => actions.admit(displayed.current),
+        'rollback' => actions.rollback(displayed),
+        _ => actions.uninstall(displayed.current),
+      },
+    );
+  });
+  @override
+  void dispose() {
+    _epoch++;
+    _foreground = false;
+    WidgetsBinding.instance.removeObserver(this);
+    if (session.novelGateway != null) {
+      unawaited(_cancel());
+      final stage = _stage;
+      if (stage != null) {
+        unawaited(gateway.discard(stage.token).catchError((Object _) {}));
+      }
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final available = session.novelActions != null;
+    final locked = session.novelMutationsLocked;
+    final enabled = available && !locked && _foreground && !_busy;
+    final row = current;
+    final stage = _stage;
+    final failure = session.novelPublicationFailure;
+    final owner = session.manager?.state.owners[id];
+    final offer = session.manager
+        ?.offersFor(id)
+        .where((row) => row.repositoryId == owner)
+        .singleOrNull;
+    return HikariScaffold(
+      appBar: AppBar(title: const Text('Novel actions')),
+      body: ListView(
+        padding: const EdgeInsets.all(HikariSpacing.lg),
+        children: [
+          if (!available)
+            const Text(
+              'Novel actions unavailable. Android management session required.',
+            )
+          else ...[
+            SelectableText(id.upstreamId),
+            const Text(
+              'Staging never evaluates JavaScript. Every mutation requires explicit consent. No source hot replacement.',
+            ),
+            if (_busy) const Text('Action in progress'),
+            if (_error != null)
+              Semantics(liveRegion: true, child: Text(_error!)),
+            if (session.novelActionError != null)
+              Text(session.novelActionError!),
+            OutlinedButton(
+              onPressed: !_busy && _foreground
+                  ? () => _run(session.refreshNovelEvidence)
+                  : null,
+              child: const Text('Refresh Novel evidence'),
+            ),
+            if (failure != null) ...[
+              Text(
+                failure.kind == NovelPublicationFailureKind.publicationUnknown
+                    ? 'Publication unknown. Last-confirmed pointers are not proof of current disk state. Native process restart required; all Novel mutations locked.'
+                    : 'Pointers committed; directory durability unknown. Native process restart required; all Novel mutations locked.',
+              ),
+              if (failure.inventory == null)
+                const Text(
+                  'Failure evidence malformed or unavailable; mutation lock retained.',
+                ),
+              for (final item
+                  in failure.inventory ?? <NovelArtifactInventory>[]) ...[
+                Text(
+                  failure.kind == NovelPublicationFailureKind.publicationUnknown
+                      ? 'Last-confirmed inventory'
+                      : 'Committed inventory',
+                ),
+                ..._tuple(item.current),
+                if (item.previous != null) ..._tuple(item.previous!),
+              ],
+              for (final pointer
+                  in failure.attempted ?? <NovelAttemptedPointer>[]) ...[
+                const Text('Attempted pointers — unconfirmed'),
+                ..._tuple(pointer.current),
+                if (pointer.previous != null) ..._tuple(pointer.previous!),
+              ],
+            ],
+            if (row != null) ...[
+              Text(
+                'Stored status: ${row.status.name}; admission: ${row.admission.name}',
+              ),
+              ..._tuple(row.current),
+              if (!locked) ...[
+                if (row.status == NovelArtifactStatus.ready &&
+                    row.admission == NovelAdmission.unknown &&
+                    row.current.metadata.repositoryId == owner)
+                  OutlinedButton(
+                    onPressed: enabled ? () => _currentAction('admit') : null,
+                    child: const Text('Consent and admit current'),
+                  ),
+                if (row.previous != null &&
+                    row.previousStatus == NovelArtifactStatus.ready)
+                  OutlinedButton(
+                    onPressed: enabled
+                        ? () => _currentAction('rollback')
+                        : null,
+                    child: const Text('Rollback Novel'),
+                  ),
+                OutlinedButton(
+                  onPressed: enabled ? () => _currentAction('uninstall') : null,
+                  child: const Text('Remove Novel bundle'),
+                ),
+              ],
+            ],
+            if (!locked &&
+                stage == null &&
+                offer != null &&
+                offer.siteUrl != null) ...[
+              TextFormField(
+                initialValue: _origins,
+                maxLines: 3,
+                onChanged: (value) => _origins = value,
+                decoration: const InputDecoration(
+                  labelText: 'Exact HTTPS origins (one per line)',
+                  helperText: 'Site origin only by default. Additional origins require your explicit entry; no CDN or wildcard inference.',
+                ),
+              ),
+              OutlinedButton(
+                onPressed: enabled ? _download : null,
+                child: const Text('Download inert Novel bundle'),
+              ),
+            ],
+            if (_request != null)
+              OutlinedButton(
+                onPressed: _cancel,
+                child: const Text('Cancel download'),
+              ),
+            if (stage != null) ...[
+              const Text('Staged inert bundle'),
+              ..._tuple(stage.artifact),
+              if (!locked && _stageUsable && _sameOffer())
+                FilledButton(
+                  onPressed: enabled ? _install : null,
+                  child: const Text('Consent and install Novel'),
+                )
+              else
+                const Text(
+                  'Stage no longer actionable. Do not repeat evaluation; refresh evidence and discard.',
+                ),
+              OutlinedButton(
+                onPressed: !_busy ? () => _run(_discard) : null,
+                child: const Text('Discard Novel stage'),
+              ),
+            ],
+            const Text(
+              'Runtime evidence is independent of stored inventory and admission. Changes never replace already captured code.',
+            ),
+            Text(
+              'Runtime: ${session.novelRuntime?.initialization.name ?? 'unavailable'}',
+            ),
+            for (final loaded
+                in session.novelRuntime?.loaded.where(
+                      (row) => row.id == id.upstreamId,
+                    ) ??
+                    <LoadedNovelRevision>[]) ...[
+              const Text('Frozen loaded revision'),
+              if (loaded.artifact != null) ..._tuple(loaded.artifact!),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}

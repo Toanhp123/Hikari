@@ -39,6 +39,7 @@ import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart'
     show SourceSearchFilter;
 import 'package:hikari/features/settings/settings_page.dart';
+import 'package:hikari/features/settings/plugin_manager_page.dart';
 
 class HikariApp extends StatefulWidget {
   const HikariApp({
@@ -903,6 +904,17 @@ class _HikariAppState extends State<HikariApp> with WidgetsBindingObserver {
                   _navigationController.selectTab(AppTab.search),
             ),
             AppTab.settings: SettingsPage(
+              onManagePlugins: _dependencies.pluginManagement == null
+                  ? null
+                  : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => PluginManagerPage(
+                            management: _dependencies.pluginManagement!,
+                          ),
+                        ),
+                      );
+                    },
               loadCacheUsage: _dependencies.cacheManagement?.usage,
               onClearCache: _dependencies.cacheManagement?.clear,
               isOled: _isOled,

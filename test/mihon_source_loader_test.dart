@@ -1,9 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/progress/series_continuation.dart';
+import 'package:hikari/application/plugins/manage_apk_plugins.dart';
+import 'package:hikari/application/plugins/plugin_manager.dart';
+import 'package:hikari/domain/plugins/apk_plugins.dart';
+import 'package:hikari/infrastructure/plugins/method_channel_apk_plugins.dart';
+
+import 'plugins/apk_plugin_gateway_test.dart' as plugins;
+
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -150,6 +159,8 @@ final class _FakeGateway implements MihonExtensionGateway {
 }
 
 const _mangaDex = MihonSourceDescriptor(
+  versionCode: 10,
+  signer: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   sourceKey: '2499283573021220255',
   name: 'MangaDex',
   language: 'en',
@@ -166,6 +177,90 @@ void main() {
   tearDown(() async {
     await database.close();
   });
+
+  test(
+    'runtime snapshot validates captured identity and bounded unique evidence',
+    () async {
+      const channel = MethodChannel('hikari/mihon_extensions');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      const gateway = MethodChannelMihonExtensionGateway();
+      Map<String, Object?> source() => {
+        'sourceKey': '123',
+        'name': 'Inert',
+        'language': 'en',
+        'packageName': 'org.example.plugin',
+        'baseUrl': 'https://example.invalid',
+        'versionCode': 10,
+        'signer': 'a' * 64,
+        'preferencesSupported': false,
+      };
+      Map<String, Object?> snapshot() => {
+        'initialized': true,
+        'sources': [source()],
+        'errors': [
+          {'packageName': 'org.example.failed', 'reason': 'untrusted'},
+        ],
+        'preferencesSupported': false,
+      };
+      messenger.setMockMethodCallHandler(channel, (_) async => snapshot());
+      final captured = await gateway.runtimeSnapshot();
+      expect(captured.sources.single.versionCode, 10);
+      expect(captured.sources.single.signer, 'a' * 64);
+      expect(captured.errors['org.example.failed'], 'untrusted');
+      expect(captured.preferencesSupported, isFalse);
+      for (final bad in <Object?>[
+        null,
+        {},
+        snapshot()..['sources'] = List.filled(5001, source()),
+        snapshot()
+          ..['errors'] = List.filled(5001, {
+            'packageName': 'org.example.failed',
+            'reason': 'untrusted',
+          }),
+        snapshot()..['sources'] = [source(), source()],
+        snapshot()..['sources'] = [source()..['versionCode'] = '10'],
+        snapshot()..['sources'] = [source()..remove('signer')],
+        snapshot()
+          ..['errors'] = [
+            {'packageName': 'bad', 'reason': 'untrusted'},
+          ],
+        snapshot()
+          ..['sources'] = [
+            source(),
+            source()
+              ..['sourceKey'] = '124'
+              ..['versionCode'] = 11,
+          ],
+        snapshot()
+          ..['errors'] = [
+            {'packageName': 'org.example.failed', 'reason': 'untrusted'},
+            {'packageName': 'org.example.failed', 'reason': 'collision'},
+          ],
+        snapshot()
+          ..['errors'] = [
+            {'packageName': 'bad', 'reason': 'secret stack trace'},
+          ],
+        snapshot()..['sources'] = [source()..['versionCode'] = -1],
+        snapshot()..['sources'] = [source()..['signer'] = 'bad'],
+        snapshot()..['sources'] = [source()..['packageName'] = 'bad'],
+        snapshot()..['sources'] = [source()..['sourceKey'] = ''],
+        snapshot()..['initialized'] = false,
+      ]) {
+        messenger.setMockMethodCallHandler(channel, (_) async => bad);
+        await expectLater(
+          gateway.runtimeSnapshot(),
+          throwsA(anyOf(isA<FormatException>(), isA<StateError>())),
+        );
+      }
+      messenger.setMockMethodCallHandler(channel, null);
+      await expectLater(
+        gateway.runtimeSnapshot(),
+        throwsA(isA<MissingPluginException>()),
+      );
+    },
+  );
 
   test(
     'source presentation exposes provider name and normalized language',
@@ -355,9 +450,74 @@ void main() {
           updatedAt: DateTime.utc(2026),
         ),
       );
+      final catalog = CatalogEntry(
+        id: const CatalogEntryId(provider: 'test', value: 'manga'),
+        title: 'Example',
+        type: media.type,
+      );
+      await initial.catalogSourceSelections.save(catalog, media);
+      await initial.seriesContinuationRepository.save(
+        SeriesContinuation(series: media.source, chapter: chapter.source),
+      );
       await initial.dispose();
+      const pluginChannel = MethodChannel('hikari/plugins');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(pluginChannel, null),
+      );
+      var present = true;
+      messenger.setMockMethodCallHandler(pluginChannel, (call) async {
+        if (call.method == 'inventory') {
+          return present
+              ? [plugins.row()..['packageName'] = _mangaDex.packageName]
+              : [];
+        }
+        if (call.method == 'uninstall') {
+          expect((call.arguments as Map)['packageName'], _mangaDex.packageName);
+          present = false;
+          return plugins.operationRow()
+            ..['packageName'] = _mangaDex.packageName
+            ..['kind'] = 'uninstall'
+            ..['sessionId'] = null
+            ..['stageTransferred'] = false
+            ..['status'] = 'awaiting_result';
+        }
+        if (call.method == 'installOperations') {
+          return [
+            plugins.operationRow()
+              ..['packageName'] = _mangaDex.packageName
+              ..['kind'] = 'uninstall'
+              ..['sessionId'] = null
+              ..['stageTransferred'] = false
+              ..['status'] = 'succeeded',
+          ];
+        }
+        throw StateError('Unexpected fake OS method');
+      });
+      final apkGateway = MethodChannelApkPlugins();
+      final manager = await PluginManager.open(
+        store: plugins.MemoryState(),
+        reader: plugins.EmptyReader(),
+        inventory: NativeApkInventory(apkGateway),
+        activatedAtStartup: {},
+      );
+      final management = ManageApkPlugins(
+        gateway: apkGateway,
+        manager: manager,
+      );
 
       for (var installation = 0; installation < 2; installation++) {
+        present = true;
+        final pending = await management.uninstall(
+          (await apkGateway.inventory()).single,
+        );
+        expect(pending.isTerminal, isFalse);
+        expect(
+          (await management.installOperations()).single.status,
+          ApkInstallStatus.succeeded,
+        );
+        expect(manager.state.installed, isEmpty);
         final absent = AppDependencies.create(database: db);
         try {
           expect(absent.searchManga.options, isEmpty);
@@ -368,10 +528,21 @@ void main() {
           );
           expect(await absent.libraryRepository.contains(media.source), isTrue);
           expect(await progress.load(chapter.source), isNotNull);
+          expect(
+            (await absent.catalogSourceSelections.load(catalog))!.source,
+            media.source,
+          );
+          expect(
+            await absent.seriesContinuationRepository.load(media.source),
+            chapter.source,
+          );
         } finally {
           await absent.dispose();
         }
 
+        present = true;
+        await management.installOperations();
+        expect(manager.state.installed, hasLength(1));
         final sources = await MihonSourceLoader(
           gateway: gateway,
           database: database,
@@ -409,33 +580,33 @@ void main() {
     },
   );
 
-  test(
-    'source loader adapts installed extension sources to Hikari media sources',
-    () async {
-      final gateway = _FakeGateway(const [
-        MihonSourceDescriptor(
-          sourceKey: '42',
-          name: 'Example Source',
-          language: 'vi',
-          packageName: 'example.extension',
-          baseUrl: 'https://example.test',
-        ),
-      ]);
+  test('source loader adapts installed extension sources to Hikari media sources', () async {
+    final gateway = _FakeGateway(const [
+      MihonSourceDescriptor(
+        versionCode: 10,
+        signer:
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        sourceKey: '42',
+        name: 'Example Source',
+        language: 'vi',
+        packageName: 'example.extension',
+        baseUrl: 'https://example.test',
+      ),
+    ]);
 
-      final sources = await MihonSourceLoader(
-        gateway: gateway,
-        database: database,
-      ).loadSources();
+    final sources = await MihonSourceLoader(
+      gateway: gateway,
+      database: database,
+    ).loadSources();
 
-      expect(sources, hasLength(1));
-      final source = sources.single;
-      expect(source, isA<MangaSearchSource>());
-      expect(source, isA<MangaSeriesSource>());
-      expect(source, isA<MangaPageSource>());
-      expect(source.id, const SourceId('mihon:42'));
-      expect(source.name, 'Example Source [vi]');
-    },
-  );
+    expect(sources, hasLength(1));
+    final source = sources.single;
+    expect(source, isA<MangaSearchSource>());
+    expect(source, isA<MangaSeriesSource>());
+    expect(source, isA<MangaPageSource>());
+    expect(source.id, const SourceId('mihon:42'));
+    expect(source.name, 'Example Source [vi]');
+  });
 
   test('Mihon preserves structural descending source order', () async {
     final gateway = _FakeGateway(const [_mangaDex])
@@ -718,6 +889,9 @@ void main() {
 
   test('extension references preserve opaque continuation state', () async {
     final descriptor = const MihonSourceDescriptor(
+      versionCode: 10,
+      signer:
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       sourceKey: '7',
       name: 'Opaque',
       language: 'en',
@@ -758,6 +932,9 @@ void main() {
   test('stateful extension references reject malformed payloads', () async {
     final gateway = _FakeGateway(const [
       MihonSourceDescriptor(
+        versionCode: 10,
+        signer:
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         sourceKey: '7',
         name: 'Opaque',
         language: 'en',

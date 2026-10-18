@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:hikari/app/plugin_composition.dart';
 import 'package:flutter/widgets.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
@@ -38,11 +41,14 @@ Future<void> bootstrap() async {
       debugPrintStack(stackTrace: stackTrace);
       appearance = const AppearanceSettings();
     }
+    final plugins = createPluginManagement();
+    unawaited(plugins.refresh());
     runApp(
       HikariApp(
         initialAppearance: appearance,
         appearanceRepository: appearanceRepository,
         dependencies: AppDependencies.create(
+          pluginManagement: plugins,
           database: database,
           ownsDatabase: true,
           additionalSources: extensionSources,

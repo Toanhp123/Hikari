@@ -1,3 +1,4 @@
+import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/application/cache/cache_management.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
@@ -88,6 +89,7 @@ final class AppDependencies {
   AppDependencies._(
     this._database,
     this._ownsDatabase, {
+    this.pluginManagement,
     required this.libraryRepository,
     required this.catalogSourceSelections,
     required this.progressRepository,
@@ -121,6 +123,7 @@ final class AppDependencies {
   });
 
   factory AppDependencies.create({
+    PluginManagement? pluginManagement,
     UserDatabase? database,
     bool ownsDatabase = false,
     LocalMediaSource? localMediaSource,
@@ -230,6 +233,7 @@ final class AppDependencies {
         readNovelChapterContent,
         readNovelResource,
       ),
+      pluginManagement: pluginManagement,
       videoSession: MediaKitVideoSession(),
       cache: resolvedCache,
       cacheManagement: resolvedCache is CacheMaintenance
@@ -244,6 +248,7 @@ final class AppDependencies {
     );
   }
 
+  final PluginManagement? pluginManagement;
   final LibraryRepository libraryRepository;
   final CatalogSourceSelectionRepository catalogSourceSelections;
   final ProgressRepository progressRepository;

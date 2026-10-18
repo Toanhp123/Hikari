@@ -2,41 +2,50 @@ package io.github.toanhp123.hikari.extensions.lnreader
 
 import android.content.Context
 import android.os.SystemClock
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.json.JSONObject
-import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 
 /** All IO stays host-owned. Redirects disabled; HTTPS origin and public DNS required. */
-class LnReaderHost(context: Context, sourceId: String, private val origins: Set<String>) {
+class LnReaderHost(context: Context, sourceId: String, private val origins: Set<String>,
+    private val admissionOnly: Boolean = false) {
     init { require(sourceId.matches(Regex("[A-Za-z0-9_-]{1,128}"))) }
-    private val storage = context.getSharedPreferences("lnreader.$sourceId", Context.MODE_PRIVATE)
+    internal var admissionReason: String? = null
+        private set
+    internal val admissionDenied get() = admissionReason != null
+    private val storage by lazy { context.getSharedPreferences("lnreader.$sourceId", Context.MODE_PRIVATE) }
     fun callBytes(input: ByteArray): ByteArray = call(input.toString(Charsets.UTF_8)).toByteArray(Charsets.UTF_8)
     private val deadline = SystemClock.elapsedRealtime() + 5000
     private var requests = 0
-    private val client = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
-        .callTimeout(2, TimeUnit.SECONDS).dns { hostname ->
-            InetAddress.getAllByName(hostname).toList().also { addresses ->
-                require(addresses.isNotEmpty() && addresses.all {
-                    !it.isAnyLocalAddress && !it.isLoopbackAddress && !it.isLinkLocalAddress &&
-                    !it.isSiteLocalAddress && !it.isMulticastAddress
-                }) { "Private network denied" }
-            }
-        }.build()
+    private val client by lazy { io.github.toanhp123.hikari.plugins.PublicHttps.client(2) }
 
     fun call(input: String): String {
+        val request = if (admissionOnly) {
+            try {
+                require(input.toByteArray().size <= 1024 * 1024)
+                JSONObject(input).also { require(it.getString("op") == "absoluteUrl") }
+            } catch (_: Exception) {
+                if (admissionReason == null) admissionReason = when (runCatching { JSONObject(input).getString("op") }.getOrNull()) {
+                    "unsupportedModule" -> "unsupported-module"
+                    "missingRequiredMethod" -> "missing-required-method"
+                    "invalidMetadata" -> "export-metadata-mismatch"
+                    else -> "host-operation-denied"
+                }
+                error("Admission host operation denied")
+            }
+        } else {
+            require(input.toByteArray().size <= 1024 * 1024)
+            JSONObject(input)
+        }
         check(SystemClock.elapsedRealtime() < deadline)
-        require(input.toByteArray().size <= 1024 * 1024)
-        val request = JSONObject(input)
         val result: Any? = when (request.getString("op")) {
             "fetch", "resource" -> {
                 require(++requests <= 16)
-                val url = request.getString("url").toHttpUrl()
+                val url = io.github.toanhp123.hikari.plugins.PublicHttps.url(request.getString("url"))
                 require(url.scheme == "https" && url.username.isEmpty() && url.password.isEmpty())
-                require("${url.scheme}://${url.host}:${url.port}" in origins)
+                require(canonicalOrigin(url.toString()) in origins.map(::canonicalOrigin))
                 val init = request.optJSONObject("init") ?: JSONObject()
                 val method = init.optString("method", "GET").uppercase()
                 require(method in setOf("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"))
@@ -79,9 +88,13 @@ class LnReaderHost(context: Context, sourceId: String, private val origins: Set<
         return org.json.JSONArray().put(result ?: JSONObject.NULL).toString().let { it.substring(1, it.length - 1) }
     }
     companion object {
+        internal fun canonicalOrigin(value: String): String {
+            val url = io.github.toanhp123.hikari.plugins.PublicHttps.url(value)
+            return "https://${url.host.trimEnd('.')}"
+        }
         // A stuck OS DNS lookup cannot grow an unbounded worker pool.
-        private val network = java.util.concurrent.ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS,
-            java.util.concurrent.ArrayBlockingQueue<Runnable>(4), java.util.concurrent.ThreadPoolExecutor.AbortPolicy())
+        private val network by lazy { java.util.concurrent.ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS,
+            java.util.concurrent.ArrayBlockingQueue<Runnable>(4), java.util.concurrent.ThreadPoolExecutor.AbortPolicy()) }
     }
     private fun key(request: JSONObject): String = request.getString("key").also { require(it.length in 1..256) }
 }

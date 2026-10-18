@@ -18,7 +18,7 @@ This directory is the project knowledge base. It is intentionally **progressive*
 | `architecture/SOURCES.md` | Capability contracts, SourceRegistry, application open workflows and source extension seam | Adding/refactoring a source or application workflow |
 | `architecture/CATALOG.md` | External catalog metadata, discovery and catalog/content boundary | Working on AniList discovery or catalog details |
 | `architecture/REMOTE_MANGA.md` | Remote manga flow, external-source selection and generic source references | Working on search, chapter selection or remote page delivery |
-| `architecture/EXTENSIONS.md` | Android manga extension discovery, trust, ABI bridge and bounded LNReader runtime | Working on installed manga extensions, packaged novel plugins or native compatibility |
+| `architecture/EXTENSIONS.md` | Android plugin management, native APK trust/install lifecycle, Novel custody/admission and frozen manga/LNReader runtimes | Working on repositories, package actions, downloaded/packaged Novel plugins or native compatibility |
 | `architecture/USER_STATE.md` | Progress, independent Library snapshots, SQLite schema and reader resume | Working on persisted user state |
 | `decisions/ADR-*.md` | An accepted decision and why it was chosen | A task touches or questions that decision |
 | `roadmap/UI_UX_COMPLETION.md` | Active UI/UX completion sequence, pass-level acceptance criteria, scope and phase exit gate | Polishing current product UX before adding the next major feature set |

@@ -7,6 +7,8 @@ final class MihonSourceDescriptor {
     required this.language,
     required this.packageName,
     required this.baseUrl,
+    required this.versionCode,
+    required this.signer,
   });
 
   final String sourceKey;
@@ -14,6 +16,21 @@ final class MihonSourceDescriptor {
   final String language;
   final String packageName;
   final String baseUrl;
+  final int versionCode;
+  final String signer;
+  bool get preferencesSupported => false;
+}
+
+final class MihonRuntimeSnapshot {
+  const MihonRuntimeSnapshot({
+    required this.initialized,
+    required this.sources,
+    required this.errors,
+  });
+  final bool initialized;
+  final List<MihonSourceDescriptor> sources;
+  final Map<String, String> errors;
+  bool get preferencesSupported => false;
 }
 
 final class MihonMangaItem {
@@ -133,23 +150,68 @@ final class MethodChannelMihonExtensionGateway
 
   static const _channel = MethodChannel('hikari/mihon_extensions');
 
+  Future<MihonRuntimeSnapshot> runtimeSnapshot() async {
+    final map = _map(await _channel.invokeMethod<Object?>('runtimeSnapshot'));
+    final rows = map['sources'];
+    final errors = map['errors'];
+    if (map['initialized'] is! bool ||
+        rows is! List ||
+        rows.length > 5000 ||
+        errors is! List ||
+        errors.length > 5000 ||
+        (map['initialized'] == false &&
+            (rows.isNotEmpty || errors.isNotEmpty)) ||
+        map['preferencesSupported'] != false) {
+      throw const FormatException('Invalid runtime snapshot');
+    }
+    final failures = <String, String>{};
+    for (final value in errors) {
+      final row = _map(value);
+      final reason = _string(row, 'reason');
+      if (!const {
+        'untrusted',
+        'incompatible',
+        'collision',
+        'load_failure',
+      }.contains(reason)) {
+        throw const FormatException('Invalid runtime error');
+      }
+      final package = _string(row, 'packageName');
+      if (!_packageName(package) ||
+          failures.containsKey(package) ||
+          row.length > 8) {
+        throw const FormatException('Invalid runtime package error');
+      }
+      failures[package] = reason;
+    }
+    final sources = rows.map(_descriptor).toList(growable: false);
+    final keys = <String>{};
+    final revisions = <String, (int, String)>{};
+    for (final source in sources) {
+      final revision = (source.versionCode, source.signer);
+      if (!keys.add(source.sourceKey) ||
+          failures.containsKey(source.packageName) ||
+          (revisions.containsKey(source.packageName) &&
+              revisions[source.packageName] != revision)) {
+        throw const FormatException(
+          'Duplicate or inconsistent runtime sources',
+        );
+      }
+      revisions[source.packageName] = revision;
+    }
+    return MihonRuntimeSnapshot(
+      initialized: map['initialized']! as bool,
+      sources: List.unmodifiable(sources),
+      errors: Map.unmodifiable(failures),
+    );
+  }
+
   @override
   Future<List<MihonSourceDescriptor>> listSources() async {
     try {
       final rows = await _channel.invokeListMethod<Object?>('listSources');
       if (rows == null) return const [];
-      return rows
-          .map((row) {
-            final map = _map(row);
-            return MihonSourceDescriptor(
-              sourceKey: _string(map, 'sourceKey'),
-              name: _string(map, 'name'),
-              language: _string(map, 'language'),
-              packageName: _string(map, 'packageName'),
-              baseUrl: _string(map, 'baseUrl'),
-            );
-          })
-          .toList(growable: false);
+      return rows.map(_descriptor).toList(growable: false);
     } on MissingPluginException {
       return const [];
     }
@@ -368,3 +430,34 @@ int? _optionalInt(Map<Object?, Object?> map, String key) {
 int _int(Map<Object?, Object?> map, String key) =>
     _optionalInt(map, key) ??
     (throw StateError('Extension runtime returned an invalid $key.'));
+
+MihonSourceDescriptor _descriptor(Object? value) {
+  final map = _map(value);
+  final code = map['versionCode'];
+  final signer = _string(map, 'signer');
+  if (map.length > 16 ||
+      !_packageName(_string(map, 'packageName')) ||
+      !RegExp(r'^-?[0-9]{1,20}$').hasMatch(_string(map, 'sourceKey')) ||
+      ['name', 'language', 'baseUrl'].any(
+        (key) => _string(map, key).isEmpty || _string(map, key).length > 4096,
+      ) ||
+      code is! int ||
+      code < 0 ||
+      !RegExp(r'^[a-f0-9]{64}$').hasMatch(signer) ||
+      map['preferencesSupported'] != false) {
+    throw const FormatException('Invalid loaded revision');
+  }
+  return MihonSourceDescriptor(
+    sourceKey: _string(map, 'sourceKey'),
+    name: _string(map, 'name'),
+    language: _string(map, 'language'),
+    packageName: _string(map, 'packageName'),
+    baseUrl: _string(map, 'baseUrl'),
+    versionCode: code,
+    signer: signer,
+  );
+}
+
+bool _packageName(String value) =>
+    value.length <= 255 &&
+    RegExp(r'^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$').hasMatch(value);
