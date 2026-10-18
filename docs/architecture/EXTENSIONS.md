@@ -412,16 +412,29 @@ chapter paths rather than silently dropping data. Search pagination remains
 unknown because upstream returns an array, not a next-page flag. Ratings retain
 upstream's documented 0–5 scale; release labels and scanlator lists are retained.
 
-Tested module whitelist: `cheerio` (real slim/htmlparser2 build), `dayjs`,
-`@libs/fetch` (`fetchApi`, `fetchText`), `@libs/storage`, `@libs/url`
-(`absoluteUrl(base, path)`). This is a bounded compatibility subset, not a claim
-that every upstream import alias or browser API is supported. Unsupported
-modules fail explicitly. Host requests support GET/HEAD/POST/PUT/PATCH/DELETE,
-64 KiB request bodies, selected headers, response Content-Type charset,
+LNReader v3 compatibility surface: `cheerio` (real slim/htmlparser2 build),
+`htmlparser2` (`Parser`), `dayjs`, `@libs/novelStatus` (`NovelStatus`),
+`@libs/filterInputs` (`FilterTypes`), `@libs/fetch` (`fetchApi`, `fetchText`),
+`@libs/storage` and `@libs/url` (`absoluteUrl(base, path)`). The host additionally
+provides bounded text `FormData` and a minimal `URL` (href/toString) plus
+`URLSearchParams` subset. The Kotlin host constructs multipart/form-data bodies
+with its own boundary, 32-field / 64-KiB cap, restricted names and fixed origin
+policy; it rejects binary file fields and user-forced multipart Content-Type.
+These capabilities target actual imports used by upstream 69shu, Hako and Light
+Novel VN, not a claim of complete WHATWG/browser compatibility. The
+`tool/lnreader/contract.js` fixture and Android `NovelAdmissionTest` exercise
+bounded, mocked host contracts; online provider success still needs separate
+verification. Unsupported modules remain denied and no provider methods execute
+during admission.
+
+Native host requests support GET/HEAD/POST/PUT/PATCH/DELETE, selected bounded headers (including DNT and Upgrade-Insecure-Requests required by 69shu),
 1 MiB response bodies and source-manifest HTTPS origins. Redirects are disabled;
-plugins requiring redirects, WebViews/challenges, arbitrary modules or other
-header names are unsupported. Persistent storage is source-namespaced, bounded
-to 128 keys and 64 KiB. No arbitrary script arrives through MethodChannel.
+providers requiring redirects, WebViews/challenges, arbitrary modules or other
+header names remain unsupported. Persistent storage is source-namespaced,
+bounded to 128 keys and 64 KiB. No arbitrary script arrives through MethodChannel.
+The 5-second operation deadline and 16-request cap can still reject long or
+multi-page provider operations; do not interpret passing admission as proof that
+such operations will succeed.
 
 No live novel provider ships by default. Build the authored debug fixture using
 `android/gradlew.bat -p android :app:assembleDebug -PlnreaderContractFixture=true`.

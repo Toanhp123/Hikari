@@ -73,3 +73,25 @@ management UI and trust/custody rationale now belong to
 [ADR-025](ADR-025-unified-plugin-management.md). More upstream module aliases,
 browser features, redirect behavior and other HTTP policies must be implemented
 and tested before declaring plugins that require them compatible.
+
+## LNReader v3 host compatibility (2026-10-19)
+
+The existing bundled parser now exposes its upstream `htmlparser2.Parser`
+interface alongside small static LNReader enum helper modules. A text-only
+`FormData` subset serializes an inert envelope; Kotlin alone encodes multipart
+and enforces field/size/header constraints. Minimal URL resolution delegates to
+`absoluteUrl` and remains side-effect-free during admission. Package-source
+module registration is explicit, not ambient `require`. Unknown helpers still
+fail admission. These are compatibility contracts, not JS isolation claims, and
+do not extend network origins, redirects, the time budget or source hot reload.
+A JavaScript-host smoke test is not a substitute for Android QuickJS execution
+or real upstream replay; those must be reported separately.
+
+The source of truth for the compatibility inventory is now
+[`tool/lnreader/COMPATIBILITY.md`](../../tool/lnreader/COMPATIBILITY.md).
+Pure JS LNReader helpers are appended to the generated host from
+`tool/lnreader/api_compat.js`; all stateful calls remain native-owned.
+`keys` returns only the v3-prefixed keys of the invoking source; `delay` is
+synchronous and bounded by 2 seconds per call, 16 calls and the same 5-second
+operation deadline. No background event loop is implied. Crypto/protobuf and
+unrestricted filesystem APIs remain unsupported and must not be stubbed.

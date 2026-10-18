@@ -1,0 +1,47 @@
+// API parity smoke: no network, no Android, no arbitrary code in production.
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import {fileURLToPath} from 'node:url';
+import {dirname, resolve} from 'node:path';
+import assert from 'node:assert/strict';
+const root=dirname(fileURLToPath(import.meta.url));
+const host=readFileSync(resolve(root,'../../android/app/src/main/assets/lnreader/host.js'),'utf8');
+const store=new Map();
+const native=JSON.stringify;
+const context={__hikariHost(payload){const r=JSON.parse(payload);switch(r.op){
+ case 'get':return native(store.get(r.key)??null);
+ case 'set':store.set(r.key,r.value);return 'null';
+ case 'remove':store.delete(r.key);return 'null';
+ case 'keys':return native([...store.keys()]);
+ case 'absoluteUrl':return native(new URL(r.path,r.base).toString());
+ case 'delay':return 'null';
+ case 'fetch':return native(r.url.includes('/missing')?{status:404,body:'not found'}:{status:200,body:'{"ok":true}'});
+ default:throw Error(`Unexpected native op ${r.op}`);
+}}};
+const code=`(async()=>{
+ const status=require('@libs/novelStatus').NovelStatus;
+ if(status.Ongoing!=='Ongoing')throw Error('novelStatus');
+ const type=require('@libs/filterInputs').FilterTypes;
+ if(type.CheckboxGroup!=='Checkbox')throw Error('filterInputs');
+ if(typeof require('htmlparser2').Parser!=='function')throw Error('htmlparser2');
+ const isUrl=require('@libs/isAbsoluteUrl').isUrlAbsolute;
+ if(!isUrl('https://example.org/x')||!isUrl('//example.org')||isUrl('/chapter'))throw Error('isAbsoluteUrl');
+ const cover=require('@libs/defaultCover').defaultCover;
+ if(typeof cover!=='string'||!cover.startsWith('https://'))throw Error('defaultCover');
+ const url=require('urlencode');if(url.decode(url.encode('Tiếng Việt'))!=='Tiếng Việt')throw Error('urlencode');
+ const settings=require('@libs/storage');const storage=settings.storage;
+ storage.set('token',{a:1});if(storage.get('token').a!==1)throw Error('storage value');
+ if(!storage.getAllKeys().includes('token'))throw Error('storage keys');
+ storage.delete('token');if(storage.get('token')!==undefined)throw Error('storage delete');
+ storage.set('one',1);storage.clearAll();if(storage.getAllKeys().length)throw Error('storage clear');
+ if(typeof settings.localStorage.get!=='function'||typeof settings.sessionStorage.get!=='function')throw Error('webview storage');
+ if(typeof setTimeout!=='function')throw Error('timer');
+ await new Promise(resolve=>setTimeout(resolve,1));
+ const res=await require('@libs/fetch').fetchApi('https://example.org');
+ if(!res.ok||!(await res.json()).ok)throw Error('fetchApi');
+ if(await require('@libs/fetch').fetchText('https://example.org/missing')!=='')throw Error('fetchText error response');
+ let blocked=false;try{require('fs')}catch(_){blocked=true};if(!blocked)throw Error('arbitrary module');
+ return true;
+})()`;
+assert.equal(await runInNewContext(`${host}\n${code}`,context,{timeout:10000}),true);
+console.log('Pinned LNReader API parity smoke passed (Node + mocked native bridge)');

@@ -11,9 +11,15 @@ static void check(int condition, const char *message) {
   }
 }
 
+static int saw_multipart = 0;
 static char *fixture_host(void *opaque, const char *request) {
   (void)opaque;
-  if (strstr(request, "\"op\":\"fetch\"")) return strdup("{\"status\":200,\"body\":\"<h1>Novel</h1>\"}");
+  if (strstr(request, "\"op\":\"fetch\"")) {
+    if (strstr(request, "\"__hikariMultipart\":\"v1\"") &&
+        strstr(request, "\"name\":\"keyword\"") &&
+        strstr(request, "\"value\":\"Hako\"")) saw_multipart = 1;
+    return strdup("{\"status\":200,\"body\":\"<h1>Novel</h1>\"}");
+  }
   if (strstr(request, "\"op\":\"get\"")) return strdup("\"saved\"");
   if (strstr(request, "\"op\":\"absoluteUrl\"")) return strdup("\"https://example.org/chapter\"");
   return strdup("null");
@@ -45,8 +51,9 @@ int main(int argc, char **argv) {
     memcpy(script + sizes[0] + 1, parts[1], sizes[1]);
     char *value = hikari_js(script, 5000, fixture_host, NULL);
     check(value && strcmp(value, "true") == 0, "bundled host contract");
+    check(saw_multipart, "LNReader FormData envelope reached native host");
     free(value); free(script); free(parts[0]); free(parts[1]);
-    puts("real bundled cheerio/dayjs/fetch/storage/absoluteUrl contract PASS");
+    puts("bundled Cheerio/dayjs/HTML parser/enums/URL/FormData/fetch/storage contract PASS");
   }
   char *result = hikari_js("Promise.resolve({ok:42})", 100, NULL, NULL);
   check(result && strcmp(result, "{\"ok\":42}") == 0, "resolved promise"); free(result);

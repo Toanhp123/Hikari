@@ -35,6 +35,73 @@ class NovelAdmissionTest : InstrumentationTestCase() {
             if (reason != null) assertEquals(reason, failure.reason)
         }
     }
+    fun testUpstreamV3HelpersAreAdmittedWithoutProviderExecution() {
+        // Representative compiled imports from LNReader 69shu/Hako/Light Novel VN.
+        val bundle = """
+            const status=require('@libs/novelStatus').NovelStatus;
+            const filters=require('@libs/filterInputs').FilterTypes;
+            const parser=require('htmlparser2').Parser;
+            if(status.Completed!=='Completed'||filters.Picker!=='Picker'||typeof parser!=='function')
+              throw Error('Upstream helpers unavailable');
+            module.exports={id:'authored',name:'Authored',version:'1.0',site:'https://example.org',
+              searchNovels(){throw Error('Provider must not run during admission')},
+              parseNovel(){throw Error('Provider must not run during admission')},
+              parseChapter(){throw Error('Provider must not run during admission')}};
+        """.trimIndent()
+        NovelAdmission(context()).inspect(artifact, bundle)
+        // Loading helpers does not grant access to arbitrary modules or IO.
+        rejected("require('fs');" + bundle, "unsupported-module")
+        rejected("try{__hikariHost('{\"op\":\"fetch\"}')}catch(e){};" + bundle, "host-operation-denied")
+    }
+
+    fun testTextMultipartEnvelopeAndUnsafeFields() {
+        val fields = org.json.JSONArray().put(JSONObject().put("name", "keyword").put("value", "Tiếng Việt"))
+        val body = JSONObject().put("__hikariMultipart", "v1").put("fields", fields)
+        val requestBody = LnReaderHost.requestBody(body)
+        assertTrue(requestBody.contentType().toString().startsWith("multipart/form-data; boundary="))
+        val output = okio.Buffer()
+        requestBody.writeTo(output)
+        val encoded = output.readUtf8()
+        assertTrue(encoded.contains("name=\"keyword\""))
+        assertTrue(encoded.contains("Tiếng Việt"))
+        fun refuses(value: Any?) {
+            try { LnReaderHost.requestBody(value); fail("Expected invalid body rejection") }
+            catch (_: IllegalArgumentException) { }
+            catch (_: org.json.JSONException) { }
+        }
+        refuses(JSONObject().put("__hikariMultipart", "v2").put("fields", fields))
+        refuses(JSONObject().put("__hikariMultipart", "v1").put("fields", org.json.JSONArray()))
+        refuses(JSONObject().put("__hikariMultipart", "v1").put("fields",
+            org.json.JSONArray().put(JSONObject().put("name", "bad\r\nheader").put("value", "text"))))
+        refuses(JSONObject().put("__hikariMultipart", "v1").put("fields",
+            org.json.JSONArray().put(JSONObject().put("name", "keyword").put("value", "x".repeat(66000)))))
+        refuses(JSONObject().put("__hikariMultipart", "v1").put("fields",
+            org.json.JSONArray().put(JSONObject().put("name", "keyword").put("value", JSONObject()))))
+        refuses(org.json.JSONArray().put("unexpected"))
+    }
+
+    fun testPinnedLnReaderV3ModuleTableAndDeniedSideEffects() {
+        // The JavaScript host exposes the pure portions of the upstream module
+        // map without allowing network, timers or storage during admission.
+        val compiledImports = """
+            const status=require('@libs/novelStatus').NovelStatus;
+            const filters=require('@libs/filterInputs').FilterTypes;
+            const {Parser}=require('htmlparser2');
+            const absolute=require('@libs/isAbsoluteUrl').isUrlAbsolute;
+            const {defaultCover}=require('@libs/defaultCover');
+            const encoder=require('urlencode');
+            const storage=require('@libs/storage').storage;
+            if(status.Ongoing!=='Ongoing'||filters.Switch!=='Switch'||
+               typeof Parser!=='function'||!absolute('//example.org')||
+               !defaultCover.startsWith('https://')||encoder.decode(encoder.encode('Việt'))!=='Việt'||
+               typeof storage.get!=='function') throw Error('LNReader v3 API unavailable');
+        """.trimIndent()
+        NovelAdmission(context()).inspect(artifact, compiledImports + valid)
+        rejected("try{require('@libs/storage').storage.set('key',123)}catch(e){};" + valid, "host-operation-denied")
+        rejected("try{setTimeout(()=>{},1)}catch(e){};" + valid, "host-operation-denied")
+        rejected("try{require('fs')}catch(e){};" + valid, "unsupported-module")
+    }
+
     fun testIdentityMethodsModulesAndNoProviderInvocation() {
         NovelAdmission(context()).inspect(artifact, valid)
         NovelAdmission(context()).inspect(artifact, valid + "module.exports.parsePage=function(){};")
@@ -54,7 +121,7 @@ class NovelAdmissionTest : InstrumentationTestCase() {
         rejected(replaced + valid + "module.exports.name=123;", "export-metadata-mismatch")
     }
     fun testStickyDenialIncludesCaughtLateGetterAndSerialization() {
-        for (op in listOf("fetch", "resource", "get", "set", "remove", "unknown")) {
+        for (op in listOf("fetch", "resource", "get", "set", "remove", "keys", "delay", "unknown")) {
             rejected("try{__hikariHost(JSON.stringify({op:'$op'}))}catch(e){};" + valid, "host-operation-denied")
         }
         rejected(valid + "Object.defineProperty(module.exports,'name',{get(){try{localStorage.getItem('x')}catch(e){};return 'Authored'}});")
