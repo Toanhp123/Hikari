@@ -94,9 +94,9 @@ internal class NovelArtifacts(private val directory: File,
     }, true)
     private fun strict(bytes: ByteArray): String {
         require(bytes.size in 1..BUNDLE_LIMIT && bytes.none { it == 0.toByte() })
-        return runCatching { Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+        return try { Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString() }
-            .getOrElse { error("Invalid Novel UTF-8") }
+            catch (_: java.nio.charset.CharacterCodingException) { error("Invalid Novel UTF-8") }
     }
     private fun hash(file: File): String {
         check(file.isFile && file.canonicalFile.parentFile == requireNotNull(file.parentFile).canonicalFile)
@@ -133,18 +133,19 @@ internal class NovelArtifacts(private val directory: File,
             } else if (!file(artifact).exists()) {
                 issues.add(CaptureIssue(encoded, "missing"))
             } else {
-                val bytes = runCatching {
+                val captured = try {
                     val source = file(artifact)
                     check(source.isFile && source.canonicalFile.parentFile == artifacts.canonicalFile)
-                    source.inputStream().use { it.readBytesBounded(BUNDLE_LIMIT) }.also {
-                        strict(it); check(digest(it) == artifact["digest"])
-                    }
-                }.getOrNull()
-                if (bytes == null) issues.add(CaptureIssue(encoded, "corrupt"))
+                    val bytes = source.inputStream().use { it.readBytesBounded(BUNDLE_LIMIT) }
+                    val bundle = strict(bytes)
+                    check(digest(bytes) == artifact["digest"])
+                    bytes.size to bundle
+                } catch (_: Exception) { null }
+                if (captured == null) issues.add(CaptureIssue(encoded, "corrupt"))
                 else {
-                    remaining -= bytes.size
+                    remaining -= captured.first
                     check(remaining >= 0) { "Novel snapshot byte limit" }
-                    code.add(CapturedCode(encoded, strict(bytes)))
+                    code.add(CapturedCode(encoded, captured.second))
                 }
             }
         }

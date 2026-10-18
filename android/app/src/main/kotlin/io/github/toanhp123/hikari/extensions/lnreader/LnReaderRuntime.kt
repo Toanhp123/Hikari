@@ -66,8 +66,10 @@ internal class LnReaderRuntime(
             require(plugins.map { it.id }.toSet().size == plugins.size)
             snapshot = Snapshot(host, plugins.toList())
         } catch (_: Exception) {
-            failure = reason
             throw Failure(reason)
+        } finally {
+            // Fatal VM/linkage errors propagate, but a surviving process must not retry capture.
+            if (snapshot == null) failure = reason
         }
     }
     /** No store access, filesystem read, initialization or JS evaluation. Fresh codec copies only. */

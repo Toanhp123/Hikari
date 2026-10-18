@@ -52,6 +52,11 @@ not its native ABI boundary or historical rationale.
   self-declared signers/digests and a fallible mirror cannot authorize native code.
 - **Automatic owner fallback, consent transfer or mutation replay:** rejected;
   ownership is explicit and ambiguous native outcomes cannot safely be resubmitted.
+- **Duplicate-ID winner selection or partial publication after global capture failure:**
+  rejected; ambiguous identity and incomplete custody/budget evidence must fail closed.
+  Recoverable per-artifact issues remain isolated as specified in EXTENSIONS.
+- **Parallel Dart activation/signer authority:** rejected; inventory and historical
+  mirror rows cannot prove which exact native revision is running or trusted.
 - **Hot mutable SourceRegistry:** rejected; it breaks startup-pinned references and
   introduces code replacement into active reader workflows.
 - **Import upstream application stacks:** rejected; existing Hikari capabilities,

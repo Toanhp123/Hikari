@@ -73,7 +73,6 @@ void main() {
       store: store,
       reader: EmptyReader(),
       inventory: NativeApkInventory(gateway),
-      activatedAtStartup: {},
     );
     final actions = ManageApkPlugins(gateway: gateway, manager: manager);
     var approved = false;
@@ -141,7 +140,6 @@ void main() {
         store: store,
         reader: EmptyReader(),
         inventory: NativeApkInventory(gateway),
-        activatedAtStartup: {},
       );
       final actions = ManageApkPlugins(gateway: gateway, manager: manager);
       var inventoryReads = 0;
@@ -168,11 +166,7 @@ void main() {
         ApkInstallStatus.succeeded,
       );
       expect(inventoryReads, 1);
-      expect(
-        manager.activationFor(offer().id),
-        PluginActivation.unapproved,
-        reason: 'inventory must not invent Dart trust or source activation',
-      );
+      expect(manager.state.approvals, isEmpty);
       store.fail = true;
       await expectLater(
         actions.installOperations(),
@@ -199,7 +193,6 @@ void main() {
       store: MemoryState(),
       reader: EmptyReader(),
       inventory: NativeApkInventory(gateway),
-      activatedAtStartup: {},
     );
     final actions = ManageApkPlugins(gateway: gateway, manager: manager);
     messenger.setMockMethodCallHandler(channel, (call) async {

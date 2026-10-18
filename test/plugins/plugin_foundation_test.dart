@@ -149,99 +149,115 @@ void main() {
     }
   });
 
-  test('durable lifecycle retains last good offers, ownership, inventory and explicit trust', () async {
-    final directory = await Directory.systemTemp.createTemp(
-      'hikari-plugin-test-',
-    );
-    addTearDown(() => directory.delete(recursive: true));
-    final store = FilePluginStateStore(directory: directory);
-    final inventory = TestInventory();
-    var broken = false;
-    var signer = 'a' * 64;
-    final reader = PluginManifestReader(
-      (url) async => broken
-          ? utf8.encode('{')
-          : utf8.encode(jsonEncode(apkJson(signer: signer))),
-    );
-    var manager = await PluginManager.open(
-      store: store,
-      reader: reader,
-      inventory: inventory,
-      activatedAtStartup: {},
-    );
-    final first = await manager.addRepository(
-      'https://one.example/repo.json',
-      PluginEcosystem.manga,
-    );
-    await expectLater(
-      manager.addRepository(
-        'https://ONE.example:443/repo.json',
+  test(
+    'durable lifecycle retains offers and owner without Dart APK trust',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'hikari-plugin-test-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final store = FilePluginStateStore(directory: directory);
+      final inventory = TestInventory();
+      var broken = false;
+      var signer = 'a' * 64;
+      final reader = PluginManifestReader(
+        (url) async => broken
+            ? utf8.encode('{')
+            : utf8.encode(jsonEncode(apkJson(signer: signer))),
+      );
+      var manager = await PluginManager.open(
+        store: store,
+        reader: reader,
+        inventory: inventory,
+      );
+      final first = await manager.addRepository(
+        'https://one.example/repo.json',
         PluginEcosystem.manga,
-      ),
-      throwsStateError,
-    );
-    final second = await manager.addRepository(
-      'https://two.example/repo.json',
-      PluginEcosystem.manga,
-    );
-    await manager.refresh(first.id);
-    await manager.refresh(second.id);
-    final id = manager.state.repositories.first.snapshot!.offers.single.id;
-    expect(manager.offersFor(id), hasLength(2));
-    expect(manager.state.owners[id], isNull);
-    await manager.selectOwner(id, first.id);
-    expect(manager.approvalFor(id), isNull);
-    await manager.approve(
-      PluginApproval(
-        id: id,
-        repositoryId: first.id,
-        kind: PluginApprovalKind.signer,
-        digest: signer,
-      ),
-    );
-    inventory.installed = [
-      InstalledPlugin(
-        id: id,
-        version: ApkPluginVersion(106004, '1.6.4'),
-        digest: signer,
-        compatibility: PluginCompatibility.compatible,
-      ),
-    ];
-    await manager.reconcileInstalled();
-    expect(manager.activationFor(id), PluginActivation.restartRequired);
-    broken = true;
-    await manager.refresh(first.id);
-    expect(manager.state.repositories.first.snapshot!.offers, hasLength(1));
-    expect(manager.state.repositories.first.refreshError, isNotNull);
-    broken = false;
-    signer = 'b' * 64;
-    await manager.refresh(first.id);
-    expect(manager.approvalFor(id)!.digest, 'a' * 64);
-    expect(
-      manager.updateOfferFor(id),
-      isNull,
-      reason: 'changed signer requires reapproval',
-    );
-    await manager.removeRepository(first.id);
-    expect(manager.state.owners[id], first.id);
-    expect(manager.state.installed.single.id, id);
-    expect(manager.approvalFor(id)!.digest, 'a' * 64);
-    expect(
-      manager.updateOfferFor(id),
-      isNull,
-      reason: 'no silent ownership transfer',
-    );
-    manager = await PluginManager.open(
-      store: FilePluginStateStore(directory: directory),
-      reader: reader,
-      inventory: inventory,
-      activatedAtStartup: {},
-    );
-    expect(manager.state.owners[id], first.id);
-    expect(manager.state.installed.single.id, id);
-    expect(manager.approvalFor(id)!.digest, 'a' * 64);
-    expect(manager.state.repositories.single.id, second.id);
-  });
+      );
+      await expectLater(
+        manager.addRepository(
+          'https://ONE.example:443/repo.json',
+          PluginEcosystem.manga,
+        ),
+        throwsStateError,
+      );
+      final second = await manager.addRepository(
+        'https://two.example/repo.json',
+        PluginEcosystem.manga,
+      );
+      await manager.refresh(first.id);
+      await manager.refresh(second.id);
+      final id = manager.state.repositories.first.snapshot!.offers.single.id;
+      expect(manager.offersFor(id), hasLength(2));
+      expect(manager.state.owners[id], isNull);
+      await manager.selectOwner(id, first.id);
+      expect(
+        manager.state.approvals.where((row) => row.id == id).firstOrNull,
+        isNull,
+      );
+      await expectLater(
+        manager.approve(
+          PluginApproval(
+            id: id,
+            repositoryId: first.id,
+            kind: PluginApprovalKind.signer,
+            digest: signer,
+          ),
+        ),
+        throwsStateError,
+        reason: 'only inspected native APK approval can grant signer trust',
+      );
+      inventory.installed = [
+        InstalledPlugin(
+          id: id,
+          version: ApkPluginVersion(106004, '1.6.4'),
+          digest: signer,
+          compatibility: PluginCompatibility.compatible,
+        ),
+      ];
+      await manager.reconcileInstalled();
+      broken = true;
+      await manager.refresh(first.id);
+      expect(manager.state.repositories.first.snapshot!.offers, hasLength(1));
+      expect(manager.state.repositories.first.refreshError, isNotNull);
+      broken = false;
+      signer = 'b' * 64;
+      await manager.refresh(first.id);
+      expect(
+        manager.state.approvals.where((row) => row.id == id).firstOrNull,
+        isNull,
+      );
+      expect(
+        manager.updateCandidates.where((offer) => offer.id == id).firstOrNull,
+        isNull,
+        reason: 'equal versions are not update candidates',
+      );
+      await manager.removeRepository(first.id);
+      expect(manager.state.owners[id], first.id);
+      expect(manager.state.installed.single.id, id);
+      expect(
+        manager.state.approvals.where((row) => row.id == id).firstOrNull,
+        isNull,
+      );
+      expect(
+        manager.updateCandidates.where((offer) => offer.id == id).firstOrNull,
+        isNull,
+        reason: 'no silent ownership transfer',
+      );
+      manager = await PluginManager.open(
+        store: FilePluginStateStore(directory: directory),
+        reader: reader,
+        inventory: inventory,
+      );
+      expect(manager.state.owners[id], first.id);
+      expect(manager.state.installed.single.id, id);
+      expect(
+        manager.state.approvals.where((row) => row.id == id).firstOrNull,
+        isNull,
+      );
+      expect(manager.state.repositories.single.id, second.id);
+    },
+  );
 
   test(
     'failed atomic publish preserves old durable and manager state',
@@ -255,7 +271,6 @@ void main() {
         store: store,
         reader: PluginManifestReader((url) async => []),
         inventory: TestInventory(),
-        activatedAtStartup: {},
       );
       await manager.addRepository(
         'https://one.example/index.json',
@@ -456,13 +471,11 @@ void main() {
         store: store,
         reader: PluginManifestReader((url) async => []),
         inventory: TestInventory(),
-        activatedAtStartup: {},
       );
       expect(
         manager.state.operations.single.status,
         PluginOperationStatus.interrupted,
       );
-      expect(manager.activationFor(id), PluginActivation.notInstalled);
       expect((await store.load()).approvals.single.origins, {
         'https://site.example',
       });
@@ -472,60 +485,59 @@ void main() {
     },
   );
 
-  test('startup revision stays pinned; anime deferred; novel update candidate visible', () async {
-    final directory = await Directory.systemTemp.createTemp(
-      'hikari-plugin-activation-',
-    );
-    addTearDown(() => directory.delete(recursive: true));
-    final id = PluginId(PluginEcosystem.novel, 'skythewoodtranslations');
-    final old = InstalledPlugin(
-      id: id,
-      version: NovelPluginVersion('1.0.0'),
-      digest: 'a' * 64,
-      compatibility: PluginCompatibility.compatible,
-    );
-    final inventory = TestInventory()..installed = [old];
-    final manager = await PluginManager.open(
-      store: FilePluginStateStore(directory: directory),
-      reader: PluginManifestReader(
-        (url) async => utf8.encode(jsonEncode([novelJson()])),
-      ),
-      inventory: inventory,
-      activatedAtStartup: {id: old},
-    );
-    final repo = await manager.addRepository(
-      'https://example.com/plugins.json',
-      PluginEcosystem.novel,
-    );
-    await manager.refresh(repo.id);
-    await manager.selectOwner(id, repo.id);
-    expect(manager.updateCandidateFor(id), isNotNull);
-    inventory.installed = [
-      InstalledPlugin(
+  test(
+    'novel update candidates follow current inventory, not code consent',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'hikari-plugin-activation-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final id = PluginId(PluginEcosystem.novel, 'skythewoodtranslations');
+      final old = InstalledPlugin(
         id: id,
-        version: NovelPluginVersion('1.10.0'),
-        digest: 'b' * 64,
-        compatibility: PluginCompatibility.compatible,
-      ),
-    ];
-    await manager.reconcileInstalled();
-    expect(manager.activationFor(id), PluginActivation.restartRequired);
-    expect(manager.activeRevisionFor(id)!.digest, 'a' * 64);
-    inventory.installed = [];
-    await manager.reconcileInstalled();
-    expect(manager.activationFor(id), PluginActivation.notInstalled);
-    final anime = PluginId(PluginEcosystem.anime, 'org.example.anime');
-    inventory.installed = [
-      InstalledPlugin(
-        id: anime,
-        version: ApkPluginVersion(1, '1'),
+        version: NovelPluginVersion('1.0.0'),
         digest: 'a' * 64,
         compatibility: PluginCompatibility.compatible,
-      ),
-    ];
-    await manager.reconcileInstalled();
-    expect(manager.activationFor(anime), PluginActivation.runtimeDeferred);
-  });
+      );
+      final inventory = TestInventory()..installed = [old];
+      final manager = await PluginManager.open(
+        store: FilePluginStateStore(directory: directory),
+        reader: PluginManifestReader(
+          (url) async => utf8.encode(jsonEncode([novelJson()])),
+        ),
+        inventory: inventory,
+      );
+      final repo = await manager.addRepository(
+        'https://example.com/plugins.json',
+        PluginEcosystem.novel,
+      );
+      await manager.refresh(repo.id);
+      await manager.selectOwner(id, repo.id);
+      expect(
+        manager.updateCandidates.where((offer) => offer.id == id).firstOrNull,
+        isNotNull,
+      );
+      inventory.installed = [
+        InstalledPlugin(
+          id: id,
+          version: NovelPluginVersion('1.10.0'),
+          digest: 'b' * 64,
+          compatibility: PluginCompatibility.compatible,
+        ),
+      ];
+      await manager.reconcileInstalled();
+      expect(
+        manager.updateCandidates.where((offer) => offer.id == id).firstOrNull,
+        isNull,
+      );
+      inventory.installed = [];
+      await manager.reconcileInstalled();
+      expect(
+        manager.updateCandidates.where((offer) => offer.id == id).firstOrNull,
+        isNull,
+      );
+    },
+  );
 
   test(
     'legitimate optional assets and empty source index do not poison repo',
@@ -566,6 +578,78 @@ void main() {
       expect(apkSnapshot.offers.single.sources, isEmpty);
     },
   );
+
+  test('legacy signer history roundtrips inert while discovery follows only selected owner and newer versions', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'hikari-legacy-signer-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final store = FilePluginStateStore(directory: directory);
+    final id = PluginId(PluginEcosystem.manga, 'org.example.plugin');
+    final first = RepositoryId('https://one.example/index.json');
+    final second = RepositoryId('https://two.example/index.json');
+    final legacy = PluginApproval(
+      id: id,
+      repositoryId: first,
+      kind: PluginApprovalKind.signer,
+      digest: 'a' * 64,
+    );
+    await store.save(PluginState(approvals: [legacy]));
+    var version = 2;
+    final manager = await PluginManager.open(
+      store: store,
+      reader: PluginManifestReader((url) async {
+        final payload = apkJson(signer: 'b' * 64);
+        (((payload['extensionList'] as Map)['extensions'] as List).single
+                as Map)['versionCode'] =
+            version;
+        return utf8.encode(jsonEncode(payload));
+      }),
+      inventory: TestInventory()
+        ..installed = [
+          InstalledPlugin(
+            id: id,
+            version: ApkPluginVersion(1, '1'),
+            digest: 'c' * 64,
+            compatibility: PluginCompatibility.compatible,
+          ),
+        ],
+    );
+    await manager.addRepository(first.toString(), PluginEcosystem.manga);
+    await manager.addRepository(second.toString(), PluginEcosystem.manga);
+    await manager.refresh(first);
+    await manager.refresh(second);
+    expect(manager.updateCandidates, isEmpty);
+    await manager.selectOwner(id, first);
+    expect(manager.updateCandidates.single.repositoryId, first);
+    await manager.selectOwner(id, second);
+    expect(manager.updateCandidates.single.repositoryId, second);
+    expect(
+      manager.state.approvals
+          .where((row) => row.id == id)
+          .firstOrNull!
+          .repositoryId,
+      first,
+    );
+    for (final code in [1, 0]) {
+      version = code;
+      await manager.refresh(second);
+      expect(manager.updateCandidates, isEmpty);
+    }
+    version = 3;
+    await manager.refresh(second);
+    expect(manager.updateCandidates.single.repositoryId, second);
+    await manager.removeRepository(second);
+    expect(
+      manager.updateCandidates,
+      isEmpty,
+      reason: 'no fallback to first repository',
+    );
+    final reopened = await store.load();
+    expect(reopened.approvals.single.kind, PluginApprovalKind.signer);
+    expect(reopened.approvals.single.digest, 'a' * 64);
+    expect(reopened.approvals.single.repositoryId, first);
+  });
 
   test('consent validates code digest and explicit HTTPS origins', () {
     final id = PluginId(PluginEcosystem.novel, 'novel');

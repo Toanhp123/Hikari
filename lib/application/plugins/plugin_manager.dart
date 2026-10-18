@@ -2,18 +2,11 @@ import 'package:hikari/domain/plugins/plugins.dart';
 
 /// Repository/inventory policy only. No installation or mutable source registry.
 final class PluginManager {
-  PluginManager._(
-    this._store,
-    this._reader,
-    this._inventory,
-    this._state,
-    this._activated,
-  );
+  PluginManager._(this._store, this._reader, this._inventory, this._state);
   final PluginStateStore _store;
   final PluginRepositoryReader _reader;
   final PluginInventory _inventory;
   PluginState _state;
-  final Map<PluginId, InstalledPlugin> _activated;
   Future<void> _tail = Future.value();
   PluginState get state => _state;
 
@@ -21,16 +14,9 @@ final class PluginManager {
     required PluginStateStore store,
     required PluginRepositoryReader reader,
     required PluginInventory inventory,
-    required Map<PluginId, InstalledPlugin> activatedAtStartup,
   }) async {
     final loaded = await store.load();
-    final manager = PluginManager._(
-      store,
-      reader,
-      inventory,
-      loaded,
-      Map.unmodifiable(activatedAtStartup),
-    );
+    final manager = PluginManager._(store, reader, inventory, loaded);
     // Reconcile actual inventory; interrupted native work is never replayed.
     await manager._publish(
       installed: await inventory.readInstalled(),
@@ -131,13 +117,6 @@ final class PluginManager {
         await _publish(owners: {...state.owners, id: repositoryId});
       });
 
-  PluginApproval? approvalFor(PluginId id) {
-    for (final approval in state.approvals) {
-      if (approval.id == id) return approval;
-    }
-    return null;
-  }
-
   Future<void> approve(PluginApproval approval) => _serial(() async {
     if (state.owners[approval.id] != approval.repositoryId) {
       throw StateError('Consent requires explicit selected owner');
@@ -146,9 +125,8 @@ final class PluginManager {
     if (!offersFor(approval.id).any((o) => o.repositoryId == repo.id)) {
       throw StateError('Offer not found');
     }
-    if (approval.kind == PluginApprovalKind.signer &&
-        repo.snapshot?.signerFingerprint != approval.digest) {
-      throw StateError('Signer differs from displayed repository signer');
+    if (approval.kind == PluginApprovalKind.signer) {
+      throw StateError('APK signer approval requires native inspection');
     }
     await _publish(
       approvals: [
@@ -159,79 +137,18 @@ final class PluginManager {
   });
 
   /// Candidate discovery is independent from permission to execute downloaded code.
-  PluginOffer? updateCandidateFor(PluginId id) {
-    final owner = state.owners[id];
-    for (final offer in offersFor(id)) {
-      if (offer.repositoryId != owner) continue;
-      for (final installed in state.installed) {
-        if (installed.id == id &&
-            offer.version.compareTo(installed.version) > 0) {
-          return offer;
-        }
-      }
-    }
-    return null;
-  }
-
-  InstalledPlugin? activeRevisionFor(PluginId id) => _activated[id];
-
-  /// Only explicitly owned, signer-approved newer APK offers are actionable.
-  /// Novel metadata has no digest: downloaded bytes need separate digest consent.
-  PluginOffer? updateOfferFor(PluginId id) {
-    final owner = state.owners[id];
-    final approval = approvalFor(id);
-    if (owner == null ||
-        approval == null ||
-        approval.repositoryId != owner ||
-        id.ecosystem == PluginEcosystem.novel) {
-      return null;
-    }
-    for (final repository in state.repositories) {
-      if (repository.id != owner ||
-          repository.snapshot?.signerFingerprint != approval.digest) {
-        continue;
-      }
-      for (final offer in repository.snapshot!.offers) {
-        if (offer.id != id) continue;
-        for (final installed in state.installed) {
-          if (installed.id == id &&
-              installed.digest == approval.digest &&
-              offer.version.compareTo(installed.version) > 0) {
-            return offer;
-          }
-        }
-      }
-    }
-    return null;
+  List<PluginOffer> get updateCandidates {
+    final installed = {for (final row in state.installed) row.id: row};
+    return List.unmodifiable([
+      for (final repository in state.repositories)
+        for (final offer in repository.snapshot?.offers ?? <PluginOffer>[])
+          if (offer.repositoryId == state.owners[offer.id])
+            if (installed[offer.id] case final current?)
+              if (offer.version.compareTo(current.version) > 0) offer,
+    ]);
   }
 
   Future<void> reconcileInstalled() => _serial(() async {
     await _publish(installed: await _inventory.readInstalled());
   });
-
-  PluginActivation activationFor(PluginId id) {
-    for (final installed in state.installed) {
-      if (installed.id != id) continue;
-      if (id.ecosystem == PluginEcosystem.anime) {
-        return PluginActivation.runtimeDeferred;
-      }
-      // Distinguish current inventory revision from startup-pinned running code.
-      final active = _activated[id];
-      if (active != null) {
-        return active.digest == installed.digest &&
-                active.version.compareTo(installed.version) == 0
-            ? PluginActivation.active
-            : PluginActivation.restartRequired;
-      }
-      if (installed.compatibility != PluginCompatibility.compatible) {
-        return PluginActivation.incompatible;
-      }
-      final approval = approvalFor(id);
-      if (approval == null || approval.digest != installed.digest) {
-        return PluginActivation.unapproved;
-      }
-      return PluginActivation.restartRequired;
-    }
-    return PluginActivation.notInstalled;
-  }
 }

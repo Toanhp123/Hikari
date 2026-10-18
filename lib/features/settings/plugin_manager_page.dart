@@ -121,7 +121,6 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
     Map<PluginId, String> names,
   ) {
     final manager = session.manager!;
-    final installed = {for (final row in manager.state.installed) row.id: row};
     final ids = <PluginId>{};
     if (_tab == 0) {
       ids.addAll(catalog.keys);
@@ -136,17 +135,7 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
             <PluginId>[],
       );
     } else {
-      ids.addAll(
-        manager.state.installed
-            .map((i) => i.id)
-            .where(
-              (id) => (catalog[id] ?? const <PluginOffer>[]).any(
-                (offer) =>
-                    offer.repositoryId == manager.state.owners[id] &&
-                    offer.version.compareTo(installed[id]!.version) > 0,
-              ),
-            ),
-      );
+      ids.addAll(manager.updateCandidates.map((offer) => offer.id));
     }
     return ids.where((id) {
       final offers = catalog[id] ?? const <PluginOffer>[];
@@ -454,7 +443,7 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
   @override
   Widget build(BuildContext context) {
     final manager = session.manager;
-    // One catalog pass per build; filtering/sorting never rescan all offers per ID.
+    // One catalog pass per build for names, language filters and available offers.
     final catalog = <PluginId, List<PluginOffer>>{};
     final names = <PluginId, String>{};
     final languageSet = <String>{};

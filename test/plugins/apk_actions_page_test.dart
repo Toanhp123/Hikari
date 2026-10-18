@@ -194,7 +194,7 @@ PluginManagement session(
     readApks: gateway.inventory,
     readNovels: () async => [],
     readApkRuntime: () async =>
-        const ApkRuntimeEvidence(initialized: true, loaded: [], errors: {}),
+        ApkRuntimeEvidence(initialized: true, loaded: [], errors: {}),
     readNovelRuntime: () async => NovelRuntimeSnapshot(
       initialization: NovelRuntimeInitialization.notInitialized,
       failure: null,

@@ -120,6 +120,58 @@ class NovelRuntimeTest : InstrumentationTestCase() {
             assertEquals(0, evaluations)
         } finally { dir.deleteRecursively() }
     }
+    fun testHealthySnapshotsAndPackagedCollision() {
+        val context = instrumentation.targetContext
+        check(context.packageName.endsWith(".localmediatest"))
+        check(context.assets.list("lnreader/plugins").orEmpty().contains("contract.json")) { "Enable lnreaderContractFixture" }
+        fun captured(id: String) = NovelArtifacts.CapturedCode(JSONObject(metadata(id = id) + ("digest" to "a".repeat(64))).toString(), bundle(id))
+        val healthy = LnReaderRuntime { _, _ -> NovelArtifacts.Capture(listOf(captured("one"), captured("two")), emptyList()) }
+        healthy.initialize(context)
+        assertTrue(healthy.sources().map { it["id"] }.containsAll(listOf("one", "two", "hikari-contract")))
+        var captures = 0
+        val collision = LnReaderRuntime { _, _ -> captures++; NovelArtifacts.Capture(listOf(captured("hikari-contract")), emptyList()) }
+        repeat(2) { try { collision.initialize(context); fail("Expected packaged collision") }
+            catch (failure: LnReaderRuntime.Failure) { assertEquals("collision", failure.reason) } }
+        assertEquals(1, captures)
+        assertTrue((collision.evidence()["loaded"] as List<*>).isEmpty())
+    }
+    fun testGlobalBudgetFailurePublishesNothingAndNeverRetries() {
+        val context = instrumentation.targetContext
+        check(context.packageName.endsWith(".localmediatest"))
+        val dir = File(context.cacheDir, "budget-${System.nanoTime()}")
+        try {
+            val store = NovelArtifacts(dir, inspect = { _, _ -> })
+            for (id in listOf("one", "two")) {
+                val stage = store.stage(metadata(id = id), {}, { it.write(bundle(id).toByteArray()) })
+                store.install(stage["token"] as String, stage["artifact"] as Map<String, Any>)
+            }
+            var captures = 0
+            val runtime = LnReaderRuntime { _, _ -> captures++; store.capture(bundle("one").toByteArray().size.toLong()) }
+            repeat(2) { try { runtime.initialize(context); fail("Expected total capture budget failure") }
+                catch (failure: LnReaderRuntime.Failure) { assertEquals("snapshot-failed", failure.reason) } }
+            assertEquals(1, captures)
+            assertEquals("failed", runtime.evidence()["initialization"])
+            assertTrue((runtime.evidence()["loaded"] as List<*>).isEmpty())
+            assertEquals(2, store.inventory().size)
+        } finally { dir.deleteRecursively() }
+    }
+    fun testFatalCaptureFailureNeverRetriesOrPublishesPartialSources() {
+        val context = instrumentation.targetContext
+        check(context.packageName.endsWith(".localmediatest"))
+        var captures = 0
+        val fatal = AssertionError("private fatal detail")
+        val runtime = LnReaderRuntime { _, _ -> captures++; throw fatal }
+        assertEquals("notInitialized", runtime.evidence()["initialization"])
+        assertEquals(0, captures)
+        try { runtime.initialize(context); fail("Expected fatal capture error") }
+        catch (error: AssertionError) { assertTrue(error === fatal) }
+        assertEquals("failed", runtime.evidence()["initialization"])
+        assertEquals("snapshot-failed", runtime.evidence()["failure"])
+        assertTrue((runtime.evidence()["loaded"] as List<*>).isEmpty())
+        try { runtime.initialize(context); fail("Expected sticky failure") }
+        catch (failure: LnReaderRuntime.Failure) { assertEquals("snapshot-failed", failure.reason) }
+        assertEquals(1, captures)
+    }
     fun testShapeAndExactOriginBoundaries() {
         assertEquals(LnReaderHost.canonicalOrigin("https://example.org:443/a"), LnReaderHost.canonicalOrigin("https://example.org./"))
         rejects { LnReaderHost.canonicalOrigin("https://example.org:444/") }

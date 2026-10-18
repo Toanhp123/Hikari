@@ -14,15 +14,6 @@ enum PluginCompatibility {
   unknown,
 }
 
-enum PluginActivation {
-  notInstalled,
-  active,
-  restartRequired,
-  incompatible,
-  unapproved,
-  runtimeDeferred,
-}
-
 enum PluginApprovalKind { signer, codeDigest }
 
 /// Syntactic URL policy only. Transport must also validate DNS and every redirect.

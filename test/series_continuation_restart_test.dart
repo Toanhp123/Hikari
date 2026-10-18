@@ -452,7 +452,6 @@ void main() {
           store: FilePluginStateStore(directory: directory),
           reader: _NoRepositoryFetch(),
           inventory: inventory,
-          activatedAtStartup: {},
         );
         var manager = await openManager();
         expect(manager.state.installed, hasLength(2));

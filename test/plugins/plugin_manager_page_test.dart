@@ -174,7 +174,7 @@ void main() {
       ],
       readNovels: () async => [],
       readApkRuntime: () async =>
-          const ApkRuntimeEvidence(initialized: true, loaded: [], errors: {}),
+          ApkRuntimeEvidence(initialized: true, loaded: [], errors: {}),
       readNovelRuntime: () async => NovelRuntimeSnapshot(
         initialization: NovelRuntimeInitialization.notInitialized,
         failure: null,

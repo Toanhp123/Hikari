@@ -9,11 +9,12 @@ import 'package:hikari/domain/plugins/plugins.dart';
 typedef RunningApkRevision = ({PluginId id, int versionCode, String signer});
 
 final class ApkRuntimeEvidence {
-  const ApkRuntimeEvidence({
+  ApkRuntimeEvidence({
     required this.initialized,
-    required this.loaded,
-    required this.errors,
-  });
+    required Iterable<RunningApkRevision> loaded,
+    required Map<String, String> errors,
+  }) : loaded = List.unmodifiable(loaded),
+       errors = Map.unmodifiable(errors);
   final bool initialized;
   final List<RunningApkRevision> loaded;
   final Map<String, String> errors;
@@ -143,7 +144,6 @@ final class PluginManagement {
           store: store,
           reader: reader,
           inventory: inventory,
-          activatedAtStartup: const {},
         );
       } else {
         await manager!.reconcileInstalled();

@@ -42,7 +42,7 @@ PluginManagement management({
   },
   readNovels: () async => [],
   readApkRuntime: () async =>
-      const ApkRuntimeEvidence(initialized: false, loaded: [], errors: {}),
+      ApkRuntimeEvidence(initialized: false, loaded: [], errors: {}),
   readNovelRuntime: () async => NovelRuntimeSnapshot(
     initialization: NovelRuntimeInitialization.notInitialized,
     failure: null,
@@ -52,6 +52,27 @@ PluginManagement management({
 );
 
 void main() {
+  test('APK runtime evidence owns immutable native value copies', () {
+    final loaded = <RunningApkRevision>[
+      (
+        id: PluginId(PluginEcosystem.manga, 'org.example.plugin'),
+        versionCode: 1,
+        signer: 'a' * 64,
+      ),
+    ];
+    final errors = <String, String>{'org.example.other': 'untrusted'};
+    final evidence = ApkRuntimeEvidence(
+      initialized: true,
+      loaded: loaded,
+      errors: errors,
+    );
+    loaded.clear();
+    errors.clear();
+    expect(evidence.loaded, hasLength(1));
+    expect(evidence.errors, {'org.example.other': 'untrusted'});
+    expect(() => evidence.loaded.clear(), throwsUnsupportedError);
+    expect(() => evidence.errors.clear(), throwsUnsupportedError);
+  });
   test(
     'failed async open remains retryable and does not replace persisted state',
     () async {

@@ -93,7 +93,6 @@ void main() {
         store: store,
         reader: helpers.EmptyReader(),
         inventory: NativeNovelInventory(gateway),
-        activatedAtStartup: {},
       );
       final management = ManageNovelPlugins(gateway: gateway, manager: manager);
       final staged = await management.stage(

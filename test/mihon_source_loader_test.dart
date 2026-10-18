@@ -500,7 +500,6 @@ void main() {
         store: plugins.MemoryState(),
         reader: plugins.EmptyReader(),
         inventory: NativeApkInventory(apkGateway),
-        activatedAtStartup: {},
       );
       final management = ManageApkPlugins(
         gateway: apkGateway,

@@ -152,7 +152,7 @@ PluginManagement management(
     readApks: () async => [],
     readNovels: gateway.inventory,
     readApkRuntime: () async =>
-        const ApkRuntimeEvidence(initialized: false, loaded: [], errors: {}),
+        ApkRuntimeEvidence(initialized: false, loaded: [], errors: {}),
     readNovelRuntime: gateway.runtimeSnapshot,
     novelGateway: gateway,
   );
@@ -389,7 +389,6 @@ void main() {
             ),
           reader: helpers.Reader(),
           inventory: const CombinedPluginInventory([]),
-          activatedAtStartup: {},
         );
       }
       if (change == 'offer') await session.manager!.removeRepository(owner);

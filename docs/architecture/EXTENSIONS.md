@@ -103,8 +103,9 @@ Decision rationale and rejected alternatives: [ADR-025](../decisions/ADR-025-uni
 URL), ecosystem-scoped package identity, per-repository offers, source descriptors,
 installed inventory, update ownership and explicit consent. `application/plugins`
 coordinates repository lifecycle against durable ports without mutating
-`SourceRegistry`. Startup activation records pin exact versions/digests; inventory
-changes require restart. Anime inventory is represented but its runtime is deferred.
+`SourceRegistry`. Native runtime snapshots alone report exact loaded revisions;
+Dart inventory and consent never imply activation. Inventory changes require restart.
+Anime inventory is represented but its runtime is deferred.
 Repository removal preserves inventory, ownership and consent; refresh failure keeps
 the last good snapshot. Repository metadata never automatically approves a signer.
 
@@ -145,6 +146,11 @@ budgets.
 `ManageApkPlugins` waits for native durable approval before inventory reconciliation;
 Dart reconciliation failure is explicit and does not pretend to roll back native
 consent. Native trust is not copied into independent Dart approval authority.
+Dart rejects new signer approvals; legacy serialized signer rows roundtrip as inert
+history. Novel code-digest/origin consent remains a post-native-success mirror.
+Updates lists discover only strictly newer offers from the explicitly selected owner,
+independent of signer claims or consent; native staging, approval and installation
+alone determine whether an APK action is allowed.
 
 Android install/update uses real `PackageInstaller` sessions and a separate
 app-private `AtomicFile` operation journal. A process-wide synchronized coordinator
@@ -215,8 +221,9 @@ and committed evidence remain distinct; only native process restart can reopen c
 Removal preserves Library, Progress and references. Anime runtime remains deferred.
 Initialization errors are visible/retryable without replacing persisted consent.
 Unsupported platforms show an Android-only notice and perform no native calls.
-Typed native inventory/trust and exact frozen runtime evidence remain independent
-from generic manager activation, including removed loaded revisions and deferred Anime.
+Typed native inventory/trust and exact frozen runtime evidence remain independent,
+including removed loaded revisions and deferred Anime; no generic manager activation
+state duplicates native evidence.
 The existing LNReader source loader now consumes the native frozen packaged/downloaded
 snapshot described below. Novel admission binds plugin identity, version, owner, code
 digest and exact approved origins; digest-only manager status is not proof of runtime
@@ -306,8 +313,24 @@ snapshot, initialized lazily on a content worker, never on channel construction 
 management evidence reads. Under the store mutation monitor, capture rehashes admitted
 current bytes and copies their exact tuples; schema-1/unknown, missing and corrupt
 revisions are skipped with exact-revision issues. Packaged and eligible downloaded ID
-collisions fail the whole snapshot. Initialization failure is sticky until process exit.
-Host, manifests and all captured code share a 64 MiB byte ceiling (not a JVM heap bound).
+collisions fail the whole snapshot. Failure policy has seven categories:
+
+| Failure | Publication and evidence |
+| --- | --- |
+| Unknown/old admission policy | Skip exact downloaded revision; `admission-unknown` issue. |
+| Missing artifact | Skip exact downloaded revision; `missing` issue. |
+| Artifact-local read/validation failure, invalid UTF-8 or digest mismatch | Skip exact downloaded revision; `corrupt` issue. |
+| Packaged asset/descriptor failure | Reject whole snapshot; `snapshot-failed`. |
+| Aggregate host/manifest/code budget exhaustion | Reject whole snapshot; `snapshot-failed`, never partial sources. |
+| Store/capture failure (including fatal runtime errors) | Reject whole snapshot; `snapshot-failed`. Fatal errors propagate, not reclassified as corrupt artifacts. |
+| Duplicate source ID (downloaded/downloaded, packaged/downloaded or packaged/packaged) | Reject whole snapshot; `collision`, never choose a winner. |
+
+Initialization failure is sticky until native process exit, including when a fatal
+error interrupts capture and the process survives. Retry never reopens/captures/evaluates
+code. Evidence reads return sanitized fixed labels and exact revision issues only,
+without IO, capture or JS evaluation; no raw exception paths are exposed.
+Host, manifests and all captured code share a 64 MiB byte ceiling (not a JVM heap bound);
+the downloaded per-bundle ceiling remains 1 MiB.
 Updates, rollback and uninstall do not replace captured code or reopen artifact files;
 removed loaded revisions remain in `novelRuntimeSnapshot` evidence for restart reporting.
 Evidence never initializes/evaluates JS or opens the artifact store. Native and strict
