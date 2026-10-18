@@ -32,6 +32,50 @@ void main() {
     },
   );
 
+  test('signed CDN queries are opaque while encoded paths remain guarded', () {
+    const signed =
+        'https://release-assets.githubusercontent.com/asset?'
+        'rsct=application%2Foctet-stream&sig=a%252Fb%2Bc';
+    expect(
+      pluginHttpsUrl(signed).queryParameters['rsct'],
+      'application/octet-stream',
+    );
+    expect(
+      PluginOffer(
+        repositoryId: RepositoryId('https://example.com/repo.json'),
+        id: PluginId(PluginEcosystem.anime, 'org.example.anime'),
+        name: 'Anime',
+        version: ApkPluginVersion(17, '17'),
+        downloadUrl: signed,
+        iconUrl: 'https://example.com/icon.png',
+        sources: const <PluginSourceDescriptor>[],
+      ).downloadUrl.host,
+      'release-assets.githubusercontent.com',
+    );
+    for (final path in [
+      '/%2e%2e/file.apk',
+      '/%252e%252e/file.apk',
+      '/folder%2ffile.apk',
+      '/folder%252ffile.apk',
+      '/../file.apk',
+    ]) {
+      expect(
+        () => pluginHttpsUrl(
+          'https://example.com$path?'
+          'rsct=application%2Foctet-stream',
+        ),
+        throwsFormatException,
+      );
+    }
+    expect(
+      () => pluginHttpsUrl(
+        'https://127.0.0.1/x?'
+        'rsct=application%2Foctet-stream',
+      ),
+      throwsFormatException,
+    );
+  });
+
   test('versions compare numerically, not lexically or by display name', () {
     expect(
       NovelPluginVersion('1.10.0').compareTo(NovelPluginVersion('1.9.9')),

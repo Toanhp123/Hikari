@@ -8,10 +8,13 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import android.os.SystemClock
 
+/** Safe machine-readable failure category; never include a download URL or JS text. */
+internal class PluginTransferFailure(val code: String, val status: Int? = null) : IllegalStateException(code)
+
 /** Bounded host-owned transport; no ambient headers, auth or cookies. */
 internal class PluginTransport(private val client: OkHttpClient = PublicHttps.client(60)) : AutoCloseable {
     internal class AcceptedRequest(val id: String) {
-        var cancelled = false
+        @Volatile var cancelled = false
         var started = false
         var call: Call? = null
     }
@@ -38,7 +41,7 @@ internal class PluginTransport(private val client: OkHttpClient = PublicHttps.cl
         request.call = null
     }
     @Synchronized fun checkActive(request: AcceptedRequest) {
-        check(!closed && requests[request.id] === request && !request.cancelled) { "Request cancelled" }
+        if (closed || requests[request.id] !== request || request.cancelled) throw PluginTransferFailure("plugin_transfer_cancelled")
     }
     private fun validateId(id: String) { require(id.matches(Regex("[A-Za-z0-9_-]{1,128}"))) { "Invalid request ID" } }
     fun read(url: String, limit: Int, request: AcceptedRequest): ByteArray {
@@ -53,11 +56,12 @@ internal class PluginTransport(private val client: OkHttpClient = PublicHttps.cl
             check(!request.started) { "Request already started" }
             request.started = true
         }
-        var url = PublicHttps.url(raw)
+        var url = try { PublicHttps.url(raw) }
+        catch (_: IllegalArgumentException) { throw PluginTransferFailure("plugin_url_rejected") }
         val deadline = SystemClock.elapsedRealtime() + 60_000
         for (redirects in 0..5) {
             checkActive(request)
-            check(SystemClock.elapsedRealtime() < deadline) { "Request timed out" }
+            if (SystemClock.elapsedRealtime() >= deadline) throw PluginTransferFailure("plugin_network_timeout")
             val call = client.newCall(Request.Builder().url(url).header("Accept-Encoding", "identity").build())
             call.timeout().timeout((deadline - SystemClock.elapsedRealtime()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS)
             synchronized(this) {
@@ -68,33 +72,41 @@ internal class PluginTransport(private val client: OkHttpClient = PublicHttps.cl
                 call.execute().use { response ->
                     checkActive(request)
                     if (response.code in setOf(301, 302, 303, 307, 308)) {
-                        url = PublicHttps.redirect(url, requireNotNull(response.header("Location")), redirects + 1)
+                        url = try { PublicHttps.redirect(url, requireNotNull(response.header("Location")), redirects + 1) }
+                        catch (_: IllegalArgumentException) { throw PluginTransferFailure("plugin_redirect_rejected") }
                     } else {
-                        check(response.isSuccessful) { "Metadata/download HTTP failure" }
-                        require(response.body.contentLength() <= limit) { "Response exceeds byte limit" }
+                        if (!response.isSuccessful) throw PluginTransferFailure("plugin_http_failed", response.code)
+                        if (response.body.contentLength() > limit) throw PluginTransferFailure("plugin_download_too_large")
                         response.body.byteStream().use { input ->
                             val buffer = ByteArray(64 * 1024)
                             var total = 0L
                             while (true) {
                                 checkActive(request)
-                                check(SystemClock.elapsedRealtime() < deadline) { "Request timed out" }
+                                if (SystemClock.elapsedRealtime() >= deadline) throw PluginTransferFailure("plugin_network_timeout")
                                 val count = input.read(buffer)
                                 if (count < 0) break
                                 total += count
-                                require(total <= limit) { "Response exceeds byte limit" }
-                                output.write(buffer, 0, count)
+                                if (total > limit) throw PluginTransferFailure("plugin_download_too_large")
+                                try { output.write(buffer, 0, count) }
+                                catch (_: java.io.IOException) { throw PluginTransferFailure("plugin_stage_storage_failed") }
                             }
                         }
                         checkActive(request)
                         return
                     }
                 }
+            } catch (error: java.io.InterruptedIOException) {
+                if (request.cancelled) throw PluginTransferFailure("plugin_transfer_cancelled")
+                throw PluginTransferFailure("plugin_network_timeout")
+            } catch (error: java.io.IOException) {
+                if (request.cancelled) throw PluginTransferFailure("plugin_transfer_cancelled")
+                throw PluginTransferFailure("plugin_network_failed")
             } finally {
                 synchronized(this) { if (request.call === call) request.call = null }
                 call.cancel()
             }
         }
-        error("Too many redirects")
+        throw PluginTransferFailure("plugin_redirect_rejected")
     }
     @Synchronized override fun close() {
         closed = true
@@ -126,8 +138,10 @@ internal class ApkStages(private val directory: File, private val inspector: Apk
                 transport.transfer(url, PluginTransport.APK_LIMIT, request, output)
                 output.fd.sync()
             }
-            val identity = inspector.inspectArchive(temporary)
-            identity.matchExpected(family, pkg, code, signer, inspector.installedForUpdate(pkg))
+            val identity = try { inspector.inspectArchive(temporary) }
+            catch (_: Exception) { throw PluginTransferFailure("plugin_apk_invalid") }
+            try { identity.matchExpected(family, pkg, code, signer, inspector.installedForUpdate(pkg)) }
+            catch (_: IllegalArgumentException) { throw PluginTransferFailure("plugin_apk_identity_mismatch") }
             transport.checkActive(request)
             check(temporary.renameTo(final)) { "Cannot publish APK stage" }
             stages[token] = final to identity

@@ -26,6 +26,15 @@ class PluginFoundationTest : InstrumentationTestCase() {
             rejects { PublicHttps.url(url) }
         }
         assertEquals("https://example.com/a", PublicHttps.url("https://example.com/a").toString())
+        val signed = "https://release-assets.githubusercontent.com/asset?rsct=application%2Foctet-stream&sig=abc%252Fdef"
+        assertEquals("application/octet-stream", PublicHttps.url(signed).queryParameter("rsct"))
+        assertEquals("release-assets.githubusercontent.com", PublicHttps.redirect(
+            PublicHttps.url("https://github.com/org/repo/releases/download/v1/file.apk"), signed, 1).host)
+        for (path in listOf("/%2e%2e/asset", "/%252e%252e/asset", "/a%2Fb", "/a%252Fb", "/../asset")) {
+            rejects { PublicHttps.url("https://example.com$path?rsct=application%2Foctet-stream") }
+            rejects { PublicHttps.redirect(PublicHttps.url("https://example.com/base"), path, 1) }
+        }
+
         rejects { PublicHttps.redirect(PublicHttps.url("https://example.com/a"), "https://10.0.0.1/b", 1) }
         rejects { PublicHttps.redirect(PublicHttps.url("https://example.com/a"), "https://cdn.example.com/b", 6) }
         assertEquals("cdn.example.com", PublicHttps.redirect(PublicHttps.url("https://example.com/a"), "https://cdn.example.com/b", 5).host)
@@ -96,6 +105,56 @@ class PluginFoundationTest : InstrumentationTestCase() {
         try { rejects { stages.stage("https://example.com/invalid", "manga", "org.example.plugin", 10, A, invalid) } }
         finally { transport.finish(invalid) }
         assertTrue(directory.listFiles().orEmpty().none { it.extension == "apk" || it.name.endsWith(".tmp") })
+    }
+
+    fun testSignedGithubReleaseRedirectReachesInertStagingTransport() {
+        val signed = "https://release-assets.githubusercontent.com/asset?rsct=application%2Foctet-stream&sig=abc%252Fdef"
+        val visited = mutableListOf<String>()
+        val client = PublicHttps.client(5).newBuilder().addInterceptor { chain ->
+            val url = chain.request().url
+            visited.add(url.host)
+            val response = okhttp3.Response.Builder().request(chain.request())
+                .protocol(okhttp3.Protocol.HTTP_1_1).message("fixture")
+            if (url.host == "github.com") {
+                response.code(302).header("Location", signed).body("".toResponseBody()).build()
+            } else {
+                assertEquals("application/octet-stream", url.queryParameter("rsct"))
+                response.code(200).body("inert bytes".toResponseBody()).build()
+            }
+        }.build()
+        val transport = PluginTransport(client)
+        val request = transport.accept("signed-redirect")
+        try {
+            val bytes = transport.read("https://github.com/org/repo/releases/download/v1/artifact.apk", 128, request)
+            assertEquals("inert bytes", bytes.toString(Charsets.UTF_8))
+        } finally { transport.finish(request); transport.close() }
+        assertEquals(listOf("github.com", "release-assets.githubusercontent.com"), visited)
+    }
+
+    fun testTransportReportsSanitizedHttpStatusAndRedirectRejection() {
+        val client = PublicHttps.client(5).newBuilder().addInterceptor { chain ->
+            val response = okhttp3.Response.Builder().request(chain.request())
+                .protocol(okhttp3.Protocol.HTTP_1_1).message("fixture")
+            if (chain.request().url.encodedPath == "/unsafe") {
+                response.code(302).header("Location", "/%252e%252e/secret")
+                    .body("".toResponseBody()).build()
+            } else response.code(403).body("private server error".toResponseBody()).build()
+        }.build()
+        val transport = PluginTransport(client)
+        for ((path, expected) in listOf("blocked" to "plugin_http_failed", "unsafe" to "plugin_redirect_rejected")) {
+            val request = transport.accept(path)
+            try {
+                try {
+                    transport.read("https://github.com/$path", 128, request)
+                    fail("Expected transport failure")
+                } catch (error: PluginTransferFailure) {
+                    assertEquals(expected, error.code)
+                    assertFalse(error.message.orEmpty().contains("private server error"))
+                    if (path == "blocked") assertEquals(403, error.status)
+                }
+            } finally { transport.finish(request) }
+        }
+        transport.close()
     }
 
     fun testAcceptedRequestLifecycle() {

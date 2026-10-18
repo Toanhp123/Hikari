@@ -43,6 +43,48 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
   test(
+    'upstream dotted Novel IDs survive stage and exact native tuple',
+    () async {
+      const dotted = 'lightnovel.vn';
+      final selected = PluginOffer(
+        repositoryId: RepositoryId('https://example.com/index.json'),
+        id: PluginId(PluginEcosystem.novel, dotted),
+        name: 'Light Novel VN',
+        version: NovelPluginVersion('1.0'),
+        downloadUrl: 'https://raw.githubusercontent.com/org/repo/js.js',
+        iconUrl: 'https://example.com/icon.png',
+        siteUrl: 'https://example.com/novels',
+        sources: <PluginSourceDescriptor>[],
+      );
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'novelStage');
+        expect((call.arguments as Map)['metadata']['id'], dotted);
+        return {
+          'token': 'staged-id',
+          'artifact': {...artifact(), 'id': dotted, 'name': 'Light Novel VN'},
+        };
+      });
+      final stage = await const MethodChannelNovelPlugins().stage(selected, [
+        'https://example.com',
+      ]);
+      expect(stage.artifact.metadata.id.upstreamId, dotted);
+      for (final invalid in ['../ln', '.ln', 'ln.', 'ln..hako', 'ln/hako']) {
+        expect(
+          () => NovelArtifactMetadata(
+            id: PluginId(PluginEcosystem.novel, invalid),
+            name: 'Invalid',
+            version: NovelPluginVersion('1.0'),
+            repositoryId: selected.repositoryId,
+            site: 'https://example.com/',
+            origins: ['https://example.com'],
+          ),
+          throwsFormatException,
+        );
+      }
+    },
+  );
+
+  test(
     'selected tuple goes through native consent before manager mirror',
     () async {
       final store = helpers.MemoryState();

@@ -30,6 +30,19 @@ class NovelArtifactsTest : InstrumentationTestCase() {
     private fun rejects(block: () -> Unit) {
         try { block(); fail("Expected rejection") } catch (_: IllegalArgumentException) {} catch (_: IllegalStateException) {}
     }
+    fun testDottedUpstreamIdIsDurableAndNeverAPathTraversal() {
+        val store = custody(directory)
+        val metadata = metadata() + ("id" to "ln.hako")
+        val staged = store.stage(metadata, {}, { it.write("module.exports = {}".toByteArray()) })
+        store.install(staged["token"] as String, revision(staged))
+        val reopened = custody(directory).inventory().single()
+        assertEquals("ln.hako", (reopened["current"] as Map<*, *>)["id"])
+        assertEquals("ln.hako", (store.capture(1024).code.single().let { JSONObject(it.artifactJson).getString("id") }))
+        for (id in listOf("../ln", ".ln", "ln.", "ln..hako", "ln/hako")) {
+            rejects { store.stage(metadata + ("id" to id), {}, { it.write("safe".toByteArray()) }) }
+        }
+    }
+
     fun testLegacyAdmissionAndRejectedMutationKeepPointers() {
         val store = custody(directory)
         val first = stage(store)

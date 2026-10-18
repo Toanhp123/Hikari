@@ -77,7 +77,7 @@ internal class NovelArtifacts(private val directory: File,
     }
     private fun metadata(input: Map<*, *>, digest: Boolean): Map<String, Any> {
         fields(input, META + if (digest) setOf("digest") else emptySet())
-        val id = text(input["id"], 128).also { require(it.matches(Regex("[A-Za-z0-9_-]{1,128}"))) }
+        val id = text(input["id"], 128).also { require(it.matches(NovelPluginIds.VALID)) }
         val version = text(input["version"], 128).also { require(VERSION.matches(it)) }
         val origins = (input["origins"] as? List<*> ?: error("Expected origins")).also { require(it.size in 1..32) }.map(::origin)
         require(origins.toSet().size == origins.size)

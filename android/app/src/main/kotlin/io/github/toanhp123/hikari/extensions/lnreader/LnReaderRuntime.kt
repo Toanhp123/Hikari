@@ -2,6 +2,7 @@ package io.github.toanhp123.hikari.extensions.lnreader
 
 import android.content.Context
 import io.github.toanhp123.hikari.plugins.NovelArtifacts
+import io.github.toanhp123.hikari.plugins.NovelPluginIds
 import io.github.toanhp123.hikari.plugins.PublicHttps
 import io.github.toanhp123.hikari.plugins.readBytesBounded
 import org.json.JSONArray
@@ -27,7 +28,7 @@ internal class LnReaderRuntime(
         require(it.isNotBlank() && it.length <= max && '\u0000' !in it)
     }
     private fun plugin(row: JSONObject, code: String, artifact: String?): Plugin {
-        val id = text(row.get("id"), 128).also { require(it.matches(Regex("[A-Za-z0-9_-]{1,128}"))) }
+        val id = text(row.get("id"), 128).also { require(it.matches(NovelPluginIds.VALID)) }
         val origins = row.getJSONArray("origins")
         require(origins.length() in 1..32)
         val normalized = (0 until origins.length()).map { LnReaderHost.canonicalOrigin(origins.getString(it)) }
@@ -90,7 +91,7 @@ internal class LnReaderRuntime(
         mapOf("id" to it.id, "name" to it.name, "site" to it.site)
     }
     private fun selected(id: String): Pair<Snapshot, Plugin> {
-        require(id.matches(Regex("[A-Za-z0-9_-]{1,128}")))
+        NovelPluginIds.requireValid(id)
         val frozen = requireNotNull(snapshot)
         return frozen to (frozen.plugins.singleOrNull { it.id == id } ?: throw Failure("source-unavailable"))
     }

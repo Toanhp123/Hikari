@@ -441,3 +441,27 @@ recorded in root `NOTICE`; full notices for shipped JS/native code are APK asset
 - Keiyoushi repository metadata/signing fingerprint: <https://github.com/keiyoushi/extensions/blob/repo/repo.json>
 - Katari extension loader/compatibility host reference: <https://github.com/pa2x2/katari>
 - Android `DelegateLastClassLoader`: <https://developer.android.com/reference/dalvik/system/DelegateLastClassLoader>
+
+### Acquisition interoperability (2026-10)
+
+Transport validates HTTPS, DNS/each redirect, limits, signer identity and
+explicit consent. URL traversal checks apply to the **raw path before URL
+canonicalization**, never to opaque GitHub Release/CDN query parameters
+(`rsct=application%2Foctet-stream` is legitimate). Relative redirect paths
+are checked before resolution. Network, rejected redirect, HTTP, byte-limit,
+and inspected APK mismatch failures produce bounded machine-readable error
+codes; the UI never displays signed URLs, native stack traces or JS bytes.
+
+LNReader upstream plugin identities can contain interior dots such as
+`ln.hako` and `lightnovel.vn`. The entire Dart/native source and artifact
+pipeline preserves these IDs, rejecting empty segments, separators and path
+traversal; artifact filenames remain digest-derived, not ID-derived.
+
+Plugins declaring auxiliary CSS/JS or unsupported origins remain discoverable,
+but the Novel actions UI explains why staging is unavailable. Admission is
+still distinct from runtime/provider compatibility. This change does **not**
+relax HTTPS, trust, size, JS execution consent or frozen runtime policy.
+
+Regression fixtures cover signed GitHub Release redirects, rejected traversal,
+HTTP classification, dotted IDs and native Novel persistence. Actual provider
+installation and device network verification remain separately required.

@@ -1,5 +1,11 @@
 import 'package:hikari/domain/plugins/plugins.dart';
 
+/// Upstream LNReader IDs may contain interior dots (for example ln.hako).
+/// No path separators, empty segments, leading/trailing dots or traversal.
+bool validNovelPluginId(String value) =>
+    value.length <= 128 &&
+    RegExp(r'^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$').hasMatch(value);
+
 /// Selected display metadata, not proof of JS compatibility or execution consent.
 final class NovelArtifactMetadata {
   NovelArtifactMetadata({
@@ -13,7 +19,7 @@ final class NovelArtifactMetadata {
        site = pluginHttpsUrl(site),
        origins = List.unmodifiable(origins.map(_origin).toList()..sort()) {
     if (id.ecosystem != PluginEcosystem.novel ||
-        !RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(id.upstreamId) ||
+        !validNovelPluginId(id.upstreamId) ||
         this.origins.isEmpty ||
         this.origins.length > 32 ||
         this.origins.toSet().length != this.origins.length ||

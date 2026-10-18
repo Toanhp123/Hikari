@@ -24,22 +24,35 @@ Uri pluginHttpsUrl(String value) {
       RegExp(r'[\x00-\x20\x7f\\]').hasMatch(value)) {
     throw const FormatException('Invalid plugin URL');
   }
-  // Check before Uri.parse normalizes dot segments. Reject nested encodings too.
-  var decoded = value;
+  // Validate only the raw URL *path* before Uri.parse normalizes dot segments.
+  // Signed CDN query parameters legitimately contain %2F, %25 and nested
+  // escaping; they must be preserved, not interpreted as path traversal.
+  final authorityStart = value.indexOf('://');
+  if (authorityStart < 0) throw const FormatException('Invalid plugin URL');
+  final pathStart = value.indexOf('/', authorityStart + 3);
+  final queryStart = value.indexOf('?');
+  final fragmentStart = value.indexOf('#');
+  final stops = [queryStart, fragmentStart].where((index) => index >= 0);
+  final pathEnd = stops.isEmpty
+      ? value.length
+      : stops.reduce((a, b) => a < b ? a : b);
+  var path = pathStart >= 0 && pathStart < pathEnd
+      ? value.substring(pathStart, pathEnd)
+      : '';
   for (var i = 0; i < 4; i++) {
-    if (RegExp(r'(^|/)\.{1,2}(/|[?#]|$)').hasMatch(decoded) ||
-        RegExp(r'%2f|%5c', caseSensitive: false).hasMatch(decoded)) {
+    if (RegExp(r'(^|/)\.{1,2}(/|$)').hasMatch(path) ||
+        RegExp(r'%2f|%5c', caseSensitive: false).hasMatch(path)) {
       throw const FormatException('Unsafe plugin URL path');
     }
-    String next;
-    try {
-      next = Uri.decodeFull(Uri.encodeFull(decoded).replaceAll('%25', '%'));
-    } on ArgumentError {
-      throw const FormatException('Invalid URL encoding');
-    }
-    if (next == decoded) break;
-    decoded = next;
-    if (i == 3) throw const FormatException('Nested URL encoding');
+    final next = path.replaceAllMapped(RegExp(r'%[0-9a-fA-F]{2}'), (match) {
+      return String.fromCharCode(int.parse(match[0]!.substring(1), radix: 16));
+    });
+    if (next == path) break;
+    path = next;
+    if (i == 3) throw const FormatException('Nested URL path encoding');
+  }
+  if (RegExp(r'%(?![0-9a-fA-F]{2})').hasMatch(path)) {
+    throw const FormatException('Invalid URL path encoding');
   }
   final uri = Uri.parse(value);
   var host = uri.host.toLowerCase();

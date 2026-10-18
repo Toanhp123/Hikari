@@ -30,15 +30,12 @@ internal object PublicHttps {
     }
     fun url(raw: String): HttpUrl {
         require(raw.length in 1..4096 && raw.none { it <= ' ' || it == '\\' }) { "Invalid HTTPS URL" }
-        var decoded = raw
-        repeat(4) {
-            require(!Regex("(^|/)\\.{1,2}(/|[?#]|$)").containsMatchIn(decoded) &&
-                !Regex("%2f|%5c", RegexOption.IGNORE_CASE).containsMatchIn(decoded)) { "Unsafe URL path" }
-            val next = Regex("%([0-9a-fA-F]{2})").replace(decoded) { it.groupValues[1].toInt(16).toChar().toString() }
-            if (next == decoded) return@repeat
-            decoded = next
-        }
-        require(!decoded.contains('%')) { "Nested or invalid URL encoding" }
+        // Only the pre-normalization path may carry traversal. Signed CDN
+        // queries legally contain encoded separators and nested escapes.
+        val authorityEnd = raw.indexOf("://").takeIf { it >= 0 }?.plus(3) ?: 0
+        val pathStart = raw.indexOf('/', authorityEnd)
+        val pathEnd = listOf(raw.indexOf('?'), raw.indexOf('#')).filter { it >= 0 }.minOrNull() ?: raw.length
+        validateRawPath(if (pathStart >= 0 && pathStart < pathEnd) raw.substring(pathStart, pathEnd) else "")
         val url = raw.toHttpUrl()
         require(url.scheme == "https" && url.port == 443 && url.username.isEmpty() && url.password.isEmpty() && url.fragment == null)
         val host = url.host.lowercase().trimEnd('.')
@@ -51,8 +48,26 @@ internal object PublicHttps {
         }
         return url
     }
+    private fun validateRawPath(rawPath: String) {
+        var path = rawPath
+        repeat(4) {
+            require(!Regex("(^|/)\\.{1,2}(/|$)").containsMatchIn(path) &&
+                !Regex("%2f|%5c", RegexOption.IGNORE_CASE).containsMatchIn(path)) { "Unsafe URL path" }
+            val next = Regex("%([0-9a-fA-F]{2})").replace(path) {
+                it.groupValues[1].toInt(16).toChar().toString()
+            }
+            if (next == path) return@repeat
+            path = next
+        }
+        require(!Regex("%(?![0-9a-fA-F]{2})").containsMatchIn(path)) { "Invalid URL path encoding" }
+    }
     fun redirect(from: HttpUrl, location: String, count: Int): HttpUrl {
         require(count <= 5) { "Too many redirects" }
+        // HttpUrl.resolve canonicalizes dot segments. Inspect the untrusted
+        // Location path *before* resolution, including relative redirects.
+        val relativePath = location.substringBefore('?').substringBefore('#')
+        if (location.indexOf("://") < 0) validateRawPath(relativePath)
+        else url(location) // Validates absolute raw path before normalization.
         return url(requireNotNull(from.resolve(location)).toString())
     }
     val dns = Dns { hostname ->

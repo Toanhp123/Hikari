@@ -337,7 +337,7 @@ NovelRuntimeSnapshot _runtimeSnapshot(Object? value) {
         : _artifact(item['artifact']);
     Uri root(Uri value) =>
         value.path.isEmpty ? value.replace(path: '/') : value;
-    if (!RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(id) ||
+    if (!validNovelPluginId(id) ||
         !ids.add(id) ||
         artifact != null &&
             (artifact.metadata.id.upstreamId != id ||

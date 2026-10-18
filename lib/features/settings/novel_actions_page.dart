@@ -1,3 +1,5 @@
+import 'package:hikari/features/settings/plugin_acquisition_message.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -89,8 +91,12 @@ class _NovelActionsPageState extends State<NovelActionsPage>
           'Admission rejected: ${error.reason}. No compatibility or trust proven.';
     } on NovelPublicationFailure {
       /* App-owned sticky evidence rendered below. */
-    } catch (_) {
-      _error = 'Novel action failed or outcome unknown. Refresh evidence; never automatically repeat code evaluation or infer rollback.';
+    } catch (error) {
+      _error =
+          pluginAcquisitionMessage(error) ??
+          (error is FormatException
+              ? 'Unsupported Novel metadata or invalid stage evidence. No consent or code execution was inferred.'
+              : 'Novel action failed or outcome unknown. Refresh evidence; never automatically repeat code evaluation or infer rollback.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -410,7 +416,18 @@ class _NovelActionsPageState extends State<NovelActionsPage>
             if (!locked &&
                 stage == null &&
                 offer != null &&
-                offer.siteUrl != null) ...[
+                (offer.siteUrl == null ||
+                    offer.customJsUrl != null ||
+                    offer.customCssUrl != null))
+              const Text(
+                'This upstream Novel plugin requires an unsupported origin or auxiliary CSS/JS. Download is unavailable until its requirements are supported.',
+              ),
+            if (!locked &&
+                stage == null &&
+                offer != null &&
+                offer.siteUrl != null &&
+                offer.customJsUrl == null &&
+                offer.customCssUrl == null) ...[
               TextFormField(
                 initialValue: _origins,
                 maxLines: 3,

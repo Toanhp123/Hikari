@@ -1,3 +1,5 @@
+import 'package:hikari/features/settings/plugin_acquisition_message.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -118,8 +120,8 @@ class _ApkActionsPageState extends State<ApkActionsPage>
       await action();
     } on ApkApprovalReconciliationFailure {
       _error = 'Native signer approval committed. Inventory reconciliation failed. Refresh evidence; do not repeat approval.';
-    } catch (_) {
-      _error = 'Action failed or outcome unknown. Refresh native operations before retrying; no success or rollback inferred.';
+    } catch (error) {
+      _error = pluginAcquisitionMessage(error) ?? 'Action failed or outcome unknown. Refresh native operations before retrying; no success or rollback inferred.';
       try {
         await session.refreshApkOperations();
       } catch (_) {

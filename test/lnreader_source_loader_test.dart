@@ -26,6 +26,17 @@ void main() {
     });
     final sources = await const LnReaderSourceLoader().loadSources();
     expect(sources.single.id, SourceId('lnreader:frozen'));
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => [
+        {...descriptor, 'id': 'ln.hako'},
+      ],
+    );
+    expect(
+      (await const LnReaderSourceLoader().loadSources()).single.id,
+      SourceId('lnreader:ln.hako'),
+    );
+
     for (final invalid in <Object?>[
       null,
       [descriptor, descriptor],

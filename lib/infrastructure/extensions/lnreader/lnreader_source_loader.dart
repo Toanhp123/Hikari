@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/extensions/lnreader/lnreader_novel_source.dart';
 
@@ -25,7 +26,7 @@ class LnReaderSourceLoader {
           final id = row['id'], name = row['name'], site = row['site'];
           final uri = site is String ? Uri.tryParse(site) : null;
           if (id is! String ||
-              !RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(id) ||
+              !validNovelPluginId(id) ||
               !ids.add(id) ||
               name is! String ||
               name.trim().isEmpty ||

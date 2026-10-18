@@ -118,6 +118,7 @@ PluginManagement management(
   Gateway gateway, {
   bool supported = true,
   helpers.MemoryStore? store,
+  bool auxiliaryCss = false,
 }) {
   final state = store ?? helpers.MemoryStore();
   state.state = PluginState(
@@ -137,6 +138,9 @@ PluginManagement management(
               downloadUrl: 'https://repo.example/plugin.js',
               iconUrl: 'https://repo.example/icon.png',
               siteUrl: 'https://site.example/novels',
+              customCssUrl: auxiliaryCss
+                  ? 'https://repo.example/auxiliary.css'
+                  : null,
               sources: [],
             ),
           ],
@@ -203,6 +207,20 @@ class FailingStore extends helpers.MemoryStore {
 }
 
 void main() {
+  testWidgets('unsupported auxiliary Novel assets cannot be staged', (
+    tester,
+  ) async {
+    final gateway = Gateway();
+    await open(tester, management(gateway, auxiliaryCss: true));
+    expect(find.text('Download inert Novel bundle'), findsNothing);
+    expect(
+      find.textContaining('unsupported origin or auxiliary CSS/JS'),
+      findsOneWidget,
+    );
+    expect(gateway.calls, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('manager details opens injected real Novel route', (
     tester,
   ) async {

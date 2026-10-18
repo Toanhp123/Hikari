@@ -2,6 +2,7 @@ package io.github.toanhp123.hikari.extensions.lnreader
 
 import android.content.Context
 import android.os.SystemClock
+import io.github.toanhp123.hikari.plugins.NovelPluginIds
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -11,7 +12,7 @@ import java.util.concurrent.TimeUnit
 /** All IO stays host-owned. Redirects disabled; HTTPS origin and public DNS required. */
 class LnReaderHost(context: Context, sourceId: String, private val origins: Set<String>,
     private val admissionOnly: Boolean = false) {
-    init { require(sourceId.matches(Regex("[A-Za-z0-9_-]{1,128}"))) }
+    init { NovelPluginIds.requireValid(sourceId) }
     internal var admissionReason: String? = null
         private set
     internal val admissionDenied get() = admissionReason != null

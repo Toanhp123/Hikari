@@ -159,6 +159,10 @@ class PluginChannel(private val context: Context, messenger: BinaryMessenger) : 
         value.launch(foregroundActivity())
     }
     private fun operationError(result: MethodChannel.Result, error: Throwable) {
+        if (error is PluginTransferFailure) {
+            result.error(error.code, "Plugin acquisition failed", error.status?.let { mapOf("status" to it) })
+            return
+        }
         if (error is io.github.toanhp123.hikari.extensions.lnreader.NovelAdmission.Rejected) {
             result.error("novel_admission_rejected", "Novel admission rejected", mapOf("reason" to error.reason))
             return
