@@ -91,9 +91,24 @@ final class ResolveCatalogSource {
     final candidates = <CatalogSourceCandidate>[];
     final seen = <SourceMediaRef>{};
     final exactMatches = <CatalogSourceCandidate>[];
+    Object? firstFailure;
+    StackTrace? firstFailureTrace;
 
     for (final query in titles) {
-      final batch = await _search(entry.type, sourceId, query);
+      List<CatalogSourceCandidate> batch;
+      try {
+        batch = await _search(entry.type, sourceId, query);
+      } on Exception catch (error, trace) {
+        // Validation/state failures are not ordinary provider query failures.
+        if (error is FormatException ||
+            error is StateError ||
+            error is ArgumentError) {
+          rethrow;
+        }
+        firstFailure ??= error;
+        firstFailureTrace ??= trace;
+        continue;
+      }
 
       for (final candidate in batch) {
         if (!seen.add(candidate.media.source)) continue;
@@ -102,6 +117,12 @@ final class ResolveCatalogSource {
           exactMatches.add(candidate);
         }
       }
+    }
+
+    // An alternate-title failure must not discard good candidates; conversely,
+    // a failed search with no candidates is not proof the title is absent.
+    if (candidates.isEmpty && firstFailure != null) {
+      Error.throwWithStackTrace(firstFailure, firstFailureTrace!);
     }
 
     if (exactMatches.length == 1) {

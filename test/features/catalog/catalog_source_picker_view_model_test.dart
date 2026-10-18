@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/search/search_manga.dart';
@@ -259,6 +259,60 @@ void main() {
       expect(model.state.status, CatalogSourcePickerStatus.choosing);
     },
   );
+
+  test('unknown language is not a search failure reason', () {
+    const source = CatalogSourcePickerSource(
+      id: SourceId('lnreader:sample'),
+      displayName: 'Novel provider',
+    );
+    expect(source.contextLabel, 'Novel provider');
+  });
+
+  test(
+    'LNReader failure reports a bounded reason and retry clears it',
+    () async {
+      var fail = true;
+      final model = _model(
+        _MangaSource(
+          onSearch: (_) async {
+            if (fail) {
+              throw PlatformException(
+                code: 'lnreader_failure',
+                details: {'reason': 'execution-rejected'},
+              );
+            }
+            return _emptySearch('Title');
+          },
+        ),
+        title: 'Title',
+      );
+      addTearDown(model.dispose);
+      await model.selectSource(model.state.sources.single);
+      expect(model.state.status, CatalogSourcePickerStatus.error);
+      expect(model.state.errorMessage, contains('execution-rejected'));
+      fail = false;
+      await model.retry();
+      expect(model.state.status, CatalogSourcePickerStatus.empty);
+      expect(model.state.errorMessage, isNull);
+    },
+  );
+
+  test('rejects untrusted exception text and unknown native reason', () async {
+    final model = _model(
+      _MangaSource(
+        onSearch: (_) async => throw PlatformException(
+          code: 'lnreader_failure',
+          message: 'private URL and filesystem path',
+          details: {'reason': 'private native exception /data/secret'},
+        ),
+      ),
+      title: 'Title',
+    );
+    addTearDown(model.dispose);
+    await model.selectSource(model.state.sources.single);
+    expect(model.state.status, CatalogSourcePickerStatus.error);
+    expect(model.state.errorMessage, isNull);
+  });
 
   test('no compatible sources stays distinct from an empty match', () {
     final model = _modelWithSources([], title: 'Title');

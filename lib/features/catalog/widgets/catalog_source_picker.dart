@@ -158,9 +158,11 @@ class _CatalogSourcePickerState extends State<CatalogSourcePicker> {
       CatalogSourcePickerStatus.error => _MessageState(
         icon: Icons.cloud_off_rounded,
         title: 'Could not search this source',
-        message:
-            'Search on ${state.selectedSource!.contextLabel} could not be completed. '
-            'Retry or search manually.',
+        message: [
+          'Search on ${state.selectedSource!.contextLabel} could not be completed.',
+          if (state.errorMessage != null) state.errorMessage!,
+          'Retry or search manually.',
+        ].join(' '),
         primaryLabel: 'Retry',
         onPrimary: () => unawaited(_retry()),
         onManualSearch: () => _manualSearch(state.selectedSource, null),
