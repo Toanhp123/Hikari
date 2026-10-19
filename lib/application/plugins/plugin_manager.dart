@@ -31,34 +31,12 @@ final class PluginManager {
       installed = await inventory.readInstalled();
     } catch (_) {
       if (!allowUnavailableInventory) rethrow;
-      // Mark historical Dart operations interrupted in memory only. Do not
-      // persist this incomplete native inventory or infer any native outcome.
-      manager._state = PluginState(
-        repositories: loaded.repositories,
-        installed: loaded.installed,
-        owners: loaded.owners,
-        approvals: loaded.approvals,
-        operations: loaded.operations.map(
-          (operation) => PendingPluginOperation(
-            operation.id,
-            operation.operation,
-            PluginOperationStatus.interrupted,
-          ),
-        ),
-      );
+      // Historic Dart operations are never executable authority. An
+      // unavailable native inventory cannot trigger persistence or replay.
       return manager;
     }
-    // Reconcile actual inventory; interrupted native work is never replayed.
-    await manager._publish(
-      installed: installed,
-      operations: loaded.operations.map(
-        (o) => PendingPluginOperation(
-          o.id,
-          o.operation,
-          PluginOperationStatus.interrupted,
-        ),
-      ),
-    );
+    // Reconcile actual inventory without replaying prior native operations.
+    await manager._publish(installed: installed);
     manager._inventoryFresh = true;
     return manager;
   }
@@ -75,14 +53,12 @@ final class PluginManager {
     Iterable<InstalledPlugin>? installed,
     Map<PluginId, RepositoryId>? owners,
     Iterable<PluginApproval>? approvals,
-    Iterable<PendingPluginOperation>? operations,
   }) async {
     final next = PluginState(
       repositories: repositories ?? state.repositories,
       installed: installed ?? state.installed,
       owners: owners ?? state.owners,
       approvals: approvals ?? state.approvals,
-      operations: operations ?? state.operations,
     );
     await _store.save(next);
     _state = next;

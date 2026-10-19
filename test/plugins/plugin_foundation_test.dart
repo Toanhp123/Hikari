@@ -481,17 +481,26 @@ void main() {
   });
 
   test(
-    'restart marks pending operations interrupted without replay or activation',
+    'legacy schema-1 operations migrate without replay or lost consent',
     () async {
       final directory = await Directory.systemTemp.createTemp(
         'hikari-plugin-recovery-',
       );
       addTearDown(() => directory.delete(recursive: true));
       final store = FilePluginStateStore(directory: directory);
+      final file = File('${directory.path}/plugins.json');
       final id = PluginId(PluginEcosystem.novel, 'novel');
       final repo = RepositoryId('https://example.com/plugins.json');
+      final installed = InstalledPlugin(
+        id: id,
+        version: NovelPluginVersion('1.0'),
+        digest: 'b' * 64,
+        compatibility: PluginCompatibility.compatible,
+      );
       await store.save(
         PluginState(
+          repositories: [PluginRepository(repo, PluginEcosystem.novel)],
+          installed: [installed],
           owners: {id: repo},
           approvals: [
             PluginApproval(
@@ -502,32 +511,121 @@ void main() {
               origins: {'https://site.example'},
             ),
           ],
-          operations: [
-            PendingPluginOperation(
-              id,
-              PluginOperation.install,
-              PluginOperationStatus.pending,
-            ),
-          ],
         ),
       );
+      final legacy =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      legacy['operations'] = [
+        {
+          'id': {'ecosystem': 'novel', 'id': 'novel'},
+          'operation': 'install',
+          'status': 'pending',
+        },
+      ];
+      await file.writeAsString(jsonEncode(legacy));
       final manager = await PluginManager.open(
         store: store,
         reader: PluginManifestReader((url) async => []),
-        inventory: TestInventory(),
+        inventory: TestInventory()..installed = [installed],
       );
-      expect(
-        manager.state.operations.single.status,
-        PluginOperationStatus.interrupted,
-      );
-      expect((await store.load()).approvals.single.origins, {
-        'https://site.example',
-      });
-      await File('${directory.path}/plugins.json')
-          .writeAsString('{"schema":999}');
+      expect(manager.inventoryFresh, isTrue);
+      expect(manager.state.installed.single.id, id);
+      expect(manager.state.repositories.single.id, repo);
+      expect(manager.state.owners[id], repo);
+      expect(manager.state.approvals.single.origins, {'https://site.example'});
+      final migrated =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      expect(migrated['schema'], 1);
+      expect(migrated['operations'], isEmpty);
+      expect(migrated['approvals'], hasLength(1));
+      expect((await store.load()).installed.single.digest, installed.digest);
+      await file.writeAsString('{"schema":999}');
       await expectLater(store.load(), throwsFormatException);
     },
   );
+
+  test(
+    'stale native inventory never migrates historical operations into success',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'hikari-plugin-unavailable-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final store = FilePluginStateStore(directory: directory);
+      final file = File('${directory.path}/plugins.json');
+      final id = PluginId(PluginEcosystem.manga, 'org.example.manga');
+      final installed = InstalledPlugin(
+        id: id,
+        version: ApkPluginVersion(1, '1'),
+        digest: 'a' * 64,
+        compatibility: PluginCompatibility.compatible,
+      );
+      await store.save(PluginState(installed: [installed]));
+      final legacy =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      legacy['operations'] = [
+        {
+          'id': {'ecosystem': 'manga', 'id': id.upstreamId},
+          'operation': 'uninstall',
+          'status': 'interrupted',
+        },
+      ];
+      final original = jsonEncode(legacy);
+      await file.writeAsString(original);
+      final inventory = TestInventory()..fail = true;
+      final manager = await PluginManager.open(
+        store: store,
+        reader: PluginManifestReader((url) async => []),
+        inventory: inventory,
+        allowUnavailableInventory: true,
+      );
+      expect(manager.inventoryFresh, isFalse);
+      expect(manager.updateCandidates, isEmpty);
+      expect(manager.state.installed.single.id, id);
+      expect(await file.readAsString(), original);
+      inventory.fail = false;
+      inventory.installed = [installed];
+      await manager.reconcileInstalled();
+      expect(manager.inventoryFresh, isTrue);
+      final persisted = jsonDecode(await file.readAsString()) as Map;
+      expect(persisted['operations'], isEmpty);
+    },
+  );
+
+  test('malformed legacy operation records still fail closed', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'hikari-plugin-invalid-legacy-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final store = FilePluginStateStore(directory: directory);
+    final file = File('${directory.path}/plugins.json');
+    await store.save(PluginState());
+    final root = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final valid = {
+      'id': {'ecosystem': 'manga', 'id': 'org.example.manga'},
+      'operation': 'install',
+      'status': 'pending',
+    };
+    for (final invalid in [
+      [valid, valid],
+      [
+        {...valid, 'status': 'success'},
+      ],
+      [
+        {...valid, 'operation': 'execute'},
+      ],
+      [
+        {
+          ...valid,
+          'id': {'ecosystem': 'unknown', 'id': 'x'},
+        },
+      ],
+      'unexpected',
+    ]) {
+      await file.writeAsString(jsonEncode({...root, 'operations': invalid}));
+      await expectLater(store.load(), throwsFormatException);
+    }
+  });
 
   test(
     'novel update candidates follow current inventory, not code consent',
@@ -830,6 +928,10 @@ List<int> protoRepository(
 
 class TestInventory implements PluginInventory {
   List<InstalledPlugin> installed = [];
+  bool fail = false;
   @override
-  Future<List<InstalledPlugin>> readInstalled() async => installed;
+  Future<List<InstalledPlugin>> readInstalled() async {
+    if (fail) throw StateError('Native inventory unavailable');
+    return installed;
+  }
 }

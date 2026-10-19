@@ -234,6 +234,15 @@ void main() {
       expect(store.saves, 1);
       expect(store.state.installed.single.id, installed.id);
       expect(session.manager!.updateCandidates, hasLength(1));
+      // A later outage must withdraw update suggestions without overwriting
+      // the last reconciled inventory or treating an absence as uninstall.
+      second.fail = true;
+      await session.refresh();
+      expect(session.manager!.inventoryFresh, isFalse);
+      expect(session.manager!.updateCandidates, isEmpty);
+      expect(store.saves, 1);
+      expect(store.state.installed.single.id, installed.id);
+      expect(session.error, isNotNull);
     },
   );
 

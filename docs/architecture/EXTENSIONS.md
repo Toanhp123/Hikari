@@ -143,8 +143,13 @@ precedence. Novel site and auxiliary asset URLs remain metadata; auxiliary JS/CS
 are marked unsupported, never evaluated or injected. App-support `plugins.json`
 stores versioned validated state using a flushed temporary file and same-directory
 replacement, separately from user database schema 6 and reconstructible caches.
-Interrupted operations are retained as interrupted after inventory reconciliation,
-never replayed automatically.
+Historical schema-1 Dart `operations` rows are validated but not restored to
+application state. The next successful save discards them and retains an empty
+`operations` array for schema-1 reader compatibility.
+Native `ApkInstallJournal`/OS evidence owns live install/removal outcomes;
+legacy Dart rows are never replayed, promoted to success or used as authority.
+When aggregate inventory is unavailable, reconciliation retains the previous
+snapshot and cannot persist a partial inventory.
 
 The Android `hikari/plugins` management channel supplies inspected manga/anime
 inventory, inert metadata retrieval, APK staging and explicit native trust approval.

@@ -3,8 +3,6 @@ enum PluginEcosystem { manga, anime, novel }
 
 enum PluginOperation { install, update, uninstall }
 
-enum PluginOperationStatus { pending, interrupted }
-
 enum PluginCompatibility {
   compatible,
   unsupportedPlatform,
@@ -365,30 +363,20 @@ final class PluginApproval {
   final Set<String> origins;
 }
 
-final class PendingPluginOperation {
-  const PendingPluginOperation(this.id, this.operation, this.status);
-  final PluginId id;
-  final PluginOperation operation;
-  final PluginOperationStatus status;
-}
-
 final class PluginState {
   PluginState({
     Iterable<PluginRepository> repositories = const [],
     Iterable<InstalledPlugin> installed = const [],
     Map<PluginId, RepositoryId> owners = const {},
     Iterable<PluginApproval> approvals = const [],
-    Iterable<PendingPluginOperation> operations = const [],
   }) : repositories = List.unmodifiable(repositories),
        installed = List.unmodifiable(installed),
        owners = Map.unmodifiable(owners),
-       approvals = List.unmodifiable(approvals),
-       operations = List.unmodifiable(operations) {
+       approvals = List.unmodifiable(approvals) {
     for (final ids in [
       this.repositories.map((v) => v.id),
       this.installed.map((v) => v.id),
       this.approvals.map((v) => v.id),
-      this.operations.map((v) => v.id),
     ]) {
       if (ids.length > 5000 || ids.toSet().length != ids.length) {
         throw const FormatException('Duplicate or excessive plugin state');
@@ -402,7 +390,6 @@ final class PluginState {
   final List<InstalledPlugin> installed;
   final Map<PluginId, RepositoryId> owners;
   final List<PluginApproval> approvals;
-  final List<PendingPluginOperation> operations;
 }
 
 abstract interface class PluginStateStore {

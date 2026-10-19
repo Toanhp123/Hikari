@@ -123,15 +123,9 @@ Map<String, dynamic> _encode(PluginState state) => {
         },
       )
       .toList(),
-  'operations': state.operations
-      .map(
-        (o) => {
-          'id': _id(o.id),
-          'operation': o.operation.name,
-          'status': o.status.name,
-        },
-      )
-      .toList(),
+  // Preserve the schema-1 field for older readers. The native journal is the
+  // sole owner of install/remove lifecycle; no Dart operation is persisted.
+  'operations': const <Object>[],
 };
 Map<String, dynamic> _map(Object? value) {
   if (value is! Map<String, dynamic> || value.length > 32) {
@@ -216,11 +210,30 @@ PluginOffer _readOffer(Object? value, RepositoryId repository) {
   );
 }
 
+// Earlier schema-1 files may contain pending/interrupted Dart operations.
+// Validate and discard them: only native OS-owned evidence can settle APK
+// operations. The decoder never reconstructs, publishes or replays them.
+void _validateLegacyOperations(Object? value) {
+  final seen = <PluginId>{};
+  for (final value in _list(value)) {
+    final row = _map(value);
+    final id = _readId(row['id']);
+    if (!seen.add(id)) {
+      throw const FormatException('Duplicate legacy plugin operation');
+    }
+    _enum(PluginOperation.values, row['operation']);
+    if (row['status'] != 'pending' && row['status'] != 'interrupted') {
+      throw const FormatException('Invalid legacy plugin operation status');
+    }
+  }
+}
+
 PluginState _decode(Object? value) {
   final root = _map(value);
   if (root['schema'] != 1) {
     throw const FormatException('Unknown plugin state schema');
   }
+  _validateLegacyOperations(root['operations']);
   final owners = <PluginId, RepositoryId>{};
   for (final value in _list(root['owners'])) {
     final m = _map(value);
@@ -267,14 +280,6 @@ PluginState _decode(Object? value) {
         kind: _enum(PluginApprovalKind.values, m['kind']),
         digest: _string(m['digest']),
         origins: _list(m['origins'], limit: 32).map(_string),
-      );
-    }),
-    operations: _list(root['operations']).map((value) {
-      final m = _map(value);
-      return PendingPluginOperation(
-        _readId(m['id']),
-        _enum(PluginOperation.values, m['operation']),
-        _enum(PluginOperationStatus.values, m['status']),
       );
     }),
   );
