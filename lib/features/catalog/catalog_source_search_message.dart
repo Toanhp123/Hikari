@@ -15,6 +15,15 @@ String? catalogSourceSearchMessage(Object error) {
     'execution-rejected' =>
       'Novel runtime rejected execution (execution-rejected). '
           'Check provider compatibility.',
+    'provider-http-error' =>
+      'The Novel website returned an HTTP error. Check the source website.',
+    'network-request-rejected' => 'The Novel request could not be completed. Check the provider and approved origins.',
+    'network-timeout' => 'The Novel website did not respond in time.',
+    'response-too-large' =>
+      'The Novel website sent more data than this runtime can safely process.',
+    'unsupported-encoding' =>
+      'The Novel source requires a text encoding this runtime cannot read.',
+    'plugin-exception' => 'The Novel plugin failed while searching. It may need a compatibility update.',
     'invalid-output' =>
       'Novel plugin returned an unsupported result (invalid-output).',
     'invalid-request' =>
@@ -25,4 +34,3 @@ String? catalogSourceSearchMessage(Object error) {
     _ => null,
   };
 }
-

@@ -12,6 +12,7 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
+import 'package:hikari/features/catalog/catalog_source_search_message.dart';
 
 void main() {
   test(
@@ -259,6 +260,23 @@ void main() {
       expect(model.state.status, CatalogSourcePickerStatus.choosing);
     },
   );
+
+  test('LNReader transport and plugin failures use safe descriptions', () {
+    for (final reason in [
+      'plugin-exception',
+      'provider-http-error',
+      'network-request-rejected',
+    ]) {
+      final message = catalogSourceSearchMessage(
+        PlatformException(
+          code: 'lnreader_failure',
+          details: {'reason': reason},
+        ),
+      );
+      expect(message, isNotNull);
+      expect(message, isNot(contains('https://')));
+    }
+  });
 
   test('unknown language is not a search failure reason', () {
     const source = CatalogSourcePickerSource(

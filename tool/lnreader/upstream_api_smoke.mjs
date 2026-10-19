@@ -15,7 +15,7 @@ const context={__hikariHost(payload){const r=JSON.parse(payload);switch(r.op){
  case 'keys':return native([...store.keys()]);
  case 'absoluteUrl':return native(new URL(r.path,r.base).toString());
  case 'delay':return 'null';
- case 'fetch':return native(r.url.includes('/missing')?{status:404,body:'not found'}:{status:200,body:'{"ok":true}'});
+ case 'fetch':return native(r.url.includes('/missing')?{status:404,body:'not found'}:{status:200,body:'{"ok":true}',statusText:'OK',url:r.url,headers:{'content-type':'application/json'}});
  default:throw Error(`Unexpected native op ${r.op}`);
 }}};
 const code=`(async()=>{
@@ -38,7 +38,14 @@ const code=`(async()=>{
  if(typeof setTimeout!=='function')throw Error('timer');
  await new Promise(resolve=>setTimeout(resolve,1));
  const res=await require('@libs/fetch').fetchApi('https://example.org');
- if(!res.ok||!(await res.json()).ok)throw Error('fetchApi');
+ if(!res.ok||!(await res.json()).ok||res.statusText!=='OK'||res.headers.get('Content-Type')!=='application/json')throw Error('fetchApi response');
+ const params=new URLSearchParams([['q','first'],['q','second']]);
+ if(params.get('q')!=='first'||params.getAll('q').length!==2||!params.has('q'))throw Error('params read');
+ params.set('q','new');if(params.getAll('q').length!==1)throw Error('params replace');
+ params.delete('q');if(params.has('q'))throw Error('params delete');
+ const form=new URLSearchParams({keyword:'Tiếng Việt'});
+ await require('@libs/fetch').fetchApi('https://example.org/search',{method:'POST',body:form});
+
  if(await require('@libs/fetch').fetchText('https://example.org/missing')!=='')throw Error('fetchText error response');
  let blocked=false;try{require('fs')}catch(_){blocked=true};if(!blocked)throw Error('arbitrary module');
  return true;

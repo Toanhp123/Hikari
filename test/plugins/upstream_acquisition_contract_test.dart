@@ -61,8 +61,10 @@ void main() {
           repositoryId: offer.repositoryId,
           site: offer.siteUrl!.toString(),
           origins: [offer.siteUrl!.origin],
+          language: offer.sources.single.language,
         );
         expect(metadata.id.upstreamId, contains('.'));
+        expect(metadata.language, 'Tiếng Việt');
         expect(metadata.site.scheme, 'https');
       }
       final unsupported = offers.singleWhere(

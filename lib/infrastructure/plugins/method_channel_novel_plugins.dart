@@ -94,6 +94,7 @@ final class MethodChannelNovelPlugins implements NovelPluginGateway {
       repositoryId: offer.repositoryId,
       site: offer.siteUrl.toString(),
       origins: origins,
+      language: offer.sources.isEmpty ? null : offer.sources.first.language,
     );
     final row = _map(
       await _invoke('novelStage', {
@@ -111,6 +112,7 @@ final class MethodChannelNovelPlugins implements NovelPluginGateway {
     if (captured.id != metadata.id ||
         captured.name != metadata.name ||
         captured.version.value != metadata.version.value ||
+        captured.language != metadata.language ||
         rootPath(captured.repositoryId.url) !=
             rootPath(metadata.repositoryId.url) ||
         rootPath(captured.site) != rootPath(metadata.site) ||
@@ -198,6 +200,7 @@ Map<String, Object?> _metadata(NovelArtifactMetadata m) => {
   'repository': m.repositoryId.toString(),
   'site': m.site.toString(),
   'origins': m.origins,
+  if (m.language != null) 'language': m.language,
 };
 Map<String, Object?> _encode(NovelArtifact a) => {
   ..._metadata(a.metadata),
@@ -228,6 +231,7 @@ NovelArtifact _artifact(Object? value) {
     'site',
     'origins',
     'digest',
+    if (value is Map && value.containsKey('language')) 'language',
   });
   final origins = row['origins'];
   if (origins is! List ||
@@ -243,6 +247,7 @@ NovelArtifact _artifact(Object? value) {
       repositoryId: RepositoryId(_string(row['repository'])),
       site: _string(row['site']),
       origins: origins.cast<String>(),
+      language: row['language'] == null ? null : _string(row['language']),
     ),
     digest: _string(row['digest']),
   );

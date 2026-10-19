@@ -30,7 +30,7 @@ JNIEXPORT jbyteArray JNICALL Java_io_github_toanhp123_hikari_extensions_lnreader
   jclass type=(*env)->GetObjectClass(env,host);
   Host h={env,host,(*env)->GetMethodID(env,type,"callBytes","([B)[B")};
   (*env)->DeleteLocalRef(env,type);
-  char *result=h.call?hikari_js(text,5000,call_host,&h):NULL; free(text);
+  char *result=h.call?hikari_js(text,8000,call_host,&h):NULL; free(text);
   if(!result) return NULL;
   jbyteArray output=bytes(env,result); free(result); return output;
 }

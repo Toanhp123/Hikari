@@ -15,7 +15,11 @@ final class NovelArtifactMetadata {
     required this.repositoryId,
     required String site,
     required Iterable<String> origins,
+    String? language,
   }) : name = pluginText(name, maxLength: 256),
+       language = language == null || language.trim().isEmpty
+           ? null
+           : pluginText(language.trim(), maxLength: 128),
        site = pluginHttpsUrl(site),
        origins = List.unmodifiable(origins.map(_origin).toList()..sort()) {
     if (id.ecosystem != PluginEcosystem.novel ||
@@ -32,6 +36,10 @@ final class NovelArtifactMetadata {
   final NovelPluginVersion version;
   final RepositoryId repositoryId;
   final Uri site;
+
+  /// Language from the LNReader repository manifest, not executable JS.
+  /// Older installed artifacts legitimately have no language.
+  final String? language;
   final List<String> origins;
 }
 
@@ -179,6 +187,7 @@ bool sameNovelArtifact(NovelArtifact? a, NovelArtifact? b) {
       x.id == y.id &&
       x.name == y.name &&
       x.version.value == y.version.value &&
+      x.language == y.language &&
       root(x.site) == root(y.site) &&
       root(x.repositoryId.url) == root(y.repositoryId.url) &&
       x.origins.length == y.origins.length &&

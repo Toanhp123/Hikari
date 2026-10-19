@@ -18,7 +18,7 @@ internal class LnReaderRuntime(
     }
 ) {
     private data class Plugin(val id: String, val name: String, val site: String,
-        val origins: List<String>, val code: String, val artifactJson: String?)
+        val language: String?, val origins: List<String>, val code: String, val artifactJson: String?)
     private data class Snapshot(val host: String, val plugins: List<Plugin>)
     private var snapshot: Snapshot? = null
     private var failure: String? = null
@@ -35,7 +35,8 @@ internal class LnReaderRuntime(
         require(normalized.toSet().size == normalized.size)
         val site = PublicHttps.url(text(row.get("site"), 4096)).toString()
         require(LnReaderHost.canonicalOrigin(site) in normalized)
-        return Plugin(id, text(row.get("name"), 256), site, normalized.toList(), code, artifact)
+        val language = if (row.has("language")) text(row.get("language"), 128) else null
+        return Plugin(id, text(row.get("name"), 256), site, language, normalized.toList(), code, artifact)
     }
     /** Invoked only on content worker; no filesystem reads on channel construction. */
     @Synchronized fun initialize(context: Context) {
@@ -88,7 +89,8 @@ internal class LnReaderRuntime(
         }
     }
     @Synchronized fun sources(): List<Map<String, String>> = requireNotNull(snapshot).plugins.map {
-        mapOf("id" to it.id, "name" to it.name, "site" to it.site)
+        mapOf("id" to it.id, "name" to it.name, "site" to it.site) +
+            (it.language?.let { language -> mapOf("language" to language) } ?: emptyMap())
     }
     private fun selected(id: String): Pair<Snapshot, Plugin> {
         NovelPluginIds.requireValid(id)
@@ -107,12 +109,27 @@ internal class LnReaderRuntime(
               const plugin=module.exports.default||module.exports;
               if(typeof plugin[${JSONObject.quote(method)}]!=='function') throw 'Missing method';
               const value=await plugin[${JSONObject.quote(method)}](...$args);
+              if (${JSONObject.quote(method)} === 'searchNovels' && Array.isArray(value) &&
+                  value.length === 0 && globalThis.__hikariFetchIssue) {
+                return {__hikariFailure: globalThis.__hikariFetchIssue};
+              }
               return {value:value,hasParsePage:typeof plugin.parsePage==='function'};
+            }).catch(function(error){
+              const reason = error && error.hikariReason;
+              return {__hikariFailure: ['network-request-rejected', 'network-timeout',
+                'response-too-large', 'unsupported-encoding'].includes(reason)
+                  ? reason : 'plugin-exception'};
             })
         """.trimIndent()
         val raw = execute(frozen, plugin, expression, LnReaderHost(context, id, plugin.origins.toSet()))
+        val result = try { JSONObject(raw) } catch (_: Exception) { throw Failure("invalid-output") }
+        val failureCode = result.optString("__hikariFailure")
+        if (result.keys().asSequence().toSet() == setOf("__hikariFailure") &&
+            failureCode in setOf("plugin-exception", "provider-http-error", "network-request-rejected",
+                "network-timeout", "response-too-large", "unsupported-encoding")) {
+            throw Failure(failureCode)
+        }
         try {
-            val result = JSONObject(raw)
             require(result.keys().asSequence().toSet() == setOf("value", "hasParsePage") && result.get("hasParsePage") is Boolean)
             val value = result.get("value")
             LnReaderContract.output(method, value, result.getBoolean("hasParsePage"))

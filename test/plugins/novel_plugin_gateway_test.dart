@@ -85,6 +85,42 @@ void main() {
   );
 
   test(
+    'stage preserves manifest language in the frozen Native tuple',
+    () async {
+      final selected = PluginOffer(
+        repositoryId: RepositoryId('https://example.com/index.json'),
+        id: PluginId(PluginEcosystem.novel, 'ln.hako'),
+        name: 'Hako',
+        version: NovelPluginVersion('1.2.0'),
+        downloadUrl: 'https://example.com/lnhako.js',
+        iconUrl: 'https://example.com/icon.png',
+        siteUrl: 'https://example.com/novels',
+        sources: [
+          PluginSourceDescriptor(
+            upstreamId: 'ln.hako',
+            name: 'Hako',
+            language: 'Tiếng Việt',
+          ),
+        ],
+      );
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'novelStage');
+        final metadata = (call.arguments as Map)['metadata'] as Map;
+        expect(metadata['language'], 'Tiếng Việt');
+        return {
+          'token': 'hako-token',
+          'artifact': {...metadata, 'digest': 'a' * 64},
+        };
+      });
+      final stage = await const MethodChannelNovelPlugins().stage(selected, [
+        'https://example.com',
+      ]);
+      expect(stage.artifact.metadata.language, 'Tiếng Việt');
+      expect(sameNovelArtifact(stage.artifact, stage.artifact), isTrue);
+    },
+  );
+
+  test(
     'selected tuple goes through native consent before manager mirror',
     () async {
       final store = helpers.MemoryState();

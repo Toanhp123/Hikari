@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/application/search/search_novels.dart';
+import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/infrastructure/extensions/lnreader/lnreader_source_loader.dart';
 
 void main() {
@@ -36,6 +39,18 @@ void main() {
       (await const LnReaderSourceLoader().loadSources()).single.id,
       SourceId('lnreader:ln.hako'),
     );
+    messenger.setMockMethodCallHandler(
+      channel,
+      (_) async => [
+        {...descriptor, 'id': 'ln.hako', 'language': 'Tiếng Việt'},
+      ],
+    );
+    final presented = (await const LnReaderSourceLoader().loadSources()).single;
+    expect(presented, isA<MediaSourcePresentation>());
+    expect((presented as MediaSourcePresentation).languageCode, 'vi');
+    final options = SearchNovels(SourceRegistry([presented])).options;
+    expect(options.single.languageCode, 'vi');
+    expect(options.single.displayName, 'Frozen');
 
     for (final invalid in <Object?>[
       null,
@@ -48,6 +63,12 @@ void main() {
       ],
       [
         {...descriptor, 'unknown': true},
+      ],
+      [
+        {...descriptor, 'language': 42},
+      ],
+      [
+        {...descriptor, 'language': ''},
       ],
     ]) {
       messenger.setMockMethodCallHandler(channel, (_) async => invalid);

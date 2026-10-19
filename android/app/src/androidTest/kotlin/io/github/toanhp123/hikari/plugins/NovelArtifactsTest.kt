@@ -43,6 +43,23 @@ class NovelArtifactsTest : InstrumentationTestCase() {
         }
     }
 
+    fun testManifestLanguageSurvivesRestartAndOldArtifactRemainsReadable() {
+        val store = custody(directory)
+        val annotated = store.stage(metadata() + ("language" to "Tiếng Việt"), {},
+            { it.write("module.exports = {};".toByteArray()) })
+        store.install(annotated["token"] as String, revision(annotated))
+        val reopened = custody(directory)
+        val current = reopened.inventory().single()["current"] as Map<*, *>
+        assertEquals("Tiếng Việt", current["language"])
+        val frozen = JSONObject(reopened.capture(2048).code.single().artifactJson)
+        assertEquals("Tiếng Việt", frozen.getString("language"))
+        rejects { store.stage(metadata("2.0") + ("language" to "x".repeat(129)), {},
+            { it.write("code".toByteArray()) }) }
+        val legacy = store.stage(metadata("2.0"), {}, { it.write("legacy".toByteArray()) })
+        store.install(legacy["token"] as String, revision(legacy))
+        val old = custody(directory).inventory().single()["current"] as Map<*, *>
+        assertFalse(old.containsKey("language"))
+    }
     fun testLegacyAdmissionAndRejectedMutationKeepPointers() {
         val store = custody(directory)
         val first = stage(store)

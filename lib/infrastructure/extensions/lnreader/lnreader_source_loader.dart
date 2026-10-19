@@ -19,11 +19,15 @@ class LnReaderSourceLoader {
     return rows
         .map((row) {
           if (row is! Map ||
-              row.length != 3 ||
-              !row.keys.toSet().containsAll({'id', 'name', 'site'})) {
+              (row.length != 3 && row.length != 4) ||
+              !row.keys.toSet().containsAll({'id', 'name', 'site'}) ||
+              row.keys.any(
+                (key) => !{'id', 'name', 'site', 'language'}.contains(key),
+              )) {
             throw const FormatException('Invalid Novel source descriptor');
           }
           final id = row['id'], name = row['name'], site = row['site'];
+          final language = row['language'];
           final uri = site is String ? Uri.tryParse(site) : null;
           if (id is! String ||
               !validNovelPluginId(id) ||
@@ -39,10 +43,20 @@ class LnReaderSourceLoader {
               uri.host.isEmpty ||
               uri.userInfo.isNotEmpty ||
               uri.port != 443 ||
-              uri.hasFragment) {
+              uri.hasFragment ||
+              (language != null &&
+                  (language is! String ||
+                      language.isEmpty ||
+                      language.length > 128))) {
             throw const FormatException('Invalid Novel source identity');
           }
-          return LnReaderNovelSource(id, name, channel, site: site);
+          return LnReaderNovelSource(
+            id,
+            name,
+            channel,
+            site: site,
+            language: language as String?,
+          );
         })
         .toList(growable: false);
   }

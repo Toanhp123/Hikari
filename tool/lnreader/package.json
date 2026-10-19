@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "build": "node build.mjs",
-    "test:host": "node host_contract_smoke.mjs"
+    "test:host": "node host_contract_smoke.mjs",
+    "test:engine": "node --experimental-vm-modules engine_contract_test.mjs"
   },
   "dependencies": {
     "cheerio": "1.0.0",

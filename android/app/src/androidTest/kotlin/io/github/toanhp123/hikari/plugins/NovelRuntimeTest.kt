@@ -19,6 +19,27 @@ class NovelRuntimeTest : InstrumentationTestCase() {
           parseNovel(){return {name:'$label',totalPages:2,chapters:[]}},
           parseChapter(){return '<p>$label</p>'}};
     """.trimIndent()
+    fun testHeaderPolicySupportsRscButProtectsRequestFraming() {
+        val request = okhttp3.Request.Builder().url("https://noveldex.io/series")
+        io.github.toanhp123.hikari.extensions.lnreader.LnReaderHttpHeaders.apply(
+            request, JSONObject(mapOf("RSC" to "1", "Referer" to "https://noveldex.io")), false)
+        assertEquals("1", request.build().header("RSC"))
+        assertEquals("https://noveldex.io", request.build().header("Referer"))
+        for (forbidden in listOf("Host", "Content-Length", "Transfer-Encoding", "Proxy-Connection")) {
+            rejects { io.github.toanhp123.hikari.extensions.lnreader.LnReaderHttpHeaders.apply(
+                okhttp3.Request.Builder().url("https://noveldex.io"),
+                JSONObject().put(forbidden, "attacker"), false) }
+        }
+        rejects { io.github.toanhp123.hikari.extensions.lnreader.LnReaderHttpHeaders.apply(
+            okhttp3.Request.Builder().url("https://noveldex.io"),
+            JSONObject().put("RSC", "1\r\nInjected: true"), false) }
+        val host = LnReaderHost(instrumentation.targetContext, "hikari-test", setOf("https://noveldex.io"))
+        val invalid = JSONObject().put("op", "fetch").put("url", "https://noveldex.io/series")
+            .put("init", JSONObject().put("headers", JSONObject().put("Host", "not-allowed")))
+        val response = JSONObject(host.callBytes(invalid.toString().toByteArray(Charsets.UTF_8)).toString(Charsets.UTF_8))
+        assertEquals("network-request-rejected", response.getString("__hikariHostError"))
+    }
+
     private fun rejects(block: () -> Unit) {
         try { block(); fail("Expected rejection") } catch (_: IllegalArgumentException) {} catch (_: IllegalStateException) {}
     }
@@ -171,6 +192,41 @@ class NovelRuntimeTest : InstrumentationTestCase() {
         try { runtime.initialize(context); fail("Expected sticky failure") }
         catch (failure: LnReaderRuntime.Failure) { assertEquals("snapshot-failed", failure.reason) }
         assertEquals(1, captures)
+    }
+    fun testProviderExceptionIsSanitizedAtRuntimeBoundary() {
+        val context = instrumentation.targetContext
+        val artifact = JSONObject(metadata(id = "broken-search") +
+            mapOf("digest" to "a".repeat(64))).toString()
+        val source = """module.exports={searchNovels(){throw Error('private site information')},
+            parseNovel(){return {name:'N',chapters:[]}},parseChapter(){return '<p>N</p>'}}"""
+        val captured = NovelArtifacts.Capture(listOf(
+            NovelArtifacts.CapturedCode(artifact, source),
+        ), emptyList())
+        val runtime = LnReaderRuntime { _, _ -> captured }
+        runtime.initialize(context)
+        try {
+            runtime.invoke(context, "broken-search", "searchNovels", "[\"test\",1]")
+            fail("Expected sanitized runtime failure")
+        } catch (error: LnReaderRuntime.Failure) {
+            assertEquals("plugin-exception", error.reason)
+            assertFalse(error.message.orEmpty().contains("private"))
+        }
+    }
+    fun testManifestLanguageAppearsOnlyWhenPresentInSourceDescriptor() {
+        val context = instrumentation.targetContext
+        val annotated = JSONObject(metadata(id = "vi-plugin") +
+            mapOf("language" to "Tiếng Việt", "digest" to "a".repeat(64))).toString()
+        val legacy = JSONObject(metadata(id = "en-legacy") +
+            mapOf("digest" to "b".repeat(64))).toString()
+        val captured = NovelArtifacts.Capture(listOf(
+            NovelArtifacts.CapturedCode(annotated, bundle("Vietnamese")),
+            NovelArtifacts.CapturedCode(legacy, bundle("Legacy")),
+        ), emptyList())
+        val runtime = LnReaderRuntime { _, _ -> captured }
+        runtime.initialize(context)
+        val sources = runtime.sources().associateBy { it["id"] }
+        assertEquals("Tiếng Việt", sources.getValue("vi-plugin")["language"])
+        assertFalse(sources.getValue("en-legacy").containsKey("language"))
     }
     fun testShapeAndExactOriginBoundaries() {
         assertEquals(LnReaderHost.canonicalOrigin("https://example.org:443/a"), LnReaderHost.canonicalOrigin("https://example.org./"))

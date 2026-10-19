@@ -28,7 +28,3 @@ for(const dir of [...packages].sort()) {
  notices+='\n=== '+pkg.name+' '+pkg.version+' ('+pkg.license+') ===\n'+readFileSync(licensePath,'utf8')+'\n';
 }
 writeFileSync(join(output,'THIRD_PARTY_LICENSES.txt'),notices);
-// Pure-JS compatibility helpers are kept separate from the third-party bundle.
-// Append verbatim so the checked-in Android asset works without a JS build step.
-const api=readFileSync(join(root,'api_compat.js'),'utf8');
-writeFileSync(join(output,'host.js'),readFileSync(join(output,'host.js'),'utf8')+'\n'+api);

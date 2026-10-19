@@ -71,6 +71,22 @@ android {
     }
 }
 
+// Source changes to tool/lnreader are NOT included in APKs automatically.
+// Refuse to package the legacy generated asset after migrating the engine.
+val verifyLnReaderEngineAsset = tasks.register("verifyLnReaderEngineAsset") {
+    val bundle = file("src/main/assets/lnreader/host.js")
+    inputs.file(bundle)
+    doLast {
+        check(bundle.isFile && bundle.readText().contains("v3-text-alpha")) {
+            "LNReader host is stale: run npm ci --ignore-scripts --prefix tool/lnreader " +
+                "and npm --prefix tool/lnreader run build from project root."
+        }
+    }
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+    dependsOn(verifyLnReaderEngineAsset)
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

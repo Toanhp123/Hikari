@@ -83,7 +83,10 @@ void main() {
         'Test',
         channel,
         site: 'https://example.org/',
+        language: 'English',
       );
+      expect(source.languageCode, 'en');
+      expect(source.displayName, 'Test');
       final search = await source.search('query');
       expect(search.hasNextPage, isNull);
       expect(search.results.single.metadata.cover, isNotNull);
