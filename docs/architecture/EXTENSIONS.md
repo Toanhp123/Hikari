@@ -45,6 +45,8 @@ The Android host implements the manga-facing compatibility surface used by exten
 
 Dependency versions are pinned to the current Keiyoushi extension build baseline instead of floating independently. The host keeps the ABI split inside Kotlin: legacy 1.4 Rx operations are bridged into the same suspend calls used by Hikari, while 1.6 sources use their native suspend API. Extensions declaring another ABI version are ignored rather than loaded optimistically. For older APKs that predate `tachiyomix.extensionLib`, the loader follows Mihon's compatibility rule and derives `1.4`/`1.6` from the leading part of `versionName`.
 
+Release packaging retains `com.squareup.zstd.**` classes and members: `libzstd-kmp.so` resolves compressor/decompressor class names and processed-byte fields through JNI. Disabling obfuscation alone does not prevent R8 from removing or merging these classes. Check an actual shrunk release APK with `python -I tool/check_zstd_release.py <apk> --apkanalyzer <Android SDK apkanalyzer>`; this checks defined classes and declared members without adding test references to the app.
+
 ## Discovery, trust and loading
 
 At app startup the Android bridge enumerates installed packages and accepts a package only when all of these are true:
@@ -58,6 +60,8 @@ At app startup the Android bridge enumerates installed packages and accepts a pa
 The official Keiyoushi current signing key remains built-in trust. The native plugin manager additionally stores explicit package/family/current-signer approvals in one private AtomicFile store, consulted before class loading. Approval requires reinspection of an installed package or validated opaque APK stage, never a repository declaration alone. Multisigner APKs and signer replacement/rotation are currently rejected; authenticated signing history is reported but never treated as an any-historical-signer allowlist. API 24–27 report verified current signatures without fabricated rotation history. Settings provides separate inspected signer approval and package actions; repository metadata never grants execution trust. An extension runs code inside the Hikari process; package metadata alone is not a security boundary.
 
 On Android 8.1+ the installed APK path is loaded with `DelegateLastClassLoader`, keeping extension-bundled implementation classes ahead of host classes while resolving the compile-only `tachiyomi.*` ABI from Hikari. Android 8.0 uses `PathClassLoader`.
+
+Managed class-loading/initialization failures can reject a package, and managed operation failures can propagate through the bridge. Native process aborts (for example, JNI initialization calling `SIGABRT`) cannot be caught or normalized by Kotlin/Dart exception handling; extensions and shared native libraries execute inside Hikari's process.
 
 `QUERY_ALL_PACKAGES` is currently used for package discovery. Hikari is not targeting Play Store distribution, so the v1 runtime does not add repository-specific `<queries>` generation solely to satisfy Play policy.
 
