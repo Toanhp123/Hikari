@@ -61,6 +61,8 @@ The official Keiyoushi current signing key remains built-in trust. The native pl
 
 On Android 8.1+ the installed APK path is loaded with `DelegateLastClassLoader`, keeping extension-bundled implementation classes ahead of host classes while resolving the compile-only `tachiyomi.*` ABI from Hikari. Android 8.0 uses `PathClassLoader`.
 
+Colliding Manga source IDs fail closed for **every** package claiming the same ID, independent of package discovery order. A displaced package contributes no sources to the frozen registry, while unrelated source IDs remain usable. A later package cannot reclaim an ID already identified as ambiguous in that startup snapshot.
+
 Managed class-loading/initialization failures can reject a package, and managed operation failures can propagate through the bridge. Native process aborts (for example, JNI initialization calling `SIGABRT`) cannot be caught or normalized by Kotlin/Dart exception handling; extensions and shared native libraries execute inside Hikari's process.
 
 `QUERY_ALL_PACKAGES` is currently used for package discovery. Hikari is not targeting Play Store distribution, so the v1 runtime does not add repository-specific `<queries>` generation solely to satisfy Play policy.
@@ -375,6 +377,10 @@ These are separate requirements. They should be added only when a tested source 
 ## Verification
 
 Automated Dart tests cover source adaptation, capability registration, generic MangaDex identity, opaque persisted references across extension absence/reinstall, stateful memo round-tripping, malformed references and source ownership. Native loading still requires physical Android verification because package visibility, certificate data, ART class loading and extension network behavior are platform concerns.
+
+A user-reported Android E2E run on October 19, 2026 confirmed APK
+install/removal and Manga plugin search/reading. This report does not replace
+the collision regression test or establish compatibility with every extension.
 
 A useful device smoke test is:
 

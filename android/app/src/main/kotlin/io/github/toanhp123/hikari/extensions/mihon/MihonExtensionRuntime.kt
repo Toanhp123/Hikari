@@ -53,6 +53,8 @@ internal class MihonExtensionRuntime(private val context: Context) {
 
     private val sources = ConcurrentHashMap<String, LoadedSource>()
     private val errors = mutableMapOf<String, String>()
+    // Reserve every colliding source ID for this frozen snapshot: no discovery-order winner.
+    private val blockedSourceKeys = mutableSetOf<String>()
     private val loadLock = Any()
 
     /** Evidence only: never loads code on management refresh. */
@@ -267,9 +269,28 @@ internal class MihonExtensionRuntime(private val context: Context) {
             check(loadedSources.map { it.descriptor.sourceKey }.distinct().size == loadedSources.size) {
                 "Extension ${packageInfo.packageName} exposes duplicate source ids."
             }
-            val collision = loadedSources.firstOrNull { sources.containsKey(it.descriptor.sourceKey) }
-            check(collision == null) {
-                "Duplicate extension source id ${collision?.descriptor?.sourceKey} from ${packageInfo.packageName}."
+            val collisions = loadedSources.map { it.descriptor.sourceKey }.filter { key ->
+                key in blockedSourceKeys || sources.containsKey(key)
+            }.toSet()
+            if (collisions.isNotEmpty()) {
+                // A duplicate is ambiguous even when the first package was loaded earlier.
+                // Revoke every previously captured source from affected packages, not just
+                // the duplicate entry; keep the ambiguous IDs unavailable for later packages.
+                val displacedPackages = collisions.mapNotNull { key ->
+                    sources[key]?.descriptor?.packageName
+                }.toSet()
+                // A rejected package cannot contribute *any* source ID, even if a
+                // later package claims one of its other IDs after it was displaced.
+                blockedSourceKeys.addAll(loadedSources.map { it.descriptor.sourceKey })
+                blockedSourceKeys.addAll(
+                    sources.values.filter { it.descriptor.packageName in displacedPackages }
+                        .map { it.descriptor.sourceKey },
+                )
+                sources.entries.removeAll { (_, loaded) ->
+                    loaded.descriptor.packageName in displacedPackages
+                }
+                displacedPackages.forEach { errors[it] = "collision" }
+                error("Ambiguous extension source IDs: ${collisions.joinToString()}")
             }
             failure = "load_failure"
             check(inspector.inspectInstalled(identity.packageName) == identity) { "Package revision changed during loading" }

@@ -141,7 +141,6 @@ class ApkRemovalRuntimeTest : InstrumentationTestCase() {
     fun testRuntimeSnapshotDoesNotLoadAndLoadedRevisionSurvivesInventoryChange() {
         val real = instrumentation.targetContext
         val first = fixture("org.example.loadedcontract")
-        val collision = fixture("org.example.collisioncontract")
         val incompatible = fixture("org.example.incompatiblecontract").apply { versionName = "9.0.1"; applicationInfo!!.metaData!!.putString("tachiyomix.extensionLib", "9.0") }
         val failed = fixture("org.example.failurecontract").apply { applicationInfo!!.metaData!!.putString("tachiyomi.extension.class", "missing.InertClass") }
         val initialization = fixture("org.example.initfailurecontract").apply {
@@ -161,8 +160,8 @@ class ApkRemovalRuntimeTest : InstrumentationTestCase() {
         val empty = MihonExtensionRuntime(context)
         assertEquals(emptyList<Any>(), empty.listSources())
         assertEquals(true, empty.runtimeSnapshot()["initialized"])
-        packages = listOf(first, collision, incompatible, failed, initialization)
-        listOf(first, collision, failed, initialization).forEach {
+        packages = listOf(first, incompatible, failed, initialization)
+        listOf(first, failed, initialization).forEach {
             ApkTrustStore.get(real).approve(requireNotNull(ApkInspector(context).identity(it)))
         }
         val runtime = MihonExtensionRuntime(context)
@@ -175,7 +174,6 @@ class ApkRemovalRuntimeTest : InstrumentationTestCase() {
         assertEquals(false, loaded["preferencesSupported"])
         val snapshot = runtime.runtimeSnapshot()
         val errors = snapshot["errors"] as List<*>
-        assertTrue(errors.any { (it as Map<*, *>)["reason"] == "collision" })
         assertTrue(errors.any { (it as Map<*, *>)["reason"] == "incompatible" })
         assertTrue(errors.any { (it as Map<*, *>)["reason"] == "load_failure" })
         assertTrue(errors.any { (it as Map<*, *>)["packageName"] == initialization.packageName && it["reason"] == "load_failure" })
@@ -218,6 +216,78 @@ class ApkRemovalRuntimeTest : InstrumentationTestCase() {
         assertEquals(emptyList<Any>(), multiple.runtimeSnapshot()["errors"])
         assertEquals(emptyList<Any>(), restarted.listSources()) // Captured empty registry stays empty.
         assertSame(MihonExtensionRuntime.get(real), MihonExtensionRuntime.get(real))
+    }
+
+    fun testSourceIdCollisionRejectsEveryPackageRegardlessOfDiscoveryOrder() {
+        val real = instrumentation.targetContext
+        val first = fixture("org.example.collisionfirst")
+        val second = fixture("org.example.collisionsecond")
+        val third = fixture("org.example.collisionthird")
+        val independent = fixture("org.example.independentsource").apply {
+            applicationInfo!!.metaData!!.putString("tachiyomi.extension.class", InertFactorySource::class.java.name)
+        }
+        var packages = emptyList<PackageInfo>()
+        val manager = object : MockPackageManager() {
+            override fun getInstalledPackages(flags: Int) = packages
+            override fun getInstalledPackages(flags: PackageManager.PackageInfoFlags) = packages
+            override fun getPackageInfo(pkg: String, flags: Int) = packages.firstOrNull { it.packageName == pkg }
+                ?: throw PackageManager.NameNotFoundException(pkg)
+        }
+        val context = object : ContextWrapper(real) {
+            override fun getPackageManager(): PackageManager = manager
+            override fun getClassLoader() = InertManagementSource::class.java.classLoader!!
+        }
+        val candidates = listOf(first, second, third, independent)
+        candidates.forEach {
+            ApkTrustStore.get(real).approve(requireNotNull(ApkInspector(context).identity(it)))
+        }
+        for (order in listOf(candidates, candidates.reversed())) {
+            packages = order
+            val runtime = MihonExtensionRuntime(context)
+            val listed = runtime.listSources()
+            assertEquals(listOf(independent.packageName), listed.map { it["packageName"] })
+            val errors = runtime.runtimeSnapshot()["errors"] as List<*>
+            val rejected = errors.map { it as Map<*, *> }
+                .filter { it["reason"] == "collision" }
+                .map { it["packageName"] }.toSet()
+            assertEquals(setOf(first.packageName, second.packageName, third.packageName), rejected)
+            assertEquals(3, errors.size)
+        }
+    }
+
+    fun testDisplacedMultiSourcePackageCannotLeakOtherSourceIds() {
+        val real = instrumentation.targetContext
+        val factory = fixture("org.example.factorycollision").apply {
+            applicationInfo!!.metaData!!.putString("tachiyomi.extension.class", InertManagementFactory::class.java.name)
+        }
+        val firstClaim = fixture("org.example.firstclaim")
+        val secondClaim = fixture("org.example.secondclaim").apply {
+            applicationInfo!!.metaData!!.putString("tachiyomi.extension.class", InertFactorySource::class.java.name)
+        }
+        var packages = emptyList<PackageInfo>()
+        val manager = object : MockPackageManager() {
+            override fun getInstalledPackages(flags: Int) = packages
+            override fun getInstalledPackages(flags: PackageManager.PackageInfoFlags) = packages
+            override fun getPackageInfo(pkg: String, flags: Int) = packages.firstOrNull { it.packageName == pkg }
+                ?: throw PackageManager.NameNotFoundException(pkg)
+        }
+        val context = object : ContextWrapper(real) {
+            override fun getPackageManager(): PackageManager = manager
+            override fun getClassLoader() = InertManagementSource::class.java.classLoader!!
+        }
+        val claimants = listOf(factory, firstClaim, secondClaim)
+        claimants.forEach {
+            ApkTrustStore.get(real).approve(requireNotNull(ApkInspector(context).identity(it)))
+        }
+        for (order in listOf(claimants, claimants.reversed())) {
+            packages = order
+            val runtime = MihonExtensionRuntime(context)
+            assertEquals(emptyList<Any>(), runtime.listSources())
+            val errors = runtime.runtimeSnapshot()["errors"] as List<*>
+            val rejected = errors.map { (it as Map<*, *>)["packageName"] }.toSet()
+            assertEquals(claimants.map { it.packageName }.toSet(), rejected)
+            assertTrue(errors.all { (it as Map<*, *>)["reason"] == "collision" })
+        }
     }
 
     /** Reflection avoids adding shrinker roots to the target app's Zstd JNI ABI. */

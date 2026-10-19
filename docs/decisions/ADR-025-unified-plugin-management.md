@@ -1,6 +1,6 @@
 # ADR-025: Unified management, native trust and frozen source activation
 
-- Status: **Accepted; implementation present, device/provider verification pending**
+- Status: **Accepted; APK install/removal and Manga search/reading E2E reported on Android (2026-10-19); Novel/Anime verification separate**
 - Date: **2026-10-18**
 
 ## Context
@@ -68,6 +68,10 @@ Android has repository browsing/ownership, inspected APK trust and real package
 controls, plus exact-consented Novel custody actions. Windows/iOS remain unsupported
 for native management. No marketplace, process isolation, arbitrary module support
 or universal provider compatibility is claimed.
+
+A user-reported Android E2E run on 2026-10-19 confirmed APK install/removal and
+Manga plugin search/reader. It is separate from automated
+fixture coverage and does not prove all providers or future patches.
 
 Focused Dart/widget tests and analysis verify policy/UI contracts; Android debug
 compilation verifies native integration only. Native fixture authorship/compilation
