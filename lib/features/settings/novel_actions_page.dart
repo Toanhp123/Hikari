@@ -1,13 +1,13 @@
-import 'package:hikari/features/settings/plugin_acquisition_message.dart';
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
-import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
+import 'package:hikari/features/settings/plugin_labels.dart';
+import 'package:hikari/features/settings/novel_actions_view_model.dart';
+import 'package:hikari/domain/plugins/novel_plugins.dart';
 
 class NovelActionsPage extends StatefulWidget {
   const NovelActionsPage({
@@ -28,10 +28,17 @@ class _NovelActionsPageState extends State<NovelActionsPage>
   PluginId get id => widget.pluginId;
   NovelArtifactInventory? get current =>
       session.novels.where((row) => row.current.metadata.id == id).firstOrNull;
-  bool _busy = false, _foreground = true, _stageUsable = true;
+  bool _foreground = true, _stageUsable = true;
+  late final NovelActionsViewModel _actionsViewModel;
+  bool get _busy => _actionsViewModel.busy;
+  String? get _error => _actionsViewModel.error;
+  void _onViewModelChanged() {
+    if (mounted) setState(() {});
+  }
+
   int _epoch = 0;
   static int _sequence = 0;
-  String? _request, _error;
+  String? _request;
   StagedNovelArtifact? _stage;
   NovelArtifactInventory? _base;
   PluginOffer? _offer;
@@ -58,6 +65,8 @@ class _NovelActionsPageState extends State<NovelActionsPage>
   @override
   void initState() {
     super.initState();
+    _actionsViewModel = NovelActionsViewModel()
+      ..addListener(_onViewModelChanged);
     _foreground =
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
@@ -78,29 +87,8 @@ class _NovelActionsPageState extends State<NovelActionsPage>
     if (mounted) setState(() {});
   }
 
-  Future<void> _run(Future<void> Function() action) async {
-    if (!_active || _busy) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await action();
-    } on NovelAdmissionRejected catch (error) {
-      _error =
-          'Admission rejected: ${error.reason}. No compatibility or trust proven.';
-    } on NovelPublicationFailure {
-      /* App-owned sticky evidence rendered below. */
-    } catch (error) {
-      _error =
-          pluginAcquisitionMessage(error) ??
-          (error is FormatException
-              ? 'Unsupported Novel metadata or invalid stage evidence. No consent or code execution was inferred.'
-              : 'Novel action failed or outcome unknown. Refresh evidence; never automatically repeat code evaluation or infer rollback.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+  Future<void> _run(Future<void> Function() action) =>
+      _actionsViewModel.run(action, canStart: () => _active);
 
   List<Widget> _tuple(NovelArtifact artifact) {
     final m = artifact.metadata;
@@ -157,7 +145,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
     bool offer = false,
   }) async {
     final rows = await gateway.inventory();
-    if (!session.novelMutationsLocked) session.novels = List.unmodifiable(rows);
+    if (!session.novelMutationsLocked) session.replaceNovelInventory(rows);
     if (!_boundary(epoch) ||
         !_sameRow(current, displayed) ||
         !_sameOwner(owner) ||
@@ -193,7 +181,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
     final epoch = _epoch;
     final rows = await gateway.inventory();
     if (!_boundary(epoch) || !_sameOffer()) return;
-    session.novels = List.unmodifiable(rows);
+    session.replaceNovelInventory(rows);
     _base = current;
     final request =
         'novel-ui-${DateTime.now().microsecondsSinceEpoch}-${_sequence++}';
@@ -226,8 +214,8 @@ class _NovelActionsPageState extends State<NovelActionsPage>
         await gateway.cancel(request);
       } catch (_) {
         if (_active) {
-          setState(
-            () => _error = 'Cancellation not confirmed. Late staged bytes will be discarded.',
+          _actionsViewModel.showError(
+            'Cancellation not confirmed. Late staged bytes will be discarded.',
           );
         }
       }
@@ -318,6 +306,8 @@ class _NovelActionsPageState extends State<NovelActionsPage>
         unawaited(gateway.discard(stage.token).catchError((Object _) {}));
       }
     }
+    _actionsViewModel.removeListener(_onViewModelChanged);
+    _actionsViewModel.dispose();
     super.dispose();
   }
 
@@ -388,7 +378,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
             ],
             if (row != null) ...[
               Text(
-                'Stored status: ${row.status.name}; admission: ${row.admission.name}',
+                'Stored status: ${novelStatusLabel(row.status)}; admission: ${novelAdmissionLabel(row.admission)}',
               ),
               ..._tuple(row.current),
               if (!locked) ...[

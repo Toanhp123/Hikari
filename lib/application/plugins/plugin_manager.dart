@@ -9,17 +9,48 @@ final class PluginManager {
   PluginState _state;
   Future<void> _tail = Future.value();
   PluginState get state => _state;
+  bool _inventoryFresh = false;
+
+  /// False means persisted inventory may be stale; native actions still require
+  /// their independent identity/consent checks, and updates cannot be inferred.
+  bool get inventoryFresh => _inventoryFresh;
 
   static Future<PluginManager> open({
     required PluginStateStore store,
     required PluginRepositoryReader reader,
     required PluginInventory inventory,
+    bool allowUnavailableInventory = false,
   }) async {
     final loaded = await store.load();
     final manager = PluginManager._(store, reader, inventory, loaded);
+    // The app's management session may be opened for repository browsing when
+    // one native family is unavailable. Do not persist or claim an incomplete
+    // inventory; guard update candidates until successful reconciliation.
+    List<InstalledPlugin> installed;
+    try {
+      installed = await inventory.readInstalled();
+    } catch (_) {
+      if (!allowUnavailableInventory) rethrow;
+      // Mark historical Dart operations interrupted in memory only. Do not
+      // persist this incomplete native inventory or infer any native outcome.
+      manager._state = PluginState(
+        repositories: loaded.repositories,
+        installed: loaded.installed,
+        owners: loaded.owners,
+        approvals: loaded.approvals,
+        operations: loaded.operations.map(
+          (operation) => PendingPluginOperation(
+            operation.id,
+            operation.operation,
+            PluginOperationStatus.interrupted,
+          ),
+        ),
+      );
+      return manager;
+    }
     // Reconcile actual inventory; interrupted native work is never replayed.
     await manager._publish(
-      installed: await inventory.readInstalled(),
+      installed: installed,
       operations: loaded.operations.map(
         (o) => PendingPluginOperation(
           o.id,
@@ -28,6 +59,7 @@ final class PluginManager {
         ),
       ),
     );
+    manager._inventoryFresh = true;
     return manager;
   }
 
@@ -138,6 +170,7 @@ final class PluginManager {
 
   /// Candidate discovery is independent from permission to execute downloaded code.
   List<PluginOffer> get updateCandidates {
+    if (!_inventoryFresh) return const [];
     final installed = {for (final row in state.installed) row.id: row};
     return List.unmodifiable([
       for (final repository in state.repositories)
@@ -149,6 +182,11 @@ final class PluginManager {
   }
 
   Future<void> reconcileInstalled() => _serial(() async {
-    await _publish(installed: await _inventory.readInstalled());
+    // Failure leaves persisted installed state untouched and marks derived
+    // update suggestions unavailable rather than promoting stale evidence.
+    _inventoryFresh = false;
+    final installed = await _inventory.readInstalled();
+    await _publish(installed: installed);
+    _inventoryFresh = true;
   });
 }

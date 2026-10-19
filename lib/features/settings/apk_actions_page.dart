@@ -1,14 +1,14 @@
-import 'package:hikari/features/settings/plugin_acquisition_message.dart';
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/application/plugins/manage_apk_plugins.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
-import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
+import 'package:hikari/application/plugins/manage_apk_plugins.dart';
+import 'package:hikari/domain/plugins/apk_plugins.dart';
+import 'package:hikari/features/settings/apk_actions_view_model.dart';
+import 'package:hikari/features/settings/plugin_labels.dart';
 
 /// Explicit package actions. Never changes the running source registry.
 class ApkActionsPage extends StatefulWidget {
@@ -24,7 +24,13 @@ class _ApkActionsPageState extends State<ApkActionsPage>
   PluginManagement get session => widget.management;
   ApkPluginGateway get gateway => session.apkGateway!;
   bool _foreground = true;
-  bool _busy = false;
+  late final ApkActionsViewModel _actionsViewModel;
+  bool get _busy => _actionsViewModel.busy;
+  String? get _error => _actionsViewModel.error;
+  void _onViewModelChanged() {
+    if (mounted) setState(() {});
+  }
+
   bool _polling = false;
   bool _permission = false;
   bool _stageApproved = false;
@@ -32,7 +38,6 @@ class _ApkActionsPageState extends State<ApkActionsPage>
   int _epoch = 0;
   Timer? _timer;
   String? _request;
-  String? _error;
   StagedApk? _stage;
   PluginOffer? _offer;
   RepositoryId? _owner;
@@ -58,6 +63,8 @@ class _ApkActionsPageState extends State<ApkActionsPage>
   @override
   void initState() {
     super.initState();
+    _actionsViewModel = ApkActionsViewModel(session)
+      ..addListener(_onViewModelChanged);
     _foreground =
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
@@ -90,18 +97,16 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     }
     _polling = true;
     try {
-      await session.refreshApkOperations();
-      if (!_visible) return;
-      final permission = await gateway.canInstall();
-      if (!_visible) return;
-      final inventory = await gateway.inventory();
-      session.apks = List.unmodifiable(inventory);
-      if (mounted) setState(() => _permission = permission);
+      final permission = await _actionsViewModel.refreshNativeEvidence(
+        stillVisible: () => _visible,
+      );
+      if (permission != null && mounted) {
+        setState(() => _permission = permission);
+      }
     } catch (_) {
       if (mounted) {
-        setState(
-          () => _error =
-              'Could not refresh native evidence. No operation was replayed.',
+        _actionsViewModel.showError(
+          'Could not refresh native evidence. No operation was replayed.',
         );
       }
     } finally {
@@ -110,28 +115,11 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     }
   }
 
-  Future<void> _run(Future<void> Function() action) async {
-    if (!_active || _busy || _polling) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await action();
-    } on ApkApprovalReconciliationFailure {
-      _error = 'Native signer approval committed. Inventory reconciliation failed. Refresh evidence; do not repeat approval.';
-    } catch (error) {
-      _error = pluginAcquisitionMessage(error) ?? 'Action failed or outcome unknown. Refresh native operations before retrying; no success or rollback inferred.';
-      try {
-        await session.refreshApkOperations();
-      } catch (_) {
-        /* Keep last native evidence. */
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-      _schedule();
-    }
-  }
+  Future<void> _run(Future<void> Function() action) => _actionsViewModel.run(
+    action,
+    canStart: () => _active && !_polling,
+    onFinished: _schedule,
+  );
 
   Future<bool> _confirm(
     String title,
@@ -164,10 +152,12 @@ class _ApkActionsPageState extends State<ApkActionsPage>
       true;
 
   List<Widget> _identity(ApkPluginIdentity row) => [
-    SelectableText('${row.id.ecosystem.name} · ${row.id.upstreamId}'),
+    SelectableText(
+      '${pluginEcosystemLabel(row.id.ecosystem)} · ${row.id.upstreamId}',
+    ),
     Text('Version: ${row.version.name} (${row.version.code})'),
     Text(
-      'Compatibility: ${row.compatibility.name} · native trust: ${row.trust.name}',
+      'Compatibility: ${apkCompatibilityLabel(row.compatibility)} · native trust: ${apkTrustLabel(row.trust)}',
     ),
     SelectableText('Current signers: ${row.currentSigners.join(', ')}'),
     SelectableText(
@@ -189,7 +179,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
 
   Future<void> _checkStage(int epoch) async {
     final inventory = await gateway.inventory();
-    session.apks = List.unmodifiable(inventory);
+    session.replaceApkInventory(inventory);
     if (!_validBoundary(epoch) ||
         !_ownerUnchanged() ||
         _revision(_installed) != _installedAtStage ||
@@ -214,7 +204,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     if (_offer == null || _expectedSigner == null || _unresolved) {
       throw StateError('Owner or signer unavailable');
     }
-    session.apks = List.unmodifiable(await gateway.inventory());
+    session.replaceApkInventory(await gateway.inventory());
     if (!_active) return;
     _installedAtStage = _revision(_installed);
     if (_installed != null && !_supported(_installed!)) {
@@ -250,8 +240,8 @@ class _ApkActionsPageState extends State<ApkActionsPage>
         await gateway.cancel(request);
       } catch (_) {
         if (mounted) {
-          setState(
-            () => _error = 'Transfer cancellation not confirmed. Late bytes will be discarded.',
+          _actionsViewModel.showError(
+            'Transfer cancellation not confirmed. Late bytes will be discarded.',
           );
         }
       }
@@ -290,7 +280,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
         rethrow;
       }
     } else {
-      session.apks = List.unmodifiable(await gateway.inventory());
+      session.replaceApkInventory(await gateway.inventory());
       if (!_validBoundary(epoch) ||
           _revision(_installed) != _revision(displayed)) {
         throw StateError('Installed identity changed');
@@ -299,10 +289,10 @@ class _ApkActionsPageState extends State<ApkActionsPage>
         await session.apkActions!.approveInstalled(displayed);
       } on ApkApprovalReconciliationFailure {
         // Refresh OS-owned trust without repeating approval.
-        session.apks = List.unmodifiable(await gateway.inventory());
+        session.replaceApkInventory(await gateway.inventory());
         rethrow;
       }
-      session.apks = List.unmodifiable(await gateway.inventory());
+      session.replaceApkInventory(await gateway.inventory());
     }
   });
 
@@ -314,12 +304,12 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     final kind = _installed == null
         ? PluginOperation.install
         : PluginOperation.update;
-    if (!await _confirm('Submit ${kind.name}?', [
+    if (!await _confirm('Submit ${pluginOperationLabel(kind)}?', [
       ..._identity(_stage!.identity),
       const Text(
         'Android confirmation and verified native result are still required. Running sources stay frozen; restart may be required.',
       ),
-    ], 'Submit ${kind.name}')) {
+    ], 'Submit ${pluginOperationLabel(kind)}')) {
       return;
     }
     await _checkStage(epoch);
@@ -351,7 +341,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     ], 'Open system removal')) {
       return;
     }
-    session.apks = List.unmodifiable(await gateway.inventory());
+    session.replaceApkInventory(await gateway.inventory());
     if (!_validBoundary(epoch) ||
         _revision(_installed) != _revision(displayed) ||
         _unresolved) {
@@ -480,6 +470,8 @@ class _ApkActionsPageState extends State<ApkActionsPage>
         unawaited(gateway.discardStaged(stage.token).catchError((Object _) {}));
       }
     }
+    _actionsViewModel.removeListener(_onViewModelChanged);
+    _actionsViewModel.dispose();
     // Submitted sessions belong to native journal, never automatically cancelled.
     super.dispose();
   }
@@ -513,7 +505,9 @@ class _ApkActionsPageState extends State<ApkActionsPage>
             )
           else ...[
             if (id != null)
-              SelectableText('${id!.ecosystem.name} · ${id!.upstreamId}'),
+              SelectableText(
+                '${pluginEcosystemLabel(id!.ecosystem)} · ${id!.upstreamId}',
+              ),
             if (id?.ecosystem == PluginEcosystem.anime)
               const Text(
                 'Runtime deferred (runtimeDeferred). APK management does not enable playback.',
@@ -627,10 +621,10 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SelectableText(
-                        '${operation.pluginId.ecosystem.name} · ${operation.pluginId.upstreamId}',
+                        '${pluginEcosystemLabel(operation.pluginId.ecosystem)} · ${operation.pluginId.upstreamId}',
                       ),
                       SelectableText(
-                        '${operation.kind.name} · ${operation.status.name} · version ${operation.versionCode}\nSigner: ${operation.signer}\nOperation: ${operation.id}',
+                        '${pluginOperationLabel(operation.kind)} · ${apkInstallStatusLabel(operation.status)} · version ${operation.versionCode}\nSigner: ${operation.signer}\nOperation: ${operation.id}',
                       ),
                       if (operation.reason != null)
                         Text('Reason: ${operation.reason}'),

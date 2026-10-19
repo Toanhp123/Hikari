@@ -67,6 +67,27 @@ Managed class-loading/initialization failures can reject a package, and managed 
 
 `QUERY_ALL_PACKAGES` is currently used for package discovery. Hikari is not targeting Play Store distribution, so the v1 runtime does not add repository-specific `<queries>` generation solely to satisfy Play policy.
 
+## Plugin management cleanup boundaries (2026-10-19)
+
+- `PluginManagement` owns immutable-inventory list replacements. The APK and Novel
+  native evidence readers fail independently: one family failing retains that
+  family's last confirmed snapshot without blocking the other family from loading.
+- Combined persisted `PluginManager` inventory reconciliation remains **atomic**.
+  If any family is unavailable, do not publish a partial installed list and
+  do not treat missing rows as removal. The manager may open for browsing and
+  native-guarded actions using its previous persisted state, but sets
+  `inventoryFresh == false`; update candidates are disabled until full
+  reconciliation succeeds. Native trust and mutation evidence are never inferred
+  from the persisted mirror.
+- `PluginManagerViewModel` owns repository-browsing query, filters, and command
+  status. Action ViewModels own presentation-level busy/error state. Consent
+  dialogs, foreground/epoch guards and platform-authoritative work remain in
+  explicit action pages and application/native gateways; view models never
+  grant trust, publish a native result or hot-replace running sources.
+- `ApkStages.kt` owns process-local inspected staging; `PluginTransport.kt`
+  owns bounded HTTP transfer. Splitting the source files does not change the
+  native channel protocol or package install lifecycle.
+
 ## Bridge operations
 
 The platform bridge exposes five operations:

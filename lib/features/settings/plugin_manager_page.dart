@@ -1,11 +1,12 @@
-import 'package:hikari/domain/plugins/novel_plugins.dart';
-import 'package:hikari/features/settings/apk_actions_page.dart';
-import 'package:hikari/features/settings/novel_actions_page.dart';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
+import 'package:hikari/features/settings/apk_actions_page.dart';
+import 'package:hikari/features/settings/novel_actions_page.dart';
+import 'package:hikari/features/settings/plugin_labels.dart';
+import 'package:hikari/features/settings/plugin_manager_view_model.dart';
 
 String _version(PluginVersion value) => switch (value) {
   ApkPluginVersion() => '${value.name} (${value.code})',
@@ -21,157 +22,55 @@ class PluginManagerPage extends StatefulWidget {
 }
 
 class _PluginManagerPageState extends State<PluginManagerPage> {
-  bool _busy = true;
-  String? _error;
-  String _query = '';
-  String? _language;
-  PluginEcosystem? _ecosystem;
-  int _tab = 0;
+  late PluginManagerViewModel _viewModel;
   PluginManagement get session => widget.management;
+  bool get _busy => _viewModel.busy;
+  Future<void> _refresh() => _viewModel.refresh();
+
   @override
   void initState() {
     super.initState();
+    _attachModel();
+  }
+
+  void _attachModel() {
+    _viewModel = PluginManagerViewModel(session)..addListener(_rebuild);
     _refresh();
   }
 
-  Future<void> _refresh() => _run(session.refresh);
-  Future<void> _run(Future<void> Function() action) async {
-    if (mounted) {
-      setState(() {
-        _busy = true;
-        _error = null;
-      });
-    }
-    try {
-      await action();
-    } catch (_) {
-      _error = 'Could not save plugin changes. Retry.';
-    }
-    if (mounted) setState(() => _busy = false);
+  void _rebuild() {
+    if (mounted) setState(() {});
   }
 
-  String _name(PluginId id) {
-    final manager = session.manager!;
-    return manager.offersFor(id).firstOrNull?.name ??
-        session.novels
-            .where((n) => n.current.metadata.id == id)
-            .firstOrNull
-            ?.current
-            .metadata
-            .name ??
-        session.novelRuntime?.loaded
-            .where(
-              (n) =>
-                  n.id == id.upstreamId &&
-                  id.ecosystem == PluginEcosystem.novel,
-            )
-            .firstOrNull
-            ?.name ??
-        id.upstreamId;
+  @override
+  void didUpdateWidget(covariant PluginManagerPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.management, widget.management)) {
+      _viewModel.removeListener(_rebuild);
+      _viewModel.dispose();
+      _attachModel();
+    }
   }
 
-  String _runtime(PluginId id) {
-    if (id.ecosystem == PluginEcosystem.anime) {
-      return 'Runtime deferred (runtimeDeferred)';
-    }
-    if (id.ecosystem == PluginEcosystem.novel) {
-      final evidence = session.novelRuntime;
-      final current = session.novels
-          .where((n) => n.current.metadata.id == id)
-          .firstOrNull;
-      final loaded = evidence?.loaded
-          .where((n) => n.id == id.upstreamId)
-          .firstOrNull;
-      if (loaded != null) {
-        if (current == null) {
-          return loaded.artifact == null
-              ? 'Loaded packaged source'
-              : 'Loaded removed revision; restart required';
-        }
-        return evidence!.loadedCurrent(current.current)
-            ? 'Current revision loaded; compatibility not proven'
-            : 'Different revision loaded; restart required';
-      }
-      final issue = evidence?.issues
-          .where((n) => n.artifact.metadata.id == id)
-          .firstOrNull;
-      return issue?.reason ??
-          'Not loaded (${evidence?.initialization.name ?? 'unavailable'})';
-    }
-    final running = session.apkRuntime?.loaded
-        .where((n) => n.id == id)
-        .firstOrNull;
-    final installed = session.apks.where((n) => n.id == id).firstOrNull;
-    if (running != null) {
-      if (installed == null) return 'Loaded removed revision; restart required';
-      return installed.version.code == running.versionCode &&
-              installed.currentSigners.length == 1 &&
-              installed.currentSigners.single == running.signer
-          ? 'Current revision loaded'
-          : 'Different revision loaded; restart required';
-    }
-    return session.apkRuntime?.errors[id.upstreamId] ??
-        (session.apkRuntime?.initialized == true
-            ? 'Not loaded'
-            : 'Runtime not initialized');
-  }
-
-  List<PluginId> _rows(
-    Map<PluginId, List<PluginOffer>> catalog,
-    Map<PluginId, String> names,
-  ) {
-    final manager = session.manager!;
-    final ids = <PluginId>{};
-    if (_tab == 0) {
-      ids.addAll(catalog.keys);
-    } else if (_tab == 1) {
-      ids.addAll(session.apks.map((a) => a.id));
-      ids.addAll(session.novels.map((n) => n.current.metadata.id));
-      ids.addAll(session.apkRuntime?.loaded.map((r) => r.id) ?? <PluginId>[]);
-      ids.addAll(
-        session.novelRuntime?.loaded.map(
-              (r) => PluginId(PluginEcosystem.novel, r.id),
-            ) ??
-            <PluginId>[],
-      );
-    } else {
-      ids.addAll(manager.updateCandidates.map((offer) => offer.id));
-    }
-    return ids.where((id) {
-      final offers = catalog[id] ?? const <PluginOffer>[];
-      final searchable = [
-        names[id] ?? id.upstreamId,
-        id.upstreamId,
-        ...offers.expand((o) => o.sources.map((s) => s.name)),
-      ].join(' ').toLowerCase();
-      return (_ecosystem == null || id.ecosystem == _ecosystem) &&
-          searchable.contains(_query.toLowerCase()) &&
-          (_language == null ||
-              offers.any((o) => o.sources.any((s) => s.language == _language)));
-    }).toList()..sort(
-      (a, b) => (names[a] ?? a.upstreamId).compareTo(names[b] ?? b.upstreamId),
-    );
+  @override
+  void dispose() {
+    _viewModel.removeListener(_rebuild);
+    _viewModel.dispose();
+    super.dispose();
   }
 
   Future<void> _details(PluginId id) async {
     final manager = session.manager!;
-    final offers = manager.offersFor(id);
-    final apk = session.apks.where((a) => a.id == id).firstOrNull;
-    final novel = session.novels
-        .where((n) => n.current.metadata.id == id)
-        .firstOrNull;
-    final runningApk = session.apkRuntime?.loaded
-        .where((a) => a.id == id)
-        .firstOrNull;
-    final runningNovel = session.novelRuntime?.loaded
-        .where(
-          (a) => id.ecosystem == PluginEcosystem.novel && a.id == id.upstreamId,
-        )
-        .firstOrNull;
+    final details = _viewModel.detailsFor(id);
+    final offers = details.offers;
+    final apk = details.apk;
+    final novel = details.novel;
+    final runningApk = details.runningApk;
+    final runningNovel = details.runningNovel;
     final selected = await showDialog<RepositoryId>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_name(id)),
+        title: Text(_viewModel.nameFor(id)),
         content: SizedBox(
           width: 480,
           child: SingleChildScrollView(
@@ -179,23 +78,27 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                SelectableText('${id.ecosystem.name} · ${id.upstreamId}'),
+                SelectableText(
+                  '${pluginEcosystemLabel(id.ecosystem)} · ${id.upstreamId}',
+                ),
                 Text('Owner: ${manager.state.owners[id] ?? 'Not selected'}'),
-                Text('Runtime: ${_runtime(id)}'),
+                Text('Runtime: ${_viewModel.runtimeFor(id)}'),
                 if (apk != null) ...[
                   Text('Installed: ${_version(apk.version)}'),
-                  Text('Native trust: ${apk.trust.name}'),
-                  Text('Compatibility: ${apk.compatibility.name}'),
+                  Text('Native trust: ${apkTrustLabel(apk.trust)}'),
+                  Text(
+                    'Compatibility: ${apkCompatibilityLabel(apk.compatibility)}',
+                  ),
                   SelectableText(
                     'Current signers: ${apk.currentSigners.join(', ')}',
                   ),
                 ],
                 if (novel != null) ...[
                   Text(
-                    'Installed: ${_version(novel.current.metadata.version)} · ${novel.status.name}',
+                    'Installed: ${_version(novel.current.metadata.version)} · ${novelStatusLabel(novel.status)}',
                   ),
                   Text(
-                    'Admission: ${novel.admission.name}; provider compatibility unknown',
+                    'Admission: ${novelAdmissionLabel(novel.admission)}; provider compatibility unknown',
                   ),
                   SelectableText('Digest: ${novel.current.digest}'),
                   SelectableText(
@@ -240,7 +143,7 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                           ),
                         Text('Available: ${_version(offer.version)}'),
                         Text(
-                          'Offer compatibility: ${offer.compatibility.name}',
+                          'Offer compatibility: ${pluginCompatibilityLabel(offer.compatibility)}',
                         ),
                         for (final source in offer.sources)
                           Text(
@@ -342,7 +245,7 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
         );
         if (confirmed != true || !mounted) return;
       }
-      await _run(() => manager.selectOwner(id, selected));
+      await _viewModel.selectOwner(id, selected);
     }
   }
 
@@ -364,7 +267,10 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                   decoration: const InputDecoration(labelText: 'Ecosystem'),
                   items: PluginEcosystem.values
                       .map(
-                        (e) => DropdownMenuItem(value: e, child: Text(e.name)),
+                        (e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(pluginEcosystemLabel(e)),
+                        ),
                       )
                       .toList(),
                   onChanged: (value) => update(() => ecosystem = value),
@@ -409,13 +315,11 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
       ),
     );
     if (result != null && mounted) {
-      await _run(() async {
-        await session.manager!.addRepository(result.url, result.ecosystem);
-      });
+      await _viewModel.addRepository(result.url, result.ecosystem);
     }
   }
 
-  Future<void> _remove(PluginRepository repository) async {
+  Future<void> _removeRepository(PluginRepository repository) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -436,40 +340,17 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
       ),
     );
     if (confirmed == true && mounted) {
-      await _run(() => session.manager!.removeRepository(repository.id));
+      await _viewModel.removeRepository(repository.id);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final manager = session.manager;
-    // One catalog pass per build for names, language filters and available offers.
-    final catalog = <PluginId, List<PluginOffer>>{};
-    final names = <PluginId, String>{};
-    final languageSet = <String>{};
-    for (final repository
-        in manager?.state.repositories ?? <PluginRepository>[]) {
-      for (final offer in repository.snapshot?.offers ?? <PluginOffer>[]) {
-        (catalog[offer.id] ??= []).add(offer);
-        names.putIfAbsent(offer.id, () => offer.name);
-        languageSet.addAll(offer.sources.map((source) => source.language));
-      }
-    }
-    for (final row in session.novels) {
-      names.putIfAbsent(
-        row.current.metadata.id,
-        () => row.current.metadata.name,
-      );
-    }
-    for (final row in session.novelRuntime?.loaded ?? <LoadedNovelRevision>[]) {
-      names.putIfAbsent(
-        PluginId(PluginEcosystem.novel, row.id),
-        () => row.name,
-      );
-    }
-    final languages = languageSet.toList()..sort();
-    if (_language != null && !languageSet.contains(_language)) _language = null;
-    final rows = manager == null ? <PluginId>[] : _rows(catalog, names);
+    final listing = _viewModel.listing;
+    final names = listing.names;
+    final languages = listing.languages;
+    final rows = listing.rows;
     return HikariScaffold(
       appBar: AppBar(title: const Text('Plugins')),
       body: Align(
@@ -522,7 +403,8 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                           const LinearProgressIndicator(
                             semanticsLabel: 'Loading plugins',
                           ),
-                        if (_error ?? session.error case final String error)
+                        if (_viewModel.error ?? session.error
+                            case final String error)
                           Semantics(
                             liveRegion: true,
                             child: Text(
@@ -532,6 +414,10 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                               ),
                             ),
                           ),
+                        if (session.apkEvidenceError != null)
+                          Text(session.apkEvidenceError!),
+                        if (session.novelEvidenceError != null)
+                          Text(session.novelEvidenceError!),
                         if (manager != null) ...[
                           if (session.novelRuntime?.failure != null)
                             Text(
@@ -548,9 +434,8 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                               ].indexed)
                                 ChoiceChip(
                                   label: Text(label),
-                                  selected: _tab == index,
-                                  onSelected: (_) =>
-                                      setState(() => _tab = index),
+                                  selected: _viewModel.tab == index,
+                                  onSelected: (_) => _viewModel.setTab(index),
                                 ),
                             ],
                           ),
@@ -558,11 +443,10 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                             decoration: const InputDecoration(
                               labelText: 'Search plugins or sources',
                             ),
-                            onChanged: (value) =>
-                                setState(() => _query = value),
+                            onChanged: _viewModel.setQuery,
                           ),
                           DropdownButtonFormField<PluginEcosystem>(
-                            initialValue: _ecosystem,
+                            initialValue: _viewModel.ecosystem,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Ecosystem',
@@ -575,19 +459,18 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                               ...PluginEcosystem.values.map(
                                 (e) => DropdownMenuItem(
                                   value: e,
-                                  child: Text(e.name),
+                                  child: Text(pluginEcosystemLabel(e)),
                                 ),
                               ),
                             ],
-                            onChanged: (value) =>
-                                setState(() => _ecosystem = value),
+                            onChanged: _viewModel.setEcosystem,
                           ),
                           DropdownButtonFormField<String>(
                             key: ValueKey((
                               languages.join(String.fromCharCode(0)),
-                              _language,
+                              _viewModel.language,
                             )),
-                            initialValue: _language,
+                            initialValue: _viewModel.language,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Source language (when declared)',
@@ -602,8 +485,7 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                                     DropdownMenuItem(value: l, child: Text(l)),
                               ),
                             ],
-                            onChanged: (value) =>
-                                setState(() => _language = value),
+                            onChanged: _viewModel.setLanguage,
                           ),
                           const SizedBox(height: HikariSpacing.md),
                           if (rows.isEmpty)
@@ -628,7 +510,7 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                       child: ListTile(
                         title: Text(names[id] ?? id.upstreamId),
                         subtitle: Text(
-                          '${id.ecosystem.name} · ${id.upstreamId}\n${_runtime(id)}',
+                          '${pluginEcosystemLabel(id.ecosystem)} · ${id.upstreamId}\n${_viewModel.runtimeFor(id)}',
                         ),
                         onTap: _busy ? null : () => _details(id),
                       ),
@@ -660,7 +542,7 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${repository.ecosystem.name} · ${repository.snapshot?.name ?? 'Not refreshed'}',
+                                    '${pluginEcosystemLabel(repository.ecosystem)} · ${repository.snapshot?.name ?? 'Not refreshed'}',
                                   ),
                                   SelectableText(repository.id.toString()),
                                   if (repository.refreshError != null)
@@ -678,17 +560,17 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                                       TextButton(
                                         onPressed: _busy
                                             ? null
-                                            : () => _run(
-                                                () => manager.refresh(
-                                                  repository.id,
-                                                ),
-                                              ),
+                                            : () =>
+                                                  _viewModel.refreshRepository(
+                                                    repository.id,
+                                                  ),
                                         child: const Text('Refresh repository'),
                                       ),
                                       TextButton(
                                         onPressed: _busy
                                             ? null
-                                            : () => _remove(repository),
+                                            : () =>
+                                                  _removeRepository(repository),
                                         child: const Text('Remove repository'),
                                       ),
                                     ],
