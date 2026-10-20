@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/novel_actions_view_model.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/widgets/novel_artifact_details.dart';
+import 'package:hikari/features/plugins/widgets/plugin_action_section.dart';
+import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
 
 class NovelActionsPage extends StatefulWidget {
   const NovelActionsPage({
@@ -314,153 +317,222 @@ class _NovelActionsPageState extends State<NovelActionsPage>
         .singleOrNull;
     return HikariScaffold(
       appBar: AppBar(title: const Text('Novel actions')),
-      body: ListView(
-        padding: const EdgeInsets.all(HikariSpacing.lg),
-        children: [
-          if (!available)
-            const Text(
-              'Novel actions unavailable. Android management session required.',
-            )
-          else ...[
-            SelectableText(id.upstreamId),
-            const Text(
-              'Staging never evaluates JavaScript. Every mutation requires explicit consent. No source hot replacement.',
-            ),
-            if (_busy) const Text('Action in progress'),
-            if (_error != null)
-              Semantics(liveRegion: true, child: Text(_error!)),
-            if (session.novelActionError != null)
-              Text(session.novelActionError!),
-            OutlinedButton(
-              onPressed: !_busy && _foreground
-                  ? () => _run(session.refreshNovelEvidence)
-                  : null,
-              child: const Text('Refresh Novel evidence'),
-            ),
-            if (failure != null) ...[
-              Text(
-                failure.kind == NovelPublicationFailureKind.publicationUnknown
-                    ? 'Publication unknown. Last-confirmed pointers are not proof of current disk state. Native process restart required; all Novel mutations locked.'
-                    : 'Pointers committed; directory durability unknown. Native process restart required; all Novel mutations locked.',
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
+            padding: const EdgeInsets.all(HikariSpacing.lg),
+            children: [
+              const HikariSectionHeader(
+                title: 'Novel bundle management',
+                description: 'Review exact origins and revisions before granting consent.',
               ),
-              if (failure.inventory == null)
-                const Text(
-                  'Failure evidence malformed or unavailable; mutation lock retained.',
-                ),
-              for (final item
-                  in failure.inventory ?? <NovelArtifactInventory>[]) ...[
-                Text(
-                  failure.kind == NovelPublicationFailureKind.publicationUnknown
-                      ? 'Last-confirmed inventory'
-                      : 'Committed inventory',
-                ),
-                NovelArtifactDetails(artifact: item.current),
-                if (item.previous != null)
-                  NovelArtifactDetails(artifact: item.previous!),
-              ],
-              for (final pointer
-                  in failure.attempted ?? <NovelAttemptedPointer>[]) ...[
-                const Text('Attempted pointers — unconfirmed'),
-                NovelArtifactDetails(artifact: pointer.current),
-                if (pointer.previous != null)
-                  NovelArtifactDetails(artifact: pointer.previous!),
-              ],
-            ],
-            if (row != null) ...[
-              Text(
-                'Stored status: ${novelStatusLabel(row.status)}; admission: ${novelAdmissionLabel(row.admission)}',
-              ),
-              NovelArtifactDetails(artifact: row.current),
-              if (!locked) ...[
-                if (row.status == NovelArtifactStatus.ready &&
-                    row.admission == NovelAdmission.unknown &&
-                    row.current.metadata.repositoryId == owner)
-                  OutlinedButton(
-                    onPressed: enabled ? () => _currentAction('admit') : null,
-                    child: const Text('Consent and admit current'),
-                  ),
-                if (row.previous != null &&
-                    row.previousStatus == NovelArtifactStatus.ready)
-                  OutlinedButton(
-                    onPressed: enabled
-                        ? () => _currentAction('rollback')
-                        : null,
-                    child: const Text('Rollback Novel'),
-                  ),
-                OutlinedButton(
-                  onPressed: enabled ? () => _currentAction('uninstall') : null,
-                  child: const Text('Remove Novel bundle'),
-                ),
-              ],
-            ],
-            if (!locked &&
-                stage == null &&
-                offer != null &&
-                (offer.siteUrl == null ||
-                    offer.customJsUrl != null ||
-                    offer.customCssUrl != null))
-              const Text(
-                'This upstream Novel plugin requires an unsupported origin or auxiliary CSS/JS. Download is unavailable until its requirements are supported.',
-              ),
-            if (!locked &&
-                stage == null &&
-                offer != null &&
-                offer.siteUrl != null &&
-                offer.customJsUrl == null &&
-                offer.customCssUrl == null) ...[
-              TextFormField(
-                initialValue: _origins,
-                maxLines: 3,
-                onChanged: (value) => _origins = value,
-                decoration: const InputDecoration(
-                  labelText: 'Exact HTTPS origins (one per line)',
-                  helperText: 'Site origin only by default. Additional origins require your explicit entry; no CDN or wildcard inference.',
-                ),
-              ),
-              OutlinedButton(
-                onPressed: enabled ? _download : null,
-                child: const Text('Download inert Novel bundle'),
-              ),
-            ],
-            if (_request != null)
-              OutlinedButton(
-                onPressed: _cancel,
-                child: const Text('Cancel download'),
-              ),
-            if (stage != null) ...[
-              const Text('Staged inert bundle'),
-              NovelArtifactDetails(artifact: stage.artifact),
-              if (!locked && _stageUsable && _sameOffer())
-                FilledButton(
-                  onPressed: enabled ? _install : null,
-                  child: const Text('Consent and install Novel'),
+              if (!available)
+                const PluginNotice(
+                  message: 'Novel actions unavailable. Android management session required.',
+                  error: true,
                 )
-              else
-                const Text(
-                  'Stage no longer actionable. Do not repeat evaluation; refresh evidence and discard.',
+              else ...[
+                SelectableText(id.upstreamId),
+                const SizedBox(height: HikariSpacing.sm),
+                const PluginNotice(
+                  message: 'Staging never evaluates JavaScript. Every mutation requires explicit consent. No source hot replacement.',
                 ),
-              OutlinedButton(
-                onPressed: !_busy ? () => _run(_discard) : null,
-                child: const Text('Discard Novel stage'),
-              ),
+                if (_busy) ...[
+                  const SizedBox(height: HikariSpacing.md),
+                  const Text('Action in progress'),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: HikariSpacing.sm),
+                  PluginNotice(message: _error!, error: true),
+                ],
+                if (session.novelActionError != null) ...[
+                  const SizedBox(height: HikariSpacing.sm),
+                  PluginNotice(message: session.novelActionError!, error: true),
+                ],
+                const SizedBox(height: HikariSpacing.md),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton.icon(
+                    onPressed: !_busy && _foreground
+                        ? () => _run(session.refreshNovelEvidence)
+                        : null,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Refresh Novel evidence'),
+                  ),
+                ),
+                const SizedBox(height: HikariSpacing.xl),
+                if (failure != null)
+                  PluginActionSection(
+                    title: 'Publication recovery',
+                    children: [
+                      PluginNotice(
+                        error: true,
+                        message:
+                            failure.kind ==
+                                NovelPublicationFailureKind.publicationUnknown
+                            ? 'Publication unknown. Last-confirmed pointers are not proof of current disk state. Native process restart required; all Novel mutations locked.'
+                            : 'Pointers committed; directory durability unknown. Native process restart required; all Novel mutations locked.',
+                      ),
+                      if (failure.inventory == null)
+                        const PluginNotice(
+                          error: true,
+                          message: 'Failure evidence malformed or unavailable; mutation lock retained.',
+                        ),
+                      for (final item
+                          in failure.inventory ??
+                              <NovelArtifactInventory>[]) ...[
+                        Text(
+                          failure.kind ==
+                                  NovelPublicationFailureKind.publicationUnknown
+                              ? 'Last-confirmed inventory'
+                              : 'Committed inventory',
+                        ),
+                        NovelArtifactDetails(artifact: item.current),
+                        if (item.previous != null)
+                          NovelArtifactDetails(artifact: item.previous!),
+                      ],
+                      for (final pointer
+                          in failure.attempted ??
+                              <NovelAttemptedPointer>[]) ...[
+                        const Text('Attempted pointers — unconfirmed'),
+                        NovelArtifactDetails(artifact: pointer.current),
+                        if (pointer.previous != null)
+                          NovelArtifactDetails(artifact: pointer.previous!),
+                      ],
+                    ],
+                  ),
+                if (row != null)
+                  PluginActionSection(
+                    title: 'Stored bundle',
+                    children: [
+                      Text(
+                        'Stored status: ${novelStatusLabel(row.status)}; admission: ${novelAdmissionLabel(row.admission)}',
+                      ),
+                      NovelArtifactDetails(artifact: row.current),
+                      if (!locked) ...[
+                        if (row.status == NovelArtifactStatus.ready &&
+                            row.admission == NovelAdmission.unknown &&
+                            row.current.metadata.repositoryId == owner)
+                          OutlinedButton(
+                            onPressed: enabled
+                                ? () => _currentAction('admit')
+                                : null,
+                            child: const Text('Consent and admit current'),
+                          ),
+                        if (row.previous != null &&
+                            row.previousStatus == NovelArtifactStatus.ready)
+                          OutlinedButton(
+                            onPressed: enabled
+                                ? () => _currentAction('rollback')
+                                : null,
+                            child: const Text('Rollback Novel'),
+                          ),
+                        OutlinedButton.icon(
+                          onPressed: enabled
+                              ? () => _currentAction('uninstall')
+                              : null,
+                          icon: const Icon(Icons.delete_outline_rounded),
+                          label: const Text('Remove Novel bundle'),
+                        ),
+                      ],
+                    ],
+                  ),
+                if (!locked &&
+                    stage == null &&
+                    offer != null &&
+                    (offer.siteUrl == null ||
+                        offer.customJsUrl != null ||
+                        offer.customCssUrl != null)) ...[
+                  const PluginNotice(
+                    message: 'This upstream Novel plugin requires an unsupported origin or auxiliary CSS/JS. Download is unavailable until its requirements are supported.',
+                  ),
+                  const SizedBox(height: HikariSpacing.xl),
+                ],
+                if (!locked &&
+                    stage == null &&
+                    offer != null &&
+                    offer.siteUrl != null &&
+                    offer.customJsUrl == null &&
+                    offer.customCssUrl == null)
+                  PluginActionSection(
+                    title: 'Download bundle',
+                    description: 'Confirm the exact permitted HTTPS origins.',
+                    children: [
+                      TextFormField(
+                        initialValue: _origins,
+                        maxLines: 3,
+                        onChanged: (value) => _origins = value,
+                        decoration: const InputDecoration(
+                          labelText: 'Exact HTTPS origins (one per line)',
+                          helperText: 'Site origin only by default. Additional origins require your explicit entry; no CDN or wildcard inference.',
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: enabled ? _download : null,
+                        icon: const Icon(Icons.download_rounded),
+                        label: const Text('Download inert Novel bundle'),
+                      ),
+                    ],
+                  ),
+                if (_request != null) ...[
+                  OutlinedButton(
+                    onPressed: _cancel,
+                    child: const Text('Cancel download'),
+                  ),
+                  const SizedBox(height: HikariSpacing.md),
+                ],
+                if (stage != null)
+                  PluginActionSection(
+                    title: 'Staged inert bundle',
+                    children: [
+                      NovelArtifactDetails(artifact: stage.artifact),
+                      if (!locked && _stageUsable && _sameOffer())
+                        FilledButton(
+                          onPressed: enabled ? _install : null,
+                          child: const Text('Consent and install Novel'),
+                        )
+                      else
+                        const PluginNotice(
+                          message: 'Stage no longer actionable. Do not repeat evaluation; refresh evidence and discard.',
+                        ),
+                      OutlinedButton(
+                        onPressed: !_busy ? () => _run(_discard) : null,
+                        child: const Text('Discard Novel stage'),
+                      ),
+                    ],
+                  ),
+                const HikariSectionHeader(
+                  title: 'Runtime evidence',
+                  description: 'Stored inventory and admission are independent. Changes never replace already captured code.',
+                ),
+                PluginNotice(
+                  message:
+                      'Runtime: ${session.novelRuntime == null ? 'unavailable' : novelRuntimeInitializationLabel(session.novelRuntime!.initialization)}',
+                ),
+                for (final loaded
+                    in session.novelRuntime?.loaded.where(
+                          (row) => row.id == id.upstreamId,
+                        ) ??
+                        <LoadedNovelRevision>[]) ...[
+                  const SizedBox(height: HikariSpacing.sm),
+                  if (loaded.artifact != null)
+                    PluginActionSection(
+                      title: 'Frozen loaded revision',
+                      children: [
+                        NovelArtifactDetails(artifact: loaded.artifact!),
+                      ],
+                    )
+                  else
+                    const PluginNotice(
+                      message: 'A loaded revision was reported without artifact details.',
+                    ),
+                ],
+              ],
             ],
-            const Text(
-              'Runtime evidence is independent of stored inventory and admission. Changes never replace already captured code.',
-            ),
-            Text(
-              'Runtime: ${session.novelRuntime == null ? 'unavailable' : novelRuntimeInitializationLabel(session.novelRuntime!.initialization)}',
-            ),
-            for (final loaded
-                in session.novelRuntime?.loaded.where(
-                      (row) => row.id == id.upstreamId,
-                    ) ??
-                    <LoadedNovelRevision>[]) ...[
-              const Text('Frozen loaded revision'),
-              if (loaded.artifact != null)
-                NovelArtifactDetails(artifact: loaded.artifact!),
-            ],
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }

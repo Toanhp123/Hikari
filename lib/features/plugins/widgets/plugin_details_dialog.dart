@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/plugin_manager_view_model.dart';
+import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
 
 String _version(PluginVersion value) => switch (value) {
   ApkPluginVersion() => '${value.name} (${value.code})',
@@ -50,12 +52,15 @@ final class PluginDetailsDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              const HikariSectionHeader(title: 'Identity'),
               SelectableText(
                 '${pluginEcosystemLabel(id.ecosystem)} · ${id.upstreamId}',
               ),
               Text('Owner: ${owner ?? 'Not selected'}'),
               Text('Runtime: $runtime'),
               if (apk != null) ...[
+                const SizedBox(height: HikariSpacing.lg),
+                const HikariSectionHeader(title: 'Installed package'),
                 Text('Installed: ${_version(apk.version)}'),
                 Text('Native trust: ${apkTrustLabel(apk.trust)}'),
                 Text(
@@ -66,6 +71,8 @@ final class PluginDetailsDialog extends StatelessWidget {
                 ),
               ],
               if (novel != null) ...[
+                const SizedBox(height: HikariSpacing.lg),
+                const HikariSectionHeader(title: 'Stored bundle'),
                 Text(
                   'Installed: ${_version(novel.current.metadata.version)} · ${novelStatusLabel(novel.status)}',
                 ),
@@ -81,11 +88,16 @@ final class PluginDetailsDialog extends StatelessWidget {
                     'Previous: ${_version(novel.previous!.metadata.version)}',
                   ),
               ],
-              if (runningApk != null)
+              if (runningApk != null) ...[
+                const SizedBox(height: HikariSpacing.lg),
+                const HikariSectionHeader(title: 'Loaded runtime'),
                 SelectableText(
                   'Loaded: ${runningApk.versionCode} · ${runningApk.signer}',
                 ),
+              ],
               if (runningNovel?.artifact != null) ...[
+                const SizedBox(height: HikariSpacing.lg),
+                const HikariSectionHeader(title: 'Loaded runtime'),
                 Text(
                   'Loaded: ${_version(runningNovel!.artifact!.metadata.version)}',
                 ),
@@ -102,36 +114,67 @@ final class PluginDetailsDialog extends StatelessWidget {
                   'Loaded origins: ${runningNovel.artifact!.metadata.origins.join(', ')}',
                 ),
               ],
+              if (offers.isNotEmpty) ...[
+                const SizedBox(height: HikariSpacing.lg),
+                const HikariSectionHeader(title: 'Repository offers'),
+              ],
               for (final offer in offers)
                 Padding(
-                  padding: const EdgeInsets.only(top: HikariSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SelectableText('Repository: ${offer.repositoryId}'),
-                      if (id.ecosystem != PluginEcosystem.novel)
-                        SelectableText(
-                          'Repository signer expectation: ${repositories.where((r) => r.id == offer.repositoryId).firstOrNull?.snapshot?.signerFingerprint ?? 'Not declared'}',
-                        ),
-                      Text('Available: ${_version(offer.version)}'),
-                      Text(
-                        'Offer compatibility: ${pluginCompatibilityLabel(offer.compatibility)}',
+                  padding: const EdgeInsets.only(top: HikariSpacing.sm),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(HikariSpacing.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Available: ${_version(offer.version)}',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: HikariSpacing.xs),
+                          SelectableText('Repository: ${offer.repositoryId}'),
+                          if (id.ecosystem != PluginEcosystem.novel)
+                            SelectableText(
+                              'Repository signer expectation: ${repositories.where((r) => r.id == offer.repositoryId).firstOrNull?.snapshot?.signerFingerprint ?? 'Not declared'}',
+                            ),
+                          Text(
+                            'Offer compatibility: ${pluginCompatibilityLabel(offer.compatibility)}',
+                          ),
+                          const SizedBox(height: HikariSpacing.sm),
+                          if (owner != offer.repositoryId)
+                            OutlinedButton(
+                              onPressed: busy
+                                  ? null
+                                  : () => Navigator.pop(
+                                      context,
+                                      offer.repositoryId,
+                                    ),
+                              child: const Text('Select repository owner'),
+                            )
+                          else
+                            const Text('Selected owner'),
+                          if (offer.sources.isNotEmpty)
+                            ExpansionTile(
+                              tilePadding: EdgeInsets.zero,
+                              childrenPadding: const EdgeInsets.only(
+                                bottom: HikariSpacing.sm,
+                              ),
+                              shape: const Border(),
+                              collapsedShape: const Border(),
+                              title: Text('Sources (${offer.sources.length})'),
+                              children: [
+                                for (final source in offer.sources)
+                                  Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Text(
+                                      '${source.name} · ${source.language} · ${source.upstreamId}',
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
                       ),
-                      for (final source in offer.sources)
-                        Text(
-                          '${source.name} · ${source.language} · ${source.upstreamId}',
-                        ),
-                      if (owner != offer.repositoryId)
-                        OutlinedButton(
-                          onPressed: busy
-                              ? null
-                              : () =>
-                                    Navigator.pop(context, offer.repositoryId),
-                          child: const Text('Select repository owner'),
-                        ),
-                      if (owner == offer.repositoryId)
-                        const Text('Selected owner'),
-                    ],
+                    ),
                   ),
                 ),
               if (id.ecosystem != PluginEcosystem.novel &&
@@ -153,8 +196,8 @@ final class PluginDetailsDialog extends StatelessWidget {
                   child: const Text('Novel actions'),
                 ),
               const SizedBox(height: HikariSpacing.md),
-              const Text(
-                'Repository metadata is not execution trust. Package actions require separate explicit consent. Existing readers keep their frozen sources.',
+              const PluginNotice(
+                message: 'Repository metadata is not execution trust. Package actions require separate explicit consent. Existing readers keep their frozen sources.',
               ),
             ],
           ),

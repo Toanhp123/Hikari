@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 
 /// Persistence state for the most recently requested appearance selection.
 enum AppearanceSaveStatus { saved, saving, failed }
@@ -62,7 +63,7 @@ class SettingsContent extends StatelessWidget {
           padding: const EdgeInsets.all(HikariSpacing.lg),
           children: [
             if (onManagePlugins != null) ...[
-              _SectionHeader(title: 'Extensions'),
+              const HikariSectionHeader(title: 'Extensions'),
               Card(
                 child: ListTile(
                   title: const Text('Plugins'),
@@ -75,7 +76,7 @@ class SettingsContent extends StatelessWidget {
               ),
               const SizedBox(height: HikariSpacing.lg),
             ],
-            const _SectionHeader(title: 'Appearance'),
+            const HikariSectionHeader(title: 'Appearance'),
             _SettingsCard(
               children: [
                 SwitchListTile(
@@ -168,7 +169,7 @@ class SettingsContent extends StatelessWidget {
             ),
             if (onChooseLocalFolder != null || onClearCache != null) ...[
               const SizedBox(height: HikariSpacing.xl),
-              const _SectionHeader(title: 'Files & storage'),
+              const HikariSectionHeader(title: 'Files & storage'),
               _SettingsCard(
                 children: [
                   if (onChooseLocalFolder != null)
@@ -318,7 +319,7 @@ class SettingsContent extends StatelessWidget {
               ),
             ],
             const SizedBox(height: HikariSpacing.xl),
-            const _SectionHeader(title: 'About Hikari'),
+            const HikariSectionHeader(title: 'About Hikari'),
             const _SettingsCard(
               children: [
                 ListTile(
@@ -403,34 +404,6 @@ class _AccentSwatch extends StatelessWidget {
                     )
                   : null,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: HikariSpacing.xs,
-        bottom: HikariSpacing.sm,
-      ),
-      child: Semantics(
-        header: true,
-        child: Text(
-          title,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: colors.primary.withValues(alpha: 0.8),
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
           ),
         ),
       ),

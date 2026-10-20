@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
+import 'package:hikari/core/ui/components/hikari_chip.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
@@ -12,6 +13,36 @@ import 'apk_actions_page_test.dart' as apk;
 import 'plugin_management_test.dart' as helpers;
 
 void main() {
+  testWidgets('plugin browse adapts to compact width and large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final session = helpers.management(store: helpers.MemoryStore());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(1.8)),
+          child: child!,
+        ),
+        home: PluginManagerPage(management: session),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Manage sources'), findsOneWidget);
+    expect(find.byType(HikariChipRow), findsOneWidget);
+    expect(find.text('Available'), findsOneWidget);
+    await tester.ensureVisible(find.text('Installed'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Installed'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('returning from APK actions refreshes installed inventory', (
     tester,
   ) async {
@@ -146,15 +177,19 @@ void main() {
         PluginEcosystem.novel,
       );
       await tester.ensureVisible(find.text('Refresh repository'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Refresh repository'));
       await tester.pumpAndSettle();
       expect(session.manager!.state.repositories.single.snapshot, isNotNull);
       reader.fail = true;
+      await tester.ensureVisible(find.text('Refresh repository'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Refresh repository'));
       await tester.pumpAndSettle();
       expect(session.manager!.state.repositories.single.snapshot, isNotNull);
       expect(find.textContaining('Last good offers retained'), findsOneWidget);
       await tester.ensureVisible(find.text('Remove repository'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Remove repository'));
       await tester.pumpAndSettle();
       expect(

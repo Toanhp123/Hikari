@@ -5,12 +5,15 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/manage_apk_plugins.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/apk_actions_view_model.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/widgets/apk_identity_details.dart';
 import 'package:hikari/features/plugins/widgets/apk_operation_card.dart';
+import 'package:hikari/features/plugins/widgets/plugin_action_section.dart';
+import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
 
 /// Explicit package actions. Never changes the running source registry.
 class ApkActionsPage extends StatefulWidget {
@@ -482,136 +485,198 @@ class _ApkActionsPageState extends State<ApkActionsPage>
         .firstOrNull
         ?.snapshot
         ?.signerFingerprint;
+    final operations = session.apkOperations
+        .where((row) => id == null || row.pluginId == id)
+        .toList();
     return HikariScaffold(
       appBar: AppBar(title: const Text('APK actions')),
-      body: ListView(
-        padding: const EdgeInsets.all(HikariSpacing.lg),
-        children: [
-          if (!available)
-            const Text(
-              'APK actions unavailable. Android management session required.',
-            )
-          else ...[
-            if (id != null)
-              SelectableText(
-                '${pluginEcosystemLabel(id!.ecosystem)} · ${id!.upstreamId}',
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
+            padding: const EdgeInsets.all(HikariSpacing.lg),
+            children: [
+              const HikariSectionHeader(
+                title: 'Package management',
+                description:
+                    'Install, update and remove Android extension packages.',
               ),
-            if (id?.ecosystem == PluginEcosystem.anime)
-              const Text(
-                'Runtime deferred (runtimeDeferred). APK management does not enable playback.',
-              ),
-            const Text(
-              'Package operations do not hot-replace sources or modify Library and Progress.',
-            ),
-            if (_error != null)
-              Semantics(liveRegion: true, child: Text(_error!)),
-            if (session.operationError != null) Text(session.operationError!),
-            if (_busy) const Text('Action in progress'),
-            OutlinedButton(
-              onPressed: enabled ? _poll : null,
-              child: const Text('Refresh native evidence'),
-            ),
-            if (installed != null) ...[
-              const Text('Installed APK'),
-              ApkIdentityDetails(identity: installed),
-              if (!_supported(installed))
-                const Text(
-                  'Unsupported APK identity. Approval, update and removal blocked here; use Android system app settings for removal.',
+              if (!available)
+                const PluginNotice(
+                  message: 'APK actions unavailable. Android management session required.',
+                  error: true,
                 )
               else ...[
-                if (installed.trust == ApkTrust.unapproved)
-                  OutlinedButton(
-                    onPressed: enabled && !_unresolved
-                        ? () => _approve(staged: false)
-                        : null,
-                    child: const Text('Approve installed signer'),
+                if (id != null) ...[
+                  SelectableText(
+                    '${pluginEcosystemLabel(id!.ecosystem)} · ${id!.upstreamId}',
                   ),
-                OutlinedButton(
-                  onPressed: enabled && !_unresolved ? _uninstall : null,
-                  child: const Text('Uninstall APK'),
+                  const SizedBox(height: HikariSpacing.sm),
+                ],
+                if (id?.ecosystem == PluginEcosystem.anime) ...[
+                  const PluginNotice(
+                    message: 'Runtime deferred (runtimeDeferred). APK management does not enable playback.',
+                  ),
+                  const SizedBox(height: HikariSpacing.sm),
+                ],
+                const PluginNotice(
+                  message: 'Package operations do not hot-replace sources or modify Library and Progress.',
                 ),
+                if (_error != null) ...[
+                  const SizedBox(height: HikariSpacing.sm),
+                  PluginNotice(message: _error!, error: true),
+                ],
+                if (session.operationError != null) ...[
+                  const SizedBox(height: HikariSpacing.sm),
+                  PluginNotice(message: session.operationError!, error: true),
+                ],
+                if (_busy) ...[
+                  const SizedBox(height: HikariSpacing.sm),
+                  const Text('Action in progress'),
+                ],
+                const SizedBox(height: HikariSpacing.md),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton.icon(
+                    onPressed: enabled ? _poll : null,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Refresh native evidence'),
+                  ),
+                ),
+                const SizedBox(height: HikariSpacing.xl),
+                if (installed != null)
+                  PluginActionSection(
+                    title: 'Installed APK',
+                    children: [
+                      ApkIdentityDetails(identity: installed),
+                      if (!_supported(installed))
+                        const PluginNotice(
+                          message: 'Unsupported APK identity. Approval, update and removal blocked here; use Android system app settings for removal.',
+                          error: true,
+                        )
+                      else ...[
+                        if (installed.trust == ApkTrust.unapproved)
+                          OutlinedButton(
+                            onPressed: enabled && !_unresolved
+                                ? () => _approve(staged: false)
+                                : null,
+                            child: const Text('Approve installed signer'),
+                          ),
+                        OutlinedButton.icon(
+                          onPressed: enabled && !_unresolved
+                              ? _uninstall
+                              : null,
+                          icon: const Icon(Icons.delete_outline_rounded),
+                          label: const Text('Uninstall APK'),
+                        ),
+                      ],
+                    ],
+                  ),
+                if (id != null &&
+                    stage == null &&
+                    (installed == null || _supported(installed)))
+                  PluginActionSection(
+                    title: 'Get APK',
+                    description:
+                        'Download and inspect before any install consent.',
+                    children: [
+                      SelectableText(
+                        'Selected repository: ${owner ?? 'Not selected'}',
+                      ),
+                      if (offer == null || signer == null)
+                        const PluginNotice(
+                          message: 'Select repository owner with an offer and signer expectation before downloading.',
+                        )
+                      else
+                        OutlinedButton.icon(
+                          onPressed: enabled && !_unresolved ? _download : null,
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text('Download and inspect APK'),
+                        ),
+                    ],
+                  ),
+                if (_request != null)
+                  OutlinedButton(
+                    onPressed: _cancelTransfer,
+                    child: const Text('Cancel download'),
+                  ),
+                if (stage != null)
+                  PluginActionSection(
+                    title: 'Inspected staged APK',
+                    children: [
+                      ApkIdentityDetails(identity: stage.identity),
+                      SelectableText('Repository: $_owner'),
+                      SelectableText(
+                        'Repository signer expectation: $_expectedSigner',
+                      ),
+                      if (!_supported(stage.identity))
+                        const PluginNotice(
+                          message: 'Unsupported staged APK. Installation and approval blocked.',
+                          error: true,
+                        )
+                      else if (_stageUsable && _ownerUnchanged()) ...[
+                        if (!_stageApproved)
+                          OutlinedButton(
+                            onPressed: enabled
+                                ? () => _approve(staged: true)
+                                : null,
+                            child: const Text('Approve staged signer'),
+                          )
+                        else if (!_permission)
+                          OutlinedButton(
+                            onPressed: enabled
+                                ? () => _run(() async {
+                                    if (_active) {
+                                      await gateway.openInstallSettings();
+                                    }
+                                  })
+                                : null,
+                            child: const Text('Open install settings'),
+                          )
+                        else
+                          FilledButton(
+                            onPressed: enabled && !_unresolved
+                                ? _install
+                                : null,
+                            child: Text(
+                              installed == null ? 'Install APK' : 'Update APK',
+                            ),
+                          ),
+                      ] else
+                        const PluginNotice(
+                          message: 'Stage no longer actionable. Refresh operation evidence; discard before downloading again.',
+                        ),
+                      OutlinedButton(
+                        onPressed: enabled ? () => _run(_discard) : null,
+                        child: const Text('Discard staged APK'),
+                      ),
+                    ],
+                  ),
+                const HikariSectionHeader(
+                  title: 'Native APK operations',
+                  description: 'Only succeeded means verified native completion. Other states, including externallyInstalled and retiredUnknown, are not manager success. Runtime evidence is separate.',
+                ),
+                if (operations.isEmpty)
+                  const PluginNotice(
+                    message: 'No native APK operations recorded.',
+                  ),
+                for (final operation in operations) ...[
+                  ApkOperationCard(
+                    operation: operation,
+                    enabled: enabled,
+                    onResume: () =>
+                        _operation(operation, 'Resume Android confirmation'),
+                    onCancel: () =>
+                        _operation(operation, 'Request cancellation'),
+                    onRetire: () => _retire(operation),
+                  ),
+                  const SizedBox(height: HikariSpacing.sm),
+                ],
               ],
             ],
-            if (id != null &&
-                stage == null &&
-                (installed == null || _supported(installed))) ...[
-              SelectableText('Selected repository: ${owner ?? 'Not selected'}'),
-              if (offer == null || signer == null)
-                const Text(
-                  'Select repository owner with an offer and signer expectation before downloading.',
-                )
-              else
-                OutlinedButton(
-                  onPressed: enabled && !_unresolved ? _download : null,
-                  child: const Text('Download and inspect APK'),
-                ),
-            ],
-            if (_request != null)
-              OutlinedButton(
-                onPressed: _cancelTransfer,
-                child: const Text('Cancel download'),
-              ),
-            if (stage != null) ...[
-              const Text('Inspected staged APK'),
-              ApkIdentityDetails(identity: stage.identity),
-              SelectableText('Repository: $_owner'),
-              SelectableText('Repository signer expectation: $_expectedSigner'),
-              if (!_supported(stage.identity))
-                const Text(
-                  'Unsupported staged APK. Installation and approval blocked.',
-                )
-              else if (_stageUsable && _ownerUnchanged()) ...[
-                if (!_stageApproved)
-                  OutlinedButton(
-                    onPressed: enabled ? () => _approve(staged: true) : null,
-                    child: const Text('Approve staged signer'),
-                  )
-                else if (!_permission)
-                  OutlinedButton(
-                    onPressed: enabled
-                        ? () => _run(() async {
-                            if (_active) await gateway.openInstallSettings();
-                          })
-                        : null,
-                    child: const Text('Open install settings'),
-                  )
-                else
-                  FilledButton(
-                    onPressed: enabled && !_unresolved ? _install : null,
-                    child: Text(
-                      installed == null ? 'Install APK' : 'Update APK',
-                    ),
-                  ),
-              ] else
-                const Text(
-                  'Stage no longer actionable. Refresh operation evidence; discard before downloading again.',
-                ),
-              OutlinedButton(
-                onPressed: enabled ? () => _run(_discard) : null,
-                child: const Text('Discard staged APK'),
-              ),
-            ],
-            const SizedBox(height: HikariSpacing.lg),
-            Text(
-              'Native APK operations',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const Text(
-              'Only succeeded means verified native completion. Other states, including externallyInstalled and retiredUnknown, are not manager success. Runtime evidence is separate.',
-            ),
-            for (final operation in session.apkOperations.where(
-              (row) => id == null || row.pluginId == id,
-            ))
-              ApkOperationCard(
-                operation: operation,
-                enabled: enabled,
-                onResume: () =>
-                    _operation(operation, 'Resume Android confirmation'),
-                onCancel: () => _operation(operation, 'Request cancellation'),
-                onRetire: () => _retire(operation),
-              ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }

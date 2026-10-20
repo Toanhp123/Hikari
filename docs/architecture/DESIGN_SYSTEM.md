@@ -98,3 +98,13 @@ References:
 - [Flutter Ink paint order](https://api.flutter.dev/flutter/material/Ink-class.html)
 - [Flutter performance best practices](https://docs.flutter.dev/perf/best-practices)
 - [Flutter ListView.builder](https://api.flutter.dev/flutter/widgets/ListView/ListView.builder.html)
+
+## Compact management headings (2026-10-20)
+
+`HikariSectionHeader` in `core/ui/patterns` owns the compact semantic label
+style formerly local to Settings, with optional description and trailing
+content. Settings and Plugin Management reuse it; detail, search and Home
+headers retain their existing feature-specific behavior. This is a small
+proven-shared primitive, not a generic section/card framework. Plugin-specific
+status notices, journal rows and workflow grouping stay feature-owned; prefer
+existing Material controls and theme tokens for their rendering.

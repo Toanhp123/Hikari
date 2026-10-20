@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
+import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
 
-/// Repository list is presentation-only; owner/consent changes live in the route.
+/// Repository inventory and its explicitly requested actions.
 final class PluginRepositorySection extends StatelessWidget {
   const PluginRepositorySection({
     super.key,
@@ -22,39 +24,74 @@ final class PluginRepositorySection extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text('Repositories', style: Theme.of(context).textTheme.titleLarge),
+      HikariSectionHeader(
+        title: 'Repositories',
+        description:
+            '${repositories.length} ${repositories.length == 1 ? 'repository' : 'repositories'} · Manage catalog metadata and update ownership',
+      ),
       if (repositories.isEmpty)
-        const Text(
-          'No repositories added. Nothing is downloaded automatically.',
+        const PluginNotice(
+          message:
+              'No repositories added. Nothing is downloaded automatically.',
         ),
-      for (final repository in repositories)
+      for (final repository in repositories) ...[
         Card(
           child: Padding(
             padding: const EdgeInsets.all(HikariSpacing.md),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  '${pluginEcosystemLabel(repository.ecosystem)} · ${repository.snapshot?.name ?? 'Not refreshed'}',
-                ),
-                SelectableText(repository.id.toString()),
-                if (repository.refreshError != null)
-                  Text(
-                    '${repository.refreshError}. Last good offers retained.',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.storage_rounded,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
+                    const SizedBox(width: HikariSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        repository.snapshot?.name ?? 'Not refreshed',
+                        style: Theme.of(context).textTheme.titleSmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: HikariSpacing.xs),
+                Text(
+                  pluginEcosystemLabel(repository.ecosystem),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
+                ),
+                const SizedBox(height: HikariSpacing.xs),
+                SelectableText(
+                  repository.id.toString(),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (repository.refreshError != null) ...[
+                  const SizedBox(height: HikariSpacing.sm),
+                  PluginNotice(
+                    message:
+                        '${repository.refreshError}. Last good offers retained.',
+                    error: true,
+                  ),
+                ],
+                const SizedBox(height: HikariSpacing.sm),
                 Wrap(
                   spacing: HikariSpacing.sm,
+                  runSpacing: HikariSpacing.xs,
                   children: [
-                    TextButton(
+                    TextButton.icon(
                       onPressed: busy ? null : () => onRefresh(repository.id),
-                      child: const Text('Refresh repository'),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Refresh repository'),
                     ),
-                    TextButton(
+                    TextButton.icon(
                       onPressed: busy ? null : () => onRemove(repository),
-                      child: const Text('Remove repository'),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Remove repository'),
                     ),
                   ],
                 ),
@@ -62,6 +99,8 @@ final class PluginRepositorySection extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: HikariSpacing.sm),
+      ],
     ],
   );
 }

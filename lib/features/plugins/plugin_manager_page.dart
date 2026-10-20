@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/apk_actions_page.dart';
 import 'package:hikari/features/plugins/novel_actions_page.dart';
@@ -9,6 +10,8 @@ import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/plugin_manager_view_model.dart';
 import 'package:hikari/features/plugins/widgets/plugin_browse_filters.dart';
 import 'package:hikari/features/plugins/widgets/plugin_details_dialog.dart';
+import 'package:hikari/features/plugins/widgets/plugin_list_tile.dart';
+import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
 import 'package:hikari/features/plugins/widgets/plugin_repository_section.dart';
 
 /// Management browsing. Package actions use separate explicit native consent routes.
@@ -249,58 +252,80 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const HikariSectionHeader(
+                        title: 'Manage sources',
+                        description: 'Discover plugins, inspect installed versions and choose update repositories.',
+                      ),
                       if (!session.supported)
-                        const Text(
-                          'Plugin management and extension runtimes are available on Android only. Your saved sources and reading data are unchanged.',
+                        const PluginNotice(
+                          message: 'Plugin management and extension runtimes are available on Android only. Your saved sources and reading data are unchanged.',
                         )
                       else ...[
                         Wrap(
                           spacing: HikariSpacing.sm,
                           runSpacing: HikariSpacing.sm,
                           children: [
-                            OutlinedButton(
-                              onPressed: _busy ? null : _refresh,
-                              child: const Text('Refresh inventory'),
-                            ),
+                            if (manager != null)
+                              FilledButton.icon(
+                                onPressed: _busy ? null : _addRepository,
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Add repository'),
+                              ),
                             if (session.apkActions != null)
-                              OutlinedButton(
+                              OutlinedButton.icon(
                                 onPressed: _busy
                                     ? null
                                     : () => _openApkActions(),
-                                child: const Text('APK operations'),
+                                icon: const Icon(Icons.extension_outlined),
+                                label: const Text('APK operations'),
                               ),
-                            if (manager != null)
-                              FilledButton(
-                                onPressed: _busy ? null : _addRepository,
-                                child: const Text('Add repository'),
-                              ),
+                            TextButton.icon(
+                              onPressed: _busy ? null : _refresh,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Refresh inventory'),
+                            ),
                           ],
                         ),
-                        if (_busy)
+                        if (_busy) ...[
+                          const SizedBox(height: HikariSpacing.md),
                           const LinearProgressIndicator(
                             semanticsLabel: 'Loading plugins',
                           ),
+                        ],
                         if (_viewModel.error ?? session.error
-                            case final String error)
-                          Semantics(
-                            liveRegion: true,
-                            child: Text(
-                              error,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                          ),
-                        if (session.apkEvidenceError != null)
-                          Text(session.apkEvidenceError!),
-                        if (session.novelEvidenceError != null)
-                          Text(session.novelEvidenceError!),
-                        if (manager != null) ...[
-                          if (session.novelRuntime?.failure != null)
-                            Text(
-                              'Novel runtime: ${session.novelRuntime!.failure}; restart required.',
-                            ),
+                            case final String error) ...[
                           const SizedBox(height: HikariSpacing.md),
+                          PluginNotice(message: error, error: true),
+                        ],
+                        if (session.apkEvidenceError != null) ...[
+                          const SizedBox(height: HikariSpacing.sm),
+                          PluginNotice(
+                            message: session.apkEvidenceError!,
+                            error: true,
+                          ),
+                        ],
+                        if (session.novelEvidenceError != null) ...[
+                          const SizedBox(height: HikariSpacing.sm),
+                          PluginNotice(
+                            message: session.novelEvidenceError!,
+                            error: true,
+                          ),
+                        ],
+                        if (session.novelRuntime?.failure != null &&
+                            manager != null) ...[
+                          const SizedBox(height: HikariSpacing.sm),
+                          PluginNotice(
+                            message:
+                                'Novel runtime: ${session.novelRuntime!.failure}; restart required.',
+                          ),
+                        ],
+                        if (manager != null) ...[
+                          const SizedBox(height: HikariSpacing.xl),
+                          HikariSectionHeader(
+                            title: 'Browse plugins',
+                            description:
+                                '${rows.length} ${rows.length == 1 ? 'plugin' : 'plugins'} in this view',
+                          ),
                           PluginBrowseFilters(
                             state: _viewModel.state,
                             onQueryChanged: _viewModel.setQuery,
@@ -322,12 +347,12 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                   itemCount: rows.length,
                   itemBuilder: (context, index) {
                     final id = rows[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(names[id] ?? id.upstreamId),
-                        subtitle: Text(
-                          '${pluginEcosystemLabel(id.ecosystem)} · ${id.upstreamId}\n${_viewModel.runtimeFor(id)}',
-                        ),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: HikariSpacing.sm),
+                      child: PluginListTile(
+                        id: id,
+                        name: names[id] ?? id.upstreamId,
+                        runtime: _viewModel.runtimeFor(id),
                         onTap: _busy ? null : () => _details(id),
                       ),
                     );
@@ -336,7 +361,12 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
               ),
               if (session.supported && manager != null)
                 SliverPadding(
-                  padding: const EdgeInsets.all(HikariSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                    HikariSpacing.lg,
+                    HikariSpacing.xl,
+                    HikariSpacing.lg,
+                    HikariSpacing.xxl,
+                  ),
                   sliver: SliverToBoxAdapter(
                     child: PluginRepositorySection(
                       repositories: manager.state.repositories,

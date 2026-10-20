@@ -524,6 +524,8 @@ void main() {
       await open(tester, management(gateway));
       gateway.inventoryRead = Completer<List<NovelArtifactInventory>>();
       gateway.staging = Completer<StagedNovelArtifact>();
+      await tester.ensureVisible(find.text('Download inert Novel bundle'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Download inert Novel bundle'));
       await tester.pump();
       gateway.inventoryRead!.complete([]);
