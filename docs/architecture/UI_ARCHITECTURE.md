@@ -46,6 +46,22 @@ Feature-specific compositions remain inside the feature that owns their UX.
 A shared component should exist because multiple real use cases need the same
 abstraction, not because it might be reusable later.
 
+### 2.2.1 Feature ownership for multi-route workflows
+
+A settings/menu entry does not own the feature it navigates to. When a flow
+owns multiple routes, a ViewModel and feature-specific visual composition,
+place that presentation under its own `features/<feature>/` directory; the
+settings/menu route retains only its navigation callback. Keep shared
+application/domain/infrastructure contracts in their existing layers.
+
+A ViewModel should publish one immutable UI-state snapshot per transition.
+Derived getters must be free of side effects; normalize invalid filters while
+processing input or new evidence. Refresh after a child action route returns
+when that route can change native-backed state; never infer installation from
+navigation completion. Child content widgets only render and forward intents.
+Security/lifecycle dialogs and foreground/cancellation guards may remain in
+route pages when moving them would weaken consent boundaries.
+
 ### 2.3 Prefer composition over configurable mega-widgets
 
 Do not create one `MediaCard` with many booleans and mode switches for anime,

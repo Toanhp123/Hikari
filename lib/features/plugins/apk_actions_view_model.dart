@@ -1,22 +1,38 @@
 import 'package:flutter/foundation.dart';
 import 'package:hikari/application/plugins/manage_apk_plugins.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
-import 'package:hikari/features/settings/plugin_acquisition_message.dart';
+import 'package:hikari/features/plugins/plugin_acquisition_message.dart';
+
+/// UI-only operation feedback; native journal/publication remains authoritative.
+final class ApkActionsUiState {
+  const ApkActionsUiState({required this.busy, required this.error});
+  final bool busy;
+  final String? error;
+}
 
 /// Async presentation state only. Consent and native-authoritative changes are
 /// kept in their existing boundary-checked commands.
 final class ApkActionsViewModel extends ChangeNotifier {
   ApkActionsViewModel(this.management);
   final PluginManagement management;
-  bool _busy = false;
-  bool get busy => _busy;
-  String? _error;
-  String? get error => _error;
+  ApkActionsUiState _state = const ApkActionsUiState(busy: false, error: null);
+  ApkActionsUiState get state => _state;
+  bool get busy => state.busy;
+  String? get error => state.error;
   bool _disposed = false;
 
+  void _setState({bool? busy, String? error, bool clearError = false}) {
+    if (_disposed) return;
+    _state = ApkActionsUiState(
+      busy: busy ?? _state.busy,
+      error: clearError ? null : error ?? _state.error,
+    );
+    notifyListeners();
+  }
+
   void showError(String message) {
-    _error = message;
-    if (!_disposed) notifyListeners();
+    if (_disposed) return;
+    _setState(error: message);
   }
 
   /// UI polling reads OS evidence, but never interprets it as install success.
@@ -40,25 +56,26 @@ final class ApkActionsViewModel extends ChangeNotifier {
     required bool Function() canStart,
     required void Function() onFinished,
   }) async {
-    if (_disposed || _busy || !canStart()) return;
-    _busy = true;
-    _error = null;
-    notifyListeners();
+    if (_disposed || busy || !canStart()) return;
+    _setState(busy: true, clearError: true);
     try {
       await action();
     } on ApkApprovalReconciliationFailure {
-      _error = 'Native signer approval committed. Inventory reconciliation failed. Refresh evidence; do not repeat approval.';
+      _setState(
+        error: 'Native signer approval committed. Inventory reconciliation failed. Refresh evidence; do not repeat approval.',
+      );
     } catch (error) {
-      _error = pluginAcquisitionMessage(error) ?? 'Action failed or outcome unknown. Refresh native operations before retrying; no success or rollback inferred.';
+      _setState(
+        error: pluginAcquisitionMessage(error) ?? 'Action failed or outcome unknown. Refresh native operations before retrying; no success or rollback inferred.',
+      );
       try {
         await management.refreshApkOperations();
       } catch (_) {
         // Keep last native evidence; never replay the operation.
       }
     } finally {
-      _busy = false;
       if (!_disposed) {
-        notifyListeners();
+        _setState(busy: false);
         onFinished();
       }
     }

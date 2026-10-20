@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/plugin_composition.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
-import 'package:hikari/features/settings/plugin_manager_page.dart';
+import 'package:hikari/features/plugins/plugin_manager_page.dart';
 
 import 'apk_plugin_gateway_test.dart' as apk;
 import 'novel_plugin_gateway_test.dart' as novel;

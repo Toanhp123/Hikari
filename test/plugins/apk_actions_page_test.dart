@@ -6,7 +6,7 @@ import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
-import 'package:hikari/features/settings/apk_actions_page.dart';
+import 'package:hikari/features/plugins/apk_actions_page.dart';
 
 import 'plugin_management_test.dart' as helpers;
 

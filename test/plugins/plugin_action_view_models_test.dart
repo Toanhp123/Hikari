@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/features/settings/apk_actions_view_model.dart';
-import 'package:hikari/features/settings/novel_actions_view_model.dart';
+import 'package:hikari/features/plugins/apk_actions_view_model.dart';
+import 'package:hikari/features/plugins/novel_actions_view_model.dart';
 
 import 'plugin_management_test.dart' as helpers;
 

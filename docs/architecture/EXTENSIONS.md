@@ -122,6 +122,17 @@ The host provides a shared OkHttp client, WebView-backed cookies, a stable mobil
 
 The `CloudflareInterceptor` is currently a compatibility hook, not a browser challenge solver. Extensions that require interactive Cloudflare/WebView challenge handling can therefore fail even when their ABI is otherwise compatible. Source-specified User-Agent headers are preserved; the host default is inserted only when a request does not provide one. That limitation is explicit rather than hidden behind automatic retries or source-specific hacks.
 
+## Management presentation ownership
+
+`lib/features/plugins/` owns Plugin Manager and package-action UI. Settings
+opens the route but does not own its internal state. A feature-local immutable
+UI snapshot describes available/installed/update browsing; the app-owned
+`PluginManagement` session owns APK/Novel inventory and frozen runtime evidence.
+Returning from native package actions refreshes evidence rather than treating
+a navigation result as verified installation/removal. Consent and operation
+outcome authority remains in Android; presentation widgets have no authority
+to approve signers, admit scripts or mutate a running source registry.
+
 ## Plugin manager
 
 Decision rationale and rejected alternatives: [ADR-025](../decisions/ADR-025-unified-plugin-management.md).

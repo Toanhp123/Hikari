@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
-import 'package:hikari/domain/plugins/plugins.dart';
-import 'package:hikari/features/settings/plugin_labels.dart';
-import 'package:hikari/features/settings/novel_actions_view_model.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
+import 'package:hikari/domain/plugins/plugins.dart';
+import 'package:hikari/features/plugins/novel_actions_view_model.dart';
+import 'package:hikari/features/plugins/plugin_labels.dart';
+import 'package:hikari/features/plugins/widgets/novel_artifact_details.dart';
 
 class NovelActionsPage extends StatefulWidget {
   const NovelActionsPage({
@@ -89,19 +90,6 @@ class _NovelActionsPageState extends State<NovelActionsPage>
 
   Future<void> _run(Future<void> Function() action) =>
       _actionsViewModel.run(action, canStart: () => _active);
-
-  List<Widget> _tuple(NovelArtifact artifact) {
-    final m = artifact.metadata;
-    return [
-      SelectableText('ID: ${m.id.upstreamId}'),
-      SelectableText('Name: ${m.name}'),
-      SelectableText('Version: ${m.version.value}'),
-      SelectableText('Repository: ${m.repositoryId}'),
-      SelectableText('Digest: ${artifact.digest}'),
-      SelectableText('Site: ${m.site}'),
-      for (final origin in m.origins) SelectableText('Exact origin: $origin'),
-    ];
-  }
 
   Future<bool> _confirm(
     String title,
@@ -235,7 +223,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
     final epoch = _epoch;
     if (!_stageUsable ||
         !await _confirm('Consent to exact Novel bundle?', [
-          ..._tuple(stage.artifact),
+          NovelArtifactDetails(artifact: stage.artifact),
           _evaluationWarning,
         ], 'Evaluate and install')) {
       return;
@@ -262,10 +250,10 @@ class _NovelActionsPageState extends State<NovelActionsPage>
     final offers = session.manager!.offersFor(id);
     final contents = <Widget>[
       const Text('Current exact tuple'),
-      ..._tuple(displayed.current),
+      NovelArtifactDetails(artifact: displayed.current),
       if (action == 'rollback') ...[
         const Text('Previous target exact tuple'),
-        ..._tuple(displayed.previous!),
+        NovelArtifactDetails(artifact: displayed.previous!),
       ],
       if (action != 'uninstall')
         _evaluationWarning
@@ -366,21 +354,23 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                       ? 'Last-confirmed inventory'
                       : 'Committed inventory',
                 ),
-                ..._tuple(item.current),
-                if (item.previous != null) ..._tuple(item.previous!),
+                NovelArtifactDetails(artifact: item.current),
+                if (item.previous != null)
+                  NovelArtifactDetails(artifact: item.previous!),
               ],
               for (final pointer
                   in failure.attempted ?? <NovelAttemptedPointer>[]) ...[
                 const Text('Attempted pointers — unconfirmed'),
-                ..._tuple(pointer.current),
-                if (pointer.previous != null) ..._tuple(pointer.previous!),
+                NovelArtifactDetails(artifact: pointer.current),
+                if (pointer.previous != null)
+                  NovelArtifactDetails(artifact: pointer.previous!),
               ],
             ],
             if (row != null) ...[
               Text(
                 'Stored status: ${novelStatusLabel(row.status)}; admission: ${novelAdmissionLabel(row.admission)}',
               ),
-              ..._tuple(row.current),
+              NovelArtifactDetails(artifact: row.current),
               if (!locked) ...[
                 if (row.status == NovelArtifactStatus.ready &&
                     row.admission == NovelAdmission.unknown &&
@@ -439,7 +429,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
               ),
             if (stage != null) ...[
               const Text('Staged inert bundle'),
-              ..._tuple(stage.artifact),
+              NovelArtifactDetails(artifact: stage.artifact),
               if (!locked && _stageUsable && _sameOffer())
                 FilledButton(
                   onPressed: enabled ? _install : null,
@@ -458,7 +448,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
               'Runtime evidence is independent of stored inventory and admission. Changes never replace already captured code.',
             ),
             Text(
-              'Runtime: ${session.novelRuntime?.initialization.name ?? 'unavailable'}',
+              'Runtime: ${session.novelRuntime == null ? 'unavailable' : novelRuntimeInitializationLabel(session.novelRuntime!.initialization)}',
             ),
             for (final loaded
                 in session.novelRuntime?.loaded.where(
@@ -466,7 +456,8 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                     ) ??
                     <LoadedNovelRevision>[]) ...[
               const Text('Frozen loaded revision'),
-              if (loaded.artifact != null) ..._tuple(loaded.artifact!),
+              if (loaded.artifact != null)
+                NovelArtifactDetails(artifact: loaded.artifact!),
             ],
           ],
         ],

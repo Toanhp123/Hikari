@@ -1,16 +1,39 @@
-import 'package:hikari/application/plugins/plugin_management.dart';
-import 'package:hikari/domain/plugins/apk_plugins.dart';
-import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/plugins/plugin_management.dart';
+import 'package:hikari/domain/plugins/apk_plugins.dart';
+import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
-import 'package:hikari/features/settings/plugin_manager_page.dart';
+import 'package:hikari/features/plugins/plugin_manager_page.dart';
 import 'package:hikari/features/settings/settings_page.dart';
 
+import 'apk_actions_page_test.dart' as apk;
 import 'plugin_management_test.dart' as helpers;
 
 void main() {
+  testWidgets('returning from APK actions refreshes installed inventory', (
+    tester,
+  ) async {
+    final gateway = apk.Gateway();
+    final session = apk.session(gateway);
+    await tester.pumpWidget(
+      MaterialApp(home: PluginManagerPage(management: session)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Installed'));
+    await tester.pumpAndSettle();
+    expect(find.text('Anime plugin'), findsNothing);
+    await tester.tap(find.text('APK operations'));
+    await tester.pumpAndSettle();
+    gateway.installed = [apk.identity()];
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(session.apks, hasLength(1));
+    expect(find.text('Anime plugin'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 360.0]) {
     testWidgets(
       'Settings plugins navigation and owner choice at $width large text',

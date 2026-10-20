@@ -130,6 +130,23 @@ manga/novel search pages and their duplicate presentation state remain retired. 
 remains a source/application capability and should be added to unified source search only when
 that production route needs it.
 
+### Plugin management
+
+`features/plugins/` owns the Plugin Manager, APK/Novel action routes and their
+feature-local widgets. `features/settings/` owns only the settings entry point.
+`PluginManagerViewModel` publishes one immutable `PluginManagerUiState` with
+filtered rows and normalized filters. Reading its state never changes filters;
+repository commands rederive the snapshot after completion. An action route
+return triggers a fresh native inventory/evidence read before the manager shows
+updated Installed/Updates. The app-owned `PluginManagement` session remains the
+only source of those shared snapshots, not a second source registry.
+
+`ApkActionsViewModel` and `NovelActionsViewModel` publish immutable operation
+feedback state. Their pages deliberately own native consent dialogs, exact
+identity checks, foreground/epoch guards and staging cleanup; child widgets
+render supplied evidence and callbacks only. These are lifecycle boundaries,
+not business logic that can be safely moved to stateless content components.
+
 ## Player boundary
 
 The native/player lifecycle remains infrastructure:

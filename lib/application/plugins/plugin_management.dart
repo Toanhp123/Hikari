@@ -39,9 +39,12 @@ final class PluginManagement {
       supported && manager != null && novelGateway != null
       ? ManageNovelPlugins(gateway: novelGateway!, manager: manager!)
       : null;
-  NovelPublicationFailure? novelPublicationFailure;
-  bool get novelMutationsLocked => novelPublicationFailure != null;
-  String? novelActionError;
+  NovelPublicationFailure? _novelPublicationFailure;
+  NovelPublicationFailure? get novelPublicationFailure =>
+      _novelPublicationFailure;
+  bool get novelMutationsLocked => _novelPublicationFailure != null;
+  String? _novelActionError;
+  String? get novelActionError => _novelActionError;
 
   /// Publish native evidence before any fallible Dart reconciliation. Never replay a mutation.
   Future<void> mutateNovel(
@@ -50,14 +53,14 @@ final class PluginManagement {
     if (novelMutationsLocked || novelActions == null) {
       throw StateError('Novel mutations unavailable');
     }
-    novelActionError = null;
+    _novelActionError = null;
     try {
       replaceNovelInventory(await action(novelActions!));
     } on NovelReconciliationFailure catch (error) {
       _retainNovelFailureInventory(error.inventory);
-      novelActionError = 'Native Novel state committed. Dart reconciliation failed; refresh evidence, never repeat mutation.';
+      _novelActionError = 'Native Novel state committed. Dart reconciliation failed; refresh evidence, never repeat mutation.';
     } on NovelPublicationFailure catch (error) {
-      novelPublicationFailure ??= error;
+      _novelPublicationFailure ??= error;
       if (error.inventory != null) {
         _retainNovelFailureInventory(error.inventory!);
       }
@@ -71,13 +74,13 @@ final class PluginManagement {
     if (!novelMutationsLocked) {
       replaceNovelInventory(await novelGateway!.inventory());
     }
-    novelRuntime = await novelGateway!.runtimeSnapshot();
+    _novelRuntime = await novelGateway!.runtimeSnapshot();
     if (!novelMutationsLocked) {
       try {
         await manager?.reconcileInstalled();
-        novelActionError = null;
+        _novelActionError = null;
       } catch (_) {
-        novelActionError = 'Native inventory retained. Dart reconciliation failed; no code was evaluated again.';
+        _novelActionError = 'Native inventory retained. Dart reconciliation failed; no code was evaluated again.';
       }
     }
   }
@@ -87,7 +90,8 @@ final class PluginManagement {
       supported && manager != null && apkGateway != null
       ? ManageApkPlugins(gateway: apkGateway!, manager: manager!)
       : null;
-  String? operationError;
+  String? _operationError;
+  String? get operationError => _operationError;
 
   void recordApkOperation(ApkInstallOperation operation) {
     _apkOperations = List.unmodifiable([
@@ -101,10 +105,10 @@ final class PluginManagement {
     if (actions == null) return;
     try {
       _apkOperations = List.unmodifiable(await actions.installOperations());
-      operationError = null;
+      _operationError = null;
     } on ApkInstallReconciliationFailure catch (error) {
       _apkOperations = List.unmodifiable(error.operations);
-      operationError = 'Native operation evidence retained. Inventory reconciliation failed; refresh to retry, not resubmit.';
+      _operationError = 'Native operation evidence retained. Inventory reconciliation failed; refresh to retry, not resubmit.';
     }
   }
 
@@ -139,11 +143,16 @@ final class PluginManagement {
 
   List<ApkInstallOperation> _apkOperations = const [];
   List<ApkInstallOperation> get apkOperations => _apkOperations;
-  ApkRuntimeEvidence? apkRuntime;
-  NovelRuntimeSnapshot? novelRuntime;
-  String? error;
-  String? apkEvidenceError;
-  String? novelEvidenceError;
+  ApkRuntimeEvidence? _apkRuntime;
+  ApkRuntimeEvidence? get apkRuntime => _apkRuntime;
+  NovelRuntimeSnapshot? _novelRuntime;
+  NovelRuntimeSnapshot? get novelRuntime => _novelRuntime;
+  String? _error;
+  String? get error => _error;
+  String? _apkEvidenceError;
+  String? get apkEvidenceError => _apkEvidenceError;
+  String? _novelEvidenceError;
+  String? get novelEvidenceError => _novelEvidenceError;
   Future<void>? _loading;
 
   /// Reads native evidence independently. A failed family does not poison the
@@ -157,30 +166,30 @@ final class PluginManagement {
   Future<void> _refresh() async {
     try {
       replaceApkInventory(await readApks());
-      apkEvidenceError = null;
+      _apkEvidenceError = null;
     } catch (_) {
-      apkEvidenceError =
+      _apkEvidenceError =
           'Could not refresh APK inventory; previous evidence retained.';
     }
     try {
-      apkRuntime = await readApkRuntime();
+      _apkRuntime = await readApkRuntime();
     } catch (_) {
-      apkEvidenceError =
+      _apkEvidenceError =
           'Could not refresh all APK evidence; previous evidence retained.';
     }
     try {
       if (!novelMutationsLocked) {
         replaceNovelInventory(await readNovels());
       }
-      novelEvidenceError = null;
+      _novelEvidenceError = null;
     } catch (_) {
-      novelEvidenceError =
+      _novelEvidenceError =
           'Could not refresh Novel inventory; previous evidence retained.';
     }
     try {
-      novelRuntime = await readNovelRuntime();
+      _novelRuntime = await readNovelRuntime();
     } catch (_) {
-      novelEvidenceError =
+      _novelEvidenceError =
           'Could not refresh all Novel evidence; previous evidence retained.';
     }
     try {
@@ -194,11 +203,11 @@ final class PluginManagement {
       } else {
         await manager!.reconcileInstalled();
       }
-      error = manager!.inventoryFresh ? null : 'Plugin inventory is unavailable. Native evidence retained; updates are disabled until reconciliation.';
+      _error = manager!.inventoryFresh ? null : 'Plugin inventory is unavailable. Native evidence retained; updates are disabled until reconciliation.';
     } catch (_) {
       // Never save a partial aggregate inventory or expose exception URLs.
       // The existing manager remains usable with its previous persisted state.
-      error = 'Could not reconcile plugin inventory. Previous state retained; retry.';
+      _error = 'Could not reconcile plugin inventory. Previous state retained; retry.';
     }
   }
 }

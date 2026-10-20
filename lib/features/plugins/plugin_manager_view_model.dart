@@ -3,22 +3,8 @@ import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
-import 'package:hikari/features/settings/plugin_labels.dart';
-
-/// Immutable, derived browsing data. No native operations or widget context.
-final class PluginListing {
-  PluginListing({
-    required Map<PluginId, String> names,
-    required List<String> languages,
-    required List<PluginId> rows,
-  }) : names = Map.unmodifiable(names),
-       languages = List.unmodifiable(languages),
-       rows = List.unmodifiable(rows);
-
-  final Map<PluginId, String> names;
-  final List<String> languages;
-  final List<PluginId> rows;
-}
+import 'package:hikari/features/plugins/plugin_labels.dart';
+import 'package:hikari/features/plugins/plugin_manager_ui_state.dart';
 
 typedef PluginDetails = ({
   List<PluginOffer> offers,
@@ -28,55 +14,46 @@ typedef PluginDetails = ({
   LoadedNovelRevision? runningNovel,
 });
 
+const Object _unchanged = Object();
+
 /// Repository browsing and commands. Consent dialogs remain in the view;
 /// native mutation authority remains in the application layer.
 final class PluginManagerViewModel extends ChangeNotifier {
-  PluginManagerViewModel(this.management);
+  PluginManagerViewModel(this.management) {
+    _state = _buildState(
+      busy: true,
+      error: null,
+      query: '',
+      language: null,
+      ecosystem: null,
+      tab: 0,
+    );
+  }
+
   final PluginManagement management;
-  bool _busy = true;
-  bool get busy => _busy;
+  late PluginManagerUiState _state;
+  PluginManagerUiState get state => _state;
+  bool get busy => _state.busy;
+  String? get error => _state.error;
+  String? get language => _state.language;
+  PluginEcosystem? get ecosystem => _state.ecosystem;
+  int get tab => _state.tab;
+  PluginListing get listing => _state.listing;
+
   bool _started = false;
   bool _disposed = false;
-  String? _error;
-  String? get error => _error;
-  String _query = '';
-  String? _language;
-  String? get language => _language;
-  PluginEcosystem? _ecosystem;
-  PluginEcosystem? get ecosystem => _ecosystem;
-  int _tab = 0;
-  int get tab => _tab;
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
-  }
+  void setQuery(String value) => _publish(query: value);
+  void setLanguage(String? value) => _publish(language: value);
+  void setEcosystem(PluginEcosystem? value) => _publish(ecosystem: value);
+  void setTab(int value) => _publish(tab: value);
 
-  void setQuery(String value) {
-    _query = value;
-    _notify();
-  }
-
-  void setLanguage(String? value) {
-    _language = value;
-    _notify();
-  }
-
-  void setEcosystem(PluginEcosystem? value) {
-    _ecosystem = value;
-    _notify();
-  }
-
-  void setTab(int value) {
-    _tab = value;
-    _notify();
-  }
-
+  /// Rebuilds the snapshot after an action route returns, using the native
+  /// inventory readers rather than assuming its previously displayed rows.
   Future<void> refresh() => run(management.refresh);
 
   Future<void> addRepository(String url, PluginEcosystem ecosystem) =>
-      run(() async {
-        await management.manager!.addRepository(url, ecosystem);
-      });
+      run(() => management.manager!.addRepository(url, ecosystem));
 
   Future<void> removeRepository(RepositoryId id) =>
       run(() => management.manager!.removeRepository(id));
@@ -88,22 +65,51 @@ final class PluginManagerViewModel extends ChangeNotifier {
       run(() => management.manager!.selectOwner(id, owner));
 
   Future<void> run(Future<void> Function() action) async {
-    if (_disposed || (_busy && _started)) return;
+    if (_disposed || (busy && _started)) return;
     _started = true;
-    _busy = true;
-    _error = null;
-    _notify();
+    _publish(busy: true, error: null);
     try {
       await action();
     } catch (_) {
-      _error = 'Could not save plugin changes. Retry.';
+      _publish(error: 'Could not save plugin changes. Retry.');
     } finally {
-      _busy = false;
-      _notify();
+      _publish(busy: false);
     }
   }
 
-  PluginListing get listing {
+  void _publish({
+    Object? busy = _unchanged,
+    Object? error = _unchanged,
+    Object? query = _unchanged,
+    Object? language = _unchanged,
+    Object? ecosystem = _unchanged,
+    Object? tab = _unchanged,
+  }) {
+    if (_disposed) return;
+    final previous = _state;
+    _state = _buildState(
+      busy: identical(busy, _unchanged) ? previous.busy : busy as bool,
+      error: identical(error, _unchanged) ? previous.error : error as String?,
+      query: identical(query, _unchanged) ? previous.query : query as String,
+      language: identical(language, _unchanged)
+          ? previous.language
+          : language as String?,
+      ecosystem: identical(ecosystem, _unchanged)
+          ? previous.ecosystem
+          : ecosystem as PluginEcosystem?,
+      tab: identical(tab, _unchanged) ? previous.tab : tab as int,
+    );
+    notifyListeners();
+  }
+
+  PluginManagerUiState _buildState({
+    required bool busy,
+    required String? error,
+    required String query,
+    required String? language,
+    required PluginEcosystem? ecosystem,
+    required int tab,
+  }) {
     final manager = management.manager;
     final catalog = <PluginId, List<PluginOffer>>{};
     final names = <PluginId, String>{};
@@ -129,15 +135,30 @@ final class PluginManagerViewModel extends ChangeNotifier {
         () => row.name,
       );
     }
-    // A selected language may disappear after repository removal/refresh.
-    if (_language != null && !languageSet.contains(_language)) {
-      _language = null;
-    }
     final languages = languageSet.toList()..sort();
-    return PluginListing(
-      names: names,
-      languages: languages,
-      rows: manager == null ? <PluginId>[] : visibleRows(catalog, names),
+    // Normalize filters on input/evidence changes, not inside listing getters.
+    final effectiveLanguage = languageSet.contains(language) ? language : null;
+    return PluginManagerUiState(
+      busy: busy,
+      error: error,
+      query: query,
+      language: effectiveLanguage,
+      ecosystem: ecosystem,
+      tab: tab,
+      listing: PluginListing(
+        names: names,
+        languages: languages,
+        rows: manager == null
+            ? <PluginId>[]
+            : _visibleRows(
+                catalog,
+                names,
+                query,
+                effectiveLanguage,
+                ecosystem,
+                tab,
+              ),
+      ),
     );
   }
 
@@ -228,15 +249,19 @@ final class PluginManagerViewModel extends ChangeNotifier {
             : 'Runtime not initialized');
   }
 
-  List<PluginId> visibleRows(
+  List<PluginId> _visibleRows(
     Map<PluginId, List<PluginOffer>> catalog,
     Map<PluginId, String> names,
+    String query,
+    String? language,
+    PluginEcosystem? ecosystem,
+    int tab,
   ) {
     final manager = management.manager!;
     final ids = <PluginId>{};
-    if (_tab == 0) {
+    if (tab == 0) {
       ids.addAll(catalog.keys);
-    } else if (_tab == 1) {
+    } else if (tab == 1) {
       ids.addAll(management.apks.map((a) => a.id));
       ids.addAll(management.novels.map((n) => n.current.metadata.id));
       ids.addAll(
@@ -258,10 +283,10 @@ final class PluginManagerViewModel extends ChangeNotifier {
         id.upstreamId,
         ...offers.expand((o) => o.sources.map((s) => s.name)),
       ].join(' ').toLowerCase();
-      return (_ecosystem == null || id.ecosystem == _ecosystem) &&
-          searchable.contains(_query.toLowerCase()) &&
-          (_language == null ||
-              offers.any((o) => o.sources.any((s) => s.language == _language)));
+      return (ecosystem == null || id.ecosystem == ecosystem) &&
+          searchable.contains(query.toLowerCase()) &&
+          (language == null ||
+              offers.any((o) => o.sources.any((s) => s.language == language)));
     }).toList()..sort(
       (a, b) => (names[a] ?? a.upstreamId).compareTo(names[b] ?? b.upstreamId),
     );

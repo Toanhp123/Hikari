@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/features/settings/plugin_acquisition_message.dart';
+import 'package:hikari/features/plugins/plugin_acquisition_message.dart';
 
 void main() {
   test('safe actionable staging failures never echo signed URLs', () {

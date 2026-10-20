@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
-import 'package:hikari/features/settings/plugin_manager_view_model.dart';
+import 'package:hikari/features/plugins/plugin_manager_view_model.dart';
 
 import 'plugin_management_test.dart' as helpers;
 
@@ -44,15 +44,21 @@ void main() {
     final model = PluginManagerViewModel(session);
     addTearDown(model.dispose);
     expect(model.listing.rows, [id]);
+    final initialState = model.state;
     model.setQuery('missing');
+    expect(initialState.query, isEmpty);
+    expect(initialState.listing.rows, [id]);
+    expect(model.state.query, 'missing');
     expect(model.listing.rows, isEmpty);
     model.setQuery('visible');
     expect(model.listing.rows, [id]);
     model.setLanguage('fr');
     expect(model.listing.rows, [
       id,
-    ]); // invalid language reset after catalog refresh
+    ]); // invalid choice normalizes during the state update
     expect(model.language, isNull);
+    final snapshot = model.state;
+    expect(identical(snapshot, model.state), isTrue); // read-only getter
     model.setTab(1);
     expect(model.listing.rows, isEmpty);
     model.setTab(0);

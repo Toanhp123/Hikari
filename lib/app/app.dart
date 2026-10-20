@@ -39,7 +39,7 @@ import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart'
     show SourceSearchFilter;
 import 'package:hikari/features/settings/settings_page.dart';
-import 'package:hikari/features/settings/plugin_manager_page.dart';
+import 'package:hikari/features/plugins/plugin_manager_page.dart';
 
 class HikariApp extends StatefulWidget {
   const HikariApp({

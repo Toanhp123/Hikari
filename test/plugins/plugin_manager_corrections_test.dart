@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
-import 'package:hikari/features/settings/plugin_manager_page.dart';
+import 'package:hikari/features/plugins/plugin_manager_page.dart';
 
 import 'plugin_management_test.dart' as helpers;
 

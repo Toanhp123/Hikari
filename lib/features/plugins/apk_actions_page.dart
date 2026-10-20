@@ -2,13 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/application/plugins/manage_apk_plugins.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
-import 'package:hikari/domain/plugins/plugins.dart';
-import 'package:hikari/application/plugins/manage_apk_plugins.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
-import 'package:hikari/features/settings/apk_actions_view_model.dart';
-import 'package:hikari/features/settings/plugin_labels.dart';
+import 'package:hikari/domain/plugins/plugins.dart';
+import 'package:hikari/features/plugins/apk_actions_view_model.dart';
+import 'package:hikari/features/plugins/plugin_labels.dart';
+import 'package:hikari/features/plugins/widgets/apk_identity_details.dart';
+import 'package:hikari/features/plugins/widgets/apk_operation_card.dart';
 
 /// Explicit package actions. Never changes the running source registry.
 class ApkActionsPage extends StatefulWidget {
@@ -151,20 +153,6 @@ class _ApkActionsPageState extends State<ApkActionsPage>
       ) ==
       true;
 
-  List<Widget> _identity(ApkPluginIdentity row) => [
-    SelectableText(
-      '${pluginEcosystemLabel(row.id.ecosystem)} · ${row.id.upstreamId}',
-    ),
-    Text('Version: ${row.version.name} (${row.version.code})'),
-    Text(
-      'Compatibility: ${apkCompatibilityLabel(row.compatibility)} · native trust: ${apkTrustLabel(row.trust)}',
-    ),
-    SelectableText('Current signers: ${row.currentSigners.join(', ')}'),
-    SelectableText(
-      'Signer history (not consent): ${row.signerHistory.join(', ')}',
-    ),
-  ];
-
   bool _ownerUnchanged() {
     final manager = session.manager!;
     return manager.state.owners[id] == _owner &&
@@ -260,7 +248,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     final displayed = staged ? _stage!.identity : _installed!;
     final epoch = _epoch;
     if (!await _confirm('Trust this APK signer?', [
-      ..._identity(displayed),
+      ApkIdentityDetails(identity: displayed),
       const Text(
         'Signer approval allows executable extension code. Repository metadata is not authenticity proof. Approval does not install or replace running sources.',
       ),
@@ -305,7 +293,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
         ? PluginOperation.install
         : PluginOperation.update;
     if (!await _confirm('Submit ${pluginOperationLabel(kind)}?', [
-      ..._identity(_stage!.identity),
+      ApkIdentityDetails(identity: _stage!.identity),
       const Text(
         'Android confirmation and verified native result are still required. Running sources stay frozen; restart may be required.',
       ),
@@ -334,7 +322,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     final displayed = _installed!;
     final epoch = _epoch;
     if (!await _confirm('Uninstall APK?', [
-      ..._identity(displayed),
+      ApkIdentityDetails(identity: displayed),
       const Text(
         'Library and Progress remain unchanged. A loaded reader may fail after removal. Android removal UI is not proof of completion.',
       ),
@@ -525,7 +513,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
             ),
             if (installed != null) ...[
               const Text('Installed APK'),
-              ..._identity(installed),
+              ApkIdentityDetails(identity: installed),
               if (!_supported(installed))
                 const Text(
                   'Unsupported APK identity. Approval, update and removal blocked here; use Android system app settings for removal.',
@@ -565,7 +553,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
               ),
             if (stage != null) ...[
               const Text('Inspected staged APK'),
-              ..._identity(stage.identity),
+              ApkIdentityDetails(identity: stage.identity),
               SelectableText('Repository: $_owner'),
               SelectableText('Repository signer expectation: $_expectedSigner'),
               if (!_supported(stage.identity))
@@ -614,59 +602,13 @@ class _ApkActionsPageState extends State<ApkActionsPage>
             for (final operation in session.apkOperations.where(
               (row) => id == null || row.pluginId == id,
             ))
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(HikariSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SelectableText(
-                        '${pluginEcosystemLabel(operation.pluginId.ecosystem)} · ${operation.pluginId.upstreamId}',
-                      ),
-                      SelectableText(
-                        '${pluginOperationLabel(operation.kind)} · ${apkInstallStatusLabel(operation.status)} · version ${operation.versionCode}\nSigner: ${operation.signer}\nOperation: ${operation.id}',
-                      ),
-                      if (operation.reason != null)
-                        Text('Reason: ${operation.reason}'),
-                      if (!operation.isTerminal)
-                        Wrap(
-                          spacing: HikariSpacing.sm,
-                          children: [
-                            if (operation.kind != PluginOperation.uninstall &&
-                                operation.status ==
-                                    ApkInstallStatus.pendingUserAction)
-                              OutlinedButton(
-                                onPressed: enabled
-                                    ? () => _operation(
-                                        operation,
-                                        'Resume Android confirmation',
-                                      )
-                                    : null,
-                                child: const Text(
-                                  'Resume Android confirmation',
-                                ),
-                              ),
-                            if (operation.kind != PluginOperation.uninstall)
-                              OutlinedButton(
-                                onPressed: enabled
-                                    ? () => _operation(
-                                        operation,
-                                        'Request cancellation',
-                                      )
-                                    : null,
-                                child: const Text('Request cancellation'),
-                              ),
-                            OutlinedButton(
-                              onPressed: enabled
-                                  ? () => _retire(operation)
-                                  : null,
-                              child: const Text('Retire unknown outcome'),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
+              ApkOperationCard(
+                operation: operation,
+                enabled: enabled,
+                onResume: () =>
+                    _operation(operation, 'Resume Android confirmation'),
+                onCancel: () => _operation(operation, 'Request cancellation'),
+                onRetire: () => _retire(operation),
               ),
           ],
         ],
