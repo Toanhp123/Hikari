@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/plugin_manager_ui_state.dart';
@@ -77,13 +78,11 @@ final class PluginBrowseFilters extends StatelessWidget {
           ],
         ),
         const SizedBox(height: HikariSpacing.md),
-        TextField(
-          decoration: const InputDecoration(
-            labelText: 'Search plugins or sources',
-            prefixIcon: Icon(Icons.search_rounded),
-          ),
+        HikariSearchBar(
+          initialQuery: state.query,
+          hintText: 'Search plugins or sources',
+          debounceDuration: Duration.zero,
           onChanged: onQueryChanged,
-          textInputAction: TextInputAction.search,
         ),
         const SizedBox(height: HikariSpacing.md),
         LayoutBuilder(

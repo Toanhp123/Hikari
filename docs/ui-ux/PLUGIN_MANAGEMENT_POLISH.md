@@ -27,7 +27,7 @@ and foreground/epoch guards remain route-owned.
 | --- | --- | --- |
 | Home | Artwork-first hero, scroll-bound branded header | Keep feature-owned, not a settings/management header |
 | Library and Local | `HikariChipRow` + `HikariChip` | Reuse for Available / Installed / Updates selection |
-| Catalog / Source Search | Search submission and remote results | Do **not** reuse search flow; plugin filtering is local, immediate |
+| Catalog / Source Search | `HikariSearchBar` with debounced remote search | Reuse the visual search component with zero debounce for local filtering, not the remote search workflow |
 | Settings | Compact semantic `_SectionHeader` | Promote to `core/ui/patterns/hikari_section_header.dart` and reuse in Plugin Manager |
 | Home / Local / Detail | Feature-specific async messages, MaterialBanner | Use plugin-owned inline notice; no premature app-wide banner abstraction |
 | Reader / Player | Immersive controls and media-specific palettes | Not suitable for plugin app chrome |
@@ -42,8 +42,10 @@ many configuration booleans or cross-feature design rewrites.
 
 ## Information hierarchy
 
-1. Manager: task heading, add repository / APK operations / inventory refresh;
-   Available–Installed–Updates chips; local search and adaptive two-facet row;
+1. Manager: add repository and APK operation icon actions in the AppBar;
+   inventory pull-to-refresh at all widths, with an additional refresh icon
+   only on expanded (>=840dp) windows; Available–Installed–Updates chips;
+   `HikariSearchBar` with immediate local filtering and adaptive two-facet row;
    plugin list; repository maintenance.
 2. APK: explain source activation and preserved reading state before actions;
    installed revision, download/inspection, staged consent, native operation journal.
@@ -58,6 +60,8 @@ many configuration booleans or cross-feature design rewrites.
 
 Run `fvm dart format lib test`, `fvm flutter analyze`, `fvm flutter test`,
 and a release build. Widget tests should cover 320dp / large text, tab changes,
-repository CRUD, native unknown outcomes, consent boundaries, and expansion of
-journal evidence. On Redmi Note 9S manually verify keyboard dismissal,
-TalkBack order, long signer/URL wrapping and navigation after package changes.
+repository CRUD, header actions on expanded windows, pull-to-refresh on
+compact windows including empty inventory, immediate search, native unknown
+outcomes, consent boundaries, and expansion of journal evidence. On Redmi Note
+9S manually verify keyboard dismissal, TalkBack order, long signer/URL wrapping
+and navigation after package changes.

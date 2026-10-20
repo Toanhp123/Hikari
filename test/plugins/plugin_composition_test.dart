@@ -125,7 +125,7 @@ void main() {
         novel.inventoryRow()..['current'] = novel.artifact(version: '2.0'),
       ];
       await tester.runAsync(() async {
-        await tester.tap(find.text('Refresh inventory'));
+        await tester.tap(find.byTooltip('Refresh inventory'));
         await session.refresh();
       });
       await tester.pumpAndSettle();
@@ -136,7 +136,7 @@ void main() {
       installed = [];
       novels = [];
       await tester.runAsync(() async {
-        await tester.tap(find.text('Refresh inventory'));
+        await tester.tap(find.byTooltip('Refresh inventory'));
         await session.refresh();
       });
       await tester.pumpAndSettle();
@@ -215,7 +215,7 @@ void main() {
         'sources': [],
       };
       await tester.runAsync(() async {
-        await tester.tap(find.text('Refresh inventory'));
+        await tester.tap(find.byTooltip('Refresh inventory'));
         await session.refresh();
       });
       await tester.pumpAndSettle();

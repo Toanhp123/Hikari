@@ -60,10 +60,16 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
 
   void _onTextChange(String value) {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(widget.debounceDuration, () {
-      if (mounted) widget.onChanged(value);
-    });
-    setState(() {});
+    if (widget.debounceDuration == Duration.zero) {
+      // Filtering local, already loaded items should be immediate. Remote
+      // searches continue to use the existing debounced callback.
+      widget.onChanged(value);
+    } else {
+      _debounceTimer = Timer(widget.debounceDuration, () {
+        if (mounted) widget.onChanged(value);
+      });
+    }
+    if (mounted) setState(() {});
   }
 
   void _submit(String value) {

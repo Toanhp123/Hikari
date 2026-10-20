@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
@@ -13,6 +14,154 @@ import 'apk_actions_page_test.dart' as apk;
 import 'plugin_management_test.dart' as helpers;
 
 void main() {
+  testWidgets('compact manager uses pull-to-refresh without header refresh', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var reads = 0;
+    final session = helpers.management(
+      store: helpers.MemoryStore(),
+      nativeCall: () => reads++,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Add repository'), findsOneWidget);
+    expect(find.byTooltip('Refresh inventory'), findsNothing);
+    expect(find.byType(HikariSearchBar), findsOneWidget);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    expect(
+      tester.widget<CustomScrollView>(find.byType(CustomScrollView)).physics,
+      isA<AlwaysScrollableScrollPhysics>(),
+    );
+    final beforeRefresh = reads;
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 450));
+    await tester.pumpAndSettle();
+    expect(reads, greaterThan(beforeRefresh));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('compact header keeps both actions at large text scale', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final session = apk.session(apk.Gateway());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(1.8)),
+          child: child!,
+        ),
+        home: PluginManagerPage(management: session),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Add repository'), findsOneWidget);
+    expect(find.byTooltip('APK operations'), findsOneWidget);
+    expect(find.byTooltip('Refresh inventory'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('medium layout keeps refresh out of the header', (tester) async {
+    tester.view.physicalSize = const Size(700, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final session = helpers.management(store: helpers.MemoryStore());
+    await tester.pumpWidget(
+      MaterialApp(home: PluginManagerPage(management: session)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Refresh inventory'), findsNothing);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('expanded manager offers explicit refresh in the header', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var reads = 0;
+    final session = helpers.management(
+      store: helpers.MemoryStore(),
+      nativeCall: () => reads++,
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: PluginManagerPage(management: session)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Refresh inventory'), findsOneWidget);
+    expect(find.byTooltip('Add repository'), findsOneWidget);
+    final beforeRefresh = reads;
+    await tester.tap(find.byTooltip('Refresh inventory'));
+    await tester.pumpAndSettle();
+    expect(reads, greaterThan(beforeRefresh));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'search uses HikariSearchBar and filters local offers immediately',
+    (tester) async {
+      final id = PluginId(PluginEcosystem.manga, 'org.example.manga');
+      final repoId = RepositoryId('https://example.org/index.json');
+      final store = helpers.MemoryStore()
+        ..state = PluginState(
+          repositories: [
+            PluginRepository(
+              repoId,
+              PluginEcosystem.manga,
+              snapshot: PluginRepositorySnapshot(
+                name: 'Test repository',
+                offers: [
+                  PluginOffer(
+                    repositoryId: repoId,
+                    id: id,
+                    name: 'Unique Manga Plugin',
+                    version: ApkPluginVersion(1, '1'),
+                    downloadUrl: 'https://example.org/plugin.apk',
+                    iconUrl: 'https://example.org/icon.png',
+                    sources: [],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      final session = helpers.management(store: store);
+      await tester.pumpWidget(
+        MaterialApp(home: PluginManagerPage(management: session)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Unique Manga Plugin'), findsOneWidget);
+      final searchField = find.descendant(
+        of: find.byType(HikariSearchBar),
+        matching: find.byType(EditableText),
+      );
+      await tester.enterText(searchField, 'no-matching-plugin');
+      await tester.pump();
+      expect(find.text('Unique Manga Plugin'), findsNothing);
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pump();
+      expect(find.text('Unique Manga Plugin'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('plugin browse adapts to compact width and large text', (
     tester,
   ) async {
@@ -55,7 +204,7 @@ void main() {
     await tester.tap(find.text('Installed'));
     await tester.pumpAndSettle();
     expect(find.text('Anime plugin'), findsNothing);
-    await tester.tap(find.text('APK operations'));
+    await tester.tap(find.byTooltip('APK operations'));
     await tester.pumpAndSettle();
     gateway.installed = [apk.identity()];
     await tester.pageBack();
@@ -152,7 +301,7 @@ void main() {
         MaterialApp(home: PluginManagerPage(management: session)),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Add repository'));
+      await tester.tap(find.byTooltip('Add repository'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add').last);
       await tester.pumpAndSettle();
@@ -268,7 +417,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('available on Android only'), findsOneWidget);
-    expect(find.text('Add repository'), findsNothing);
+    expect(find.byTooltip('Add repository'), findsNothing);
     expect(calls, 0);
   });
 }
