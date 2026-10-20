@@ -62,6 +62,11 @@ navigation completion. Child content widgets only render and forward intents.
 Security/lifecycle dialogs and foreground/cancellation guards may remain in
 route pages when moving them would weaken consent boundaries.
 
+For dialog, bottom sheet, menu, expansion and transient feedback decisions,
+follow [DESIGN_SYSTEM.md — Transient surfaces](DESIGN_SYSTEM.md#transient-surfaces-dialog-sheet-menu-and-feedback).
+Shared confirmations own **presentation and cancellation semantics only**;
+feature routes still own authorization, async guards and native lifecycle.
+
 ### 2.3 Prefer composition over configurable mega-widgets
 
 Do not create one `MediaCard` with many booleans and mode switches for anime,

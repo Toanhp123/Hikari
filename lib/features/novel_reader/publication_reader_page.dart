@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
@@ -273,10 +274,20 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
   void _showToc(Publication book) {
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) => PublicationTocSheet(
-        book: book,
-        onSelect: (index, fragment) =>
-            unawaited(_select(index, fragment: fragment)),
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SizedBox(
+        // A short TOC should not claim the screen; a large TOC must scroll.
+        height: math.min(
+          MediaQuery.sizeOf(sheetContext).height * 0.85,
+          math.max(160.0, book.toc.length * 56.0 + 32.0),
+        ),
+        child: PublicationTocSheet(
+          book: book,
+          onSelect: (index, fragment) =>
+              unawaited(_select(index, fragment: fragment)),
+        ),
       ),
     );
   }

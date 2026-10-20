@@ -43,6 +43,42 @@ Use local `LayoutBuilder` constraints for a component's responsive content decis
 - Navigation: the current custom docked bar/rail remains in this pass; separately evaluate native presentation against visual fidelity and accessibility, not by assumption.
 - Player/reader: immersive black and paper/charcoal prose are reading/playback surfaces, not forced to use app page `surface`.
 
+## Transient surfaces: dialog, sheet, menu and feedback
+
+Choose the native Material surface for the *interaction*, not for visual novelty:
+
+- **Confirmation** for an intentional potentially consequential change: use
+  `showHikariConfirmation` (`core/ui/components/hikari_confirmation_dialog.dart`).
+  It uses the root `DialogThemeData`, scrollable `AlertDialog`, an explicit Cancel
+  action and a semantic `ColorScheme.error` treatment for destructive commits.
+  Only an explicit Confirm result is `true`; Escape/Back/barrier/Cancel are
+  cancellation. Feature code owns the operation, post-await revalidation and
+  whether dismissing the barrier is acceptable.
+- **Forms and complex consent**: keep feature-owned native dialogs with input
+  validation and dynamic disabled actions. Never generalize away required checkboxes,
+  exact artifact identity, foreground/epoch checks or native system approval.
+  The shared confirmation shell never authorizes APK installation or code execution.
+- **Modal bottom sheet** for contextual selection, controls or a long contents
+  list on compact screens. Prefer root `BottomSheetThemeData`, `useSafeArea` and
+  a bounded scrollable body. Use `isScrollControlled` where the body scrolls;
+  ensure short content does not consume the entire viewport. A compact-source
+  picker may remain a bounded `Dialog` on expanded screens when it preserves the
+  exact same selection result/validation as the phone sheet.
+- **MenuAnchor** for short anchored choices, `ExpansionTile` for in-place
+  secondary details, and theme-owned `SnackBar`/`ScaffoldMessenger` for brief
+  nonblocking feedback. Do not build a generic modal router or snack-bar wrapper
+  without a demonstrated shared need.
+- Let the owning route manage focus restoration, keyboard insets, barrier
+  policy and navigation. Do not change saved data when a user merely dismisses a
+  transient surface. Native Android installer confirmation is an operating-system
+  authority and must not be replaced by Flutter UI.
+
+Regression coverage for common confirmations includes explicit consent versus
+Cancel/Back/barrier, destructive color, narrow screens and large text. Feature
+flows also test disposed-route guards, ownership/evidence changes during consent,
+keyboard for forms, and long sheet lists. All shared controls inherit the root
+Material 3 theme rather than creating scoped color/typography palettes.
+
 ## Quality and outstanding work
 
 Consolidation **does not certify** accessibility, layout resilience, or performance. Maintain tests for actual root inheritance (including accent/OLED), semantic pairs, width boundaries, reduced motion and existing search behavior. Profile blur/image decode on device before claiming a performance regression or replacing image policy. Historical audits cover resize state retention, text scaling, badge contrast, rail selection and bottom insets; current controls retain native focus/selection behavior. Native navigation remains a separate design decision; TalkBack/device validation remains manual.

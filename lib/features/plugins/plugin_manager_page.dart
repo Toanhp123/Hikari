@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
@@ -84,37 +85,24 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
     if (selected != null && mounted) {
       final previous = manager.state.owners[id];
       if (previous != null && previous != selected) {
-        final confirmed = await showDialog<bool>(
+        final confirmed = await showHikariConfirmation(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Change repository owner?'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SelectableText('Current: $previous'),
-                  SelectableText('New: $selected'),
-                  const SizedBox(height: HikariSpacing.md),
-                  const Text(
-                    'This controls future update ownership only. Signing, code and origin consent do not transfer. Running sources are not replaced.',
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Change owner'),
+          title: 'Change repository owner?',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText('Current: $previous'),
+              SelectableText('New: $selected'),
+              const SizedBox(height: HikariSpacing.md),
+              const Text(
+                'This controls future update ownership only. Signing, code and origin consent do not transfer. Running sources are not replaced.',
               ),
             ],
           ),
+          confirmLabel: 'Change owner',
         );
-        if (confirmed != true || !mounted) return;
+        if (!confirmed || !mounted) return;
       }
       await _viewModel.selectOwner(id, selected);
     }
@@ -209,26 +197,16 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
   }
 
   Future<void> _removeRepository(PluginRepository repository) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showHikariConfirmation(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove repository?'),
-        content: const Text(
-          'Installed plugins, selected ownership and consent remain. No fallback repository will be selected.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove repository'),
-          ),
-        ],
+      title: 'Remove repository?',
+      content: const Text(
+        'Installed plugins, selected ownership and consent remain. No fallback repository will be selected.',
       ),
+      confirmLabel: 'Remove repository',
+      destructive: true,
     );
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       await _viewModel.removeRepository(repository.id);
     }
   }

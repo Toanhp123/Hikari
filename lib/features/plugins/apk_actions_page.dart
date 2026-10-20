@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/manage_apk_plugins.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
@@ -126,35 +127,17 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     onFinished: _schedule,
   );
 
-  Future<bool> _confirm(
-    String title,
-    List<Widget> contents,
-    String action,
-  ) async =>
-      await showDialog<bool>(
+  Future<bool> _confirm(String title, List<Widget> contents, String action) =>
+      showHikariConfirmation(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: contents,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(action),
-            ),
-          ],
+        title: title,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: contents,
         ),
-      ) ==
-      true;
+        confirmLabel: action,
+      );
 
   bool _ownerUnchanged() {
     final manager = session.manager!;

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
@@ -94,38 +95,20 @@ class _NovelActionsPageState extends State<NovelActionsPage>
   Future<void> _run(Future<void> Function() action) =>
       _actionsViewModel.run(action, canStart: () => _active);
 
-  Future<bool> _confirm(
-    String title,
-    List<Widget> contents,
-    String action,
-  ) async =>
-      await showDialog<bool>(
+  Future<bool> _confirm(String title, List<Widget> contents, String action) =>
+      showHikariConfirmation(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: contents,
-              ),
-            ),
+        title: title,
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: contents,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(action),
-            ),
-          ],
         ),
-      ) ==
-      true;
+        confirmLabel: action,
+      );
   static const _evaluationWarning = Text(
     'Explicit consent permits native evaluation of this exact code and origin policy. Repository self-declaration is not trust. Bounded admission is not JS safety or provider compatibility. Running sources stay frozen; restart required for changed sources.',
   );
