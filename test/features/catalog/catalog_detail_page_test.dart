@@ -89,6 +89,7 @@ void main() {
       expect(find.text('Saved chapter 1'), findsOneWidget);
       expect(find.text('Change source'), findsOneWidget);
       expect(find.textContaining('Cached chapters · fresh'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

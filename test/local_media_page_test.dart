@@ -116,6 +116,30 @@ void main() {
     },
   );
 
+  testWidgets('rescan retains items without an extra linear loading bar', (
+    tester,
+  ) async {
+    final pending = Completer<List<Media>?>();
+    var scans = 0;
+    await tester.pumpWidget(
+      host(
+        scanSelectedRoot: () =>
+            ++scans == 1 ? Future.value([media]) : pending.future,
+        chooseRoot: () async => false,
+        openMedia: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Rescan folder'));
+    await tester.pump();
+    expect(find.text('Spirited Away'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    pending.complete([replacement]);
+    await tester.pumpAndSettle();
+    expect(find.text('Chapter one'), findsOneWidget);
+    expect(find.text('Spirited Away'), findsNothing);
+  });
+
   testWidgets('root revision replaces even an in-flight restored scan', (
     tester,
   ) async {

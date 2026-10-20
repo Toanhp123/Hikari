@@ -489,9 +489,22 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                       ],
                     ),
                   ),
-                if (owner?.loading == true || owner?.opening == true)
+                if (owner?.loading == true &&
+                    owner?.hasChapters == false &&
+                    owner?.direct == false)
+                  const Padding(
+                    padding: EdgeInsets.all(HikariSpacing.md),
+                    child: Center(
+                      child: CircularProgressIndicator.adaptive(
+                        semanticsLabel: 'Loading chapters',
+                      ),
+                    ),
+                  ),
+                // Opening a chapter is an explicit navigation operation, not
+                // a refresh. Keep its feedback and interaction guard.
+                if (owner?.opening == true)
                   const LinearProgressIndicator(
-                    semanticsLabel: 'Loading chapters',
+                    semanticsLabel: 'Opening chapter',
                   ),
                 if (owner?.failed == true)
                   Semantics(

@@ -4,7 +4,6 @@ import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
-import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/apk_actions_page.dart';
 import 'package:hikari/features/plugins/novel_actions_page.dart';
@@ -250,21 +249,11 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const HikariSectionHeader(
-                  title: 'Manage sources',
-                  description: 'Discover plugins, inspect installed versions and choose update repositories.',
-                ),
                 if (!session.supported)
                   const PluginNotice(
                     message: 'Plugin management and extension runtimes are available on Android only. Your saved sources and reading data are unchanged.',
                   )
                 else ...[
-                  if (_busy) ...[
-                    const SizedBox(height: HikariSpacing.md),
-                    const LinearProgressIndicator(
-                      semanticsLabel: 'Loading plugins',
-                    ),
-                  ],
                   if (_viewModel.error ?? session.error
                       case final String error) ...[
                     const SizedBox(height: HikariSpacing.md),
@@ -293,12 +282,6 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                     ),
                   ],
                   if (manager != null) ...[
-                    const SizedBox(height: HikariSpacing.xl),
-                    HikariSectionHeader(
-                      title: 'Browse plugins',
-                      description:
-                          '${rows.length} ${rows.length == 1 ? 'plugin' : 'plugins'} in this view',
-                    ),
                     PluginBrowseFilters(
                       state: _viewModel.state,
                       onQueryChanged: _viewModel.setQuery,
@@ -306,30 +289,52 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
                       onEcosystemChanged: _viewModel.setEcosystem,
                       onTabChanged: _viewModel.setTab,
                     ),
+                    if (rows.isNotEmpty) ...[
+                      const SizedBox(height: HikariSpacing.sm),
+                      Text(
+                        '${rows.length} ${rows.length == 1 ? 'plugin' : 'plugins'}',
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                   ],
                 ],
               ],
             ),
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-          sliver: SliverList.builder(
-            itemCount: rows.length,
-            itemBuilder: (context, index) {
-              final id = rows[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: HikariSpacing.sm),
-                child: PluginListTile(
-                  id: id,
-                  name: names[id] ?? id.upstreamId,
-                  runtime: _viewModel.runtimeFor(id),
-                  onTap: _busy ? null : () => _details(id),
-                ),
-              );
-            },
+        if (session.supported && manager == null && _busy)
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: CircularProgressIndicator.adaptive(
+                semanticsLabel: 'Loading plugins',
+              ),
+            ),
           ),
-        ),
+        if (manager != null)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+            sliver: SliverList.builder(
+              itemCount: rows.length,
+              itemBuilder: (context, index) {
+                final id = rows[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: HikariSpacing.sm),
+                  child: PluginListTile(
+                    id: id,
+                    name: names[id] ?? id.upstreamId,
+                    runtime: _viewModel.runtimeFor(id),
+                    onTap: _busy ? null : () => _details(id),
+                  ),
+                );
+              },
+            ),
+          ),
         if (session.supported && manager != null)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(

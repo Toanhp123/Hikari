@@ -715,7 +715,7 @@ Initial load and refresh are distinct states:
 
 ```text
 no data + load        -> blocking loading state
-content + refresh     -> keep stale content visible + refresh progress
+content + refresh     -> keep stale content visible + gesture/action feedback
 refresh succeeds      -> replace with fresh content
 refresh fails         -> keep stale content + recoverable refresh notice
 no data + load fails  -> blocking error state
@@ -730,6 +730,28 @@ one.
 Search is deliberately excluded from pull-to-refresh because changing/submitting the
 query is the user's data request. Library is deliberately excluded while it observes its
 local source of truth and therefore updates without manual intervention.
+
+### 12.2 Progress presentation
+
+Use a single progress signal appropriate to the *operation*, not an additional
+indeterminate horizontal bar at the top of every collection:
+
+- With usable content, refresh keeps that content mounted and provides feedback
+  through the active pull-to-refresh indicator or refresh action. Background
+  refresh does not add a second persistent linear progress bar.
+- Without usable content, show an in-content loading placeholder/indicator or
+  the feature's existing `AsyncStateView` while a request is outstanding.
+- For remote search, retain already returned partial results, and communicate
+  that other providers are still searching using concise status text. Search
+  remains submit/retry-driven rather than pull-to-refresh.
+- Chapter opening, downloads, file writes, and reader handoff are distinct
+  operations. Keep their interaction guards and meaningful progress feedback;
+  do not remove progress solely to make their views match collection refresh.
+- Retain recoverable failure notices and Retry even when old content remains.
+
+This policy is about consistent behavior, not banning `LinearProgressIndicator`
+for determinate transfers or navigational work. Prefer existing shared UI
+patterns to creating another generic progress component.
 
 Refresh interaction references:
 

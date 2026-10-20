@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
@@ -14,6 +16,51 @@ import 'apk_actions_page_test.dart' as apk;
 import 'plugin_management_test.dart' as helpers;
 
 void main() {
+  testWidgets('first load uses content spinner, not a header progress bar', (
+    tester,
+  ) async {
+    var gate = Completer<List<ApkPluginIdentity>>();
+    final session = PluginManagement(
+      supported: true,
+      inventory: const CombinedPluginInventory([]),
+      store: helpers.MemoryStore(),
+      reader: helpers.Reader(),
+      readApks: () => gate.future,
+      readNovels: () async => [],
+      readApkRuntime: () async =>
+          ApkRuntimeEvidence(initialized: false, loaded: [], errors: {}),
+      readNovelRuntime: () async => NovelRuntimeSnapshot(
+        initialization: NovelRuntimeInitialization.notInitialized,
+        failure: null,
+        loaded: [],
+        issues: [],
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: PluginManagerPage(management: session)),
+    );
+    await tester.pump();
+    expect(find.text('Manage sources'), findsNothing);
+    expect(find.text('Browse plugins'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    gate.complete([]);
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Available'), findsOneWidget);
+
+    // Subsequent pull refresh leaves the content mounted and does not add
+    // another persistent progress bar while native evidence is pending.
+    gate = Completer<List<ApkPluginIdentity>>();
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 450));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Available'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    gate.complete([]);
+    await tester.pumpAndSettle();
+    expect(find.text('Available'), findsOneWidget);
+  });
+
   testWidgets('compact manager uses pull-to-refresh without header refresh', (
     tester,
   ) async {
@@ -182,7 +229,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Manage sources'), findsOneWidget);
+    expect(find.text('Manage sources'), findsNothing);
+    expect(find.text('Browse plugins'), findsNothing);
     expect(find.byType(HikariChipRow), findsOneWidget);
     expect(find.text('Available'), findsOneWidget);
     await tester.ensureVisible(find.text('Installed'));

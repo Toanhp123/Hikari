@@ -46,7 +46,11 @@ many configuration booleans or cross-feature design rewrites.
    inventory pull-to-refresh at all widths, with an additional refresh icon
    only on expanded (>=840dp) windows; Available–Installed–Updates chips;
    `HikariSearchBar` with immediate local filtering and adaptive two-facet row;
-   plugin list; repository maintenance.
+   plugin list; repository maintenance. Do not repeat the AppBar title with
+   a "Manage sources" or "Browse plugins" heading: keep a compact result
+   count after filters. Initial loading belongs in the empty content region;
+   background inventory refresh uses the pull gesture or header action,
+   never a second horizontal progress bar.
 2. APK: explain source activation and preserved reading state before actions;
    installed revision, download/inspection, staged consent, native operation journal.
 3. Novel: show origin/consent explanation before actions; stored bundle,
