@@ -154,6 +154,45 @@ void main() {
     expect(repository.entry!.artwork, _ref('preview'));
     expect(repository.entry!.media.title, 'Stored title');
   });
+  testWidgets(
+    'partial source search keeps results with status text, not a progress bar',
+    (tester) async {
+      final controller = TextEditingController(text: 'Test');
+      addTearDown(controller.dispose);
+      final media = Media(
+        title: 'Found result',
+        type: MediaType.manga,
+        source: _ref('result'),
+      );
+      Widget host(SourceSearchStatus status) => MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: Scaffold(
+          body: SourceSearchContent(
+            controller: controller,
+            state: SourceSearchUiState(
+              query: 'Test',
+              inputQuery: 'Test',
+              status: status,
+              results: [SourceSearchResult(media: media)],
+            ),
+            onQueryChanged: (_) {},
+            onSubmitted: (_) {},
+            onSelectFilter: (_) {},
+            onRetry: () {},
+            openMedia: (_, _, {previewMetadata}) {},
+          ),
+        ),
+      );
+      await tester.pumpWidget(host(SourceSearchStatus.loading));
+      expect(find.text('Searching remaining sources…'), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.text('Found result'), findsOneWidget);
+      await tester.pumpWidget(host(SourceSearchStatus.ready));
+      expect(find.text('Searching remaining sources…'), findsNothing);
+      expect(find.text('Found result'), findsOneWidget);
+    },
+  );
+
   for (final manga in [true, false]) {
     final kind = manga ? 'manga' : 'novel';
     final preview = MediaMetadata(
@@ -552,7 +591,8 @@ void main() {
         await tester.tap(find.text('Retry'));
         await tester.pump();
         expect(calls, 2);
-        expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(LinearProgressIndicator), findsNothing);
         expect(find.text('Source preview'), findsOneWidget);
         retry.complete(MediaMetadata(title: 'Full'));
         await tester.pumpAndSettle();
@@ -619,7 +659,8 @@ void main() {
         await tester.pumpWidget(page());
         await tester.pump();
         expect(find.text('Source preview'), findsOneWidget);
-        expect(find.byType(LinearProgressIndicator), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(LinearProgressIndicator), findsNothing);
         expect(find.text('Start reading'), findsNothing);
         expect(find.text('No readable chapters found.'), findsNothing);
         expect(detailsReads, 1);

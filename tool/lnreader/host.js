@@ -1,15 +1,26 @@
-import * as cheerio from 'cheerio/slim';
-import dayjs from 'dayjs';
-const call = request => JSON.parse(__hikariHost(JSON.stringify(request)));
-const fetchApi = async (url, init = {}) => {
-  const result = call({op:'fetch', url, init});
-  return {ok:result.status >= 200 && result.status < 300, status:result.status,
-    text:async()=>result.body, json:async()=>JSON.parse(result.body)};
-};
-const storage = {getItem:key=>call({op:'get',key}),setItem:(key,value)=>call({op:'set',key,value}),removeItem:key=>call({op:'remove',key})};
-const fetchText = async (url, init) => (await fetchApi(url,init)).text();
-const modules = Object.freeze({cheerio, dayjs, '@libs/fetch':{fetchApi,fetchText},
-  '@libs/storage':storage, '@libs/url':{absoluteUrl:(base,path)=>call({op:'absoluteUrl',base,path})}});
-globalThis.require = name => { if (!Object.hasOwn(modules,name)) throw Error('Unsupported module: '+name); return modules[name]; };
-globalThis.localStorage = storage;
+// LNReader v3 engine entrypoint. Runtime interfaces are implemented once in
+// engine/ and bundled into a single offline asset for QuickJS on Android.
+import {installWebPrimitives} from './engine/web_compat.js';
+import {installModuleRegistry} from './engine/modules.js';
+import {fetchApi} from './engine/fetch.js';
+import {nativeCall} from './engine/native_bridge.js';
+
+globalThis.__hikariEngineProfile = 'v3-text-alpha';
+installWebPrimitives();
+installModuleRegistry();
+// Older LNReader bundles occasionally reference these globals directly.
+globalThis.localStorage = Object.freeze({
+  setItem:(name,value)=>nativeCall({op:'set',key:name,value:String(value)}),
+  getItem:name=>nativeCall({op:'get',key:name}),
+  removeItem:name=>nativeCall({op:'remove',key:name}),
+});
 globalThis.fetch = fetchApi;
+if (typeof globalThis.setTimeout !== 'function') {
+  globalThis.setTimeout = (callback,ms=0,...args) => {
+    if (typeof callback !== 'function' || !Number.isInteger(ms) || ms < 0 || ms > 2000) {
+      throw TypeError('Unsupported timer');
+    }
+    nativeCall({op:'delay',ms}); callback(...args);
+    return 0;
+  };
+}

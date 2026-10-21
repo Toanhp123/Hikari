@@ -31,12 +31,15 @@ class HikariSearchBar extends StatefulWidget {
 class _HikariSearchBarState extends State<HikariSearchBar> {
   late TextEditingController _controller;
   Timer? _debounceTimer;
+  late String _lastText;
 
   @override
   void initState() {
     super.initState();
     _controller =
         widget.controller ?? TextEditingController(text: widget.initialQuery);
+    _lastText = _controller.text;
+    _controller.addListener(_onControllerChange);
   }
 
   @override
@@ -44,26 +47,45 @@ class _HikariSearchBarState extends State<HikariSearchBar> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller == widget.controller) return;
     _debounceTimer?.cancel();
+    _controller.removeListener(_onControllerChange);
     if (oldWidget.controller == null) _controller.dispose();
     _controller =
         widget.controller ?? TextEditingController(text: widget.initialQuery);
+    _lastText = _controller.text;
+    _controller.addListener(_onControllerChange);
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _controller.removeListener(_onControllerChange);
     if (widget.controller == null) {
       _controller.dispose();
     }
     super.dispose();
   }
 
+  void _onControllerChange() {
+    if (_controller.text == _lastText) return;
+    _lastText = _controller.text;
+    // Controller notifications precede user onChanged. External edits update
+    // actions and invalidate stale work, but never submit a search.
+    _debounceTimer?.cancel();
+    setState(() {});
+  }
+
   void _onTextChange(String value) {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(widget.debounceDuration, () {
-      if (mounted) widget.onChanged(value);
-    });
-    setState(() {});
+    if (widget.debounceDuration == Duration.zero) {
+      // Filtering local, already loaded items should be immediate. Remote
+      // searches continue to use the existing debounced callback.
+      widget.onChanged(value);
+    } else {
+      _debounceTimer = Timer(widget.debounceDuration, () {
+        if (mounted) widget.onChanged(value);
+      });
+    }
+    if (mounted) setState(() {});
   }
 
   void _submit(String value) {

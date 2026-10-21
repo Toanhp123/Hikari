@@ -46,6 +46,27 @@ Feature-specific compositions remain inside the feature that owns their UX.
 A shared component should exist because multiple real use cases need the same
 abstraction, not because it might be reusable later.
 
+### 2.2.1 Feature ownership for multi-route workflows
+
+A settings/menu entry does not own the feature it navigates to. When a flow
+owns multiple routes, a ViewModel and feature-specific visual composition,
+place that presentation under its own `features/<feature>/` directory; the
+settings/menu route retains only its navigation callback. Keep shared
+application/domain/infrastructure contracts in their existing layers.
+
+A ViewModel should publish one immutable UI-state snapshot per transition.
+Derived getters must be free of side effects; normalize invalid filters while
+processing input or new evidence. Refresh after a child action route returns
+when that route can change native-backed state; never infer installation from
+navigation completion. Child content widgets only render and forward intents.
+Security/lifecycle dialogs and foreground/cancellation guards may remain in
+route pages when moving them would weaken consent boundaries.
+
+For dialog, bottom sheet, menu, expansion and transient feedback decisions,
+follow [DESIGN_SYSTEM.md — Transient surfaces](DESIGN_SYSTEM.md#transient-surfaces-dialog-sheet-menu-and-feedback).
+Shared confirmations own **presentation and cancellation semantics only**;
+feature routes still own authorization, async guards and native lifecycle.
+
 ### 2.3 Prefer composition over configurable mega-widgets
 
 Do not create one `MediaCard` with many booleans and mode switches for anime,
@@ -699,7 +720,7 @@ Initial load and refresh are distinct states:
 
 ```text
 no data + load        -> blocking loading state
-content + refresh     -> keep stale content visible + refresh progress
+content + refresh     -> keep stale content visible + gesture/action feedback
 refresh succeeds      -> replace with fresh content
 refresh fails         -> keep stale content + recoverable refresh notice
 no data + load fails  -> blocking error state
@@ -714,6 +735,28 @@ one.
 Search is deliberately excluded from pull-to-refresh because changing/submitting the
 query is the user's data request. Library is deliberately excluded while it observes its
 local source of truth and therefore updates without manual intervention.
+
+### 12.2 Progress presentation
+
+Use a single progress signal appropriate to the *operation*, not an additional
+indeterminate horizontal bar at the top of every collection:
+
+- With usable content, refresh keeps that content mounted and provides feedback
+  through the active pull-to-refresh indicator or refresh action. Background
+  refresh does not add a second persistent linear progress bar.
+- Without usable content, show an in-content loading placeholder/indicator or
+  the feature's existing `AsyncStateView` while a request is outstanding.
+- For remote search, retain already returned partial results, and communicate
+  that other providers are still searching using concise status text. Search
+  remains submit/retry-driven rather than pull-to-refresh.
+- Chapter opening, downloads, file writes, and reader handoff are distinct
+  operations. Keep their interaction guards and meaningful progress feedback;
+  do not remove progress solely to make their views match collection refresh.
+- Retain recoverable failure notices and Retry even when old content remains.
+
+This policy is about consistent behavior, not banning `LinearProgressIndicator`
+for determinate transfers or navigational work. Prefer existing shared UI
+patterns to creating another generic progress component.
 
 Refresh interaction references:
 

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/components/hikari_modal_sheet.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
@@ -345,11 +346,9 @@ class _NovelReaderPageState extends State<NovelReaderPage>
   }
 
   void _showPreferencesSheet() {
-    showModalBottomSheet<void>(
+    showHikariModalSheet<void>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-      isScrollControlled: true,
-      useSafeArea: true,
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),

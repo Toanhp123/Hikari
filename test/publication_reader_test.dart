@@ -9,6 +9,7 @@ import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/novel_reader/widgets/novel_content_view.dart';
 import 'package:hikari/features/novel_reader/publication_reader_page.dart';
+import 'package:hikari/features/novel_reader/widgets/publication_reader_content.dart';
 
 void main() {
   const publicationRef = SourceMediaRef(
@@ -52,6 +53,51 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('One'), findsOneWidget);
       expect(find.text('Two'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'large table of contents remains scrollable and selects distant sections',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final longSections = List.generate(
+        120,
+        (index) => PublicationSection(
+          resource: 'section_$index.xhtml',
+          title: 'Section $index',
+        ),
+      );
+      final source = _FakePublicationSource(longSections);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PublicationReaderPage(
+            title: 'Large book',
+            publication: publicationRef,
+            source: source,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Table of contents'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Section 0'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Section 90'),
+        450,
+        scrollable: find.descendant(
+          of: find.byType(PublicationTocSheet),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.tap(find.text('Section 90'));
+      await tester.pumpAndSettle();
+      expect(source.readSections.last, 'section_90.xhtml');
+      expect(tester.takeException(), isNull);
     },
   );
 

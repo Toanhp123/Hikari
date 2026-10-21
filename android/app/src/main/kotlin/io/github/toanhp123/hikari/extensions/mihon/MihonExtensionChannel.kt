@@ -20,7 +20,7 @@ class MihonExtensionChannel(
 
     init {
         MihonExtensionHost.initialize(activity.application)
-        runtime = MihonExtensionRuntime(activity.applicationContext)
+        runtime = MihonExtensionRuntime.get(activity.applicationContext)
         channel.setMethodCallHandler(::handle)
     }
 
@@ -29,6 +29,7 @@ class MihonExtensionChannel(
             runCatching {
                 when (call.method) {
                     "listSources" -> runtime.listSources()
+                    "runtimeSnapshot" -> runtime.runtimeSnapshot()
                     "search" -> runtime.search(
                         sourceKey = call.requiredString("sourceKey"),
                         query = call.requiredString("query"),

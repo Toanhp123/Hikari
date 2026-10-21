@@ -29,4 +29,5 @@ else()
     COMMAND hikari_runtime_test
       "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/lnreader/host.js"
       "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tool/lnreader/contract.js")
+  set_tests_properties(hikari_runtime_test PROPERTIES TIMEOUT 30)
 endif()

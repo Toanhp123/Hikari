@@ -5,6 +5,7 @@ import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
+import 'package:hikari/features/catalog/catalog_source_search_message.dart';
 
 enum CatalogSourcePickerStatus {
   choosing,
@@ -33,7 +34,7 @@ final class CatalogSourcePickerSource {
     final language? when language != 'all' =>
       '$displayName · ${language.toUpperCase()}',
     'all' => '$displayName (Multiple languages)',
-    _ => '$displayName (language unspecified)',
+    _ => displayName,
   };
 }
 
@@ -54,6 +55,7 @@ final class CatalogSourcePickerUiState {
     this.selectedLanguage,
     this.status = CatalogSourcePickerStatus.choosing,
     this.candidates = const [],
+    this.errorMessage,
   });
 
   final List<CatalogSourcePickerSource> sources;
@@ -70,6 +72,9 @@ final class CatalogSourcePickerUiState {
         ..sort();
   final CatalogSourcePickerStatus status;
   final List<CatalogSourcePickerCandidate> candidates;
+
+  /// Safe, allowlisted runtime diagnosis; never raw exception messages.
+  final String? errorMessage;
 
   List<CatalogSourcePickerSource> get visibleSources => selectedLanguage == null
       ? sources
@@ -262,7 +267,7 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
           ),
         ),
       );
-    } catch (_) {
+    } catch (error) {
       if (_disposed || revision != _revision) return null;
       _publish(
         CatalogSourcePickerUiState(
@@ -270,6 +275,7 @@ final class CatalogSourcePickerViewModel extends ChangeNotifier {
           selectedSource: source,
           selectedLanguage: selectedLanguage,
           status: CatalogSourcePickerStatus.error,
+          errorMessage: catalogSourceSearchMessage(error),
         ),
       );
     }

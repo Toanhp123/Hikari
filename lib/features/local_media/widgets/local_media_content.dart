@@ -73,10 +73,6 @@ class LocalMediaContent extends StatelessWidget {
                 onChooseRoot: onChooseRoot,
               ),
             ),
-            if (state.refreshing)
-              const SliverToBoxAdapter(
-                child: LinearProgressIndicator(minHeight: 2),
-              ),
             if (state.refreshFailed)
               SliverToBoxAdapter(
                 child: MaterialBanner(

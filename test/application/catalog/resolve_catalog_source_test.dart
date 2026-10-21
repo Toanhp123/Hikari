@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
@@ -154,6 +153,38 @@ void main() {
     },
   );
 
+  test('one alias failing does not discard a valid exact candidate', () async {
+    final manga = _MangaSource(
+      responses: {
+        'Frieren': [_manga('Frieren')],
+      },
+      failingQueries: {'Sousou no Frieren'},
+    );
+    final entry = _entry('Frieren');
+    final result = await _resolver(manga).execute(
+      entry: entry,
+      sourceId: manga.id,
+      details: CatalogEntryDetails(
+        entry: entry,
+        alternateTitles: ['Sousou no Frieren'],
+      ),
+    );
+    expect(result.match?.media.title, 'Frieren');
+    expect(manga.queries, ['Frieren', 'Sousou no Frieren']);
+  });
+
+  test(
+    'source failures are not incorrectly reported as no matching titles',
+    () async {
+      final manga = _MangaSource(failingQueries: {'Frieren'});
+      final entry = _entry('Frieren');
+      await expectLater(
+        _resolver(manga).execute(entry: entry, sourceId: manga.id),
+        throwsA(isA<PlatformException>()),
+      );
+    },
+  );
+
   test('does not auto open a merely similar title', () async {
     final manga = _MangaSource(
       responses: {
@@ -221,9 +252,10 @@ MangaPreview _manga(String title, {String? itemId}) => MangaPreview(
 
 final class _MangaSource
     implements MangaSearchSource, MangaPageSource, MediaSourcePresentation {
-  _MangaSource({this._responses = const {}});
+  _MangaSource({this._responses = const {}, this.failingQueries = const {}});
 
   final Map<String, List<MangaPreview>> _responses;
+  final Set<String> failingQueries;
   final List<String> queries = [];
 
   @override
@@ -244,6 +276,12 @@ final class _MangaSource
   @override
   Future<MangaSearchPage> search(String query, {int page = 1}) async {
     queries.add(query);
+    if (failingQueries.contains(query)) {
+      throw PlatformException(
+        code: 'lnreader_failure',
+        details: {'reason': 'execution-rejected'},
+      );
+    }
     return MangaSearchPage(
       results: _responses[query] ?? const [],
       hasNextPage: false,

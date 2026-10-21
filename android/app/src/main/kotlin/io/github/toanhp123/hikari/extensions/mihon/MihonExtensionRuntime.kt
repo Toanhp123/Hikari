@@ -16,7 +16,8 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import java.io.ByteArrayOutputStream
-import java.security.MessageDigest
+import io.github.toanhp123.hikari.plugins.ApkInspector
+import io.github.toanhp123.hikari.plugins.ApkTrustStore
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -28,6 +29,8 @@ internal data class ExtensionSourceDescriptor(
     val language: String,
     val packageName: String,
     val baseUrl: String,
+    val versionCode: Long,
+    val signer: String,
 ) {
     fun toMap(): Map<String, Any> = mapOf(
         "sourceKey" to sourceKey,
@@ -35,6 +38,9 @@ internal data class ExtensionSourceDescriptor(
         "language" to language,
         "packageName" to packageName,
         "baseUrl" to baseUrl,
+        "versionCode" to versionCode,
+        "signer" to signer,
+        "preferencesSupported" to false,
     )
 }
 
@@ -46,7 +52,17 @@ internal class MihonExtensionRuntime(private val context: Context) {
     )
 
     private val sources = ConcurrentHashMap<String, LoadedSource>()
+    private val errors = mutableMapOf<String, String>()
+    // Reserve every colliding source ID for this frozen snapshot: no discovery-order winner.
+    private val blockedSourceKeys = mutableSetOf<String>()
     private val loadLock = Any()
+
+    /** Evidence only: never loads code on management refresh. */
+    fun runtimeSnapshot(): Map<String, Any> = synchronized(loadLock) {
+        mapOf("initialized" to loaded, "sources" to sources.values.map { it.descriptor.toMap() },
+            "errors" to errors.map { mapOf("packageName" to it.key, "reason" to it.value) },
+            "preferencesSupported" to false)
+    }
 
     @Volatile
     private var loaded = false
@@ -205,19 +221,21 @@ internal class MihonExtensionRuntime(private val context: Context) {
 
     private fun loadPackage(packageInfo: PackageInfo) {
         if (!isExtensionPackage(packageInfo)) return
-        if (!isTrustedExtension(packageInfo)) {
-            Log.w(TAG, "Skipping untrusted extension ${packageInfo.packageName}")
-            return
+        val inspector = ApkInspector(context)
+        val identity = inspector.identity(packageInfo)
+        if (identity == null || identity.family != "manga" || identity.compatibility != "compatible") {
+            errors[packageInfo.packageName] = "incompatible"; return
         }
-
+        if (!ApkTrustStore.get(context).isTrusted(identity)) {
+            errors[packageInfo.packageName] = "untrusted"; return
+        }
         val appInfo = packageInfo.applicationInfo ?: return
         val metadata = appInfo.metaData ?: return
-        val entrypoint = metadata.getString(META_EXTENSION_CLASS)?.takeIf(String::isNotBlank)
-            ?: return
-        val libraryVersion = extensionLibraryVersion(packageInfo, metadata) ?: return
-        if (libraryVersion !in SUPPORTED_LIBRARY_VERSIONS) return
-
+        val entrypoint = identity.entrypoint
+        val libraryVersion = identity.library.toDouble()
+        var failure = "load_failure"
         runCatching {
+            check(inspector.inspectInstalled(identity.packageName) == identity) { "Package revision changed" }
             val classLoader = extensionClassLoader(appInfo, packageInfo.packageName)
             val instances = entrypoint
                 .split(';', ',')
@@ -240,23 +258,48 @@ internal class MihonExtensionRuntime(private val context: Context) {
                         language = source.lang,
                         packageName = packageInfo.packageName,
                         baseUrl = source.baseUrl,
+                        versionCode = identity.versionCode,
+                        signer = identity.signers.single(),
                     ),
                     source = source,
                     libraryVersion = libraryVersion,
                 )
             }
+            failure = "collision"
             check(loadedSources.map { it.descriptor.sourceKey }.distinct().size == loadedSources.size) {
                 "Extension ${packageInfo.packageName} exposes duplicate source ids."
             }
-            val collision = loadedSources.firstOrNull { sources.containsKey(it.descriptor.sourceKey) }
-            check(collision == null) {
-                "Duplicate extension source id ${collision?.descriptor?.sourceKey} from ${packageInfo.packageName}."
+            val collisions = loadedSources.map { it.descriptor.sourceKey }.filter { key ->
+                key in blockedSourceKeys || sources.containsKey(key)
+            }.toSet()
+            if (collisions.isNotEmpty()) {
+                // A duplicate is ambiguous even when the first package was loaded earlier.
+                // Revoke every previously captured source from affected packages, not just
+                // the duplicate entry; keep the ambiguous IDs unavailable for later packages.
+                val displacedPackages = collisions.mapNotNull { key ->
+                    sources[key]?.descriptor?.packageName
+                }.toSet()
+                // A rejected package cannot contribute *any* source ID, even if a
+                // later package claims one of its other IDs after it was displaced.
+                blockedSourceKeys.addAll(loadedSources.map { it.descriptor.sourceKey })
+                blockedSourceKeys.addAll(
+                    sources.values.filter { it.descriptor.packageName in displacedPackages }
+                        .map { it.descriptor.sourceKey },
+                )
+                sources.entries.removeAll { (_, loaded) ->
+                    loaded.descriptor.packageName in displacedPackages
+                }
+                displacedPackages.forEach { errors[it] = "collision" }
+                error("Ambiguous extension source IDs: ${collisions.joinToString()}")
             }
+            failure = "load_failure"
+            check(inspector.inspectInstalled(identity.packageName) == identity) { "Package revision changed during loading" }
             loadedSources.forEach { source ->
                 sources[source.descriptor.sourceKey] = source
             }
-        }.onFailure { error ->
-            Log.w(TAG, "Skipping incompatible extension ${packageInfo.packageName}", error)
+        }.onFailure {
+            errors[packageInfo.packageName] = failure
+            Log.w(TAG, "Extension package load rejected: $failure")
         }
     }
 
@@ -296,21 +339,6 @@ internal class MihonExtensionRuntime(private val context: Context) {
         else -> name
     }
 
-    private fun extensionLibraryVersion(
-        packageInfo: PackageInfo,
-        metadata: android.os.Bundle,
-    ): Double? {
-        val metadataVersion = when (val value = metadata.get(META_EXTENSION_LIB)) {
-            is Number -> value.toString().toDoubleOrNull()
-            is String -> value.trim().toDoubleOrNull()
-            else -> null
-        }
-        if (metadataVersion != null && metadataVersion != 0.0) return metadataVersion
-        return packageInfo.versionName
-            ?.substringBeforeLast('.', missingDelimiterValue = "")
-            ?.toDoubleOrNull()
-    }
-
     private fun SManga.memoOrNull(libraryVersion: Double): String? =
         if (libraryVersion >= 1.6) memo.toString() else null
 
@@ -319,28 +347,6 @@ internal class MihonExtensionRuntime(private val context: Context) {
 
     private fun isExtensionPackage(packageInfo: PackageInfo): Boolean =
         packageInfo.reqFeatures.orEmpty().any { it.name == EXTENSION_FEATURE }
-
-    private fun isTrustedExtension(packageInfo: PackageInfo): Boolean =
-        signatureDigests(packageInfo).any(TRUSTED_EXTENSION_SIGNATURES::contains)
-
-    @Suppress("DEPRECATION")
-    private fun signatureDigests(packageInfo: PackageInfo): List<String> {
-        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val info = packageInfo.signingInfo ?: return emptyList()
-            if (info.hasMultipleSigners()) {
-                info.apkContentsSigners
-            } else {
-                info.signingCertificateHistory
-            }
-        } else {
-            packageInfo.signatures
-        }
-        return signatures.orEmpty().map { signature ->
-            MessageDigest.getInstance("SHA-256")
-                .digest(signature.toByteArray())
-                .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
-        }
-    }
 
     @Suppress("DEPRECATION")
     private fun installedPackages(): List<PackageInfo> {
@@ -366,18 +372,13 @@ internal class MihonExtensionRuntime(private val context: Context) {
         return output.toByteArray()
     }
 
-    private companion object {
-        const val TAG = "HikariExtensions"
+    companion object {
+        private var instance: MihonExtensionRuntime? = null
+        @Synchronized fun get(context: Context): MihonExtensionRuntime = instance
+            ?: MihonExtensionRuntime(context.applicationContext).also { instance = it }
+        private const val TAG = "HikariExtensions"
         const val EXTENSION_FEATURE = "tachiyomi.extension"
-        val SUPPORTED_LIBRARY_VERSIONS = setOf(1.4, 1.6)
-        const val META_EXTENSION_CLASS = "tachiyomi.extension.class"
-        const val META_EXTENSION_LIB = "tachiyomix.extensionLib"
         const val MAX_PAGE_BYTES = 32 * 1024 * 1024
-
-        // Keiyoushi official extension repository signing key (repo.json).
-        val TRUSTED_EXTENSION_SIGNATURES = setOf(
-            "9add655a78e96c4ec7a53ef89dccb557cb5d767489fac5e785d671a5a75d4da2",
-        )
 
         @Suppress("DEPRECATION")
         val PACKAGE_FLAGS = PackageManager.GET_CONFIGURATIONS or

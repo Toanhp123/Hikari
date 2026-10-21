@@ -78,6 +78,29 @@ void main() {
     expect(violations, isEmpty, reason: violations.join('\n'));
   });
 
+  test('multi-route plugin management presentation stays feature-owned', () {
+    final pluginFeature = Directory('lib/features/plugins');
+    expect(pluginFeature.existsSync(), isTrue);
+    for (final route in [
+      'plugin_manager_page.dart',
+      'apk_actions_page.dart',
+      'novel_actions_page.dart',
+    ]) {
+      expect(File('${pluginFeature.path}/$route').existsSync(), isTrue);
+      expect(File('lib/features/settings/$route').existsSync(), isFalse);
+    }
+    // Settings is a navigation entry, not an alternate Plugin Manager owner.
+    for (final file in Directory(
+      'lib/features/settings',
+    ).listSync().whereType<File>()) {
+      expect(
+        file.path.contains('plugin_') || file.path.contains('actions_'),
+        isFalse,
+        reason: 'Plugin-specific presentation belongs in features/plugins.',
+      );
+    }
+  });
+
   test('feature-root visual widgets are pages only', () {
     final violations = <String>[];
 

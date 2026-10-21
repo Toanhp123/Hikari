@@ -16,9 +16,69 @@ class LnReaderNovelSource
         NovelSearchSource,
         NovelSeriesSource,
         NovelChapterSource,
-        ArtworkSource {
-  LnReaderNovelSource(this.pluginId, this.name, this.channel, {this.site});
+        ArtworkSource,
+        MediaSourcePresentation {
+  LnReaderNovelSource(
+    this.pluginId,
+    this.name,
+    this.channel, {
+    this.site,
+    String? language,
+  }) : languageCode = _sourceLanguage(language);
+
   final String? site;
+
+  @override
+  String get displayName => name;
+
+  @override
+  final String? languageCode;
+
+  @override
+  String? get presentationGroupId => null;
+
+  // The manifest has human language names (e.g. "Vietnamese"), while the
+  // shared picker expects a language code. Unknown values must not be guessed.
+  static String? _sourceLanguage(String? language) {
+    final normalized = language?.trim().toLowerCase().replaceAll('_', '-');
+    if (normalized == null || normalized.isEmpty) return null;
+    const names = {
+      'english': 'en',
+      'vietnamese': 'vi',
+      'tiếng việt': 'vi',
+      'chinese': 'zh',
+      'chinese, 汉语, 漢語': 'zh',
+      'japanese': 'ja',
+      'korean': 'ko',
+      'español': 'es',
+      'spanish': 'es',
+      'français': 'fr',
+      'french': 'fr',
+      'português': 'pt',
+      'portuguese': 'pt',
+      'russian': 'ru',
+      'русский': 'ru',
+      'arabic': 'ar',
+      'العربية': 'ar',
+      'turkish': 'tr',
+      'türkçe': 'tr',
+      'thai': 'th',
+      'ภาษาไทย': 'th',
+      'indonesian': 'id',
+      'bahasa indonesia': 'id',
+      'german': 'de',
+      'deutsch': 'de',
+      'italian': 'it',
+      'hindi': 'hi',
+      'हिन्दी': 'hi',
+      'polish': 'pl',
+    };
+    if (names.containsKey(normalized)) return names[normalized];
+    return RegExp(r'^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$').hasMatch(normalized)
+        ? normalizeSourceLanguageCode(normalized)
+        : null;
+  }
+
   String _validPath(String value) {
     if (value.isEmpty ||
         value.length > 8192 ||

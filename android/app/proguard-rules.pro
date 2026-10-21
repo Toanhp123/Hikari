@@ -20,6 +20,8 @@
 -keep class kotlin.time.** { *; }
 -keep class okhttp3.** { *; }
 -keep class okio.** { *; }
+# libzstd-kmp resolves compressor/decompressor classes and fields by JNI names.
+-keep class com.squareup.zstd.** { *; }
 -keep class org.jsoup.** { *; }
 -keep class rx.** { *; }
 -keep class com.github.zhanghai.quickjs.** { *; }

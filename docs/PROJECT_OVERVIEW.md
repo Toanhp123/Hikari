@@ -398,7 +398,7 @@ Nguyên tắc vẫn giữ nguyên:
 
 > Extension runtime chỉ là một cách tạo `MediaSource` implementation; domain/application không phụ thuộc APK, Kotlin ABI hay repository format.
 
-LNReader-compatible novel adapter dùng QuickJS runtime riêng có giới hạn tài nguyên; chỉ bundle được review và đóng gói cùng app được phép chạy. Đây không phải marketplace hoặc sandbox process cho code tùy ý. Các phần chưa chốt gồm repository/install/update UI, trust cho repository bên thứ ba, process isolation, Aniyomi, Mangayomi và Hikari-native plugin format nếu sau này thật sự cần. Chi tiết runtime và giới hạn trust nằm tại [`architecture/EXTENSIONS.md`](architecture/EXTENSIONS.md).
+LNReader-compatible novel adapter dùng QuickJS runtime riêng có giới hạn tài nguyên cho bundle đóng gói cùng app và artifact tải về được native admission sau consent exact tuple/origin. Unified Plugin Manager đã có repository/owner, APK signer approval/install/update/remove và Novel stage/admit/install/rollback/remove; source đang chạy vẫn frozen, không hot replace. Đây không phải marketplace hoặc sandbox process cho code tùy ý. Kiểm chứng thiết bị/provider và hardening tiếp tục; Anime đã có metadata/inventory/APK management nhưng chưa có content runtime. Process isolation, Mangayomi và Hikari-native plugin format vẫn chưa chốt. Rationale tại [ADR-025](decisions/ADR-025-unified-plugin-management.md); cơ chế và giới hạn trust tại [`architecture/EXTENSIONS.md`](architecture/EXTENSIONS.md).
 
 ---
 
@@ -805,7 +805,7 @@ Một MVP hợp lý cần có:
 
 Không bắt buộc trong MVP:
 
-- plugin marketplace/repository install-update UI;
+- plugin marketplace (repository/install-update UI không phải điều kiện MVP ban đầu, nhưng hiện đã được triển khai);
 - Android TV;
 - casting;
 - watch party;
@@ -866,7 +866,7 @@ Android manga runtime v1 đã chốt theo [ADR-007](decisions/ADR-007-android-ma
 - giữ `memo` và continuation state ở infrastructure của source, không đưa metadata thay đổi được vào persisted identity;
 - mọi source, kể cả MangaDex, dùng identity/reference Mihon chung; chấp nhận reset dữ liệu sạch, không giữ tương thích identity cũ, theo [ADR-008](decisions/ADR-008-external-remote-provider-ownership.md).
 
-Novel runtime đã có LNReader-compatible adapter với bundle review trước, context QuickJS riêng và giới hạn memory/stack/execution. Repository/install/update UI, arbitrary trust, sandbox process và anime extension vẫn chưa chốt.
+Novel runtime có LNReader-compatible adapter, context QuickJS riêng và giới hạn memory/stack/execution; hỗ trợ packaged bundle và exact-consented downloaded admission. Unified Plugin Manager/trust UI đã triển khai theo [ADR-025](decisions/ADR-025-unified-plugin-management.md), với native trust/custody độc lập và activation frozen đến restart. Verification thiết bị/provider còn chờ; sandbox process và Anime content runtime chưa triển khai, không đồng nghĩa thiếu Anime package management.
 
 ---
 
@@ -1043,9 +1043,9 @@ resume đúng chapter/progress qua restart. Completed chapter vẫn là chapter 
 đến khi chapter khác trở thành active; không suy đoán next unread bằng title/number/date. Source mới
 tiếp tục dùng capability hiện có qua registry/application foundation, không cần một engine tổng quát.
 
-### Chưa bắt đầu
+### Phần còn lại
 
-- extension repository/install/update UI và anime extension runtime;
+- hardening và kiểm chứng thiết bị/provider cho Plugin Manager đã triển khai; Anime content runtime vẫn chưa bắt đầu;
 - explicit download/offline-management subsystem cho remote content.
 
 ---

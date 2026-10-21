@@ -107,9 +107,28 @@ class SourceSearchContent extends StatelessWidget {
                   ),
                 ),
               ),
+            // Providers return independently. Keep partial results visible
+            // without a second refresh-style progress bar.
             if (state.status == SourceSearchStatus.loading &&
                 state.results.isNotEmpty)
-              const LinearProgressIndicator(minHeight: 2),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: HikariSpacing.lg,
+                  vertical: HikariSpacing.xs,
+                ),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      'Searching remaining sources…',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             Expanded(
               child: _SourceSearchResults(
                 state: state,

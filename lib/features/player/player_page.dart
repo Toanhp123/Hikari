@@ -29,6 +29,7 @@ class _PlayerPageState extends State<PlayerPage> {
   bool _exiting = false;
   bool _canPop = false;
   bool _showControls = true;
+  bool _isSeeking = false;
   Timer? _hideTimer;
   StreamSubscription<void>? _controlsSubscription;
   bool? _lastPlaying;
@@ -53,7 +54,7 @@ class _PlayerPageState extends State<PlayerPage> {
   void _restartHideTimer() {
     _hideTimer?.cancel();
     final controls = widget.controls;
-    if (controls == null || !controls.playing) return;
+    if (_isSeeking || controls == null || !controls.playing) return;
     _hideTimer = Timer(const Duration(seconds: 3), () {
       if (mounted) setState(() => _showControls = false);
     });
@@ -92,6 +93,8 @@ class _PlayerPageState extends State<PlayerPage> {
   }
 
   Future<void> _seekToProgress(double progress) async {
+    _isSeeking = false;
+    _restartHideTimer();
     final controls = widget.controls;
     if (controls == null || controls.duration <= Duration.zero) return;
     try {
@@ -182,6 +185,10 @@ class _PlayerPageState extends State<PlayerPage> {
                       onTogglePlayPause: () => unawaited(_togglePlayPause()),
                       onSeekRelative: (seconds) =>
                           unawaited(_seekRelative(seconds)),
+                      onSeekStart: () {
+                        _isSeeking = true;
+                        _hideTimer?.cancel();
+                      },
                       onSeekToProgress: (progress) =>
                           unawaited(_seekToProgress(progress)),
                       onNextEpisode: widget.onNextEpisode,

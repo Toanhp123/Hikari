@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/features/settings/widgets/settings_content.dart';
@@ -15,6 +16,7 @@ export 'package:hikari/features/settings/widgets/settings_content.dart'
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
+    this.onManagePlugins,
     this.isOled = false,
     this.selectedAccent,
     this.appearanceSaveStatus,
@@ -28,6 +30,7 @@ class SettingsPage extends StatefulWidget {
     this.localFolderRevision = 0,
   });
 
+  final VoidCallback? onManagePlugins;
   final bool isOled;
   final Color? selectedAccent;
 
@@ -188,28 +191,18 @@ class _SettingsPageState extends State<SettingsPage> {
     final clearCache = widget.onClearCache;
     if (clearCache == null || _isClearingCache) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showHikariConfirmation(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear temporary cache?'),
-        content: const Text(
-          'Cached manga pages, novel chapters, artwork and catalog metadata '
-          'will be loaded again when needed. Local previews may be rebuilt. '
-          'Your Library, reading progress, selected sources and local files will not be deleted.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear cache'),
-          ),
-        ],
+      title: 'Clear temporary cache?',
+      content: const Text(
+        'Cached manga pages, novel chapters, artwork and catalog metadata '
+        'will be loaded again when needed. Local previews may be rebuilt. '
+        'Your Library, reading progress, selected sources and local files will not be deleted.',
       ),
+      confirmLabel: 'Clear cache',
+      destructive: true,
     );
-    if (confirmed != true || !mounted || _isClearingCache) return;
+    if (!confirmed || !mounted || _isClearingCache) return;
 
     setState(() => _isClearingCache = true);
     var cleared = false;
@@ -250,6 +243,7 @@ class _SettingsPageState extends State<SettingsPage> {
       useSafeArea: true,
       appBar: AppBar(title: const Text('Settings')),
       body: SettingsContent(
+        onManagePlugins: widget.onManagePlugins,
         isOled: _isOled,
         selectedAccent: widget.selectedAccent,
         appearanceSaveStatus: widget.appearanceSaveStatus,

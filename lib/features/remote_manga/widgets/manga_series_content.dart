@@ -102,8 +102,13 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
                     artworkOwner: widget.artworkOwner,
                   ),
                 if (widget.viewModel.state.initialLoading)
-                  const LinearProgressIndicator(
-                    semanticsLabel: 'Loading chapters',
+                  const Padding(
+                    padding: EdgeInsets.all(HikariSpacing.lg),
+                    child: Center(
+                      child: CircularProgressIndicator.adaptive(
+                        semanticsLabel: 'Loading chapters',
+                      ),
+                    ),
                   ),
                 if (widget.viewModel.state.failed)
                   Semantics(
