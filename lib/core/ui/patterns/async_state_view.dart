@@ -47,11 +47,14 @@ class AsyncStateView extends StatelessWidget {
     }
   }
 
+  Widget _presentation(Widget child) =>
+      Center(child: SingleChildScrollView(primary: false, child: child));
+
   Widget _defaultLoadingShimmer(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return _presentation(
+      Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
             width: 32,
@@ -74,11 +77,11 @@ class AsyncStateView extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
+    return _presentation(
+      Padding(
         padding: const EdgeInsets.all(HikariSpacing.xl),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 72,
@@ -116,11 +119,11 @@ class AsyncStateView extends StatelessWidget {
 
   Widget _buildErrorState(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
+    return _presentation(
+      Padding(
         padding: const EdgeInsets.all(HikariSpacing.xl),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 72,

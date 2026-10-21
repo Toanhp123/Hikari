@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_candidate_list.dart';
@@ -304,38 +305,23 @@ class _SourceList extends StatelessWidget {
               ),
               const SizedBox(height: HikariSpacing.md),
               if (showLanguageFilter) ...[
-                MenuAnchor(
-                  style: const MenuStyle(
-                    maximumSize: WidgetStatePropertyAll(
-                      Size(double.infinity, 320),
-                    ),
-                  ),
-                  builder: (context, controller, child) => OutlinedButton.icon(
-                    onPressed: () => controller.isOpen
-                        ? controller.close()
-                        : controller.open(),
-                    icon: const Icon(Icons.language_rounded),
-                    label: Text(
-                      'Language: ${selectedLanguage?.toUpperCase() ?? 'All'}',
-                    ),
-                  ),
-                  menuChildren: [
-                    MenuItemButton(
-                      onPressed: () => onSelectLanguage(null),
-                      trailingIcon: selectedLanguage == null
-                          ? const Icon(Icons.check_rounded)
-                          : null,
-                      child: const Text('All languages'),
+                HikariChoiceMenu<String>(
+                  label: 'Language',
+                  value: selectedLanguage,
+                  options: [
+                    const HikariChoiceOption<String>(
+                      value: null,
+                      label: 'All languages',
+                      shortLabel: 'All',
                     ),
                     for (final language in languageCodes)
-                      MenuItemButton(
-                        onPressed: () => onSelectLanguage(language),
-                        trailingIcon: selectedLanguage == language
-                            ? const Icon(Icons.check_rounded)
-                            : null,
-                        child: Text(language.toUpperCase()),
+                      HikariChoiceOption(
+                        value: language,
+                        label: language.toUpperCase(),
                       ),
                   ],
+                  icon: Icons.language_rounded,
+                  onChanged: onSelectLanguage,
                 ),
                 const SizedBox(height: HikariSpacing.md),
               ],

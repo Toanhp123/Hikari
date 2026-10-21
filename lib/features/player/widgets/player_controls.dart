@@ -11,6 +11,7 @@ class PlayerControls extends StatefulWidget {
     required this.onSeekRelative,
     required this.onSeekToProgress,
     this.onNextEpisode,
+    this.onSeekStart,
   });
 
   final VideoPlaybackControls controls;
@@ -18,6 +19,7 @@ class PlayerControls extends StatefulWidget {
   final ValueChanged<int> onSeekRelative;
   final ValueChanged<double> onSeekToProgress;
   final VoidCallback? onNextEpisode;
+  final VoidCallback? onSeekStart;
 
   @override
   State<PlayerControls> createState() => _PlayerControlsState();
@@ -101,6 +103,9 @@ class _PlayerControlsState extends State<PlayerControls> {
                       onChanged: duration <= Duration.zero
                           ? null
                           : (value) => setState(() => _dragProgress = value),
+                      onChangeStart: duration <= Duration.zero
+                          ? null
+                          : (_) => widget.onSeekStart?.call(),
                       onChangeEnd: duration <= Duration.zero
                           ? null
                           : (value) {

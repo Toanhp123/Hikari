@@ -113,13 +113,11 @@ final class PluginManagerViewModel extends ChangeNotifier {
     final manager = management.manager;
     final catalog = <PluginId, List<PluginOffer>>{};
     final names = <PluginId, String>{};
-    final languageSet = <String>{};
     for (final repository
         in manager?.state.repositories ?? <PluginRepository>[]) {
       for (final offer in repository.snapshot?.offers ?? <PluginOffer>[]) {
         (catalog[offer.id] ??= []).add(offer);
         names.putIfAbsent(offer.id, () => offer.name);
-        languageSet.addAll(offer.sources.map((source) => source.language));
       }
     }
     for (final row in management.novels) {
@@ -135,8 +133,24 @@ final class PluginManagerViewModel extends ChangeNotifier {
         () => row.name,
       );
     }
+    // Languages describe repository offers, not every installed APK. Installed
+    // revisions may have no matching repository; never hide them by guessing.
+    // Scope options to the active view and ecosystem, but not to the search
+    // query so typing a query cannot unexpectedly clear the selected facet.
+    final languageSet = <String>{};
+    if (manager != null && tab != 1) {
+      final facetIds = tab == 0
+          ? catalog.keys
+          : manager.updateCandidates.map((offer) => offer.id);
+      for (final id in facetIds) {
+        if (ecosystem != null && id.ecosystem != ecosystem) continue;
+        for (final offer in catalog[id] ?? const <PluginOffer>[]) {
+          languageSet.addAll(offer.sources.map((source) => source.language));
+        }
+      }
+    }
     final languages = languageSet.toList()..sort();
-    // Normalize filters on input/evidence changes, not inside listing getters.
+    // Normalize filters on input/evidence changes, never in a build getter.
     final effectiveLanguage = languageSet.contains(language) ? language : null;
     return PluginManagerUiState(
       busy: busy,

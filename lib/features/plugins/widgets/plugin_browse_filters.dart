@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
 import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
@@ -23,61 +23,39 @@ final class PluginBrowseFilters extends StatelessWidget {
   final ValueChanged<PluginEcosystem?> onEcosystemChanged;
   final ValueChanged<int> onTabChanged;
 
+  static const _views = [
+    HikariChoiceOption<int>(value: 0, label: 'Available'),
+    HikariChoiceOption<int>(value: 1, label: 'Installed'),
+    HikariChoiceOption<int>(value: 2, label: 'Updates'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final ecosystemField = DropdownButtonFormField<PluginEcosystem>(
-      initialValue: state.ecosystem,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Ecosystem'),
-      items: [
-        const DropdownMenuItem<PluginEcosystem>(
-          value: null,
-          child: Text('All ecosystems'),
+    final ecosystemOptions = [
+      const HikariChoiceOption<PluginEcosystem>(
+        value: null,
+        label: 'All ecosystems',
+        shortLabel: 'All',
+      ),
+      for (final ecosystem in PluginEcosystem.values)
+        HikariChoiceOption(
+          value: ecosystem,
+          label: pluginEcosystemLabel(ecosystem),
         ),
-        ...PluginEcosystem.values.map(
-          (value) => DropdownMenuItem(
-            value: value,
-            child: Text(pluginEcosystemLabel(value)),
-          ),
-        ),
-      ],
-      onChanged: onEcosystemChanged,
-    );
-    final languageField = DropdownButtonFormField<String>(
-      key: ValueKey((state.listing.languages.join('\u0000'), state.language)),
-      initialValue: state.language,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Source language'),
-      items: [
-        const DropdownMenuItem<String>(
-          value: null,
-          child: Text('All languages'),
-        ),
-        ...state.listing.languages.map(
-          (language) =>
-              DropdownMenuItem(value: language, child: Text(language)),
-        ),
-      ],
-      onChanged: onLanguageChanged,
-    );
+    ];
+    final languageOptions = [
+      const HikariChoiceOption<String>(
+        value: null,
+        label: 'All languages',
+        shortLabel: 'All',
+      ),
+      for (final language in state.listing.languages)
+        HikariChoiceOption(value: language, label: language.toUpperCase()),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        HikariChipRow(
-          children: [
-            for (final (index, label) in [
-              'Available',
-              'Installed',
-              'Updates',
-            ].indexed)
-              HikariChip(
-                label: label,
-                isSelected: state.tab == index,
-                onTap: () => onTabChanged(index),
-              ),
-          ],
-        ),
-        const SizedBox(height: HikariSpacing.md),
         HikariSearchBar(
           initialQuery: state.query,
           hintText: 'Search plugins or sources',
@@ -87,33 +65,66 @@ final class PluginBrowseFilters extends StatelessWidget {
         const SizedBox(height: HikariSpacing.md),
         LayoutBuilder(
           builder: (context, constraints) {
-            final sideBySide =
-                constraints.maxWidth >= 520 &&
-                MediaQuery.textScalerOf(context).scale(1) <= 1.3;
-            if (!sideBySide) {
-              return Column(
-                children: [
-                  ecosystemField,
-                  const SizedBox(height: HikariSpacing.sm),
-                  languageField,
-                ],
+            final canUseSegments =
+                constraints.maxWidth >= 360 &&
+                MediaQuery.textScalerOf(context).scale(1) <= 1.15;
+            if (!canUseSegments) {
+              return HikariChoiceMenu<int>(
+                label: 'View',
+                value: state.tab,
+                options: _views,
+                onChanged: (value) {
+                  if (value != null) onTabChanged(value);
+                },
+                icon: Icons.view_list_outlined,
+                expanded: true,
               );
             }
-            return Row(
-              children: [
-                Expanded(child: ecosystemField),
-                const SizedBox(width: HikariSpacing.md),
-                Expanded(child: languageField),
+            return SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 0, label: Text('Available')),
+                ButtonSegment(value: 1, label: Text('Installed')),
+                ButtonSegment(value: 2, label: Text('Updates')),
               ],
+              selected: {state.tab},
+              showSelectedIcon: false,
+              expandedInsets: EdgeInsets.zero,
+              onSelectionChanged: (values) => onTabChanged(values.single),
             );
           },
+        ),
+        const SizedBox(height: HikariSpacing.md),
+        Wrap(
+          spacing: HikariSpacing.sm,
+          runSpacing: HikariSpacing.sm,
+          children: [
+            HikariChoiceMenu<PluginEcosystem>(
+              label: 'Ecosystem',
+              value: state.ecosystem,
+              options: ecosystemOptions,
+              icon: Icons.category_outlined,
+              onChanged: onEcosystemChanged,
+            ),
+            if (state.tab != 1)
+              HikariChoiceMenu<String>(
+                label: 'Language',
+                value: state.language,
+                options: languageOptions,
+                icon: Icons.language_rounded,
+                onChanged: onLanguageChanged,
+              ),
+          ],
         ),
         if (state.listing.rows.isEmpty) ...[
           const SizedBox(height: HikariSpacing.lg),
           Padding(
             padding: const EdgeInsets.all(HikariSpacing.sm),
             child: Text(
-              'No plugins match. Add or refresh a repository to discover offers.',
+              switch (state.tab) {
+                1 => 'No installed plugins match your filters.',
+                2 => 'No updates match your filters.',
+                _ => 'No plugins match. Add or refresh a repository to discover offers.',
+              },
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,

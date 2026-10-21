@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/components/hikari_button.dart';
 import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
@@ -83,15 +84,19 @@ final class PluginRepositorySection extends StatelessWidget {
                   spacing: HikariSpacing.sm,
                   runSpacing: HikariSpacing.xs,
                   children: [
-                    TextButton.icon(
-                      onPressed: busy ? null : () => onRefresh(repository.id),
+                    HikariButton(
+                      label: 'Refresh repository',
+                      variant: HikariButtonVariant.ghost,
+                      size: HikariButtonSize.small,
                       icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Refresh repository'),
+                      onPressed: busy ? null : () => onRefresh(repository.id),
                     ),
-                    TextButton.icon(
-                      onPressed: busy ? null : () => onRemove(repository),
+                    HikariButton(
+                      label: 'Remove repository',
+                      variant: HikariButtonVariant.ghost,
+                      size: HikariButtonSize.small,
                       icon: const Icon(Icons.delete_outline_rounded),
-                      label: const Text('Remove repository'),
+                      onPressed: busy ? null : () => onRemove(repository),
                     ),
                   ],
                 ),

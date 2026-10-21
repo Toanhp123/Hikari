@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_manager_page.dart';
 
@@ -40,9 +41,9 @@ class RefreshReader extends helpers.Reader {
 }
 
 Future<void> selectEnglish(WidgetTester tester) async {
-  await tester.tap(find.byType(DropdownButtonFormField<String>));
+  await tester.tap(find.text('Language: All'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('en').last);
+  await tester.tap(find.widgetWithText(MenuItemButton, 'EN'));
   await tester.pumpAndSettle();
 }
 
@@ -128,14 +129,11 @@ void main() {
           await tester.tap(find.text('Refresh repository').first);
         }
         await tester.pumpAndSettle();
-        final dropdown = tester.widget<DropdownButtonFormField<String>>(
-          find.byType(DropdownButtonFormField<String>),
+        final language = tester.widget<HikariChoiceMenu<String>>(
+          find.byType(HikariChoiceMenu<String>),
         );
-        expect(dropdown.initialValue, isNull);
-        final field = tester.state<FormFieldState<String>>(
-          find.byType(DropdownButtonFormField<String>),
-        );
-        expect(field.value, isNull);
+        expect(language.value, isNull);
+        expect(find.text('Language: All'), findsOneWidget);
         await tester.ensureVisible(find.byType(TextField));
         await tester.pumpAndSettle();
         expect(find.text('French plugin'), findsOneWidget);

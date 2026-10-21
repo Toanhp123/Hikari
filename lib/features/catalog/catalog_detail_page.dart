@@ -4,29 +4,30 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
+import 'package:hikari/application/catalog/resolve_catalog_source.dart';
+import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/read_remote_chapter_list.dart';
-import 'package:hikari/application/media/load_series_reading_target.dart';
-import 'package:hikari/domain/library/library.dart';
-import 'package:hikari/domain/media/manga.dart';
-import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/core/ui/components/hikari_modal_sheet.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
+import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
 import 'package:hikari/core/ui/patterns/chapter_row.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
-import 'package:hikari/features/library/widgets/library_button.dart';
-import 'package:hikari/features/catalog/catalog_chapters_view_model.dart';
-import 'package:hikari/application/catalog/resolve_catalog_source.dart';
-import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/catalog/catalog_source_selection.dart';
+import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
+import 'package:hikari/domain/media/novel.dart';
+import 'package:hikari/features/catalog/catalog_chapters_view_model.dart';
 import 'package:hikari/features/catalog/catalog_detail_view_model.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_content.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
+import 'package:hikari/features/library/widgets/library_button.dart';
 
 typedef _CatalogSourcePickerResult = ({
   CatalogSourcePickerCandidate? candidate,
@@ -599,11 +600,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   Future<_CatalogSourcePickerResult?> _showSourceSheet(
     CatalogSourcePickerViewModel picker,
   ) {
-    return showModalBottomSheet<_CatalogSourcePickerResult>(
+    return showHikariModalSheet<_CatalogSourcePickerResult>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       builder: (sheetContext) => Padding(
         padding: EdgeInsets.only(

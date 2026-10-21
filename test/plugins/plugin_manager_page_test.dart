@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
 import 'package:hikari/core/ui/components/hikari_search_bar.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
@@ -195,6 +195,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Unique Manga Plugin'), findsOneWidget);
+      expect(find.byType(SegmentedButton<int>), findsOneWidget);
+      expect(find.byType(HikariChoiceMenu<PluginEcosystem>), findsOneWidget);
+      expect(find.byType(HikariChoiceMenu<String>), findsOneWidget);
       final searchField = find.descendant(
         of: find.byType(HikariSearchBar),
         matching: find.byType(EditableText),
@@ -231,12 +234,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Manage sources'), findsNothing);
     expect(find.text('Browse plugins'), findsNothing);
-    expect(find.byType(HikariChipRow), findsOneWidget);
-    expect(find.text('Available'), findsOneWidget);
-    await tester.ensureVisible(find.text('Installed'));
+    expect(find.byType(HikariChoiceMenu<int>), findsOneWidget);
+    expect(find.byType(SegmentedButton<int>), findsNothing);
+    expect(find.text('View: Available'), findsOneWidget);
+    await tester.tap(find.text('View: Available'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Installed'));
+    await tester.tap(find.widgetWithText(MenuItemButton, 'Installed'));
     await tester.pumpAndSettle();
+    expect(find.text('View: Installed'), findsOneWidget);
+    expect(find.byType(HikariChoiceMenu<String>), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -325,7 +331,7 @@ void main() {
         );
         await tester.tap(find.text('Plugins'));
         await tester.pumpAndSettle();
-        expect(find.text('Available'), findsOneWidget);
+        expect(find.text('View: Available'), findsOneWidget);
         expect(find.textContaining('Runtime deferred'), findsOneWidget);
         await tester.ensureVisible(find.text('Example Anime'));
         await tester.tap(find.text('Example Anime'));
@@ -353,16 +359,26 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add').last);
       await tester.pumpAndSettle();
+      expect(find.text('Choose an ecosystem.'), findsOneWidget);
       expect(
-        find.text('Choose ecosystem and valid public HTTPS URL.'),
+        find.text('Enter a valid public HTTPS repository URL.'),
         findsOneWidget,
       );
-      await tester.tap(
-        find.byType(DropdownButtonFormField<PluginEcosystem>).last,
+      await tester.tap(find.text('Select Ecosystem'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(MenuItemButton, 'novel').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField).last,
+        'http://localhost/index.json',
       );
+      await tester.tap(find.text('Add').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('novel').last);
-      await tester.pumpAndSettle();
+      expect(
+        find.text('Enter a valid public HTTPS repository URL.'),
+        findsOneWidget,
+      );
+      expect(session.manager!.state.repositories, isEmpty);
       await tester.enterText(
         find.byType(TextField).last,
         'https://repo.example/index.json',

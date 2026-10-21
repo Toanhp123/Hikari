@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
+import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';

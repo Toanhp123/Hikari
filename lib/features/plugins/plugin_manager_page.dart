@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
+import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
+import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
 import 'package:hikari/core/ui/components/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
@@ -127,68 +128,77 @@ class _PluginManagerPageState extends State<PluginManagerPage> {
   }
 
   Future<void> _addRepository() async {
+    final formKey = GlobalKey<FormState>();
     var url = '';
     PluginEcosystem? ecosystem;
-    String? error;
     final result = await showDialog<({String url, PluginEcosystem ecosystem})>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, update) => AlertDialog(
-          title: const Text('Add repository'),
-          content: SingleChildScrollView(
+      builder: (context) => AlertDialog(
+        title: const Text('Add repository'),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<PluginEcosystem>(
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Ecosystem'),
-                  items: PluginEcosystem.values
-                      .map(
-                        (e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(pluginEcosystemLabel(e)),
+                FormField<PluginEcosystem>(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (value) =>
+                      value == null ? 'Choose an ecosystem.' : null,
+                  onSaved: (value) => ecosystem = value,
+                  builder: (field) => HikariChoiceMenu<PluginEcosystem>(
+                    label: 'Ecosystem',
+                    value: field.value,
+                    options: [
+                      for (final value in PluginEcosystem.values)
+                        HikariChoiceOption(
+                          value: value,
+                          label: pluginEcosystemLabel(value),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (value) => update(() => ecosystem = value),
+                    ],
+                    expanded: true,
+                    errorText: field.errorText,
+                    onChanged: field.didChange,
+                  ),
                 ),
                 const SizedBox(height: HikariSpacing.md),
-                TextField(
-                  onChanged: (value) => url = value,
-                  decoration: InputDecoration(
+                TextFormField(
+                  decoration: const InputDecoration(
                     labelText: 'HTTPS repository URL',
-                    errorText: error,
                   ),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onSaved: (value) => url = value ?? '',
+                  validator: (value) {
+                    try {
+                      RepositoryId(value ?? '');
+                      return null;
+                    } catch (_) {
+                      return 'Enter a valid public HTTPS repository URL.';
+                    }
+                  },
                   keyboardType: TextInputType.url,
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                try {
-                  if (ecosystem == null) throw const FormatException();
-                  final id = RepositoryId(url);
-                  Navigator.pop(context, (
-                    url: id.toString(),
-                    ecosystem: ecosystem!,
-                  ));
-                } catch (_) {
-                  update(
-                    () =>
-                        error = 'Choose ecosystem and valid public HTTPS URL.',
-                  );
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              formKey.currentState!.save();
+              Navigator.pop(context, (
+                url: RepositoryId(url).toString(),
+                ecosystem: ecosystem!,
+              ));
+            },
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
     if (result != null && mounted) {

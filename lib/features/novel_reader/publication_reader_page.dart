@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
+import 'package:hikari/core/ui/components/hikari_modal_sheet.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/novel.dart';
 import 'package:hikari/domain/media/publication.dart';
@@ -272,11 +273,8 @@ final class _PublicationReaderPageState extends State<PublicationReaderPage>
   }
 
   void _showToc(Publication book) {
-    showModalBottomSheet<void>(
+    showHikariModalSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
       builder: (sheetContext) => SizedBox(
         // A short TOC should not claim the screen; a large TOC must scroll.
         height: math.min(

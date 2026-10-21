@@ -6,8 +6,41 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/playback/video_playback.dart';
 import 'package:hikari/features/manga_reader/widgets/manga_reader_chrome.dart';
 import 'package:hikari/features/player/widgets/player_controls.dart';
+import 'package:hikari/features/player/player_page.dart';
 
 void main() {
+  testWidgets(
+    'slow video scrub keeps controls until release then restarts hide timer',
+    (tester) async {
+      final controls = _FakePlaybackControls(playing: true);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: PlayerPage(
+            title: 'Video',
+            playback: const SizedBox(),
+            controls: controls,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 2));
+      final slider = find.byType(Slider);
+      final gesture = await tester.startGesture(tester.getCenter(slider));
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump(const Duration(seconds: 4));
+      expect(slider, findsOneWidget);
+      expect(controls.seeks, isEmpty);
+      await gesture.moveBy(const Offset(40, 0));
+      await gesture.up();
+      await tester.pump();
+      expect(controls.seeks, hasLength(1));
+      await tester.pump(const Duration(seconds: 2));
+      expect(slider, findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      expect(slider, findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets('Manga page scrubber identifies page and position', (
     tester,
   ) async {
@@ -64,11 +97,13 @@ void main() {
 }
 
 class _FakePlaybackControls implements VideoPlaybackControls {
+  _FakePlaybackControls({this.playing = false});
+  final seeks = <Duration>[];
   @override
   Stream<void> get changes => const Stream<void>.empty();
 
   @override
-  bool get playing => false;
+  final bool playing;
 
   @override
   Duration get position => const Duration(seconds: 30);
@@ -83,5 +118,7 @@ class _FakePlaybackControls implements VideoPlaybackControls {
   Future<void> pause() async {}
 
   @override
-  Future<void> seek(Duration position) async {}
+  Future<void> seek(Duration position) async {
+    seeks.add(position);
+  }
 }
