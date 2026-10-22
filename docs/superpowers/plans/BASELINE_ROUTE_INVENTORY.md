@@ -24,6 +24,11 @@
 | 18 | `lib/features/settings/settings_page.dart` | 05 |
 | 19 | `lib/features/source_search/source_search_page.dart` | 02 Pilot A (catalog picker), 03 Pilot B (library/search), 04 migration |
 
+Live checkout evidence supersedes this snapshot for migration ownership:
+[migration matrix](../../ui/MIGRATION_MATRIX.md) and
+[baseline runs](../../ui/BASELINE_RUNS.md). This snapshot table remains historical;
+its broad phase labels are not the per-finding live task assignment.
+
 ## G0 required additions
 
 - Enumerate actual route registrations and nested Navigator ownership in `lib/app/navigation/**`, **not** only `*page.dart` filenames.

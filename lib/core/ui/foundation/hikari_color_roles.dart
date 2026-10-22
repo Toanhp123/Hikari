@@ -1,5 +1,17 @@
 import 'package:flutter/material.dart';
 
+/// Raw user-selectable seeds, never generated ColorScheme.primary values.
+abstract final class HikariAccentSeeds {
+  static const defaultSeed = Color(0xFFB4BEFE);
+  static const presets = <(String, Color)>[
+    ('Violet', Color(0xFF8B5CF6)),
+    ('Pink', Color(0xFFEC4899)),
+    ('Cyan', Color(0xFF06B6D4)),
+    ('Green', Color(0xFF10B981)),
+    ('Amber', Color(0xFFF59E0B)),
+  ];
+}
+
 /// Warning and info pairs not represented by Material ColorScheme.
 @immutable
 class HikariStatusColors extends ThemeExtension<HikariStatusColors> {
@@ -53,4 +65,11 @@ class HikariStatusColors extends ThemeExtension<HikariStatusColors> {
       onInfoContainer: Color.lerp(onInfoContainer, other.onInfoContainer, t)!,
     );
   }
+}
+
+extension HikariThemeContext on BuildContext {
+  /// Missing required roles indicate a root theme configuration error.
+  HikariStatusColors get hikariStatusColors =>
+      Theme.of(this).extension<HikariStatusColors>() ??
+      (throw StateError('HikariTheme is required above this widget'));
 }

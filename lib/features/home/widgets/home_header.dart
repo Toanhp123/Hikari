@@ -3,7 +3,10 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
+import 'package:hikari/core/ui/foundation/hikari_size.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 
 /// Pinned Home chrome with a gradual scroll-under glass surface.
 class HomeHeader extends StatelessWidget {

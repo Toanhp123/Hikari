@@ -207,6 +207,20 @@ class FailingStore extends helpers.MemoryStore {
 }
 
 void main() {
+  testWidgets('Novel consent Cancel never admits or installs (fake gateway)', (
+    tester,
+  ) async {
+    final gateway = Gateway()..rows = [row()];
+    await open(tester, management(gateway));
+    await tap(tester, 'Consent and admit current');
+    await tap(tester, 'Cancel');
+    expect(
+      gateway.calls.where((call) => call == 'admit' || call == 'install'),
+      isEmpty,
+    );
+    expect(gateway.rows.single.admission, NovelAdmission.unknown);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('unsupported auxiliary Novel assets cannot be staged', (
     tester,
   ) async {

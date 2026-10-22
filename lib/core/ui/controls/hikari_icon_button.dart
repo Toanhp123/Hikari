@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+
+import '../foundation/hikari_radius.dart';
+import '../foundation/hikari_size.dart';
 
 enum HikariIconButtonVariant { standard, filled, glass, primary }
 

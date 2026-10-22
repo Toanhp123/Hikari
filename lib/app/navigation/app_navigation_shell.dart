@@ -3,7 +3,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_motion.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 
 enum AppTab {
   home,

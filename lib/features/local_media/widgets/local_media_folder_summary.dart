@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
 import 'package:hikari/features/local_media/local_media_view_model.dart';
 
 class LocalMediaFolderSummary extends StatelessWidget {

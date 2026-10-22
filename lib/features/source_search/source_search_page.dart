@@ -52,11 +52,39 @@ class SourceSearchPage extends StatefulWidget {
 class _SourceSearchPageState extends State<SourceSearchPage> {
   late final TextEditingController _searchController;
   late final SourceSearchViewModel _viewModel;
+  Timer? _queryDebounce;
+  late String _lastText;
+
+  void _cancelStaleEdit() {
+    if (_lastText == _searchController.text) return;
+    _lastText = _searchController.text;
+    _queryDebounce?.cancel();
+  }
+
+  void _queryChanged(String query) {
+    _queryDebounce?.cancel();
+    _queryDebounce = Timer(const Duration(milliseconds: 300), () {
+      _viewModel.updateQuery(query);
+    });
+  }
+
+  void _clear() {
+    _queryDebounce?.cancel();
+    _viewModel.updateQuery('');
+  }
+
+  void _submit(String query) {
+    _queryDebounce?.cancel();
+    _viewModel.updateQuery(query);
+    unawaited(_viewModel.submitQuery(query));
+  }
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController(text: widget.initialQuery);
+    _lastText = _searchController.text;
+    _searchController.addListener(_cancelStaleEdit);
     _viewModel = SourceSearchViewModel(
       searchManga: widget.searchManga,
       searchNovels: widget.searchNovels,
@@ -79,6 +107,8 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
 
   @override
   void dispose() {
+    _queryDebounce?.cancel();
+    _searchController.removeListener(_cancelStaleEdit);
     _searchController.dispose();
     _viewModel.dispose();
     super.dispose();
@@ -102,8 +132,9 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
         body: SourceSearchContent(
           controller: _searchController,
           state: _viewModel.state,
-          onQueryChanged: _viewModel.updateQuery,
-          onSubmitted: (query) => unawaited(_viewModel.submitQuery(query)),
+          onQueryChanged: _queryChanged,
+          onSubmitted: _submit,
+          onCleared: _clear,
           onSelectFilter: (filter) =>
               unawaited(_viewModel.selectFilter(filter)),
           onRetry: () => unawaited(_viewModel.retry()),

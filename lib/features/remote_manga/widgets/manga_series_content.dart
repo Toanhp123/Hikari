@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
 import 'package:hikari/core/ui/patterns/chapter_row.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';

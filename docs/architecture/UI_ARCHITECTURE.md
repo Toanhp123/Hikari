@@ -1,6 +1,15 @@
 # UI Architecture
 
-> Status: Accepted foundation for the UX/UI phase
+> Status: Phase 01 foundation/controls present; later migrations pending
+>
+> [ADR-026](../decisions/ADR-026-ui-foundation-rebuild.md) records accepted clause-level
+> replacement of UI dependency direction, token placement and modal/navigation
+> mechanics. [Foundation](../ui/FOUNDATIONS.md), [responsive](../ui/RESPONSIVE.md)
+> and [component](../ui/COMPONENTS.md) docs distinguish implemented Preview APIs
+> from later targets. Core/features→app/theme dependencies are now forbidden.
+> Domain-aware patterns and modal sites remain exact staged exceptions, tracked
+> in [migration matrix](../ui/MIGRATION_MATRIX.md).
+> Phase 00 did not migrate implementation; ADR-026 was approved on 2026-10-22.
 > Scope: Flutter presentation layer only
 > Applies to: Android, Windows, and future iOS UI
 
@@ -123,23 +132,14 @@ not use one as the other.
 
 Hikari UI uses four presentation levels:
 
-```text
-app/theme
-    ↓
-core/ui/components
-    ↓
-core/ui/patterns
-    ↓
-features/*/widgets
-    ↓
-features/*/*_page.dart
-```
+Dependencies: app/theme consumes core/ui/foundation to compose root ThemeData;
+shared controls/content/feedback consume foundation and explicit shared UI;
+features consume shared UI and inherited Material theme. Shared UI never imports
+app wiring or feature/domain/application/infrastructure behavior. Existing
+legacy domain-aware patterns are frozen exact exceptions until their owner task.
 
-Dependencies flow downward only.
-
-Feature-specific UI may depend on the theme and shared UI.
-
-`app/theme` and `core/ui/components` must not depend on feature code.
+`core/ui/hikari_ui.dart` curates Preview APIs. ThemeData composition stays app-owned;
+no core or feature import/export/part may target app/theme.
 
 ---
 
@@ -151,26 +151,18 @@ Recommended structure:
 lib/
 ├─ app/
 │  ├─ theme/
-│  │  ├─ hikari_theme.dart
-│  │  ├─ hikari_status_colors.dart
-│  │  ├─ hikari_size.dart
-│  │  ├─ hikari_typography.dart
-│  │  ├─ hikari_spacing.dart
-│  │  ├─ hikari_radius.dart
-│  │  ├─ hikari_motion.dart
-│  │  └─ hikari_breakpoints.dart
+│  │  └─ hikari_theme.dart
 │  │
 │  └─ app.dart
 │
 ├─ core/
 │  └─ ui/
-│     ├─ components/
-│     │  ├─ hikari_button.dart
-│     │  ├─ hikari_chip.dart
-│     │  ├─ hikari_icon_button.dart
-│     │  ├─ hikari_refresh_action.dart
-│     │  ├─ hikari_scaffold.dart
-│     │  └─ hikari_search_bar.dart
+│     ├─ hikari_ui.dart
+│     ├─ foundation/  # tokens, semantic roles, responsive policy
+│     ├─ controls/    # actions, chips, search, choice, segments
+│     ├─ content/     # section header, list row
+│     ├─ feedback/    # notice, retained async presentation
+│     ├─ components/ # staged legacy hosts/scaffold/refresh action
 │     │
 │     └─ patterns/
 │        ├─ async_state_view.dart
@@ -201,9 +193,9 @@ Only add a token or component when the product actually uses it.
 
 ---
 
-## 5. `app/theme`: design foundations
+## 5. Foundation and root composition
 
-`app/theme` owns global visual language.
+`core/ui/foundation` owns design values; `app/theme` composes the root Material theme.
 
 The canonical application theme is `HikariTheme.darkTheme()` in
 `app/theme/hikari_theme.dart`. App chrome uses the Material 3 `ColorScheme`
@@ -213,22 +205,13 @@ and `TextTheme` directly. Only non-Material warning/info pairs require the
 [ADR-014](../decisions/ADR-014-canonical-theme-consolidation.md) explains
 why the formerly separate `design_system/` implementation was consolidated.
 
-It may contain:
-
-- app `ThemeData`
-- semantic colors
-- typography scale
-- spacing scale
-- corner radii
-- motion durations and curves
-- responsive breakpoints
-- shared content-width rules
-
-It must not contain domain or feature behavior.
+app/theme contains root `ThemeData` composition only. Semantic extension roles,
+typography, spacing, radii, motion, breakpoints and content-width rules belong to
+foundation. Neither boundary contains domain or feature behavior.
 
 ### 5.1 Theme entry point
 
-`hikari_theme.dart` is the public composition point.
+`hikari_theme.dart` is the app-owned composition point, not a shared UI barrel.
 
 It should build the app's Flutter `ThemeData` and expose Hikari-specific theme
 extensions when Flutter's built-in theme model does not represent a token.

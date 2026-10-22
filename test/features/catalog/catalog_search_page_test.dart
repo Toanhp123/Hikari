@@ -1,12 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_search_page.dart';
 
 void main() {
+  testWidgets('catalog edits debounce empty text but clear is immediate', (
+    tester,
+  ) async {
+    final provider = _Provider();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: CatalogSearchPage(
+          searchCatalog: SearchCatalog(provider),
+          openDetail: (_, _) {},
+          openSourceSearch: (_) {},
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(SearchBar), 'Frieren');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(SearchBar), '');
+    await tester.pump(const Duration(milliseconds: 299));
+    expect(find.text('All result'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.text('Explore & Search'), findsOneWidget);
+    await tester.enterText(find.byType(SearchBar), 'Frieren');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pump();
+    expect(find.text('Explore & Search'), findsOneWidget);
+    expect(provider.calls, [('Frieren', null), ('Frieren', null)]);
+  });
+
+  testWidgets(
+    'catalog selection preserves edit timer and external edits cancel it',
+    (tester) async {
+      final provider = _Provider();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: CatalogSearchPage(
+            searchCatalog: SearchCatalog(provider),
+            openDetail: (_, _) {},
+            openSourceSearch: (_) {},
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(SearchBar), 'Frieren');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(SearchBar), 'Bleach');
+      final controller = tester
+          .widget<SearchBar>(find.byType(SearchBar))
+          .controller!;
+      controller.selection = const TextSelection.collapsed(offset: 1);
+      await tester.pump(const Duration(milliseconds: 299));
+      expect(find.text('All result'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.text('Explore & Search'), findsOneWidget);
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(SearchBar), 'pending');
+      controller.text = 'external';
+      await tester.pump(const Duration(milliseconds: 301));
+      expect(find.text('All result'), findsOneWidget);
+      expect(provider.calls, [('Frieren', null), ('Bleach', null)]);
+      await tester.enterText(find.byType(SearchBar), 'dispose pending');
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 301));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('catalog search queries metadata and opens selected detail', (
     tester,
   ) async {

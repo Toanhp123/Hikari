@@ -1,13 +1,20 @@
 # Hikari UI Foundation — Rebuild Architecture & Migration Specification
 
 > **Version:** 4.2 — Final handoff contradiction review, 2026-10-22  
-> **Status:** Design baseline for implementation planning; **not yet implemented or accepted as an ADR**  
+> **Status:** Accepted architecture baseline via ADR-026 (2026-10-22); **implementation not yet shipped**
 > **Baseline reviewed:** `Hikari-dev(20261021-163525).zip` (Flutter `3.47.5` per `.fvmrc`), original proposal, v2 and v3 specs. Source audit is static; no live Git/CI status is inferred.  
 > **Project scope:** Flutter UI presentation across Android and Windows, including app chrome, common surfaces, layouts, components, feature composition, accessibility and migration.  
-> **Primary decision maker:** Hikari product owner. This design follows the owner's deliberate rebuild intent. It can supersede conflicting *historical UI decisions* **after** its target rules are accepted and recorded in a superseding ADR.
+> **Primary decision maker:** Hikari product owner. This design follows the owner's deliberate rebuild intent. It can supersede conflicting *historical UI decisions* **as recorded** in the accepted superseding ADR-026.
 > **Normative interpretation:** §§0–20 define the target contract; illustrative pseudocode is not a claim of compiled implementation. Current-runtime behavior and cited external references are distinguished below.
 
 ---
+
+Live evidence: [Phase 00 runs](../../ui/BASELINE_RUNS.md),
+[migration matrix](../../ui/MIGRATION_MATRIX.md),
+[accepted ADR-026](../../decisions/ADR-026-ui-foundation-rebuild.md).
+Target ownership: [foundations](../../ui/FOUNDATIONS.md),
+[components](../../ui/COMPONENTS.md), [responsive](../../ui/RESPONSIVE.md).
+Owner approval is recorded in ADR-026; these links do not prove compiled public APIs or missing device checks.
 
 ## 0. Executive decision — a deliberate rebuild, not a minimal refactor
 

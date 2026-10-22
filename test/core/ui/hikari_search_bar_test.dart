@@ -1,29 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/core/ui/components/hikari_search_bar.dart';
+import 'package:hikari/core/ui/controls/hikari_search_field.dart';
 
 void main() {
-  testWidgets(
-    'selection-only controller updates preserve pending text debounce',
-    (tester) async {
-      final controller = TextEditingController();
-      addTearDown(controller.dispose);
-      final edits = <String>[];
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: HikariSearchBar(controller: controller, onChanged: edits.add),
-          ),
+  testWidgets('selection-only controller updates never duplicate an edit', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    final edits = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HikariSearchField(controller: controller, onChanged: edits.add),
         ),
-      );
-      await tester.enterText(find.byType(EditableText), 'query');
-      await tester.pump(const Duration(milliseconds: 100));
-      controller.selection = const TextSelection.collapsed(offset: 1);
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(edits, ['query']);
-    },
-  );
-  testWidgets('external clear rebuilds actions and cancels stale debounce', (
+      ),
+    );
+    await tester.enterText(find.byType(EditableText), 'query');
+    await tester.pump(const Duration(milliseconds: 100));
+    controller.selection = const TextSelection.collapsed(offset: 1);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(edits, ['query']);
+  });
+  testWidgets('external clear rebuilds actions without emitting another edit', (
     tester,
   ) async {
     final controller = TextEditingController();
@@ -33,7 +32,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: HikariSearchBar(
+          body: HikariSearchField(
             controller: controller,
             onChanged: edits.add,
             onSubmitted: submits.add,
@@ -48,14 +47,14 @@ void main() {
     expect(find.byTooltip('Clear search'), findsNothing);
     expect(find.byTooltip('Submit search'), findsNothing);
     await tester.pump(const Duration(milliseconds: 400));
-    expect(edits, isEmpty);
+    expect(edits, ['stale']);
     expect(submits, isEmpty);
     controller.text = 'external';
     await tester.pump();
     expect(find.byTooltip('Clear search'), findsOneWidget);
     await tester.tap(find.byTooltip('Submit search'));
     await tester.pump();
-    expect(edits, ['external']);
+    expect(edits, ['stale']);
     expect(submits, ['external']);
   });
 
@@ -69,14 +68,14 @@ void main() {
       final edits = <String>[];
       Widget app(TextEditingController? controller) => MaterialApp(
         home: Scaffold(
-          body: HikariSearchBar(controller: controller, onChanged: edits.add),
+          body: HikariSearchField(controller: controller, onChanged: edits.add),
         ),
       );
       await tester.pumpWidget(app(old));
       await tester.enterText(find.byType(EditableText), 'pending');
       await tester.pumpWidget(app(next));
       await tester.pump(const Duration(milliseconds: 400));
-      expect(edits, isEmpty);
+      expect(edits, ['pending']);
       old.text = 'ignored';
       await tester.pump();
       expect(find.text('next'), findsOneWidget);
@@ -87,9 +86,9 @@ void main() {
       next.text = 'still owned';
       await tester.enterText(find.byType(EditableText), 'internal');
       await tester.pump(const Duration(milliseconds: 299));
-      expect(edits, isEmpty);
+      expect(edits, ['pending', 'internal']);
       await tester.pump(const Duration(milliseconds: 1));
-      expect(edits, ['internal']);
+      expect(edits, ['pending', 'internal']);
       await tester.pumpWidget(const SizedBox());
       old.clear();
       next.clear();
@@ -97,7 +96,7 @@ void main() {
     },
   );
 
-  testWidgets('keyboard submit cancels debounce and emits once', (
+  testWidgets('keyboard submit emits once without duplicating edits', (
     tester,
   ) async {
     final edits = <String>[];
@@ -105,7 +104,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: HikariSearchBar(onChanged: edits.add, onSubmitted: submits.add),
+          body: HikariSearchField(
+            onChanged: edits.add,
+            onSubmitted: submits.add,
+          ),
         ),
       ),
     );
@@ -122,9 +124,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: HikariSearchBar(
+            body: HikariSearchField(
               hintText: 'Search plugins',
-              debounceDuration: Duration.zero,
               onChanged: updates.add,
             ),
           ),
@@ -147,11 +148,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: HikariSearchBar(
-            debounceDuration: const Duration(milliseconds: 300),
-            onChanged: (_) {},
-            onSubmitted: submits.add,
-          ),
+          body: HikariSearchField(onChanged: (_) {}, onSubmitted: submits.add),
         ),
       ),
     );

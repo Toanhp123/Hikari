@@ -244,6 +244,32 @@ Future<void> open(WidgetTester tester, PluginManagement management) async {
 }
 
 void main() {
+  for (final dismiss in ['Cancel', 'Back']) {
+    testWidgets(
+      'APK signer $dismiss never authorizes native approval or install (fake gateway)',
+      (tester) async {
+        final gateway = Gateway();
+        await open(tester, session(gateway));
+        await tap(tester, 'Download and inspect APK');
+        await tap(tester, 'Approve staged signer');
+        if (dismiss == 'Back') {
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+        } else {
+          await tap(tester, 'Cancel');
+        }
+        expect(
+          gateway.calls.where(
+            (call) =>
+                call.startsWith('approve:') || call.startsWith('install:'),
+          ),
+          isEmpty,
+        );
+        expect(find.text('Install APK'), findsNothing);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
   testWidgets(
     'delayed inventory publishes transfer cancellation before stage completes',
     (tester) async {

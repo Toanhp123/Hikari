@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
-import 'package:hikari/core/ui/components/hikari_search_bar.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_choice_menu.dart';
+import 'package:hikari/core/ui/controls/hikari_search_field.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/plugin_manager_ui_state.dart';
@@ -56,10 +56,9 @@ final class PluginBrowseFilters extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        HikariSearchBar(
+        HikariSearchField(
           initialQuery: state.query,
           hintText: 'Search plugins or sources',
-          debounceDuration: Duration.zero,
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: HikariSpacing.md),

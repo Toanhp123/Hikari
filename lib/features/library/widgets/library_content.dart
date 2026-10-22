@@ -3,9 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
+import 'package:hikari/core/ui/foundation/hikari_size.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
+import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
+import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -189,16 +193,16 @@ class _LibraryFilters extends StatelessWidget {
       ),
       child: HikariChipRow(
         children: [
-          HikariChip(
+          HikariFilterChip(
             label: 'All',
-            isSelected: selectedType == null,
-            onTap: () => onSelect(null),
+            selected: selectedType == null,
+            onSelected: (_) => onSelect(null),
           ),
           for (final type in MediaType.values)
-            HikariChip(
+            HikariFilterChip(
               label: mediaTypeLabel(type),
-              isSelected: selectedType == type,
-              onTap: () => onSelect(type),
+              selected: selectedType == type,
+              onSelected: (_) => onSelect(type),
             ),
         ],
       ),

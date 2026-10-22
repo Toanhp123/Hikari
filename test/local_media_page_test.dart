@@ -723,7 +723,8 @@ void main() {
       final chips = tester.widgetList<FilterChip>(find.byType(FilterChip));
       expect(chips.length, MediaType.values.length + 1);
       for (final chip in chips) {
-        expect((chip.label as Row).children, hasLength(1));
+        expect(chip.label, isA<Text>());
+        expect(chip.avatar, isNull);
       }
       await tester.tap(find.byType(FilterChip).at(2)); // Manga has no match.
       await tester.pumpAndSettle();

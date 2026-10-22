@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
-import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
+import 'package:hikari/core/ui/controls/hikari_choice_menu.dart';
 import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/domain/plugins/plugins.dart';

@@ -1,5 +1,45 @@
 # Hikari UI Performance Baseline Report
 
+## Phase 00 rebuild baseline — 2026-10-22
+
+Current branch/SDK and executed tests: [BASELINE_RUNS](../ui/BASELINE_RUNS.md).
+Current-branch hardware timings: **NOT MEASURED**. Screenshots, Android native
+consent/TalkBack and Windows interactive visual/keyboard checks: **NOT RUN**.
+`fvm flutter devices` found Windows desktop only; `adb devices -l` returned no
+device. Widget tests use simulated viewports and fake gateways, not GPU or native
+security evidence. No historical number below is a measurement of current HEAD.
+
+Historical report below is retained as prior evidence for commit `043bce9`, not
+revalidated in Phase 00. Its navigation labels (Updates/History) differ from the
+current Local/Library destinations. Match branch, device, rendering backend,
+refresh rate, dataset, viewport, text scale and cold/warm protocol before comparing.
+No current performance threshold can be declared met without new traces.
+
+### Reproduction protocol (pending device access)
+
+1. Record `git rev-parse HEAD`, dirty diff, `fvm flutter --version`, OS/build,
+   device/CPU/GPU, logical viewport, DPR, text scale, refresh rate and backend.
+2. Use `fvm flutter run --profile -d <device-id>` on Redmi Note 9S and Windows;
+   do not compare debug frame times against profile runs. Record thermal/power
+   state, network/cache condition and deterministic source/artwork dataset.
+3. Capture Home shelf/header scroll, Catalog grid/detail, picker language/search/
+   cancel/success, Library add/remove/Continue, Settings dark/OLED/accent and
+   reader open/return. Record one cold and two warm runs per scenario.
+4. Export DevTools timeline and memory snapshots; record UI/raster p50/p95/max,
+   frame count, refresh-rate budget and over-budget fraction, image decode size,
+   Dart heap and process memory. Keep raw files with run ID and checksum.
+5. Capture screenshots at 375/840/1440 logical widths, then boundaries
+   599/600/601, 839/840/841 and 1200, text scales 1x/2x/3x. Include short-height,
+   keyboard, active modal resize and dark/OLED. App light theme is unsupported
+   currently; label unavailable rather than inventing a light screenshot.
+6. Record actual native APK denial/cancellation, Novel exact tuple consent,
+   Android TalkBack, and Windows keyboard/focus/hover/resize separately. None is
+   established by widget tests. Missing evidence remains blocking when mandatory.
+
+---
+
+## Historical report — 2026-10-08 (not rerun)
+
 **Document ID:** PERF-BASE-2026-10-08  
 **Scope:** Real-Device Performance Audit of Hikari Flutter Application  
 **Branch:** `feat/ui-ux-hardening`  

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 
 /// Primary action for starting or continuing reading.
 class PrimaryReadingCta extends StatelessWidget {

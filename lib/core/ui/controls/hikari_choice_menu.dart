@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+
+import '../foundation/hikari_size.dart';
+import '../foundation/hikari_spacing.dart';
 
 /// A presentation-only choice. Null is a valid option (for example, "All").
 @immutable

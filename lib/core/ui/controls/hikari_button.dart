@@ -1,7 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+
+import '../foundation/hikari_radius.dart';
+import '../foundation/hikari_size.dart';
+import '../foundation/hikari_spacing.dart';
 
 enum HikariButtonVariant { primary, secondary, ghost, danger }
 
@@ -105,12 +108,7 @@ class HikariButton extends StatelessWidget {
           const SizedBox(width: HikariSpacing.xs),
         ],
         Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: labelStyle,
-          ),
+          child: Text(label, textAlign: TextAlign.center, style: labelStyle),
         ),
       ],
     );
@@ -138,7 +136,12 @@ class HikariButton extends StatelessWidget {
       ),
       HikariButtonVariant.danger => FilledButton(
         onPressed: effectiveOnPressed,
-        style: HikariTheme.destructiveAction(colors).merge(commonStyle),
+        style: FilledButton.styleFrom(
+          backgroundColor: colors.error,
+          foregroundColor: colors.onError,
+          disabledBackgroundColor: colors.onSurface.withValues(alpha: 0.12),
+          disabledForegroundColor: colors.onSurface.withValues(alpha: 0.38),
+        ).merge(commonStyle),
         child: content,
       ),
     };

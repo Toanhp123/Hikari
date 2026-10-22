@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
-import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
-import 'package:hikari/core/ui/components/hikari_search_bar.dart';
+import 'package:hikari/core/ui/controls/hikari_choice_menu.dart';
+import 'package:hikari/core/ui/controls/hikari_search_field.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
@@ -82,7 +82,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('Add repository'), findsOneWidget);
     expect(find.byTooltip('Refresh inventory'), findsNothing);
-    expect(find.byType(HikariSearchBar), findsOneWidget);
+    expect(find.byType(HikariSearchField), findsOneWidget);
     expect(find.byType(RefreshIndicator), findsOneWidget);
     expect(
       tester.widget<CustomScrollView>(find.byType(CustomScrollView)).physics,
@@ -162,7 +162,7 @@ void main() {
   });
 
   testWidgets(
-    'search uses HikariSearchBar and filters local offers immediately',
+    'search uses HikariSearchField and filters local offers immediately',
     (tester) async {
       final id = PluginId(PluginEcosystem.manga, 'org.example.manga');
       final repoId = RepositoryId('https://example.org/index.json');
@@ -199,7 +199,7 @@ void main() {
       expect(find.byType(HikariChoiceMenu<PluginEcosystem>), findsOneWidget);
       expect(find.byType(HikariChoiceMenu<String>), findsOneWidget);
       final searchField = find.descendant(
-        of: find.byType(HikariSearchBar),
+        of: find.byType(HikariSearchField),
         matching: find.byType(EditableText),
       );
       await tester.enterText(searchField, 'no-matching-plugin');

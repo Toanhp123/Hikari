@@ -10,6 +10,17 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-22-hikari-ui-foundation-rebuild-design.md` (v4.2); repository snapshot `Hikari-dev(20261021-163525).zip` reviewed statically.
 
+Live Phase 00: [baseline runs, owner handoff and deferred evidence](../../ui/BASELINE_RUNS.md),
+[migration matrix](../../ui/MIGRATION_MATRIX.md),
+[accepted ADR-026](../../decisions/ADR-026-ui-foundation-rebuild.md),
+[reviewed handoff](../handoff/README_GRAVITY.md).
+Owner accepted the G0 handoff on 2026-10-22 with an explicit **physical-evidence
+deferral**; Phase 01 Task 01 is authorized. This is **not** a technical G0 PASS
+or an assertion that unrun platform checks succeeded.
+
+Phase 01 implementation/evidence: [execution record](../../roadmap/UI_FOUNDATION_PHASE_01.md).
+G1 remains **BLOCKED / INCOMPLETE**; Phase 02 has not started.
+
 ## Global Constraints
 
 - This is an intentional **rebuild**, not a minimal diff or historical-ADR preservation exercise. Supersede conflicting UI decisions in an accepted ADR; keep non-UI source identity, cache, progress, plugin native trust and user consent contracts intact.
@@ -143,6 +154,15 @@ This table is the traceability baseline; if a task reveals an undocumented consu
 
 **Checkable gate semantics:** A gate passes only when (a) machine-verifiable checks have recorded exit codes, (b) manual/platform checks have dated device evidence, and (c) no mandatory pending item remains. `NOT RUN`, `BLOCKED`, `NOT APPLICABLE` and `KNOWN ISSUE` are **not** PASS. Baseline/characterization tasks may start GREEN; do not manufacture a RED by changing working behavior or weakening tests.
 
+**Owner-scoped G0 transition (2026-10-22):** The owner accepted the G0 handoff
+and explicitly authorized Phase 01 **with physical baseline evidence deferred**;
+see [dated decision and outstanding checks](../../ui/BASELINE_RUNS.md).
+The original G0 technical gate is **not marked PASS**; status is
+`OWNER-ACCEPTED / PHYSICAL EVIDENCE DEFERRED`. This exception allows only Phase 01
+to start and does not waive security, regressions or G1–G7 acceptance criteria.
+All pending native, accessibility, visual and performance checks retain their
+`NOT RUN`/`NOT MEASURED` statuses and required later owners/deadlines.
+
 
 - **G0:** Real branch/snapshot documented, all 19 page entrypoints inventoried, modal imports/calls mapped, ADR drafted/approved and baseline tests recorded.
 - **G1:** Foundation compiles with one token source; dark/OLED/theme tests, component gallery and import guard pass.
@@ -191,7 +211,9 @@ Self-review (ownership, API shape, stale async, performance):
 
 1. Review this master and the first plan before authorizing implementation; the user's approved spec remains authoritative.
 2. Execute one task at a time with Superpowers TDD, then review diff and run focused gates; advance G0→G7 in order.
-3. Do not spawn worktrees or automatically commit. Do not claim a phase complete with a pending gate.
+3. Do not spawn worktrees or automatically commit. Do not claim a gate PASS
+   with pending mandatory evidence. The explicitly dated owner-accepted G0
+   transition above is a narrow authorization, not a technical PASS.
 4. Each task's Files/Interfaces/Steps are implementer instructions; adjust file names only when a path differs in the live checkout and record the mapping.
 5. Once G7 passes, finalize docs and acceptance report, including any accepted *technical* exceptions with owner/tests/revisit criteria. No indefinite compatibility branch.
 

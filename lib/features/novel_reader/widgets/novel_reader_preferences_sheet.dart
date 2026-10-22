@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_size.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/features/novel_reader/novel_reader_theme.dart';
 
 class NovelReaderPreferencesSheet extends StatefulWidget {

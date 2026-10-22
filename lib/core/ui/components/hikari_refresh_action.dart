@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
 
 /// Explicit refresh action shared by refreshable presentation surfaces.
 class HikariRefreshAction extends StatelessWidget {

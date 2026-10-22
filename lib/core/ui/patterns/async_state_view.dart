@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
 
 enum AsyncViewStatus { initial, loading, content, empty, error }
 

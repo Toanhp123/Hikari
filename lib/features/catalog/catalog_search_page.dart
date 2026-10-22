@@ -29,8 +29,43 @@ class _CatalogSearchPageState extends State<CatalogSearchPage> {
     widget.searchCatalog,
   );
 
+  Timer? _queryDebounce;
+  String _lastText = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_cancelStaleEdit);
+  }
+
+  void _cancelStaleEdit() {
+    if (_lastText == _controller.text) return;
+    _lastText = _controller.text;
+    _queryDebounce?.cancel();
+  }
+
+  void _queryChanged(String query) {
+    _queryDebounce?.cancel();
+    _queryDebounce = Timer(const Duration(milliseconds: 300), () {
+      _viewModel.updateQuery(query);
+    });
+  }
+
+  void _clear() {
+    _queryDebounce?.cancel();
+    _viewModel.updateQuery('');
+  }
+
+  void _submit(String query) {
+    _queryDebounce?.cancel();
+    _viewModel.updateQuery(query);
+    unawaited(_viewModel.submitQuery(query));
+  }
+
   @override
   void dispose() {
+    _queryDebounce?.cancel();
+    _controller.removeListener(_cancelStaleEdit);
     _controller.dispose();
     _viewModel.dispose();
     super.dispose();
@@ -45,8 +80,9 @@ class _CatalogSearchPageState extends State<CatalogSearchPage> {
         body: CatalogSearchContent(
           controller: _controller,
           state: _viewModel.state,
-          onQueryChanged: _viewModel.updateQuery,
-          onSubmitted: (query) => unawaited(_viewModel.submitQuery(query)),
+          onQueryChanged: _queryChanged,
+          onSubmitted: _submit,
+          onCleared: _clear,
           onSelectFilter: (filter) =>
               unawaited(_viewModel.selectFilter(filter)),
           onRetry: () => unawaited(_viewModel.retry()),

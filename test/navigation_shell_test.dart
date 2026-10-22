@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/navigation/app_navigation_shell.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_search_bar.dart';
+import 'package:hikari/core/ui/controls/hikari_search_field.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/home_header.dart';
 
@@ -59,7 +59,7 @@ void main() {
           home: AppNavigationShell(
             tabs: {
               AppTab.home: HomePage(openMedia: (_, _) {}),
-              AppTab.search: HikariSearchBar(onChanged: (_) {}),
+              AppTab.search: HikariSearchField(onChanged: (_) {}),
               AppTab.local: const Text('Local'),
               AppTab.library: const Text('Library'),
               AppTab.settings: const Text('Settings'),
@@ -121,7 +121,17 @@ void main() {
     await tester.enterText(find.byType(TextField), 'persist me');
     await tester.pump();
 
-    for (final width in [600.0, 601.0, 599.0, 840.0, 375.0]) {
+    for (final width in [
+      600.0,
+      601.0,
+      599.0,
+      839.0,
+      840.0,
+      841.0,
+      1200.0,
+      1440.0,
+      375.0,
+    ]) {
       tester.view.physicalSize = Size(width, 800);
       await tester.pumpAndSettle();
       expect(find.text('persist me'), findsOneWidget);

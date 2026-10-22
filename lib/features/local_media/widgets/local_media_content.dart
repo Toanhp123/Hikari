@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
+import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
@@ -109,16 +111,16 @@ class LocalMediaContent extends StatelessWidget {
                   ),
                   child: HikariChipRow(
                     children: [
-                      HikariChip(
+                      HikariFilterChip(
                         label: 'All',
-                        isSelected: state.filter == null,
-                        onTap: () => onSelectFilter(null),
+                        selected: state.filter == null,
+                        onSelected: (_) => onSelectFilter(null),
                       ),
                       for (final type in MediaType.values)
-                        HikariChip(
+                        HikariFilterChip(
                           label: mediaTypeLabel(type),
-                          isSelected: state.filter == type,
-                          onTap: () => onSelectFilter(type),
+                          selected: state.filter == type,
+                          onSelected: (_) => onSelectFilter(type),
                         ),
                     ],
                   ),

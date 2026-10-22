@@ -1,5 +1,16 @@
 # Presentation architecture
 
+Status: **Phase 01 foundation/controls present; modal/navigation migration pending**.
+Core/features consume `core/ui/foundation` or canonical UI families, never app/theme.
+Catalog/Source route owners retain 300ms edit debounce and explicit submission;
+canonical search field owns no request policy. Standalone developer gallery stays
+outside production navigation. Preview API status is not G1 acceptance.
+[ADR-026](../decisions/ADR-026-ui-foundation-rebuild.md) authorizes common shared
+modal/focus/result mechanics and domain-free shared UI. Features retain workflow,
+VM, mapping, validation, authorization and stale identity checks; app retains route
+composition. Below describes current ownership until its named migration task.
+See [component ownership](../ui/COMPONENTS.md) and [migration matrix](../ui/MIGRATION_MATRIX.md).
+
 ## Purpose
 
 `features/` owns Flutter routes, feature-local presentation state and feature-owned

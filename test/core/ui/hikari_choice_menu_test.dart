@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
+import 'package:hikari/core/ui/controls/hikari_choice_menu.dart';
 
 void main() {
   testWidgets('empty options keep disabled placeholder and caller error', (

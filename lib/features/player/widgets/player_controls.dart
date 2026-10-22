@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
 import 'package:hikari/domain/playback/video_playback.dart';
 
 class PlayerControls extends StatefulWidget {

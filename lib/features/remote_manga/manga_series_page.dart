@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
 import 'package:hikari/application/media/load_series_reading_target.dart';
 
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';

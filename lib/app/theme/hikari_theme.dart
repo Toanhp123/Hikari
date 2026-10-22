@@ -1,38 +1,19 @@
 import 'package:flutter/material.dart';
 
-import 'hikari_radius.dart';
-import 'hikari_size.dart';
-import 'hikari_spacing.dart';
-import 'hikari_breakpoints.dart';
-import 'hikari_status_colors.dart';
-import 'hikari_typography.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
+import 'package:hikari/core/ui/foundation/hikari_size.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 
-export 'hikari_breakpoints.dart';
-export 'hikari_motion.dart';
-export 'hikari_radius.dart';
-export 'hikari_size.dart';
-export 'hikari_spacing.dart';
-export 'hikari_status_colors.dart';
-export 'hikari_typography.dart';
+import 'package:hikari/core/ui/foundation/hikari_color_roles.dart';
+import 'package:hikari/core/ui/foundation/hikari_typography.dart';
 
 /// Single Material 3 theme owner for Hikari.
 abstract final class HikariTheme {
-  /// The null appearance selection resolves to this canonical seed.
-  static const defaultAccentSeed = Color(0xFFB4BEFE);
-
-  /// User-facing preset names and raw seeds; generated primary is not a seed.
-  static const accentPresets = <(String, Color)>[
-    ('Violet', Color(0xFF8B5CF6)),
-    ('Pink', Color(0xFFEC4899)),
-    ('Cyan', Color(0xFF06B6D4)),
-    ('Green', Color(0xFF10B981)),
-    ('Amber', Color(0xFFF59E0B)),
-  ];
-
   static ThemeData darkTheme({bool oled = false, Color? accentColor}) {
     final colors =
         ColorScheme.fromSeed(
-          seedColor: accentColor ?? defaultAccentSeed,
+          seedColor: accentColor ?? HikariAccentSeeds.defaultSeed,
           brightness: Brightness.dark,
         ).copyWith(
           surface: oled ? Colors.black : const Color(0xFF181825),
@@ -260,22 +241,4 @@ abstract final class HikariTheme {
       ),
     );
   }
-
-  /// Apply to a native FilledButton; inherited geometry and states remain intact.
-  static ButtonStyle destructiveAction(ColorScheme colors) =>
-      FilledButton.styleFrom(
-        backgroundColor: colors.error,
-        foregroundColor: colors.onError,
-        disabledBackgroundColor: colors.onSurface.withValues(alpha: 0.12),
-        disabledForegroundColor: colors.onSurface.withValues(alpha: 0.38),
-      );
-}
-
-/// Existing feature API backed by the canonical theme extension.
-extension HikariThemeContext on BuildContext {
-  /// Status roles are required from the canonical application theme.
-  /// Missing extensions are configuration errors, never silent color fallbacks.
-  HikariStatusColors get hikariStatusColors =>
-      Theme.of(this).extension<HikariStatusColors>() ??
-      (throw StateError('HikariTheme is required above this widget'));
 }

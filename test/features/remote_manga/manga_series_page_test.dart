@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';

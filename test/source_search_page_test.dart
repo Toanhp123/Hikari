@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/application/sources/source_registry.dart';
@@ -15,6 +17,91 @@ import 'package:hikari/features/source_search/source_search_page.dart';
 import 'package:hikari/features/source_search/source_search_view_model.dart';
 
 void main() {
+  testWidgets('source edits debounce empty text but clear is immediate', (
+    tester,
+  ) async {
+    var scans = 0;
+    const item = Media(
+      title: 'Solo Leveling',
+      type: MediaType.manga,
+      source: SourceMediaRef(sourceId: SourceId.local, itemId: 'sl'),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: SourceSearchPage(
+          scanLocalMedia: () async {
+            scans++;
+            return [item];
+          },
+          openMedia: (_, _, {previewMetadata}) {},
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(SearchBar), 'Solo');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(SearchBar), '');
+    await tester.pump(const Duration(milliseconds: 299));
+    expect(find.text('Solo Leveling'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.text('Find a source'), findsOneWidget);
+    await tester.enterText(find.byType(SearchBar), 'Solo');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pump();
+    expect(find.text('Find a source'), findsOneWidget);
+    expect(scans, 2);
+  });
+
+  testWidgets(
+    'source selection preserves edit timer and external edits cancel it',
+    (tester) async {
+      var scans = 0;
+      const item = Media(
+        title: 'Solo Leveling',
+        type: MediaType.manga,
+        source: SourceMediaRef(sourceId: SourceId.local, itemId: 'sl'),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: SourceSearchPage(
+            scanLocalMedia: () async {
+              scans++;
+              return [item];
+            },
+            openMedia: (_, _, {previewMetadata}) {},
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(SearchBar), 'Solo');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(SearchBar), 'Leveling');
+      final controller = tester
+          .widget<SearchBar>(find.byType(SearchBar))
+          .controller!;
+      controller.selection = const TextSelection.collapsed(offset: 1);
+      await tester.pump(const Duration(milliseconds: 299));
+      expect(find.text('Solo Leveling'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.text('Find a source'), findsOneWidget);
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(SearchBar), 'pending');
+      controller.text = 'external';
+      await tester.pump(const Duration(milliseconds: 301));
+      expect(find.text('Solo Leveling'), findsOneWidget);
+      expect(scans, 2);
+      await tester.enterText(find.byType(SearchBar), 'dispose pending');
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 301));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('scoped source label is announced once in full', (tester) async {
     tester.view.physicalSize = const Size(320, 720);
     tester.view.devicePixelRatio = 1;

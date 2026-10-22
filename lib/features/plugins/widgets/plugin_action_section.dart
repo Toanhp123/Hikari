@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/content/hikari_section_header.dart';
 
 /// Consistent spacing for native evidence and staged action groups.
 /// Children are rendered as-is; the route remains responsible for consent.

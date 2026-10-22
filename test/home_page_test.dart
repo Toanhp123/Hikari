@@ -4,16 +4,59 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
+import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/features/home/home_page.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
 
 void main() {
+  testWidgets(
+    'Continue forwards exact saved chapter without opening Detail or switching source',
+    (tester) async {
+      const series = Media(
+        title: 'Saved source title',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('saved:provider'),
+          itemId: 'series',
+        ),
+      );
+      const item = ContinueReadingItem(
+        media: series,
+        progress: .4,
+        chapter: SourceMediaRef(
+          sourceId: SourceId('saved:provider'),
+          itemId: 'chapter-7',
+        ),
+      );
+      ContinueReadingItem? continued;
+      var detailOpens = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: Scaffold(
+            body: ContinueShelf(
+              items: const [item],
+              onContinue: (_, value) => continued = value,
+              onOpenMedia: (_, _) => detailOpens++,
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Saved source title'));
+      await tester.pumpAndSettle();
+      expect(continued, same(item));
+      expect(continued!.chapter!.sourceId, series.source.sourceId);
+      expect(continued!.chapter!.itemId, 'chapter-7');
+      expect(detailOpens, 0);
+    },
+  );
   testWidgets('Home bottom clearance follows inherited obstruction', (
     tester,
   ) async {

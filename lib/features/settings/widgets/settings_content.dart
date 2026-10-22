@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_color_roles.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/cache/cache_usage.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
-import 'package:hikari/core/ui/patterns/hikari_section_header.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
+import 'package:hikari/core/ui/content/hikari_section_header.dart';
 
 /// Persistence state for the most recently requested appearance selection.
 enum AppearanceSaveStatus { saved, saving, failed }
@@ -105,13 +107,13 @@ class SettingsContent extends StatelessWidget {
                           children: [
                             _AccentSwatch(
                               label: 'Default accent',
-                              color: HikariTheme.defaultAccentSeed,
+                              color: HikariAccentSeeds.defaultSeed,
                               selected: selectedAccent == null,
                               isDefault: true,
                               onTap: () => onSelectAccent!(null),
                             ),
                             for (final (name, color)
-                                in HikariTheme.accentPresets)
+                                in HikariAccentSeeds.presets)
                               _AccentSwatch(
                                 label: '$name accent',
                                 color: color,

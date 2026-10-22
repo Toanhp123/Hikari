@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/progress/load_continue_reading.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -13,6 +14,8 @@ import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/series_continuation.dart';
 import 'package:hikari/features/library/library_page.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
+import 'package:hikari/features/source_search/source_search_view_model.dart';
+import 'package:hikari/features/source_search/widgets/source_search_content.dart';
 import 'package:hikari/infrastructure/persistence/user_database.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
 import 'package:hikari/infrastructure/repositories/sqlite_progress_repository.dart';
@@ -31,6 +34,59 @@ void main() {
     library = SqliteLibraryRepository(db);
   });
   tearDown(() => db.close());
+  testWidgets(
+    'Source search membership uses same add cancel remove semantics',
+    (tester) async {
+      const result = Media(
+        title: 'Source result',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('source:exact'),
+          itemId: 'series',
+        ),
+      );
+      final controller = TextEditingController(text: 'Source');
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: Scaffold(
+            body: SourceSearchContent(
+              controller: controller,
+              state: const SourceSearchUiState(
+                query: 'Source',
+                inputQuery: 'Source',
+                status: SourceSearchStatus.ready,
+                results: [SourceSearchResult(media: result)],
+              ),
+              onQueryChanged: (_) {},
+              onSubmitted: (_) {},
+              onSelectFilter: (_) {},
+              onRetry: () {},
+              openMedia: (_, _, {previewMetadata}) {},
+              library: library,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      expect((await library.loadAll()).single.media.source, result.source);
+      await tester.tap(find.byTooltip('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(result.source), isTrue);
+      await tester.tap(find.byTooltip('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(result.source), isFalse);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
   testWidgets('Library reuses chapter progress and refreshes after reading', (
     tester,
   ) async {
@@ -183,6 +239,21 @@ void main() {
     await tester.tap(find.byTooltip('Switch to list view'));
     await tester.pumpAndSettle();
     expect(find.byType(Image), findsWidgets);
+    await library.upsert(
+      LibraryEntry(
+        media: Media(
+          title: 'Refreshed title',
+          type: media.type,
+          source: media.source,
+        ),
+        artwork: cover,
+        addedAt: DateTime.utc(2026),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Refreshed title'), findsOneWidget);
+    expect((await library.loadAll()).single.artwork, cover);
+    expect(find.byType(Image), findsWidgets);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });
@@ -299,7 +370,8 @@ void main() {
         .toList();
     expect(chips, hasLength(MediaType.values.length + 1));
     for (final chip in chips) {
-      expect((chip.label as Row).children, hasLength(1));
+      expect(chip.label, isA<Text>());
+      expect(chip.avatar, isNull);
     }
     expect(
       tester.getTopLeft(find.byType(FilterChip).at(1)).dx -

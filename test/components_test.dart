@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_button.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
-import 'package:hikari/core/ui/components/hikari_icon_button.dart';
+import 'package:hikari/core/ui/foundation/hikari_size.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
+import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
+import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
+import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
-import 'package:hikari/core/ui/components/hikari_search_bar.dart';
+import 'package:hikari/core/ui/controls/hikari_search_field.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 
@@ -138,17 +141,17 @@ void main() {
     });
   });
 
-  group('HikariChip', () {
+  group('HikariFilterChip', () {
     testWidgets('renders label and toggles selection', (tester) async {
       var selected = false;
       await tester.pumpWidget(
         testWrapper(
           StatefulBuilder(
             builder: (context, setState) {
-              return HikariChip(
+              return HikariFilterChip(
                 label: 'Anime',
-                isSelected: selected,
-                onTap: () => setState(() => selected = !selected),
+                selected: selected,
+                onSelected: (_) => setState(() => selected = !selected),
               );
             },
           ),
@@ -168,8 +171,16 @@ void main() {
         testWrapper(
           HikariChipRow(
             children: [
-              HikariChip(label: 'All', onTap: () {}),
-              HikariChip(label: 'Anime', onTap: () {}),
+              HikariFilterChip(
+                label: 'All',
+                selected: false,
+                onSelected: (_) {},
+              ),
+              HikariFilterChip(
+                label: 'Anime',
+                selected: false,
+                onSelected: (_) {},
+              ),
             ],
           ),
         ),
@@ -196,10 +207,10 @@ void main() {
       var activations = 0;
       await tester.pumpWidget(
         testWrapper(
-          HikariChip(
+          HikariFilterChip(
             label: 'Manga',
-            isSelected: true,
-            onTap: () => activations++,
+            selected: true,
+            onSelected: (_) => activations++,
           ),
         ),
       );
@@ -260,7 +271,7 @@ void main() {
     });
   });
 
-  group('HikariSearchBar', () {
+  group('HikariSearchField', () {
     testWidgets('inherits canonical theme and preserves search behavior', (
       tester,
     ) async {
@@ -270,10 +281,7 @@ void main() {
         MaterialApp(
           theme: HikariTheme.darkTheme(accentColor: accent),
           home: Scaffold(
-            body: HikariSearchBar(
-              debounceDuration: const Duration(milliseconds: 50),
-              onChanged: (val) => currentQuery = val,
-            ),
+            body: HikariSearchField(onChanged: (val) => currentQuery = val),
           ),
         ),
       );
@@ -318,10 +326,10 @@ void main() {
 
       await tester.enterText(searchBar, 'Bleach');
       await tester.pump(const Duration(milliseconds: 20));
-      expect(currentQuery, ''); // not yet debounced
+      expect(currentQuery, 'Bleach'); // presentation emits edits immediately
 
       await tester.pump(const Duration(milliseconds: 60));
-      expect(currentQuery, 'Bleach'); // debounced
+      expect(currentQuery, 'Bleach'); // no field-owned timer
       expect(find.byTooltip('Clear search'), findsOneWidget);
       expect(
         (tester.getCenter(editor).dy - tester.getCenter(searchBar).dy).abs(),
@@ -334,7 +342,7 @@ void main() {
     });
   });
 
-  testWidgets('HikariSearchBar replaces a changing external controller', (
+  testWidgets('HikariSearchField replaces a changing external controller', (
     tester,
   ) async {
     final original = TextEditingController(text: 'Old');
@@ -343,7 +351,7 @@ void main() {
     addTearDown(replacement.dispose);
     Widget app(TextEditingController controller) => MaterialApp(
       home: Scaffold(
-        body: HikariSearchBar(controller: controller, onChanged: (_) {}),
+        body: HikariSearchField(controller: controller, onChanged: (_) {}),
       ),
     );
     await tester.pumpWidget(app(original));

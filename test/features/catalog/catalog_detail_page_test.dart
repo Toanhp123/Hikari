@@ -16,6 +16,10 @@ import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/search/search_novels.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
+import 'package:hikari/domain/library/library.dart';
+import 'package:hikari/infrastructure/persistence/user_database.dart';
+import 'package:hikari/infrastructure/repositories/sqlite_library_repository.dart';
+import 'package:drift/native.dart';
 import 'package:hikari/domain/catalog/catalog_source_selection.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
@@ -29,6 +33,55 @@ import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_candidate_list.dart';
 
 void main() {
+  testWidgets(
+    'Catalog source membership adds directly and cancel preserves exact identity',
+    (tester) async {
+      final db = UserDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final library = SqliteLibraryRepository(db);
+      const selected = Media(
+        title: 'Saved candidate',
+        type: MediaType.manga,
+        source: SourceMediaRef(
+          sourceId: SourceId('test:manga'),
+          itemId: 'candidate-7',
+        ),
+      );
+      final choices = _Choices()..selected = selected;
+      await tester.pumpWidget(
+        _app(
+          _detail(
+            initialEntry: _related,
+            loadDetails: LoadCatalogEntryDetails(_Provider()),
+            resolveCatalogSource: _resolver(),
+            sourceSelections: choices,
+            library: library,
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chapters'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      expect((await library.loadAll()).single.media.source, selected.source);
+      await tester.tap(find.byTooltip('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(selected.source), isTrue);
+      await tester.tap(find.byTooltip('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(selected.source), isFalse);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
   testWidgets(
     'Information remains lazy; Chapters restores exact cached source',
     (tester) async {
@@ -354,40 +407,51 @@ void main() {
     expect(find.text('Change source'), findsOneWidget);
   });
 
-  testWidgets('cancel Change source keeps confirmed choice', (tester) async {
-    final choices = _Choices()
-      ..selected = const Media(
-        title: 'Retained candidate',
-        type: MediaType.manga,
-        source: SourceMediaRef(
-          sourceId: SourceId('removed:extension'),
-          itemId: 'retained',
+  testWidgets(
+    'cancel Change source keeps confirmed choice and never opens Reader',
+    (tester) async {
+      var readerOpens = 0;
+      final choices = _Choices()
+        ..selected = const Media(
+          title: 'Retained candidate',
+          type: MediaType.manga,
+          source: SourceMediaRef(
+            sourceId: SourceId('removed:extension'),
+            itemId: 'retained',
+          ),
+        );
+      await tester.pumpWidget(
+        _app(
+          _detail(
+            initialEntry: _related,
+            loadDetails: LoadCatalogEntryDetails(_Provider()),
+            resolveCatalogSource: _resolver(),
+            sourceSelections: choices,
+            openMedia: (_, _, {previewMetadata, canNavigate}) async {
+              readerOpens++;
+            },
+            openRelated: (_) {},
+            openSourceSearch: (_, _, _, _, _) {},
+          ),
         ),
       );
-    await tester.pumpWidget(
-      _app(
-        _detail(
-          initialEntry: _related,
-          loadDetails: LoadCatalogEntryDetails(_Provider()),
-          resolveCatalogSource: _resolver(),
-          sourceSelections: choices,
-          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
-          openRelated: (_) {},
-          openSourceSearch: (_, _, _, _, _) {},
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Chapters'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Change source'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Close'));
-    await tester.pumpAndSettle();
-    expect(find.text('Change source'), findsOneWidget);
-    expect(choices.selected!.source.itemId, 'retained');
-    expect(choices.saves, 0);
-  });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chapters'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Change source'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Change source'), findsOneWidget);
+      expect(choices.selected!.source.itemId, 'retained');
+      expect(
+        choices.selected!.source.sourceId,
+        const SourceId('removed:extension'),
+      );
+      expect(choices.saves, 0);
+      expect(readerOpens, 0);
+    },
+  );
 
   testWidgets('delayed A to B to A commits final confirmed source', (
     tester,
@@ -1689,6 +1753,7 @@ void main() {
     tester,
   ) async {
     Set<SourceId>? searchedIds;
+    String? searchedLanguage;
     final manga = CatalogEntry(
       id: _related.id,
       title: 'Book A',
@@ -1718,7 +1783,10 @@ void main() {
           resolveCatalogSource: _resolver(sources),
           openMedia: (_, _, {previewMetadata, canNavigate}) async {},
           openRelated: (_) {},
-          openSourceSearch: (_, _, _, ids, _) => searchedIds = ids,
+          openSourceSearch: (_, _, _, ids, language) {
+            searchedIds = ids;
+            searchedLanguage = language;
+          },
         ),
       ),
     );
@@ -1735,6 +1803,7 @@ void main() {
     await tester.tap(find.text('Search EN sources'));
 
     expect(searchedIds, {const SourceId('test:en')});
+    expect(searchedLanguage, 'en');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Read'));
     await tester.pumpAndSettle();
@@ -1742,6 +1811,7 @@ void main() {
     await tester.tap(find.text('Search all sources'));
     await tester.pumpAndSettle();
     expect(searchedIds, isNull);
+    expect(searchedLanguage, isNull);
   });
 
   for (final automatic in [true, false]) {
@@ -2014,6 +2084,7 @@ Widget _detail({
   openSourceSearch,
   Future<Uint8List?> Function(SourceMediaRef)? readArtwork,
   CatalogSourceSelectionRepository? sourceSelections,
+  LibraryRepository? library,
   ReadRemoteChapterList? chapterCache,
 }) {
   final cache = chapterCache ?? ReadRemoteChapterList(_NoCache());
@@ -2023,6 +2094,7 @@ Widget _detail({
     resolveCatalogSource: resolveCatalogSource,
     openMedia: openMedia,
     sourceSelections: sourceSelections,
+    library: library,
     openRelated: openRelated,
     openSourceSearch: openSourceSearch,
     readArtwork: readArtwork,

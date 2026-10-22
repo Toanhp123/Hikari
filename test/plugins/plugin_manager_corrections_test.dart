@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hikari/core/ui/components/hikari_choice_menu.dart';
+import 'package:hikari/core/ui/controls/hikari_choice_menu.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_manager_page.dart';
 

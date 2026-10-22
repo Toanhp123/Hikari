@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/components/hikari_chip.dart';
-import 'package:hikari/core/ui/components/hikari_search_bar.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
+import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
+import 'package:hikari/core/ui/controls/hikari_search_field.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
@@ -15,6 +17,7 @@ class CatalogSearchContent extends StatelessWidget {
     required this.state,
     required this.onQueryChanged,
     required this.onSubmitted,
+    this.onCleared,
     required this.onSelectFilter,
     required this.onRetry,
     required this.onSearchSources,
@@ -25,6 +28,7 @@ class CatalogSearchContent extends StatelessWidget {
   final CatalogSearchUiState state;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<String> onSubmitted;
+  final VoidCallback? onCleared;
   final ValueChanged<CatalogSearchFilter> onSelectFilter;
   final VoidCallback onRetry;
   final VoidCallback onSearchSources;
@@ -48,21 +52,22 @@ class CatalogSearchContent extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  HikariSearchBar(
+                  HikariSearchField(
                     controller: controller,
                     onChanged: onQueryChanged,
                     onSubmitted: onSubmitted,
+                    onCleared: onCleared,
                   ),
                   const SizedBox(height: HikariSpacing.sm),
                   HikariChipRow(
                     children: [
                       for (final filter in CatalogSearchFilter.values)
-                        HikariChip(
+                        HikariFilterChip(
                           label: filter.mediaType == null
                               ? 'All'
                               : mediaTypeLabel(filter.mediaType!),
-                          isSelected: state.filter == filter,
-                          onTap: () => onSelectFilter(filter),
+                          selected: state.filter == filter,
+                          onSelected: (_) => onSelectFilter(filter),
                         ),
                     ],
                   ),

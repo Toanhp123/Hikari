@@ -1,0 +1,2 @@
+import 'package:hikari/domain/media/media.dart';
+class SharedRow {}

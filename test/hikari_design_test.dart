@@ -4,7 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/foundation/hikari_color_roles.dart';
+import 'package:hikari/core/ui/foundation/hikari_motion.dart';
 import 'package:hikari/features/novel_reader/novel_reader_theme.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
 
 void main() {
   test('dark and OLED themes provide readable semantic color pairs', () {
@@ -119,12 +123,12 @@ void main() {
   test('nullable default seed matches the explicit default seed', () {
     final rootTheme = HikariTheme.darkTheme();
     final explicitDefault = HikariTheme.darkTheme(
-      accentColor: HikariTheme.defaultAccentSeed,
+      accentColor: HikariAccentSeeds.defaultSeed,
     );
     expect(rootTheme.colorScheme, explicitDefault.colorScheme);
     expect(
-      HikariTheme.accentPresets.map((preset) => preset.$2).toSet().length,
-      HikariTheme.accentPresets.length,
+      HikariAccentSeeds.presets.map((preset) => preset.$2).toSet().length,
+      HikariAccentSeeds.presets.length,
     );
   });
 
@@ -328,11 +332,25 @@ void main() {
     }
   });
 
-  test(
+  testWidgets(
     'native state styling and destructive action keep disabled precedence',
-    () {
+    (tester) async {
       final theme = HikariTheme.darkTheme();
-      final style = HikariTheme.destructiveAction(theme.colorScheme);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: HikariButton(
+              label: 'Delete',
+              variant: HikariButtonVariant.danger,
+              onPressed: () {},
+            ),
+          ),
+        ),
+      );
+      final style = tester
+          .widget<FilledButton>(find.byType(FilledButton))
+          .style!;
       expect(style.backgroundColor!.resolve({}), theme.colorScheme.error);
       expect(style.foregroundColor!.resolve({}), theme.colorScheme.onError);
       expect(
@@ -375,7 +393,7 @@ export 'first.dart' if (dart.library.io) 'second.dart';
         for (final uri in _directiveUris(file.readAsStringSync())) {
           expect(
             uri.startsWith('package:flutter/') ||
-                (!uri.contains('/') && uri.endsWith('.dart')),
+                uri.startsWith('package:hikari/core/ui/foundation/'),
             isTrue,
             reason: '${file.path}: $uri',
           );

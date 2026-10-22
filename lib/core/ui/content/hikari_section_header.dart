@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
 
-/// Compact semantic heading shared by Settings and management screens.
+import '../foundation/hikari_spacing.dart';
+
+/// Semantic section heading with locally wrapping feature-owned actions.
 final class HikariSectionHeader extends StatelessWidget {
-  const HikariSectionHeader({super.key, required this.title, this.description});
+  const HikariSectionHeader({
+    super.key,
+    required this.title,
+    this.description,
+    this.actions = const [],
+  });
 
   final String title;
   final String? description;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final text = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsetsDirectional.only(
         start: HikariSpacing.xs,
@@ -19,15 +26,16 @@ final class HikariSectionHeader extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Semantics(
             header: true,
             child: Text(
               title,
-              style: textTheme.labelMedium?.copyWith(
+              style: text.labelMedium?.copyWith(
                 color: colors.primary,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.4,
+                letterSpacing: .4,
               ),
             ),
           ),
@@ -35,11 +43,15 @@ final class HikariSectionHeader extends StatelessWidget {
             const SizedBox(height: HikariSpacing.xs),
             Text(
               description!,
-              style: textTheme.bodySmall?.copyWith(
-                color: colors.onSurfaceVariant,
-              ),
+              style: text.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
           ],
+          if (actions.isNotEmpty)
+            Wrap(
+              spacing: HikariSpacing.sm,
+              runSpacing: HikariSpacing.xs,
+              children: actions,
+            ),
         ],
       ),
     );

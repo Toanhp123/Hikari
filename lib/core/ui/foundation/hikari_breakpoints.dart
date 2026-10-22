@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Window classes; nested components use their local layout constraints.
 enum HikariWidthClass { compact, medium, expanded, wide }
 
 /// Adaptive window thresholds and bounded content constraints.
@@ -18,6 +19,7 @@ abstract final class HikariBreakpoints {
   /// Maximum poster width used by adaptive media grids.
   static const double posterGridMaxExtent = 200.0;
 
+  /// Rejects nonfinite and negative widths instead of guessing a layout.
   static HikariWidthClass classify(double width) {
     if (!width.isFinite || width < 0) {
       throw ArgumentError.value(
@@ -26,14 +28,14 @@ abstract final class HikariBreakpoints {
         'Must be finite and nonnegative',
       );
     }
-    if (width < 600) return HikariWidthClass.compact;
-    if (width < 840) return HikariWidthClass.medium;
+    if (width < mediumMin) return HikariWidthClass.compact;
+    if (width < expandedMin) return HikariWidthClass.medium;
     if (width < 1200) return HikariWidthClass.expanded;
     return HikariWidthClass.wide;
   }
 }
 
-/// Responsive extensions on [BuildContext]
+/// Window-level queries. Use LayoutBuilder for nested component decisions.
 extension HikariResponsiveContext on BuildContext {
   double get screenWidth => MediaQuery.sizeOf(this).width;
   double get screenHeight => MediaQuery.sizeOf(this).height;

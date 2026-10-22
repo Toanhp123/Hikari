@@ -1,8 +1,16 @@
 # Hikari Design System
 
-Status: **canonical root theme** (consolidated from the earlier parallel design foundation).
+Status: **Phase 01 foundation/controls implemented; later surfaces/navigation staged.**
 
-Public entry: `lib/app/theme/hikari_theme.dart`. One `HikariTheme.darkTheme(oled:, accentColor:)` is created at the application root. Home, navigation and SearchBar inherit it; they must not construct scoped application themes. [ADR-014](../decisions/ADR-014-canonical-theme-consolidation.md) records the consolidation; [ADR-013](../decisions/ADR-013-design-system-foundation.md) documents the original independent foundation.
+The proposed rebuild target is [ADR-026](../decisions/ADR-026-ui-foundation-rebuild.md),
+with [foundation ownership](../ui/FOUNDATIONS.md), [responsive contracts](../ui/RESPONSIVE.md)
+and [component ownership](../ui/COMPONENTS.md). ADR-026 was accepted on 2026-10-22;
+Phase 01 now owns tokens in core/ui/foundation and Preview controls/content/feedback
+in their canonical families. Feature-owned modal routes/focus and retained custom
+navigation remain current legacy behavior, not the final rebuild architecture. Supersession is clause-level
+and effective through accepted ADR-026; domain/security decisions remain intact.
+
+Shared UI entry: `lib/core/ui/hikari_ui.dart` (Preview). Root composition entry: `lib/app/theme/hikari_theme.dart`; features/core never import it. One `HikariTheme.darkTheme(oled:, accentColor:)` is created at the application root. Home, navigation and SearchBar inherit it; they must not construct scoped application themes. [ADR-014](../decisions/ADR-014-canonical-theme-consolidation.md) records the consolidation; [ADR-013](../decisions/ADR-013-design-system-foundation.md) documents the original independent foundation.
 
 ## Product language
 
@@ -37,7 +45,7 @@ Use local `LayoutBuilder` constraints for a component's responsive content decis
 - Action types: native FilledButton, OutlinedButton, TextButton; minimum 48dp touch targets; preserve focus, keyboard and disabled state semantics. Shared filter/icon actions delegate focus, semantics and keyboard behavior to native Material controls.
 - Sections: semantic TextTheme slots, feature-owned heading/metadata and actions. No generic shelf DSL or mega-card component.
 - Cards: stable artwork aspect ratio, separate scaled title area, useful error/fallback imagery, no default shadow; full labels available to assistive technology even when visual copy truncates.
-- Search: native `SearchBar` theme is root-owned. `HikariSearchBar` debounces edits, while Catalog and Source searches run only on explicit submit (Enter or Search action); source results may stream in while slower providers are pending.
+- Search: native `SearchBar` theme is root-owned. `HikariSearchField` emits presentation edits immediately; Catalog and Source route owners retain 300ms edit debounce and run requests only on explicit submit (Enter or Search action); source results may stream in while slower providers are pending.
 - Loading/empty/error states: preserve feature state snapshots and retries; keep paired semantic status colors.
 - Dialogs/sheets: use native component styling, safe area and content scrolling. Routes and focus restoration remain feature-owned.
 - Navigation: the current custom docked bar/rail remains in this pass; separately evaluate native presentation against visual fidelity and accessibility, not by assumption.
@@ -46,7 +54,7 @@ Use local `LayoutBuilder` constraints for a component's responsive content decis
 ## Compact selectors and browsing modes (2026-10-21)
 
 - Use Material `SegmentedButton` for a small exclusive **view mode** (for example Available / Installed / Updates), not `FilterChip`. When width or text scale makes three segments unsafe, use the same single-select menu control as a compact fallback.
-- `HikariChoiceMenu<T>` in `core/ui/components` is the shared, **controlled** Material `MenuAnchor` wrapper for single choices in filters, forms and settings. It renders a minimum 48dp trigger, selected check mark and bounded scrollable menu; callers own values, option lists, labels and callbacks. A null option can mean "All"; without a null option, null means "not selected". A `shortLabel` affects only trigger copy. The component accepts external `errorText` and `enabled` but never runs validation.
+- `HikariChoiceMenu<T>` in `core/ui/controls` is the shared, **controlled** Material `MenuAnchor` wrapper for single choices in filters, forms and settings. It renders a minimum 48dp trigger, selected check mark and bounded scrollable menu; callers own values, option lists, labels and callbacks. A null option can mean "All"; without a null option, null means "not selected". A `shortLabel` affects only trigger copy. The component accepts external `errorText` and `enabled` but never runs validation.
 - For validated choices (for example Add Repository ecosystem), compose the **same** `HikariChoiceMenu<T>` inside Flutter `FormField<T>` and wire `field.value`, `field.didChange`, and `field.errorText`. The form alone declares its validator, reset/save policy and domain checks. Do not duplicate the dropdown UI or add a second bespoke selection component for forms.
 - Plugin view modes filter different evidence: Installed can include native packages with no repository offer or source-language metadata. Therefore the Language facet is only shown for Available/Updates; its options are scoped to the active view and ecosystem, never inferred from unrelated repositories. Search input does not silently reset a still-valid language facet.
 - Catalog Source Picker and Add Repository both reuse `HikariChoiceMenu` while retaining their own source-selection workflow or form validation. Library/Local media-type chips remain `HikariChipRow`; no global replacement is intended.
@@ -103,9 +111,9 @@ The earlier parallel foundation was intentionally separate for its first milesto
 
 ## Theme hygiene (2026-10-08)
 
-- `HikariTheme.defaultAccentSeed` and `HikariTheme.accentPresets` own the raw appearance choices. Settings offers a Default swatch to restore a nullable seed; OLED/accent preferences persist in an app-support JSON file loaded before `runApp`, with no added package dependency.
+- `HikariAccentSeeds.defaultSeed` and `HikariAccentSeeds.presets` own the raw appearance choices. Settings offers a Default swatch to restore a nullable seed; OLED/accent preferences persist in an app-support JSON file loaded before `runApp`, with no added package dependency.
 - `MaterialApp` creates one active dark `ThemeData`, and Home/navbar/SearchBar inherit that root without scoped reconstruction.
-- `HikariChip` delegates interactive filter selection to `FilterChip`; `HikariIconButton` delegates action handling to native `IconButton`. Both retain their existing feature call signatures.
+- `HikariFilterChip` delegates controlled selection to `FilterChip`; `HikariIconButton` delegates action handling to native `IconButton`. Canonical controls live in core/ui/controls; old forwarding files are removed.
 - The dormant global `HikariReadingPalette` was removed. Novel prose continues to use its existing `NovelReaderTheme` without changes to rendered reading colors.
 - Old snapshots and ADRs are historical evidence, not authoritative status for the current implementation.
 
@@ -145,9 +153,9 @@ References:
 
 ## Compact management headings (2026-10-20)
 
-`HikariSectionHeader` in `core/ui/patterns` owns the compact semantic label
-style formerly local to Settings, with optional description. Actions remain
-caller-owned siblings; this header has no trailing-content API. Settings and Plugin Management reuse it; detail, search and Home
+`HikariSectionHeader` in `core/ui/content` owns the compact semantic label
+style formerly local to Settings, with optional description. Caller-owned actions
+use an optional wrapping action list below text; no domain workflow lives here. Settings and Plugin Management reuse it; detail, search and Home
 headers retain their existing feature-specific behavior. This is a small
 proven-shared primitive, not a generic section/card framework. Plugin-specific
 status notices, journal rows and workflow grouping stay feature-owned; prefer

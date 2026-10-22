@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_color_roles.dart';
 import 'package:hikari/domain/media/media.dart';
 
 String mediaTypeLabel(MediaType type) => switch (type) {

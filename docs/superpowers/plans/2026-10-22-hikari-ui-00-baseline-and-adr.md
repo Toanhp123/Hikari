@@ -12,6 +12,13 @@
 
 **Prerequisites:** None. First plan; must pass before foundation migration.
 
+Execution record: [baseline runs and task self-review](../../ui/BASELINE_RUNS.md),
+[live matrix](../../ui/MIGRATION_MATRIX.md),
+[accepted ADR-026](../../decisions/ADR-026-ui-foundation-rebuild.md).
+Owner acceptance of G0 with deferred device evidence is recorded in
+[baseline runs](../../ui/BASELINE_RUNS.md). Checklist below remains the original
+execution contract, not a claim that missing checks passed.
+
 ## Global Constraints
 
 - Deliberate UI rebuild: target architecture takes priority over superseded historical UI decisions, but must preserve domain, persistence, plugin trust, native consent, cache/source identity and reader progress.
@@ -21,7 +28,7 @@
 - Test-first for changed behavior/API: add a focused failing assertion, confirm the expected failure, implement, then rerun. For characterization/baseline or manual evidence, record a truthful GREEN baseline/NOT RUN instead; never invent a RED or weaken tests.
 - Review layout at narrow 375dp, breakpoint boundaries 599/600/601 and 839/840/841, wide 1200/1440dp; 1x/2x/3x text scales; short-height/IME as relevant.
 - Prefer pure testable policy/resolvers; all feature-specific business authorization stays with its feature/application owner.
-- Canonical spec is proposed until accepted by the user; the plan is not a substitute for an approved ADR.
+- Canonical spec was accepted through ADR-026 on 2026-10-22; the plan is not a substitute for an approved ADR. Any later cross-phase contract changes still require explicit review.
 - All 19 baseline `lib/features/**/*page.dart` files must be represented; enumerate additional live routes, overlays and nested navigators rather than assuming there are exactly 19 routes.
 
 ## Review Focus

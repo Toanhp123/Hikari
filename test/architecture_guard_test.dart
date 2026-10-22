@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import '../tool/ui_audit_inventory.dart';
+
 const _layers = {
   'app',
   'core',
@@ -41,6 +43,146 @@ const _platformLibraries = {
 final _uriLiteral = RegExp(r'''[rR]?["']([^"']+)["']''');
 
 void main() {
+  test(
+    'staged UI fixtures reject export relative bypass and raw feature modals',
+    () {
+      for (final fixture in [
+        ('core_imports_domain.dart.txt', 'lib/core/ui/content/row.dart'),
+        (
+          'feature_show_dialog.dart.txt',
+          'lib/features/new_feature/new_page.dart',
+        ),
+        (
+          'relative_barrel_export.dart.txt',
+          'lib/core/ui/foundation/barrel.dart',
+        ),
+      ]) {
+        final source = File('test/fixtures/ui_architecture/${fixture.$1}')
+            .readAsStringSync();
+        expect(
+          _uiViolations(fixture.$2, source, legacy: const {}).toList(),
+          isNotEmpty,
+          reason: fixture.$1,
+        );
+      }
+    },
+  );
+
+  test('UI guard ignores comments and strings but catches token inversion', () {
+    final source = File(
+      'test/fixtures/ui_architecture/comment_false_positive.dart.txt',
+    ).readAsStringSync();
+    expect(
+      _uiViolations(
+        'lib/features/new_feature/view.dart',
+        source,
+        legacy: const {},
+      ),
+      isEmpty,
+    );
+    expect(
+      _uiViolations(
+        'lib/core/ui/foundation/tokens.dart',
+        "export '../controls/button.dart';",
+        legacy: const {},
+      ),
+      isNotEmpty,
+    );
+    expect(
+      _uiViolations(
+        'lib/core/ui/foundation/tokens.dart',
+        "import 'package:hikari/app/theme/theme.dart';",
+        legacy: const {},
+      ),
+      isNotEmpty,
+    );
+    expect(
+      _uiViolations(
+        'lib/app/theme/theme.dart',
+        "import 'package:hikari/core/ui/foundation/tokens.dart';",
+        legacy: const {},
+      ),
+      isEmpty,
+    );
+  });
+
+  test('theme composition accepts foundation through existing guard', () {
+    expect(
+      _checkDependency(
+        sourcePath: 'app/theme/hikari_theme.dart',
+        sourceLayer: 'app',
+        kind: 'import',
+        uri: 'package:hikari/core/ui/foundation/tokens.dart',
+      ),
+      isNull,
+    );
+  });
+
+  test('UI part directives cannot bypass foundation boundaries', () {
+    expect(
+      _uiViolations(
+        'lib/core/ui/foundation/tokens.dart',
+        "part '../controls/button.dart';",
+        legacy: const {},
+      ),
+      isNotEmpty,
+    );
+  });
+
+  test('live UI exceptions are exact inventoried sites with owner and expiry', () {
+    final matrix = File('docs/ui/MIGRATION_MATRIX.md').readAsStringSync();
+    // Frozen separately: inventory regeneration must never grant exemptions.
+    final legacy = File('test/fixtures/ui_architecture/legacy_sites.txt')
+        .readAsLinesSync()
+        .where((line) => line.isNotEmpty)
+        .toSet();
+    for (final id in legacy) {
+      final row = matrix
+          .split('\n')
+          .singleWhere((line) => line.startsWith('| `$id` |'));
+      final columns = row.split('|');
+      expect(columns[4].trim(), isNotEmpty, reason: '$id owner');
+      expect(
+        columns[6],
+        matches(RegExp(r'\d{2}/\d{2}')),
+        reason: '$id removal task',
+      );
+      expect(columns[9], contains('until listed task'), reason: id);
+    }
+    final violations = <String>[];
+    for (final source in readUiSources(Directory.current).entries) {
+      violations.addAll(
+        _uiViolations(source.key, source.value, legacy: legacy),
+      );
+    }
+    expect(violations, isEmpty, reason: violations.join('\n'));
+    const existingPath = 'lib/features/catalog/catalog_detail_page.dart';
+    expect(
+      _uiViolations(
+        existingPath,
+        '${File(existingPath).readAsStringSync()}\nvoid added() { showDialog(); }',
+        legacy: legacy,
+      ),
+      isNotEmpty,
+      reason: 'New modal in an existing legacy file cannot inherit exemption',
+    );
+    expect(
+      _uiViolations(
+        'lib/features/new_feature/view.dart',
+        'void f() { showDialog(); }',
+        legacy: legacy,
+      ),
+      isNotEmpty,
+    );
+    expect(
+      _uiViolations(
+        'lib/features/new_feature/view.dart',
+        'void f() { requestNativeConsent(); }',
+        legacy: legacy,
+      ),
+      isEmpty,
+    );
+  });
   test('lib obeys architecture boundaries', () {
     final violations = <String>[];
 
@@ -409,13 +551,13 @@ void main() {
         sourcePath: 'core/ui/components/hikari_button.dart',
         sourceLayer: 'core',
         kind: 'import',
-        uri: 'package:hikari/app/theme/hikari_theme.dart',
+        uri: 'package:hikari/core/ui/foundation/hikari_spacing.dart',
       ),
       (
         sourcePath: 'core/ui/patterns/media_poster.dart',
         sourceLayer: 'core',
         kind: 'import',
-        uri: 'package:hikari/core/ui/components/hikari_chip.dart',
+        uri: 'package:hikari/core/ui/controls/hikari_filter_chip.dart',
       ),
       (
         sourcePath: 'core/ui/patterns/media_poster.dart',
@@ -427,7 +569,7 @@ void main() {
         sourcePath: 'features/library/library_page.dart',
         sourceLayer: 'features',
         kind: 'import',
-        uri: 'package:hikari/app/theme/hikari_theme.dart',
+        uri: 'package:hikari/core/ui/foundation/hikari_spacing.dart',
       ),
       (
         sourcePath: 'features/library/library_page.dart',
@@ -448,6 +590,80 @@ void main() {
         isNull,
         reason: '${item.sourcePath} should allow ${item.kind} ${item.uri}',
       );
+    }
+  });
+
+  test('theme inversion is forbidden even with exact legacy exemption', () {
+    for (final path in [
+      'lib/core/ui/components/example.dart',
+      'lib/features/example/page.dart',
+    ]) {
+      for (final kind in ['import', 'export', 'part']) {
+        const uri = 'package:hikari/app/theme/hikari_theme.dart';
+        final source = "$kind '$uri';";
+        final offset = source.indexOf("'");
+        final id =
+            '$path:${offset.toString().padLeft(8, '0')}:legacy-$kind:$uri';
+        expect(_uiViolations(path, source, legacy: {id}), isNotEmpty);
+        expect(
+          _checkDependency(
+            sourcePath: path.substring(4),
+            sourceLayer: path.contains('/features/') ? 'features' : 'core',
+            kind: kind,
+            uri: uri,
+          ),
+          isNotNull,
+        );
+      }
+    }
+  });
+
+  test('core and features contain zero app theme dependencies', () {
+    for (final root in ['lib/core/ui', 'lib/features']) {
+      for (final file
+          in Directory(root)
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.dart'))) {
+        final path = 'lib/${_libPath(file.path)}';
+        for (final directive in _dependencyDirectives(
+          file.readAsStringSync(),
+        )) {
+          for (final uri in directive.uris) {
+            expect(
+              _internalPath(path.substring(4), uri)?.startsWith('app/theme/') ??
+                  false,
+              isFalse,
+              reason: '$path: ${directive.kind} $uri',
+            );
+          }
+        }
+      }
+    }
+  });
+
+  test('temporary token alias files are removed after caller migration', () {
+    for (final name in [
+      'breakpoints',
+      'motion',
+      'radius',
+      'size',
+      'spacing',
+      'status_colors',
+      'typography',
+    ]) {
+      expect(File('lib/app/theme/hikari_$name.dart').existsSync(), isFalse);
+    }
+  });
+
+  test('temporary component forwarders have no remaining callers', () {
+    for (final path in [
+      'components/hikari_button.dart',
+      'components/hikari_icon_button.dart',
+      'components/hikari_choice_menu.dart',
+      'patterns/hikari_section_header.dart',
+    ]) {
+      expect(File('lib/core/ui/$path').existsSync(), isFalse, reason: path);
     }
   });
 
@@ -507,6 +723,51 @@ class StopsDirectiveScanningHere {}
     expect(directives[3].kind, 'part of');
     expect(directives[3].uris, ['library.dart']);
   });
+}
+
+Iterable<String> _uiViolations(
+  String path,
+  String source, {
+  required Set<String> legacy,
+}) sync* {
+  final tokens = dartTokens(source);
+  final coreUi = path.startsWith('lib/core/ui/');
+  final foundation = path.startsWith('lib/core/ui/foundation/');
+  final feature = path.startsWith('lib/features/');
+  for (var i = 0; i < tokens.length; i++) {
+    final token = tokens[i];
+    if (token.isString ||
+        !const {'import', 'export', 'part'}.contains(token.text)) {
+      continue;
+    }
+    for (var j = i + 1; j < tokens.length && tokens[j].text != ';'; j++) {
+      if (!tokens[j].isString) continue;
+      final uri = tokens[j].text;
+      final target = internalLibPath(path, uri);
+      if (target == null) continue;
+      final forbidden =
+          coreUi && !target.startsWith('lib/core/ui/') ||
+          feature &&
+              (target.startsWith('lib/app/') ||
+                  target.startsWith('lib/infrastructure/')) ||
+          foundation && !target.startsWith('lib/core/ui/foundation/');
+      if (!forbidden) continue;
+      final id =
+          '$path:${tokens[j].offset.toString().padLeft(8, '0')}:legacy-${token.text}:$uri';
+      if (foundation ||
+          target.startsWith('lib/app/theme/') ||
+          !legacy.contains(id)) {
+        yield '$path:${tokens[j].line}: forbidden ${token.text} $uri';
+      }
+    }
+  }
+  if (feature) {
+    for (final row in inventorySources({path: source})) {
+      if (row['kind'] == 'modal-entrypoint' && !legacy.contains(row['id'])) {
+        yield '$path:${row['line']}: direct modal ${row['symbol']} needs shared host or exact legacy exemption';
+      }
+    }
+  }
 }
 
 String? _checkDependency({
@@ -575,6 +836,11 @@ String? _checkDependency({
     return 'dependency targets unknown architecture directory: $kind $uri';
   }
 
+  if ((isCoreUi || sourceLayer == 'features') &&
+      targetPath.startsWith('app/theme/')) {
+    return '$sourcePath cannot depend on app/theme: $kind $uri';
+  }
+
   if (kind == 'part' || kind == 'part of') {
     return sourceLayer == targetLayer
         ? null
@@ -582,23 +848,18 @@ String? _checkDependency({
   }
 
   if (isAppTheme) {
-    if (targetPath.startsWith('app/theme/')) {
+    if (targetPath.startsWith('app/theme/') ||
+        targetPath.startsWith('core/ui/foundation/')) {
       return null;
     }
-    return 'app/theme must remain isolated from $targetPath: $kind $uri';
+    return 'app/theme may only compose foundation tokens: $targetPath ($kind $uri)';
   }
 
   if (sourceLayer == 'features' && targetLayer == 'app') {
-    if (targetPath.startsWith('app/theme/')) {
-      return null;
-    }
     return 'features cannot depend on app root/wiring ($targetPath): $kind $uri';
   }
 
   if (isCoreUi) {
-    if (targetPath.startsWith('app/theme/')) {
-      return null;
-    }
     if (targetPath.startsWith('core/ui/')) {
       return null;
     }

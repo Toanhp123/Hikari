@@ -1,0 +1,5 @@
+// showDialog(); import 'package:hikari/app/theme/hikari_theme.dart';
+/* showModalBottomSheet(); /* nested */ export '../../../domain/media.dart'; */
+const example = r'''showDialog(); showModalBottomSheet();''';
+const message = "import 'package:hikari/domain/media/media.dart';";
+void open() { requestNativeConsent(); }

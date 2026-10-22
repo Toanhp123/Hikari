@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 
 /// Rows remain lazy and each InkWell paints on its own rounded Material.
 class CatalogSourcePickerListSurface extends StatelessWidget {
