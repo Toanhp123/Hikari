@@ -36,6 +36,12 @@ review. Release app must never import standalone gallery.
 
 ## Local gallery
 
+See [gallery reference](GALLERY.md) for the available synthetic families,
+interaction controls, and focused widget tests. Samples use the same curated
+Preview components as production without importing real app repositories.
+Gallery coverage is not Stable promotion or Android/Windows E2E evidence.
+
+
 `fvm flutter run -d windows -t tool/ui_gallery/main.dart`
 
 Android: choose connected device with `-d <device-id>`. Gallery is standalone,

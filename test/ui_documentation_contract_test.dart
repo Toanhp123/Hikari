@@ -9,6 +9,7 @@ const _canonical = [
   'docs/ui/FOUNDATIONS.md',
   'docs/ui/RESPONSIVE.md',
   'docs/ui/COMPONENTS.md',
+  'docs/ui/GALLERY.md',
   'docs/ui/MIGRATION_MATRIX.md',
   'docs/ui/BASELINE_RUNS.md',
   'docs/roadmap/UI_FOUNDATION_PHASE_01.md',
@@ -108,6 +109,35 @@ void main() {
     expect(report, contains('ChapterListControls'));
     expect(report, contains('1253 passed'));
   });
+
+  test(
+    'post-G4 component and responsive docs reflect retired visual patterns',
+    () {
+      final components = File('docs/ui/COMPONENTS.md').readAsStringSync();
+      final media = File('docs/ui/components/media.md').readAsStringSync();
+      final responsive = File('docs/ui/RESPONSIVE.md').readAsStringSync();
+      final gallery = File('docs/ui/GALLERY.md').readAsStringSync();
+      expect(components, contains('old AsyncStateView adapter was retired'));
+      expect(media, contains('old ChapterRow was retired in 04/08'));
+      expect(
+        media,
+        isNot(
+          contains('Pilot B migrates Library grid and Catalog Search only'),
+        ),
+      );
+      expect(responsive, contains('Phase 04 fixed the recorded'));
+      for (final family in [
+        'Foundations',
+        'Page & navigation',
+        'Surfaces',
+        'Controls & feedback',
+        'Media',
+      ]) {
+        expect(gallery, contains(family));
+      }
+      expect(gallery, contains('Preview'));
+    },
+  );
 
   test('ADR has an explicit approval state and preserves non-UI decisions', () {
     final adr = File(_canonical.first).readAsStringSync();

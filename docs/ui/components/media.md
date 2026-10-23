@@ -56,7 +56,8 @@ Stable until later owner gates. Public API: `lib/core/ui/hikari_ui.dart`.
 - `HikariChapterRow` accepts strings, enabled, onTap and continuation status.
   Catalog's typed manga/novel mapper owns source identity, scanlator/date order
   and unreadability. Core never imports chapter domain classes. Remote detail
-  pages retain legacy ChapterRow until Phase 04/06 migration ownership.
+  pages and Catalog Detail use canonical HikariChapterRow via feature-owned
+  chapter mapping after Phase 04/06. The old ChapterRow was retired in 04/08.
 
 ## Cache and identity
 
@@ -99,7 +100,10 @@ trackpad or paired real-route Hero review.
 
 ## Migration boundary
 
-Pilot B migrates Library grid and Catalog Search only. Library list, Home,
-Local Media, Source Search, remote details and Readers retain scheduled legacy
-callers. Legacy decode entrypoint delegates to canonical policy and expires with
-remaining consumers in Phase 07 Task 01. No permanent compatibility facade.
+Pilot B initially migrated Library grid and Catalog Search. Phase 04 then
+migrated Home, Library list, Local Media, Catalog/Source Search, Catalog/native
+Details and Continue Reading chrome. Reader canvases, Settings and Plugin
+Manager remain separate Phase 05/06 ownership. Legacy nonvisual decode entrypoint
+delegates to canonical policy until Phase 07 Task 01. No permanent compatibility
+facade. See [G4 report](../../roadmap/UI_FOUNDATION_PHASE_04.md) and
+[gallery samples](../GALLERY.md).

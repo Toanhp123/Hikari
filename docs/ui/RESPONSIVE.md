@@ -1,7 +1,8 @@
 # Responsive UI contracts
 
 Status: **Phase 01–02 Preview; G1/G2 OWNER-ACCEPTED (2026-10-23) for continuation**,
-with outstanding historical evidence and an explicit Phase 04 3x defect.
+with outstanding historical physical evidence. Phase 04 fixed the recorded
+375dp/3x Catalog Detail overflow in widget tests; this is not physical proof.
 See [owner decision](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md). [Phase 02 evidence](../roadmap/UI_FOUNDATION_PHASE_02.md).
 [ADR-026](../decisions/ADR-026-ui-foundation-rebuild.md) records approval;
 [v4.2 spec](../superpowers/specs/2026-10-22-hikari-ui-foundation-rebuild-design.md)
@@ -38,3 +39,12 @@ Widget geometry/semantics evidence is simulated. Physical keyboard, OS IME,
 TalkBack, system installer and GPU frame timings require dated device evidence.
 Missing screenshots or measurements are NOT RUN / NOT MEASURED, never inferred
 from analyzer success. [Migration matrix](MIGRATION_MATRIX.md) assigns owners.
+
+## Post-G4 gallery reference
+
+The [standalone gallery](GALLERY.md) can preview controls/media, a bounded
+PageScaffold + ContentRegion + NavigationShell at local widths, and typed
+modal examples. Width knobs change **local preview constraints**, not the real
+OS window/keyboard or native Back gesture. A drawer with six destinations is
+a synthetic boundary case, not a new production tab. Preview success never
+replaces physical device evidence required by Phase 07.

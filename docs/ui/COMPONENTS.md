@@ -1,6 +1,6 @@
 # UI component ownership
 
-Status: **Phase 01–02 Preview implementation; G1/G2 OWNER-ACCEPTED (2026-10-23) for continuation.**
+Status: **Phases 01–04 Preview implementations; G1–G4 OWNER-ACCEPTED for continuation.**
 Original incomplete hardware evidence is retained in the execution reports;
 see [owner decision](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md). Controls, surfaces, navigation and page composition remain Preview;
 no Stable promotion. Evidence: [Phase 01](../roadmap/UI_FOUNDATION_PHASE_01.md) and
@@ -39,8 +39,8 @@ true empty, refreshing, recoverable error and fatal error. Features normalize
 state; retained content keeps its element position across refresh/error. Notice
 uses semantic pairs plus icon/text, retry stays callback-owned. Section actions
 wrap; domain-free list row grows with text and disables native interaction.
-Legacy AsyncStateView remains staged for later feature migration (07/01), not
-part of curated public API. Section export was removed in 01/07.
+The old AsyncStateView adapter was retired in Phase 04/08 after its last
+consumer migrated. It is not part of the curated public API. Section export was removed in 01/07.
 
 Evidence: missing ownership RED, then retained editor identity, retry, true-empty
 and 3x text widget tests GREEN. Physical semantics/IME remain NOT RUN.
@@ -49,8 +49,11 @@ Task 06 (2026-10-22): [curated controls API](components/controls.md) and
 [contribution/promotion contract](CONTRIBUTING.md) now available. Standalone
 `tool/ui_gallery/main.dart` exercises dark/OLED, six seeds, enabled/loading,
 stress labels, RTL, reduced motion, local widths, scales and async states.
-Four public API/gallery/isolation tests passed; analyzer clean. Runtime/build
-checks remain separate G1 evidence. No component promoted to Stable.
+Original Phase 01/02 gallery/API evidence remains in the phase reports. A
+post-G4 gallery synchronization adds navigation/page and surface samples; see
+[gallery map](GALLERY.md) for current preview coverage and test entrypoints.
+Flutter/device verification for that later change must be recorded separately.
+No component is promoted to Stable by adding a gallery sample.
 
 Approval and supersession: [ADR-026](../decisions/ADR-026-ui-foundation-rebuild.md).
 Current callers and staged migration: [matrix](MIGRATION_MATRIX.md).
@@ -75,6 +78,15 @@ retain outstanding physical/profile evidence.
 | Chapter row / reading CTA | domain-free core/ui/content | Manga/Novel mapping, progress and authorization | 03/06 |
 | Plugin dialogs/forms | shared transient shell | exact identity/origin consent; application/native decision | 05/02–05 |
 | Reader / player canvas | feature specialist rendering | progress, gestures, engine/session lifecycle | 06/01–05 |
+
+Phase 04 Wave A/B migrated Home, Library, Local, Search, Catalog/native Detail and
+Continue Reading presentation. Retired visual adapters include `MediaPoster`,
+`AsyncStateView`, `ChapterRow`, `ChapterControlBar` and `PrimaryReadingCta`;
+`ChapterListControls` belongs to `features/reading/widgets`, not the core API.
+G4 acceptance and remaining physical evidence are recorded in
+[Phase 04](../roadmap/UI_FOUNDATION_PHASE_04.md). Phase 05/06 consumer
+exemptions and Phase 07 retirement are tracked in the
+[migration matrix](MIGRATION_MATRIX.md).
 
 Common hosts settle exactly once; typed completion (including null values) is
 separate from cancellation. Back/barrier/drag are precise only if observed;

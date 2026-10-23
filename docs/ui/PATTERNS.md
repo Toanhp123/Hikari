@@ -133,3 +133,10 @@ success does not authorize mass replacement.
 Debug Gallery has compact/expanded picker family previews using the real content
 with empty fake source inventory and explicit preview policy overrides. It neither
 performs native installation nor represents physical-device accessibility evidence.
+
+## Gallery composition references (post-G4)
+
+The standalone [UI Gallery](GALLERY.md) demonstrates typed modal result hosts
+and bounded page/navigation composition without feature models, real routing or
+application authorization. These are Preview examples, not a new canonical
+wrapper or a change to the G4 acceptance record.
