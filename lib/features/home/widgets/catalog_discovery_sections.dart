@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/hikari_ui.dart';
-import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
+import 'package:hikari/features/media/widgets/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
 

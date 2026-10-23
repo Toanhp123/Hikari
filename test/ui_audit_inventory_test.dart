@@ -70,8 +70,8 @@ void main() {
 
   test('shared components have specific primary migration owners', () {
     final rows = inventorySources({
-      'lib/core/ui/patterns/media_poster.dart': 'class MediaPoster {}',
-      'lib/core/ui/patterns/chapter_row.dart': 'class ChapterRow {}',
+      'lib/core/ui/patterns/media_progress_bar.dart':
+          'class MediaProgressBar {}',
       'lib/core/ui/components/hikari_confirmation_dialog.dart':
           'void showHikariConfirmation() {}',
     });
@@ -85,10 +85,41 @@ void main() {
       ),
     );
     expect(markdown, contains('03/02 (primary); 07/01 (legacy cleanup)'));
-    expect(markdown, contains('03/06 (primary); 07/01 (legacy cleanup)'));
     expect(markdown, contains('02/05 (primary); 07/01 (legacy cleanup)'));
     expect(markdown, isNot(contains('01/01–05; 02/02–04; 03/01–06')));
   });
+
+  test(
+    'canonical feature imports are classified without false legacy debt',
+    () {
+      final rows = inventorySources({
+        'lib/features/reading/continue_reading_page.dart': '''
+import 'package:hikari/core/ui/feedback/hikari_async_state_view.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
+import 'package:hikari/core/ui/patterns/chapter_list_filter.dart';
+import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
+''',
+      });
+      expect(rows.map((r) => r['status']), [
+        'legacy-pending', // page-file
+        'canonical',
+        'canonical',
+        'nonvisual-helper',
+        'legacy-pending', // intentional shared refresh adapter
+      ]);
+      final markdown = renderMigrationMatrix(
+        rows,
+        snapshot: const UiMigrationSnapshot(
+          date: '2026-10-23',
+          branch: 'baseline',
+          head: 'abcdef0123456789',
+          targetStatus: 'ACCEPTED',
+        ),
+      );
+      expect(markdown, contains('canonical dependency; no legacy exemption'));
+      expect(markdown, contains('scoped nonvisual helper'));
+    },
+  );
 
   test('canonical geometry and temporary forwarders have exact owners', () {
     final rows = inventorySources({

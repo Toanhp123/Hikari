@@ -3,12 +3,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/features/reading/widgets/chapter_list_controls.dart';
 import 'package:hikari/core/ui/content/hikari_chapter_row.dart';
 import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
 import 'package:hikari/core/ui/feedback/hikari_async_state_view.dart';
-import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
-import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
+import 'package:hikari/features/media/widgets/media_metadata_view.dart';
 import 'package:hikari/domain/media/manga.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/remote_manga/manga_series_view_model.dart';
@@ -115,17 +115,25 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
                     ),
                   ),
                 if (details != null)
-                  PrimaryReadingCta(
-                    label: widget.viewModel.isContinuation
-                        ? 'Continue reading'
-                        : 'Start reading',
-                    enabled: !widget.openingChapter,
-                    onPressed: primaryChapter == null
-                        ? null
-                        : () => widget.onOpenChapter(primaryChapter),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: HikariSpacing.md,
+                      vertical: HikariSpacing.sm,
+                    ),
+                    child: HikariButton(
+                      label: widget.viewModel.isContinuation
+                          ? 'Continue reading'
+                          : 'Start reading',
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      size: HikariButtonSize.large,
+                      isFullWidth: true,
+                      onPressed: widget.openingChapter || primaryChapter == null
+                          ? null
+                          : () => widget.onOpenChapter(primaryChapter),
+                    ),
                   ),
                 if (allChapters.isNotEmpty)
-                  ChapterControlBar(
+                  ChapterListControls(
                     totalChapters: allChapters.length,
                     filteredChapters: query.isNotEmpty
                         ? displayChapters.length

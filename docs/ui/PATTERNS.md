@@ -84,6 +84,40 @@ generation again. Selection does not autoplay Reader; existing chapter/continuat
 logic retains exact source identity and its own `canNavigate` checks. Error/empty
 state exposes retry, change source and manual search without inventing a diagnosis.
 
+## Phase 04: Continue Reading chrome and media adapter ownership
+
+`ContinueReadingPage` owns an immediate pending route. Loading/error/retry use
+`HikariPageScaffold` + `HikariContentRegion` + `HikariAsyncStateView` with a
+feature-owned retry callback. Once `ReaderLaunch.reader` resolves, return that
+widget directly: do **not** nest its canvas in another browse scaffold. The
+existing `_generation`/`mounted` rejection and `ready.abandon()` handling remain
+with the reader launch owner. UI migration cannot infer offline cache success.
+
+Domain-bound source metadata and media-type badges now belong to
+`features/media/widgets/`, not `core/ui/patterns/`. Canonical core UI must not
+import domain, app theme, application workflows or native authorization. Wave
+A/B disallows retired Scaffold, MediaPoster, ChapterRow and AsyncStateView
+adapters in migrated features. `ChapterListControls` is a shared **feature-owned** chapter-search/order
+composition at `features/reading/widgets/` for Catalog Detail and native
+Manga/Novel detail. It is not a universal core UI primitive: the source-order
+switch and the feature-provided query lifecycle stay outside core. Its sort
+and search actions use `HikariIconButton`, while each feature composes the
+start/continue CTA directly with `HikariButton` and feature-owned eligibility
+checks. None of these controls resolves a chapter or changes Reader-first policy.
+
+`MediaPoster` and `AsyncStateView` are retired after confirming zero production
+imports; their responsive, input, focus, and feedback contracts are covered in
+canonical media/feedback tests. `PrimaryReadingCta` and the core-owned
+`ChapterControlBar` are also retired. The two remaining imports from
+`core/ui/patterns/` in Wave A/B are *nonvisual* helpers:
+`chapter_list_filter.dart` and `media_artwork_decode.dart`. They are not
+canonical UI components and remain subject to 07/01 ownership review.
+`HikariRefreshAction` remains a temporary shared component because Reader and
+Plugin Manager still consume it. Remaining legacy presentation for Settings,
+Plugin Manager and Reader routes retains its scheduled owner and test coverage;
+only verified zero-consumer code may be removed. Inventory is lexical evidence,
+not a replacement for caller review or runnable regression tests.
+
 ## Restoration and migration
 
 No automatic modal restoration registration exists. On process death, reopen only

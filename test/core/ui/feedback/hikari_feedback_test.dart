@@ -10,6 +10,66 @@ import 'package:hikari/core/ui/content/hikari_section_header.dart';
 import 'package:hikari/core/ui/content/hikari_list_row.dart';
 
 void main() {
+  testWidgets(
+    'canonical loading/empty/fatal feedback remains usable in short viewports',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 240));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final sliver in [false, true]) {
+        for (final status in [
+          HikariAsyncStatus.loading,
+          HikariAsyncStatus.empty,
+          HikariAsyncStatus.fatalError,
+        ]) {
+          var actions = 0;
+          final view = HikariAsyncStateView(
+            status: status,
+            emptyTitle: 'No matching content',
+            emptyMessage: List.filled(8, 'More explanation.').join(' '),
+            emptyAction: TextButton(
+              onPressed: () => actions++,
+              child: const Text('Explore'),
+            ),
+            message: List.filled(8, 'Source inaccessible.').join(' '),
+            onRetry: () => actions++,
+            child: const Text('Loaded content'),
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: HikariTheme.darkTheme(),
+              home: MediaQuery(
+                data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+                child: Scaffold(
+                  body: sliver
+                      ? CustomScrollView(
+                          slivers: [SliverToBoxAdapter(child: view)],
+                        )
+                      : view,
+                ),
+              ),
+            ),
+          );
+          expect(tester.takeException(), isNull);
+          final action = switch (status) {
+            HikariAsyncStatus.empty => find.text('Explore'),
+            HikariAsyncStatus.fatalError => find.text('Try Again'),
+            _ => null,
+          };
+          if (action != null) {
+            await tester.ensureVisible(action);
+            await tester.pump();
+            await tester.tap(action);
+            expect(actions, 1);
+          } else {
+            expect(find.text('Loading content...'), findsOneWidget);
+            expect(actions, 0);
+          }
+          expect(tester.takeException(), isNull);
+        }
+      }
+    },
+  );
+
   testWidgets('refresh and recoverable error retain same content element', (
     tester,
   ) async {

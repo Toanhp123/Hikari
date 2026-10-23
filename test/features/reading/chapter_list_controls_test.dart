@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
-import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
+import 'package:hikari/features/reading/widgets/chapter_list_controls.dart';
+import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
 
 Widget _app(Widget child) {
   return MaterialApp(
@@ -12,13 +12,13 @@ Widget _app(Widget child) {
 }
 
 void main() {
-  group('ChapterControlBar', () {
+  group('ChapterListControls', () {
     testWidgets('displays total count formatted as "X chapters"', (
       tester,
     ) async {
       await tester.pumpWidget(
         _app(
-          ChapterControlBar(
+          ChapterListControls(
             totalChapters: 24,
             reverseSourceOrder: false,
             onToggleSourceOrder: () {},
@@ -39,7 +39,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _app(
-          ChapterControlBar(
+          ChapterListControls(
             totalChapters: 1,
             reverseSourceOrder: false,
             onToggleSourceOrder: () {},
@@ -58,7 +58,7 @@ void main() {
     testWidgets('shows "X of Y chapters" when filtered', (tester) async {
       await tester.pumpWidget(
         _app(
-          ChapterControlBar(
+          ChapterListControls(
             totalChapters: 40,
             filteredChapters: 5,
             reverseSourceOrder: false,
@@ -81,7 +81,7 @@ void main() {
       var sortToggled = false;
       await tester.pumpWidget(
         _app(
-          ChapterControlBar(
+          ChapterListControls(
             totalChapters: 10,
             reverseSourceOrder: false,
             onToggleSourceOrder: () => sortToggled = true,
@@ -94,6 +94,7 @@ void main() {
         ),
       );
 
+      expect(find.byType(HikariIconButton), findsNWidgets(2));
       expect(find.byTooltip('Reverse chapter order'), findsOneWidget);
       await tester.tap(find.byTooltip('Reverse chapter order'));
       expect(sortToggled, isTrue);
@@ -105,7 +106,7 @@ void main() {
         var sortToggled = false;
         await tester.pumpWidget(
           _app(
-            ChapterControlBar(
+            ChapterListControls(
               totalChapters: 10,
               reverseSourceOrder: true,
               onToggleSourceOrder: () => sortToggled = true,
@@ -134,7 +135,7 @@ void main() {
           StatefulBuilder(
             builder: (context, setState) {
               return _app(
-                ChapterControlBar(
+                ChapterListControls(
                   totalChapters: 10,
                   reverseSourceOrder: false,
                   onToggleSourceOrder: () {},
@@ -190,7 +191,7 @@ void main() {
         StatefulBuilder(
           builder: (context, setState) {
             return _app(
-              ChapterControlBar(
+              ChapterListControls(
                 totalChapters: 10,
                 reverseSourceOrder: false,
                 onToggleSourceOrder: () {},
@@ -220,48 +221,6 @@ void main() {
 
       expect(clearCalled, isTrue);
       expect(query, '');
-    });
-  });
-
-  group('PrimaryReadingCta', () {
-    testWidgets(
-      'renders with "Start reading" and play icon, triggers onPressed on tap',
-      (tester) async {
-        var pressed = false;
-        await tester.pumpWidget(
-          _app(PrimaryReadingCta(onPressed: () => pressed = true)),
-        );
-
-        expect(find.text('Start reading'), findsOneWidget);
-        expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-        expect(find.byType(FilledButton), findsOneWidget);
-
-        await tester.tap(find.byType(FilledButton));
-        expect(pressed, isTrue);
-      },
-    );
-
-    testWidgets('disables when enabled == false', (tester) async {
-      var pressed = false;
-      await tester.pumpWidget(
-        _app(
-          PrimaryReadingCta(enabled: false, onPressed: () => pressed = true),
-        ),
-      );
-
-      final button = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(button.onPressed, isNull);
-
-      await tester.tap(find.byType(FilledButton));
-      expect(pressed, isFalse);
-    });
-
-    testWidgets('renders custom label when provided', (tester) async {
-      await tester.pumpWidget(
-        _app(PrimaryReadingCta(label: 'Continue Chapter 4', onPressed: () {})),
-      );
-
-      expect(find.text('Continue Chapter 4'), findsOneWidget);
     });
   });
 }

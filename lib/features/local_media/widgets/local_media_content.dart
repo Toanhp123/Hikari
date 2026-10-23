@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/hikari_ui.dart';
-import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
-import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
+import 'package:hikari/features/media/widgets/media_metadata_view.dart';
+import 'package:hikari/features/media/widgets/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/local_media/local_media_view_model.dart';

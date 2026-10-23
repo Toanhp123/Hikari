@@ -7,6 +7,42 @@ import 'package:hikari/core/ui/media/hikari_media_progress.dart';
 
 void main() {
   testWidgets(
+    'canonical poster preserves badge, subtitle and tap target at 2x text',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(375, 600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var taps = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 160,
+                  child: HikariPosterCard(
+                    title: 'A very long name for a small poster',
+                    subtitle: 'Source subtitle',
+                    badge: const Text('MANGA'),
+                    artwork: const ColoredBox(color: Colors.blue),
+                    onTap: () => taps++,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('MANGA'), findsOneWidget);
+      expect(find.text('Source subtitle'), findsOneWidget);
+      await tester.tap(find.byType(HikariPosterCard));
+      await tester.pump();
+      expect(taps, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'source-unique caller Hero tags pair thumbnails and detail routes',
     (tester) async {
       await tester.pumpWidget(

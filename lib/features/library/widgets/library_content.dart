@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/features/media/widgets/media_metadata_view.dart';
 import 'package:hikari/core/ui/content/hikari_list_row.dart';
 import 'package:hikari/core/ui/feedback/hikari_async_state_view.dart';
 import 'package:hikari/core/ui/layout/hikari_content_region.dart';
@@ -15,7 +15,7 @@ import 'package:hikari/core/ui/layout/hikari_adaptive_grid.dart';
 import 'package:hikari/core/ui/media/hikari_artwork.dart';
 import 'package:hikari/core/ui/media/hikari_card_metrics.dart';
 import 'package:hikari/core/ui/media/hikari_poster_card.dart';
-import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
+import 'package:hikari/features/media/widgets/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';

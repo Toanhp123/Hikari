@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
 
@@ -425,27 +426,17 @@ class _SourceArtworkState extends State<SourceArtwork> {
   );
 
   Widget _defaultArtwork(Uint8List? bytes, bool loading) {
-    if (loading) {
-      return const Center(child: CircularProgressIndicator.adaptive());
-    }
-    if (bytes == null) {
-      return const Center(
-        child: Icon(
-          Icons.broken_image_rounded,
-          semanticLabel: 'Cover unavailable',
-        ),
-      );
-    }
-    return Image.memory(
-      bytes,
-      fit: BoxFit.cover,
+    return HikariArtwork(
+      image: bytes == null ? null : MemoryImage(bytes),
       semanticLabel: 'Cover',
-      errorBuilder: (_, _, _) => const Center(
-        child: Icon(
-          Icons.broken_image_rounded,
-          semanticLabel: 'Cover unavailable',
-        ),
-      ),
+      placeholder: loading
+          ? const Center(child: CircularProgressIndicator.adaptive())
+          : const Center(
+              child: Icon(
+                Icons.broken_image_rounded,
+                semanticLabel: 'Cover unavailable',
+              ),
+            ),
     );
   }
 }

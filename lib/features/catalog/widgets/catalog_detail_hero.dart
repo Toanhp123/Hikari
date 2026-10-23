@@ -4,7 +4,7 @@ import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 import 'package:hikari/core/ui/foundation/hikari_size.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/media/hikari_artwork.dart';
-import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
+import 'package:hikari/features/media/widgets/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_detail_labels.dart';

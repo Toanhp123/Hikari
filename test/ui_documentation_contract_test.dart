@@ -15,6 +15,7 @@ const _canonical = [
   'docs/ui/components/controls.md',
   'docs/ui/components/media.md',
   'docs/roadmap/UI_FOUNDATION_PHASE_03.md',
+  'docs/roadmap/UI_FOUNDATION_PHASE_04.md',
   'docs/roadmap/UI_FOUNDATION_G3_OWNER_ACCEPTANCE_2026-10-23.md',
   'docs/ui/CONTRIBUTING.md',
   'docs/superpowers/handoff/README_GRAVITY.md',
@@ -69,6 +70,43 @@ void main() {
     ]) {
       expect(matrix, contains(heading));
     }
+  });
+
+  test(
+    'Phase 04 matrix tracks Continue Reading and retires stale exemptions',
+    () {
+      final rows = inventorySources(readUiSources(Directory.current));
+      final matrix = File('docs/ui/MIGRATION_MATRIX.md').readAsStringSync();
+      final ids = rows.map((row) => row['id']).toSet();
+      final exceptions = File('test/fixtures/ui_architecture/legacy_sites.txt')
+          .readAsLinesSync()
+          .where((line) => line.isNotEmpty);
+      expect(exceptions.every(ids.contains), isTrue);
+      for (final symbol in [
+        'hikari_async_state_view.dart',
+        'hikari_content_region.dart',
+        'hikari_page_scaffold.dart',
+      ]) {
+        expect(
+          rows.where(
+            (row) =>
+                row['path'] ==
+                    'lib/features/reading/continue_reading_page.dart' &&
+                row['symbol'].toString().endsWith(symbol),
+          ),
+          hasLength(1),
+        );
+        expect(matrix, contains(symbol));
+      }
+    },
+  );
+
+  test('G4 report reflects owner acceptance after executable gates', () {
+    final report = File('docs/roadmap/UI_FOUNDATION_PHASE_04.md')
+        .readAsStringSync();
+    expect(report, contains('G4 OWNER-ACCEPTED'));
+    expect(report, contains('ChapterListControls'));
+    expect(report, contains('1253 passed'));
   });
 
   test('ADR has an explicit approval state and preserves non-UI decisions', () {

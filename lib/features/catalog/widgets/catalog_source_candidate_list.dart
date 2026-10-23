@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
-import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/features/media/widgets/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker_list_surface.dart';

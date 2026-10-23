@@ -42,6 +42,30 @@ const _platformLibraries = {
 
 final _uriLiteral = RegExp(r'''[rR]?["']([^"']+)["']''');
 
+// Pure directive guard: late Wave A/B imports cannot hide behind a noncanonical
+// patterns path, while two narrowly scoped non-visual helpers retain ownership
+// until the 07/01 cleanup. RefreshAction still serves Reader/Plugin routes.
+List<String> _waveABViolations(String path, String source) {
+  const nonVisualHelpers = {
+    'core/ui/patterns/chapter_list_filter.dart',
+    'core/ui/patterns/media_artwork_decode.dart',
+  };
+  final violations = <String>[];
+  for (final directive in _dependencyDirectives(source)) {
+    for (final uri in directive.uris) {
+      final target = _internalPath(path, uri);
+      if (target == null) continue;
+      if (target.startsWith('app/theme/') ||
+          target.startsWith('core/ui/patterns/') &&
+              !nonVisualHelpers.contains(target) ||
+          target == 'core/ui/components/hikari_scaffold.dart') {
+        violations.add('$path: ${directive.kind} $uri');
+      }
+    }
+  }
+  return violations;
+}
+
 void main() {
   test(
     'staged UI fixtures reject export relative bypass and raw feature modals',
@@ -251,6 +275,111 @@ void main() {
 
     expect(violations, isEmpty, reason: violations.join('\n'));
   });
+
+  test('Phase 04 Wave A/B guards reject import/export/part regressions', () {
+    const path = 'features/catalog/catalog_detail_page.dart';
+    for (final uri in [
+      'package:hikari/core/ui/patterns/media_poster.dart',
+      'package:hikari/core/ui/patterns/chapter_control_bar.dart',
+      'package:hikari/core/ui/patterns/primary_reading_cta.dart',
+      'package:hikari/core/ui/patterns/async_state_view.dart',
+      'package:hikari/core/ui/components/hikari_scaffold.dart',
+      'package:hikari/app/theme/hikari_theme.dart',
+      // Same rule for relative imports, even when they bypass package:hikari.
+      '../../core/ui/patterns/chapter_control_bar.dart',
+    ]) {
+      for (final kind in ['import', 'export', 'part']) {
+        expect(
+          _waveABViolations(path, "$kind '$uri';"),
+          isNotEmpty,
+          reason: '$kind $uri must not return to a migrated route',
+        );
+      }
+    }
+    for (final allowed in [
+      'package:hikari/core/ui/patterns/chapter_list_filter.dart',
+      'package:hikari/core/ui/patterns/media_artwork_decode.dart',
+      'package:hikari/core/ui/components/hikari_refresh_action.dart',
+      'package:hikari/core/ui/controls/hikari_button.dart',
+      'package:hikari/features/reading/widgets/chapter_list_controls.dart',
+    ]) {
+      expect(_waveABViolations(path, "import '$allowed';"), isEmpty);
+    }
+    expect(
+      _waveABViolations(
+        path,
+        "// import 'package:hikari/core/ui/patterns/media_poster.dart';",
+      ),
+      isEmpty,
+    );
+  });
+
+  test('Phase 04 migrated views keep canonical visual ownership', () {
+    const migrated = [
+      'home',
+      'library',
+      'local_media',
+      'source_search',
+      'catalog',
+      'remote_manga',
+      'remote_novel',
+      'reading',
+    ];
+    final violations = <String>[];
+    for (final name in migrated) {
+      for (final file
+          in Directory('lib/features/$name')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.dart'))) {
+        final path = _libPath(file.path);
+        violations.addAll(_waveABViolations(path, file.readAsStringSync()));
+        // Wave A/B has no permission to open a new raw presentation surface.
+        for (final finding in inventorySources({
+          'lib/$path': file.readAsStringSync(),
+        })) {
+          if (finding['kind'] == 'modal-entrypoint' &&
+              const {
+                'showDialog',
+                'showGeneralDialog',
+                'showModalBottomSheet',
+                'showBottomSheet',
+              }.contains(finding['symbol'])) {
+            violations.add('$path: raw modal ${finding['symbol']}');
+          }
+        }
+      }
+    }
+    expect(violations, isEmpty, reason: violations.join('\n'));
+    for (final path in [
+      'lib/core/ui/patterns/async_state_view.dart',
+      'lib/core/ui/patterns/media_poster.dart',
+      'lib/core/ui/patterns/chapter_control_bar.dart',
+      'lib/core/ui/patterns/primary_reading_cta.dart',
+      'lib/core/ui/patterns/chapter_row.dart',
+    ]) {
+      expect(File(path).existsSync(), isFalse, reason: path);
+    }
+  });
+
+  test(
+    'Continue Reading keeps its canonical pending route and bare reader',
+    () {
+      const path = 'lib/features/reading/continue_reading_page.dart';
+      final source = File(path).readAsStringSync();
+      for (final target in [
+        'hikari_page_scaffold.dart',
+        'hikari_content_region.dart',
+        'hikari_async_state_view.dart',
+      ]) {
+        expect(source, contains(target));
+      }
+      expect(source, contains('if (reader != null) return reader;'));
+      expect(source, isNot(contains('return Scaffold(')));
+      expect(source, isNot(contains('return CircularProgressIndicator(')));
+      expect(source, isNot(contains('return FilledButton(')));
+    },
+  );
 
   test('multi-route plugin management presentation stays feature-owned', () {
     final pluginFeature = Directory('lib/features/plugins');
@@ -592,12 +721,6 @@ void main() {
         uri: 'package:hikari/core/ui/controls/hikari_filter_chip.dart',
       ),
       (
-        sourcePath: 'core/ui/patterns/media_poster.dart',
-        sourceLayer: 'core',
-        kind: 'import',
-        uri: 'package:hikari/domain/media/media.dart',
-      ),
-      (
         sourcePath: 'features/library/library_page.dart',
         sourceLayer: 'features',
         kind: 'import',
@@ -648,6 +771,40 @@ void main() {
         );
       }
     }
+  });
+
+  test('core UI cannot depend on domain, including legacy patterns', () {
+    expect(
+      _checkDependency(
+        sourcePath: 'core/ui/patterns/example.dart',
+        sourceLayer: 'core',
+        kind: 'import',
+        uri: 'package:hikari/domain/media/media.dart',
+      ),
+      isNotNull,
+    );
+    final violations = <String>[];
+    for (final entry in readUiSources(Directory.current).entries) {
+      if (!entry.key.startsWith('lib/core/ui/')) continue;
+      for (final directive in _dependencyDirectives(entry.value)) {
+        for (final uri in directive.uris) {
+          final resolved = _internalPath(entry.key.substring(4), uri);
+          if (resolved?.startsWith('domain/') ?? false) {
+            violations.add('${entry.key}: ${directive.kind} $uri');
+          }
+        }
+      }
+    }
+    expect(violations, isEmpty, reason: violations.join('\n'));
+    expect(
+      File('lib/features/media/widgets/media_metadata_view.dart').existsSync(),
+      isTrue,
+    );
+    expect(
+      File('lib/features/media/widgets/media_type_presentation.dart')
+          .existsSync(),
+      isTrue,
+    );
   });
 
   test('core and features contain zero app theme dependencies', () {
@@ -895,9 +1052,6 @@ String? _checkDependency({
 
   if (isCoreUi) {
     if (targetPath.startsWith('core/ui/')) {
-      return null;
-    }
-    if (sourcePath.startsWith('core/ui/patterns/') && targetLayer == 'domain') {
       return null;
     }
     return '$sourcePath cannot depend on $targetPath: $kind $uri';

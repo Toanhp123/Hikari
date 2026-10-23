@@ -62,11 +62,15 @@ class HikariAdaptiveGrid extends StatelessWidget {
       return SliverChildBuilderDelegate(
         (context, index) => keys == null
             ? itemBuilder(context, index)
-            : KeyedSubtree(key: keys(index), child: itemBuilder(context, index)),
+            : KeyedSubtree(
+                key: keys(index),
+                child: itemBuilder(context, index),
+              ),
         childCount: itemCount,
         findChildIndexCallback: indices == null ? null : (key) => indices[key],
       );
     }
+
     final resolvedPadding = padding.resolve(Directionality.of(context));
     SliverGridDelegate geometry(double width) {
       final usable = math.max(0.0, width - resolvedPadding.horizontal);

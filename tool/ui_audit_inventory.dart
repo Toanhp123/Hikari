@@ -7,16 +7,24 @@ List<Map<String, Object>> inventorySources(Map<String, String> sources) {
   final rows = <Map<String, Object>>[];
   for (final entry in sources.entries) {
     final path = entry.key.replaceAll('\\', '/');
-    void add(String kind, String symbol, int line, int offset) {
+    void add(
+      String kind,
+      String symbol,
+      int line,
+      int offset, {
+      String? status,
+    }) {
       rows.add({
         'id': '$path:${offset.toString().padLeft(8, '0')}:$kind:$symbol',
         'path': path,
         'line': line,
         'kind': kind,
         'symbol': symbol,
-        'status': kind == 'route-constructor' || kind == 'dynamic-navigation'
-            ? 'manual-audit-required'
-            : 'legacy-pending',
+        'status':
+            status ??
+            (kind == 'route-constructor' || kind == 'dynamic-navigation'
+                ? 'manual-audit-required'
+                : 'legacy-pending'),
       });
     }
 
@@ -42,7 +50,20 @@ List<Map<String, Object>> inventorySources(Map<String, String> sources) {
                   target.startsWith('lib/app/theme/') ||
                   path.startsWith('lib/core/ui/') &&
                       target.startsWith('lib/domain/'))) {
-            add('legacy-${token.text}', uri, tokens[j].line, tokens[j].offset);
+            add(
+              'legacy-${token.text}',
+              uri,
+              tokens[j].line,
+              tokens[j].offset,
+              status:
+                  path.startsWith('lib/features/') &&
+                      _isCanonicalDependency(target)
+                  ? 'canonical'
+                  : path.startsWith('lib/features/') &&
+                        _isNonVisualHelper(target)
+                  ? 'nonvisual-helper'
+                  : null,
+            );
           }
         }
       }
@@ -58,6 +79,27 @@ List<Map<String, Object>> inventorySources(Map<String, String> sources) {
   rows.sort((a, b) => (a['id']! as String).compareTo(b['id']! as String));
   return rows;
 }
+
+// `legacy-import` is a historical lexical finding kind; it does not imply
+// the target is legacy. Only explicit core UI directories exported by the
+// Preview API (or their internal implementations) are canonical dependencies.
+bool _isCanonicalDependency(String path) =>
+    path == 'lib/core/ui/hikari_ui.dart' ||
+    const [
+      'foundation',
+      'controls',
+      'content',
+      'feedback',
+      'layout',
+      'media',
+      'navigation',
+      'surfaces',
+    ].any((dir) => path.startsWith('lib/core/ui/$dir/'));
+
+bool _isNonVisualHelper(String path) => const {
+  'lib/core/ui/patterns/chapter_list_filter.dart',
+  'lib/core/ui/patterns/media_artwork_decode.dart',
+}.contains(path);
 
 const _symbols = {
   'showDialog': 'modal-entrypoint',
@@ -328,17 +370,10 @@ const _sharedPrimaryTask = <String, String>{
   'lib/core/ui/media/hikari_media_progress.dart': '03/02',
   'lib/core/ui/media/hikari_media_card_body.dart': '03/02',
   'lib/core/ui/media/hikari_card_metrics.dart': '03/03',
-  'lib/core/ui/patterns/async_state_view.dart': '07/01',
   'lib/core/ui/patterns/hikari_section_header.dart': '01/07',
-  'lib/core/ui/patterns/chapter_control_bar.dart': '04/05',
   'lib/core/ui/patterns/chapter_list_filter.dart': '04/05',
-  'lib/core/ui/patterns/chapter_row.dart': '03/06',
   'lib/core/ui/patterns/media_artwork_decode.dart': '03/01',
-  'lib/core/ui/patterns/media_metadata_view.dart': '03/07',
-  'lib/core/ui/patterns/media_poster.dart': '03/02',
   'lib/core/ui/patterns/media_progress_bar.dart': '03/02',
-  'lib/core/ui/patterns/media_type_presentation.dart': '03/07',
-  'lib/core/ui/patterns/primary_reading_cta.dart': '04/05',
 };
 
 const _geometryTokens = ['spacing', 'radius', 'motion', 'size', 'breakpoints'];
@@ -397,9 +432,9 @@ String renderMigrationMatrix(
   final out = StringBuffer('''# UI migration matrix
 
 Snapshot: ${snapshot.date}, branch `${snapshot.branch}`, HEAD
-`${snapshot.head}`. Generated with
+`${snapshot.head}`. Reproduce with
 `fvm dart run tool/ui_audit_inventory.dart --markdown`.
-Use `--preserve-snapshot` to reproduce this recorded metadata instead of
+Use `--preserve-snapshot` to reproduce recorded metadata instead of
 capturing the current checkout.
 
 Status: current implementation inventoried; target ${snapshot.targetStatus};
@@ -410,8 +445,10 @@ See [baseline evidence](BASELINE_RUNS.md), [foundations](FOUNDATIONS.md) and
 ## Scope and limits
 
 Lexical findings, not resolved Dart call graph. Definitions/references can occur
-alongside invocations; source locations distinguish them. Route constructors
-remain `manual-audit-required`: variable builders are not silently resolved.
+alongside invocations; source locations distinguish them. `legacy-import` is
+a historical lexical kind, not a claim of legacy ownership: canonical imports
+are labeled `canonical`, with two nonvisual helpers labeled separately.
+Route constructors remain `manual-audit-required`: variable builders are not silently resolved.
 Opaque string interpolation, aliases, tear-offs, native surfaces and callbacks
 need manual source review. No named-route or nested-Navigator absence is proven
 by this scanner. Never equate page-file count with registered routes.
@@ -443,7 +480,7 @@ by this scanner. Never equate page-file count with registered routes.
   are explicit transient exceptions, not presenter result workflows.
 - Reader sheets own outline/settings content. Player/reader canvases and platform
   system UI remain specialist exceptions, not generic modal replacements.
-- Current Home Featured precedes Continue; Continue-first is 04/01 TARGET only.
+- Home Continue precedes Featured since 04/01; physical acceptance remains pending.
 
 ## Findings
 
@@ -483,7 +520,16 @@ these are not blanket migration windows.
         '04/06; 06/04',
         'test/chapter_reader_routes_test.dart',
       ),
-      'reading' => ('04/07', 'test/reader_first_sequence_test.dart'),
+      'reading' => (
+        path.contains('/widgets/') ? '04/08' : '04/07',
+        path.contains('/widgets/')
+            ? 'test/features/reading/chapter_list_controls_test.dart'
+            : 'test/reader_first_sequence_test.dart',
+      ),
+      'media' => (
+        '04/08',
+        'test/features/media/media_metadata_view_test.dart; test/media_type_badge_theme_test.dart; test/read_source_artwork_test.dart',
+      ),
       'settings' => ('05/01', 'test/theme_test.dart'),
       'plugins' => (
         '05/02–05',
@@ -537,7 +583,12 @@ these are not blanket migration windows.
     final previewApi = _isPreviewApi(path);
     final internalSession = path.endsWith('/hikari_presentation_session.dart');
     final internalMedia = _isInternalMedia(path);
-    final exception = canonicalGeometry
+    final status = row['status']! as String;
+    final exception = status == 'canonical'
+        ? 'canonical dependency; no legacy exemption'
+        : status == 'nonvisual-helper'
+        ? 'scoped nonvisual helper; reassess ownership at 07/01'
+        : canonicalGeometry
         ? 'canonical token authority; no legacy exemption'
         : previewApi
         ? 'canonical Preview API; no legacy exemption'
@@ -570,7 +621,7 @@ these are not blanket migration windows.
           ? 'preview'
           : internalSession || internalMedia
           ? 'internal'
-          : row['status']} | $exception |',
+          : status} | $exception |',
     );
   }
   return out.toString();

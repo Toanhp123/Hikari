@@ -10,7 +10,6 @@ import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
 import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/controls/hikari_search_field.dart';
-import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
 
 void main() {
@@ -359,63 +358,6 @@ void main() {
     await tester.pumpWidget(app(replacement));
     expect(find.text('New'), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
-
-  group('AsyncStateView', () {
-    testWidgets('renders loading state', (tester) async {
-      await tester.pumpWidget(
-        testWrapper(
-          AsyncStateView(
-            status: AsyncViewStatus.loading,
-            contentBuilder: (_) => const Text('Content'),
-          ),
-        ),
-      );
-
-      expect(find.text('Loading content...'), findsOneWidget);
-      expect(find.text('Content'), findsNothing);
-    });
-
-    testWidgets('renders empty state with action', (tester) async {
-      var actionTriggered = false;
-      await tester.pumpWidget(
-        testWrapper(
-          AsyncStateView(
-            status: AsyncViewStatus.empty,
-            emptyTitle: 'No Media',
-            emptyMessage: 'Explore library to add items',
-            emptyAction: TextButton(
-              onPressed: () => actionTriggered = true,
-              child: const Text('Add Media'),
-            ),
-            contentBuilder: (_) => const Text('Content'),
-          ),
-        ),
-      );
-
-      expect(find.text('No Media'), findsOneWidget);
-      expect(find.text('Explore library to add items'), findsOneWidget);
-      await tester.tap(find.text('Add Media'));
-      expect(actionTriggered, isTrue);
-    });
-
-    testWidgets('renders error state with retry button', (tester) async {
-      var retried = false;
-      await tester.pumpWidget(
-        testWrapper(
-          AsyncStateView(
-            status: AsyncViewStatus.error,
-            errorMessage: 'Failed to connect',
-            onRetry: () => retried = true,
-            contentBuilder: (_) => const Text('Content'),
-          ),
-        ),
-      );
-
-      expect(find.text('Failed to connect'), findsOneWidget);
-      await tester.tap(find.text('Try Again'));
-      expect(retried, isTrue);
-    });
   });
 
   group('MediaProgressBar and HikariScaffold', () {

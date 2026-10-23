@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/feedback/hikari_async_state_view.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 
 typedef ReaderLaunch = ({
   Widget reader,
@@ -64,19 +67,17 @@ class _ContinueReadingPageState extends State<ContinueReadingPage> {
   Widget build(BuildContext context) {
     final reader = _reader;
     if (reader != null) return reader;
-    return Scaffold(
+    return HikariPageScaffold(
       appBar: AppBar(title: const Text('Continue reading')),
-      body: Center(
-        child: _error == null
-            ? const CircularProgressIndicator()
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Could not load this chapter.'),
-                  const SizedBox(height: 12),
-                  FilledButton(onPressed: _load, child: const Text('Retry')),
-                ],
-              ),
+      body: HikariContentRegion(
+        child: HikariAsyncStateView(
+          status: _error == null
+              ? HikariAsyncStatus.loading
+              : HikariAsyncStatus.fatalError,
+          message: _error == null ? null : 'Could not load this chapter.',
+          onRetry: _error == null ? null : _load,
+          child: const SizedBox.shrink(),
+        ),
       ),
     );
   }

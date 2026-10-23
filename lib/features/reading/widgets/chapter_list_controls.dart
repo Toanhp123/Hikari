@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
 
 /// Control bar for chapter lists featuring count badge, sort toggle, and expandable search.
-class ChapterControlBar extends StatefulWidget {
-  const ChapterControlBar({
+class ChapterListControls extends StatefulWidget {
+  const ChapterListControls({
     super.key,
     required this.totalChapters,
     this.filteredChapters,
@@ -35,10 +36,10 @@ class ChapterControlBar extends StatefulWidget {
   final EdgeInsetsGeometry padding;
 
   @override
-  State<ChapterControlBar> createState() => _ChapterControlBarState();
+  State<ChapterListControls> createState() => _ChapterListControlsState();
 }
 
-class _ChapterControlBarState extends State<ChapterControlBar> {
+class _ChapterListControlsState extends State<ChapterListControls> {
   late final TextEditingController _controller;
 
   @override
@@ -49,7 +50,7 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
   }
 
   @override
-  void didUpdateWidget(ChapterControlBar oldWidget) {
+  void didUpdateWidget(ChapterListControls oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.searchQuery != widget.searchQuery &&
         _controller.text != widget.searchQuery) {
@@ -122,7 +123,7 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
+                  HikariIconButton(
                     tooltip: widget.reverseSourceOrder
                         ? 'Restore source order'
                         : 'Reverse chapter order',
@@ -136,7 +137,7 @@ class _ChapterControlBarState extends State<ChapterControlBar> {
                           : colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  IconButton(
+                  HikariIconButton(
                     tooltip: widget.isSearchExpanded
                         ? 'Close search'
                         : 'Search chapters',

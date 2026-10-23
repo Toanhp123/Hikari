@@ -1,10 +1,3 @@
-lib/core/ui/patterns/chapter_row.dart:00000174:legacy-import:package:hikari/domain/media/manga.dart
-lib/core/ui/patterns/chapter_row.dart:00000223:legacy-import:package:hikari/domain/media/media.dart
-lib/core/ui/patterns/chapter_row.dart:00000272:legacy-import:package:hikari/domain/media/novel.dart
-lib/core/ui/patterns/media_metadata_view.dart:00000202:legacy-import:package:hikari/domain/media/media.dart
-lib/core/ui/patterns/media_metadata_view.dart:00000251:legacy-import:package:hikari/domain/media/metadata.dart
-lib/core/ui/patterns/media_type_presentation.dart:00000115:legacy-import:package:hikari/domain/media/media.dart
-lib/features/library/widgets/library_removal_confirmation.dart:00000296:modal-entrypoint:showHikariConfirmation
 lib/features/novel_reader/novel_reader_page.dart:00011467:modal-entrypoint:showHikariModalSheet
 lib/features/novel_reader/publication_reader_page.dart:00008386:modal-entrypoint:showHikariModalSheet
 lib/features/plugins/apk_actions_page.dart:00004594:modal-entrypoint:showHikariConfirmation

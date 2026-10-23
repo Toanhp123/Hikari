@@ -6,8 +6,8 @@ import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/core/ui/layout/hikari_content_region.dart';
 import 'package:hikari/core/ui/content/hikari_chapter_row.dart';
 import 'package:hikari/application/media/open_media.dart';
-import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
-import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
+import 'package:hikari/features/reading/widgets/chapter_list_controls.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -102,7 +102,10 @@ void main() {
         expect(find.byType(HikariPageScaffold), findsOneWidget);
         expect(find.byType(HikariContentRegion), findsOneWidget);
         expect(find.byType(HikariChapterRow), findsNWidgets(3));
-        expect(find.byType(PrimaryReadingCta), findsOneWidget);
+        expect(
+          find.widgetWithText(HikariButton, 'Start reading'),
+          findsOneWidget,
+        );
         expect(find.text('Start reading'), findsOneWidget);
 
         await tester.tap(find.text('Start reading'));
@@ -129,7 +132,7 @@ void main() {
       await tester.pumpWidget(_buildTestPage(details: details));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ChapterControlBar), findsOneWidget);
+      expect(find.byType(ChapterListControls), findsOneWidget);
 
       // Initially, ch1 is displayed before ch3.
       final ch1InitialY = tester.getTopLeft(find.text('Chapter 1')).dy;
@@ -172,7 +175,7 @@ void main() {
       expect(find.text('Chapter 2'), findsOneWidget);
       expect(find.text('Special Episode'), findsOneWidget);
 
-      // Tap search icon in ChapterControlBar
+      // Tap search icon in ChapterListControls
       await tester.tap(find.byTooltip('Search chapters'));
       await tester.pumpAndSettle();
 
@@ -243,12 +246,19 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('No readable chapters found.'), findsOneWidget);
-        expect(find.byType(PrimaryReadingCta), findsOneWidget);
         expect(
-          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          find.widgetWithText(HikariButton, 'Start reading'),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<HikariButton>(
+                find.widgetWithText(HikariButton, 'Start reading'),
+              )
+              .onPressed,
           isNull,
         );
-        expect(find.byType(ChapterControlBar), findsNothing);
+        expect(find.byType(ChapterListControls), findsNothing);
       },
     );
 

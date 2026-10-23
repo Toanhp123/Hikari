@@ -27,85 +27,86 @@ void main() {
     }
   });
   for (final sliver in [false, true]) {
-    testWidgets('sliver=$sliver hides items when padding exhausts local width', (
-      tester,
-    ) async {
-      var builds = 0;
-      var keyCalls = 0;
-      var extentCalls = 0;
-      for (final width in <double>[
-        375,
-        HikariSpacing.lg,
-        HikariSpacing.lg * 2,
-        375,
-      ]) {
-        builds = 0;
-        keyCalls = 0;
-        extentCalls = 0;
-        final grid = sliver
-            ? HikariAdaptiveGrid.sliver(
-                itemCount: 100,
-                itemKeyBuilder: (index) {
-                  keyCalls++;
-                  return ValueKey(index);
-                },
-                itemExtentBuilder: (_, itemWidth) {
-                  extentCalls++;
-                  return itemWidth * 1.5 + 50;
-                },
-                itemBuilder: (_, index) {
-                  builds++;
-                  return Text('item $index');
-                },
-              )
-            : HikariAdaptiveGrid.builder(
-                itemCount: 100,
-                itemKeyBuilder: (index) {
-                  keyCalls++;
-                  return ValueKey(index);
-                },
-                itemExtentBuilder: (_, itemWidth) {
-                  extentCalls++;
-                  return itemWidth * 1.5 + 50;
-                },
-                itemBuilder: (_, index) {
-                  builds++;
-                  return Text('item $index');
-                },
-              );
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Align(
-                alignment: Alignment.topLeft,
-                child: SizedBox(
-                  width: width,
-                  height: 400,
-                  child: sliver ? CustomScrollView(slivers: [grid]) : grid,
+    testWidgets(
+      'sliver=$sliver hides items when padding exhausts local width',
+      (tester) async {
+        var builds = 0;
+        var keyCalls = 0;
+        var extentCalls = 0;
+        for (final width in <double>[
+          375,
+          HikariSpacing.lg,
+          HikariSpacing.lg * 2,
+          375,
+        ]) {
+          builds = 0;
+          keyCalls = 0;
+          extentCalls = 0;
+          final grid = sliver
+              ? HikariAdaptiveGrid.sliver(
+                  itemCount: 100,
+                  itemKeyBuilder: (index) {
+                    keyCalls++;
+                    return ValueKey(index);
+                  },
+                  itemExtentBuilder: (_, itemWidth) {
+                    extentCalls++;
+                    return itemWidth * 1.5 + 50;
+                  },
+                  itemBuilder: (_, index) {
+                    builds++;
+                    return Text('item $index');
+                  },
+                )
+              : HikariAdaptiveGrid.builder(
+                  itemCount: 100,
+                  itemKeyBuilder: (index) {
+                    keyCalls++;
+                    return ValueKey(index);
+                  },
+                  itemExtentBuilder: (_, itemWidth) {
+                    extentCalls++;
+                    return itemWidth * 1.5 + 50;
+                  },
+                  itemBuilder: (_, index) {
+                    builds++;
+                    return Text('item $index');
+                  },
+                );
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: width,
+                    height: 400,
+                    child: sliver ? CustomScrollView(slivers: [grid]) : grid,
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-        expect(tester.takeException(), isNull);
-        if (width <= HikariSpacing.lg * 2) {
-          expect(builds, 0);
-          expect(keyCalls, 0);
-          expect(extentCalls, 0);
-          expect(find.byType(SliverGrid), findsNothing);
-          expect(find.byType(GridView), findsNothing);
-        } else {
-          expect(builds, greaterThan(0));
-          expect(keyCalls, greaterThan(0));
-          expect(extentCalls, greaterThan(0));
-          if (sliver) {
-            expect(find.byType(SliverGrid), findsOneWidget);
+          );
+          expect(tester.takeException(), isNull);
+          if (width <= HikariSpacing.lg * 2) {
+            expect(builds, 0);
+            expect(keyCalls, 0);
+            expect(extentCalls, 0);
+            expect(find.byType(SliverGrid), findsNothing);
+            expect(find.byType(GridView), findsNothing);
           } else {
-            expect(find.byType(GridView), findsOneWidget);
+            expect(builds, greaterThan(0));
+            expect(keyCalls, greaterThan(0));
+            expect(extentCalls, greaterThan(0));
+            if (sliver) {
+              expect(find.byType(SliverGrid), findsOneWidget);
+            } else {
+              expect(find.byType(GridView), findsOneWidget);
+            }
           }
         }
-      }
-    });
+      },
+    );
   }
 
   testWidgets('real cards reserve scaled text within nested local width', (

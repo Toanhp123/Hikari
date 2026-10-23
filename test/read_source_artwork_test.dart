@@ -9,7 +9,7 @@ import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/application/sources/source_registry.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
-import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
+import 'package:hikari/features/media/widgets/media_metadata_view.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/infrastructure/cache/cache_database.dart';

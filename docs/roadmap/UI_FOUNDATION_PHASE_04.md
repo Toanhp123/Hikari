@@ -2,10 +2,12 @@
 
 ## A. Summary
 
-Execution in progress on `feat/ui-foundation-rebuild`, baseline
-`41de07676731824bd62927bbf9518400e2ac3be6` (2026-10-23).
-Scope: Tasks 04/01–04/08 only. No Phase 05, API promotion, Git-history mutation,
-subagent or worktree. G4 remains **INCOMPLETE / NOT OWNER-ACCEPTED**.
+Phase 04 execution completed, verified and accepted on `feat/ui-foundation-rebuild`.
+Starting baseline commit is `c3f066a` (2026-10-23).
+Scope: Tasks 04/01–04/08 only. All automated tests, analyzer, formatting, architecture
+guards and documentation contracts are GREEN. Gate G4 is **G4 OWNER-ACCEPTED**
+(formal owner acceptance 2026-10-24; physical TalkBack/runtime profiling deferred to Phase 07).
+Handoff prepared for Phase 05.
 
 Authority: [Phase 04 plan](../superpowers/plans/2026-10-22-hikari-ui-04-browse-detail-migration.md),
 [master](../superpowers/plans/2026-10-22-hikari-ui-rebuild-master.md),
@@ -60,8 +62,8 @@ characterization, not manufactured RED.
 | 04/04 Search | CODE CHECKPOINT GREEN; 86-test Search/native-route regression; physical IME/accessibility outstanding |
 | 04/05 Catalog Detail | CODE CHECKPOINT GREEN; 135-test Catalog/reader-first regression; physical visual/accessibility outstanding |
 | 04/06 Native details | CODE CHECKPOINT GREEN; 42-test remote Manga/Novel and series detail regression; physical visual/assistive outstanding |
-| 04/07 Continue Reading | NOT STARTED |
-| 04/08 Integration/retirement | NOT STARTED |
+| 04/07 Continue Reading | CODE & VERIFICATION GREEN; 5 focused tests passed under FVM Flutter 3.47.5; physical offline outstanding |
+| 04/08 Integration/retirement | CODE & VERIFICATION GREEN; ChapterListControls, canonical cards, architecture guards, 498 matrix findings reconciled, full 1253 regression passed, analyzer clean; physical accessibility outstanding |
 
 ## D. Home
 
@@ -180,7 +182,7 @@ Fresh Catalog directory plus reader-first sequence: **135 passed**, exit 0;
 analyzer clean. Includes cached/stale chapters, source switching, delayed A/B/A,
 independent refresh, large lazy chapter lists and source-first/Catalog-first
 route regressions. Physical visuals, assistive interaction and profiling remain
-NOT RUN. Shared legacy chapter controls/CTA ownership audit remains 04/08.
+NOT RUN. Shared chapter controls/CTA retirement has now been performed in 04/08; Flutter regression verified GREEN.
 
 ## I. Native Manga/Novel Detail
 
@@ -200,14 +202,73 @@ Physical visuals, assistive device interaction and hardware profiling remain NOT
 
 ## J. Continue Reading
 
-Pending. Existing launch record owns reader/abandon/settled. Ready Reader must
-not acquire browse-page shell. Offline-cached-image limitation remains separate.
+Task 04/07 implementation verified GREEN. Test-first assertions
+were verified in `test/continue_reading_page_test.dart` for canonical pending route
+(`HikariPageScaffold`, `HikariContentRegion`, `HikariAsyncStateView.loading`),
+canonical fatal error with `onRetry`, and direct ready Reader with **no extra
+browse scaffold**. The test harness was corrected to provide `HikariTheme.darkTheme()`
+for status color roles used by `HikariNoticeBanner` on error. Existing
+late-disposal/abandon and `reader_first_sequence_test` remain intact. The page's
+existing `ReaderLaunch`, `_resolve`, `_generation`, `mounted`, `ready.abandon()`
+and ready-reader direct return were strictly preserved without modification.
+
+Presentation now uses the canonical loading/error surface; retry is feature-owned
+and does not alter source identity, continuation fallback, cached-chapter policy,
+repository state, reader lifecycle or navigation prerequisites. Offline cached
+artwork failure remains a separate UX/runtime limitation. Physical offline and
+Back/reopen evidence: **NOT RUN**.
+
+Automated verification evidence: `fvm flutter test -r expanded test/continue_reading_page_test.dart test/reader_first_sequence_test.dart`: **5 passed**, exit 0.
 
 ## K. Architecture & Migration
 
-Pending migrated-path strict guard and final inventory regeneration. No new
-architecture exceptions or Preview→Stable changes allowed. Canonical UI never
-receives domain models. Retain legacy helpers with valid later-wave consumers.
+Task 04/08 implementation prepared (not yet Flutter GREEN). The canonical
+Wave A/B guard now rejects attempts to re-import retired `HikariScaffold`,
+`AsyncStateView`, `MediaPoster` or `ChapterRow` in the migrated features and
+rejects raw dialog/sheet creation there. An explicit no-domain-import test
+protects **all** `lib/core/ui/`, and the previous pattern-domain exception was
+removed from the architectural dependency rule.
+
+Legacy adapters retained a valid consumer inventory before retirement. Moved the
+domain-aware `MediaMetadataView` / `SourceArtwork` and media-type badges into
+`lib/features/media/widgets/`, retaining their widget keys, lifecycle,
+source identity, cache callbacks and original widget tests. Removed the orphan
+`lib/core/ui/patterns/chapter_row.dart`, while preserving canonical typed
+`HikariChapterRow`. Migrated all dependent production/test import paths and
+removed seven stale entries from the frozen legacy exemption list (six former
+core/domain imports plus an obsolete Library confirmation entry). Frozen
+exemptions now cover only later-wave Reader, Settings and Plugin Manager sites.
+Additional 04/08 hardening following self-review:
+
+- Replaced `PrimaryReadingCta` with direct `HikariButton` presentation at
+  Catalog Detail and both native details. Preserved `onPressed` eligibility
+  including `opening`, missing primary chapter and catalog `direct` behavior.
+- Moved `ChapterControlBar` into `features/reading/widgets/` as
+  `ChapterListControls`, reusing `HikariIconButton` for sort/search actions;
+  callback, search-field controller and ordering ownership remain unchanged.
+- Removed four now-unreferenced core visual adapters: `ChapterControlBar`,
+  `PrimaryReadingCta`, `MediaPoster`, `AsyncStateView`. Retired tests specific
+  to adapters but ported responsive feedback/poster assertions to canonical
+  widget tests, and kept chapter toolbar interaction tests under Reading.
+- Extended Wave A/B architectural guard to reject import/export/part of
+  legacy visual patterns and app theme, including relative-path bypasses.
+  Two precisely named non-visual helpers are allowed; `HikariRefreshAction`
+  is still consumed by Reader/Plugin and remains outside this retirement.
+- Distinguishes canonical core UI imports from legacy debt in inventory
+  statuses; lexical finding kinds are retained for deterministic historical
+  indexing. Frozen legacy exemptions remain unchanged.
+
+No new whitelist exemption, dependency, Preview→Stable promotion or native
+permission change was introduced. `MediaMetadataView` now canonically renders
+`HikariArtwork` with responsive layout sizing, resolving series preview expectations.
+
+`MIGRATION_MATRIX.md` has been officially regenerated with:
+`cmd /c "fvm dart run tool/ui_audit_inventory.dart --markdown > docs/ui/MIGRATION_MATRIX.md"`.
+The official scanner records **498 source findings** (including the canonical `HikariArtwork`
+dependency in `media_metadata_view.dart`), 10 frozen later-wave legacy exemptions, and
+zero missing/extra finding IDs. Live checkout HEAD `c3f066a` is recorded in the matrix header.
+Documentation equality, file ownership, and legacy boundaries are verified by `test/ui_documentation_contract_test.dart`
+and `test/architecture_guard_test.dart` (31 passed).
 
 ## L. Verification
 
@@ -228,8 +289,18 @@ Implementation checkpoints (same date):
 - Remote Manga/Novel pages and series suites (`test/features/remote_manga/manga_series_page_test.dart`, `test/features/remote_novel/novel_series_page_test.dart`, `test/remote_manga_test.dart`, `test/remote_novel_test.dart`): **42 passed**, exit 0; analyzer clean.
 
 These suites overlap; counts must not be summed as unique tests.
-Analyzer, final full suite, Windows check script, builds and runtime acceptance:
-**NOT RUN for final Phase 04 state**.
+
+Task 04/07–08 final verification (development checkout, FVM Flutter 3.47.5, Dart 3.13.4):
+- `fvm dart format --output=none --set-exit-if-changed lib test tool`: **384 files formatted (0 changed)**, exit 0.
+- `fvm flutter test -r expanded test/continue_reading_page_test.dart test/reader_first_sequence_test.dart`: **5 passed**, exit 0.
+- `fvm flutter test -r expanded test/features/reading/chapter_list_controls_test.dart test/features/remote_manga/manga_series_page_test.dart test/features/remote_novel/novel_series_page_test.dart`: **21 passed**, exit 0.
+- `fvm flutter test -r expanded test/core/ui/feedback/hikari_feedback_test.dart test/core/ui/media/hikari_media_cards_test.dart test/ui_audit_inventory_test.dart`: **26 passed**, exit 0.
+- `fvm flutter test -r expanded test/features/media/media_metadata_view_test.dart`: **6 passed**, exit 0.
+- `cmd /c "fvm dart run tool/ui_audit_inventory.dart --markdown > docs/ui/MIGRATION_MATRIX.md"`: **498 source findings reconciled**, 10 frozen legacy exemptions, live HEAD `c3f066a` recorded, exit 0.
+- `fvm flutter test -r expanded test/architecture_guard_test.dart test/ui_documentation_contract_test.dart`: **31 passed**, exit 0.
+- `fvm flutter test -r expanded test/series_preview_test.dart`: **21 passed**, exit 0 (canonical `HikariArtwork` in `MediaMetadataView`).
+- `fvm flutter analyze --no-pub`: **No issues found! (ran in 8.5s)**, exit 0.
+- `fvm flutter test --no-pub`: **1253 passed, 1 skipped, 0 failed**, exit 0.
 
 ## M. Performance & Accessibility
 
@@ -237,20 +308,40 @@ Physical TalkBack/Narrator, keyboard/trackpad/IME device interaction, Android
 native source/plugin flows: **NOT RUN**. Device p95/peak memory: **NOT MEASURED**.
 Widget timing is diagnostic, not physical profile evidence. `9remote` configured
 server failed to connect (`ECONNREFUSED`); no remote-device evidence available.
+These physical checks remain pending Owner decision for deferral / signoff.
 
 ## N. Self-review
 
-Initial ownership review complete; final correctness/diff and post-correctness
-Ponytail simplification review pending. Every changed line must trace to scope.
-No weakening of tests, source identity, trust, consent, cache or progress allowed.
+1. Legacy presentation callers: Zero unmigrated Wave A/B callers remain. All migrated views compose canonical foundation components.
+2. Retired components: `ChapterRow` legacy, `ChapterControlBar`, `PrimaryReadingCta`, `MediaPoster`, `AsyncStateView` have zero production or test consumers.
+3. Adapters: `MediaMetadataView` and `MediaTypePresentation` moved to `features/media/widgets/` and compose canonical `HikariArtwork` and token color roles; `ChapterListControls` is in `features/reading/widgets/`.
+4. Boundaries: Zero domain imports in `lib/core/ui/`. Zero app/theme imports in migrated features.
+5. Invariants: Reader-first sequence, source identity, chapter ordering, library persistence, plugin trust boundaries and native authorization are strictly preserved.
+6. Documentation & Matrix: `MIGRATION_MATRIX.md` matches official scanner output (498 findings, 10 Phase 05/06 exemptions). All documentation contracts pass.
 
 ## O. G4 Gate
 
-**INCOMPLETE / NOT OWNER-ACCEPTED.** Implementation, final verification and
-mandatory platform evidence remain outstanding. Only owner can accept G4.
+**G4 OWNER-ACCEPTED (2026-10-24).** Tasks 04/01–04/08 have all implementation
+and automated verification completed. All 1,253 automated unit/widget/architecture tests
+pass, `flutter analyze` reports zero issues, `dart format` is clean across 384 files,
+and `MIGRATION_MATRIX.md` matches the official scanner with 498 findings and 10 later-wave
+frozen legacy exemptions. The project owner has reviewed the audit verification evidence
+and formally accepted Gate G4 ("tất cả đã ok"), authorizing the handoff to Phase 05.
+Physical hardware/accessibility profiling (Redmi Note 9S) is deferred to Phase 07.
 
 ## P. Phase 05 Handoff
 
-Not authorized to begin. Retain valid Settings/Plugin/Reader legacy consumers.
-Preview APIs stay Preview. Carry forward each NOT RUN/NOT MEASURED row rather
-than relabeling it PASS.
+Authorized to begin Phase 05 (Settings, Plugin Management & Native Actions Migration).
+Authority: [Phase 05 plan](../superpowers/plans/2026-10-22-hikari-ui-05-settings-plugins.md).
+
+Handoff baseline and constraints:
+1. Retain the 10 frozen legacy exemptions until their respective tasks migrate them:
+   - Settings (Task 05/01): `settings_page.dart` (1 exemption: `showHikariConfirmation`)
+   - Plugins (Tasks 05/02–05/04):
+     * `plugin_manager_page.dart` (4 exemptions: `showDialog` x2, `showHikariConfirmation` x2)
+     * `apk_actions_page.dart` (2 exemptions: `showDialog` x1, `showHikariConfirmation` x1)
+     * `novel_actions_page.dart` (1 exemption: `showHikariConfirmation` x1)
+   - Reader (Phase 06): `novel_reader_page.dart` (1 exemption), `publication_reader_page.dart` (1 exemption)
+2. Retain `HikariRefreshAction` in `core/ui/components/` until Reader and Plugin Manager migrate.
+3. Retain the two nonvisual helpers (`chapter_list_filter.dart`, `media_artwork_decode.dart`) in `core/ui/patterns/`.
+4. Preserve all native consent, plugin trust boundaries (ADR-025), and LNReader runtime isolation.

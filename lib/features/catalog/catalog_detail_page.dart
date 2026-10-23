@@ -14,10 +14,10 @@ import 'package:hikari/features/catalog/presentation/catalog_source_selection.da
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/core/ui/layout/hikari_content_region.dart';
-import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
+import 'package:hikari/features/reading/widgets/chapter_list_controls.dart';
 import 'package:hikari/core/ui/content/hikari_chapter_row.dart';
 import 'package:hikari/features/catalog/presentation/catalog_chapter_row_data.dart';
-import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
+import 'package:hikari/core/ui/controls/hikari_button.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/catalog/catalog_source_selection.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -529,17 +529,25 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
                 ),
               ),
             if (owner?.hasChapters == true || owner?.direct == true)
-              PrimaryReadingCta(
-                label: owner!.isContinuation
-                    ? 'Continue reading'
-                    : 'Start reading',
-                enabled: !owner.opening,
-                onPressed: primary == null && !owner.direct
-                    ? null
-                    : () => unawaited(_openChapter(primary)),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: HikariSpacing.md,
+                  vertical: HikariSpacing.sm,
+                ),
+                child: HikariButton(
+                  label: owner!.isContinuation
+                      ? 'Continue reading'
+                      : 'Start reading',
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  size: HikariButtonSize.large,
+                  isFullWidth: true,
+                  onPressed: owner.opening || (primary == null && !owner.direct)
+                      ? null
+                      : () => unawaited(_openChapter(primary)),
+                ),
               ),
             if (owner?.hasChapters == true)
-              ChapterControlBar(
+              ChapterListControls(
                 autofocus: false,
                 totalChapters: owner!.manga.length + owner.novel.length,
                 filteredChapters: owner.searchQuery.trim().isEmpty
