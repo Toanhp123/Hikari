@@ -1,6 +1,8 @@
 # Responsive UI contracts
 
-Status: **Accepted architecture target (ADR-026); not implemented.**
+Status: **Phase 01–02 Preview; G1/G2 OWNER-ACCEPTED (2026-10-23) for continuation**,
+with outstanding historical evidence and an explicit Phase 04 3x defect.
+See [owner decision](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md). [Phase 02 evidence](../roadmap/UI_FOUNDATION_PHASE_02.md).
 [ADR-026](../decisions/ADR-026-ui-foundation-rebuild.md) records approval;
 [v4.2 spec](../superpowers/specs/2026-10-22-hikari-ui-foundation-rebuild-design.md)
 owns target detail. [Baseline runs](BASELINE_RUNS.md) records actual evidence.
@@ -15,7 +17,8 @@ Insets and keyboard obstruction are runtime data, never global spacing tokens.
 App owns selected destination and lazy retained tab state; shared shell owns
 navigation presentation, Drawer mechanics and common header geometry. Drawer is
 navigation, not a transient result mode. Current shell uses compact bar below
-600 and custom rail from 600; target shared shell is pending 02/06–07.
+600 and shared custom rail from 600; compact >5 destinations uses navigation
+Drawer. App's five production destinations retain the bar.
 
 Active modal keeps route/state on resize; reflow bounded content rather than
 pop/reopen. Dialog, BottomSheet and adaptive presenter require caller-specified

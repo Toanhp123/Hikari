@@ -24,6 +24,15 @@ owns this baseline. Source/tests remain evidence of current behavior.
   features, domain, application or infrastructure. Foundation tokens cannot
   import component/widget families. Feature mapping converts domain values to
   presentation values; shared ChapterRow must not interpret domain models.
+- Phase 02 refinement (**owner ratified 2026-10-23**, following autonomous
+  architecture review): shared Flutter chrome in `core/ui/**` may import
+  `dart:ui` for engine rendering (including ImageFilter for approved docked-bar
+  blur), not as a general platform-API exemption. This is not OS access: `dart:io`, FFI and platform packages
+  remain forbidden in core UI. Pure core/domain/application and app/theme retain
+  their existing platform restrictions; architecture guard tests enforce scope.
+  [Dated owner acceptance](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md)
+  authorizes this clause and Phase 03 continuation; future expansions require
+  separate review.
 - Features depend on shared UI and domain/application contracts, not `app/**`
   or infrastructure. App owns routing/destinations and supplies callbacks.
 - Dialog and BottomSheet are independent transient families. Adaptive presenter

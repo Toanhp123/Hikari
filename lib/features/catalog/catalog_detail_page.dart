@@ -9,7 +9,9 @@ import 'package:hikari/application/catalog/resolve_catalog_source.dart';
 import 'package:hikari/application/media/load_series_reading_target.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/application/media/read_remote_chapter_list.dart';
-import 'package:hikari/core/ui/components/hikari_modal_sheet.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_models.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/show_hikari_adaptive.dart';
+import 'package:hikari/features/catalog/presentation/catalog_source_selection.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
@@ -29,13 +31,6 @@ import 'package:hikari/features/catalog/widgets/catalog_detail_content.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 import 'package:hikari/features/library/widgets/library_button.dart';
-
-typedef _CatalogSourcePickerResult = ({
-  CatalogSourcePickerCandidate? candidate,
-  CatalogSourcePickerSource? source,
-  Set<SourceId>? sourceIds,
-  String? sourceLanguage,
-});
 
 class CatalogDetailPage extends StatefulWidget {
   const CatalogDetailPage({
@@ -145,7 +140,8 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
         oldWidget.chapterLists != widget.chapterLists ||
         oldWidget.loadDetails != widget.loadDetails ||
         oldWidget.loadReadingTarget != widget.loadReadingTarget ||
-        oldWidget.sourceSelections != widget.sourceSelections) {
+        oldWidget.sourceSelections != widget.sourceSelections ||
+        oldWidget.resolveCatalogSource != widget.resolveCatalogSource) {
       _selectionGeneration++;
       _restoreOperation = null;
       _identityGeneration++;
@@ -283,30 +279,41 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       details: state.details,
       resolver: widget.resolveCatalogSource,
     );
-    late final _CatalogSourcePickerResult? result;
+    late final HikariPresentationResult<CatalogSourceSelection> result;
     try {
-      result = context.isExpanded
-          ? await _showSourceDialog(picker)
-          : await _showSourceSheet(picker);
+      result = await showHikariAdaptive<CatalogSourceSelection>(
+        context: context,
+        purpose: HikariPresentationPurpose.selection,
+        useRootNavigator: true,
+        contentBuilder: (_, controller) => CatalogSourcePicker(
+          viewModel: picker,
+          controller: controller,
+          readArtwork: widget.readArtwork,
+        ),
+      );
     } finally {
       picker.dispose();
     }
     if (!mounted || generation != _selectionGeneration) return;
-    if (result == null) {
+    if (result is! HikariCompleted<CatalogSourceSelection>) {
       await _restoreAfterCancelledSelection();
       return;
     }
 
-    var candidate = result.candidate;
-    if (candidate == null) {
-      candidate = await widget.selectSourceSearch(
-        entry,
-        result.source?.id,
-        result.source?.displayName,
-        result.sourceIds,
-        result.sourceLanguage,
-      );
-      if (!mounted || generation != _selectionGeneration) return;
+    final selection = result.value;
+    CatalogSourcePickerCandidate? candidate;
+    switch (selection) {
+      case CatalogCandidateSelection():
+        candidate = selection.candidate;
+      case CatalogManualSearchSelection():
+        candidate = await widget.selectSourceSearch(
+          entry,
+          selection.source?.id,
+          selection.source?.displayName,
+          selection.sourceIds,
+          selection.language,
+        );
+        if (!mounted || generation != _selectionGeneration) return;
     }
     if (candidate == null) {
       await _restoreAfterCancelledSelection();
@@ -596,78 +603,6 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       ),
       const SliverToBoxAdapter(child: SizedBox(height: HikariSpacing.xxxl)),
     ];
-  }
-
-  Future<_CatalogSourcePickerResult?> _showSourceSheet(
-    CatalogSourcePickerViewModel picker,
-  ) {
-    return showHikariModalSheet<_CatalogSourcePickerResult>(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: SafeArea(
-          top: false,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.88,
-            ),
-            child: CatalogSourcePicker(
-              viewModel: picker,
-              onOpenMedia: (candidate) => Navigator.of(sheetContext).pop((
-                candidate: candidate,
-                source: null,
-                sourceIds: null,
-                sourceLanguage: null,
-              )),
-              readArtwork: widget.readArtwork,
-              onManualSearch: (source, sourceIds) =>
-                  Navigator.of(sheetContext).pop((
-                    candidate: null,
-                    source: source,
-                    sourceIds: sourceIds,
-                    sourceLanguage: source == null
-                        ? picker.state.selectedLanguage
-                        : source.languageCode,
-                  )),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<_CatalogSourcePickerResult?> _showSourceDialog(
-    CatalogSourcePickerViewModel picker,
-  ) {
-    return showDialog<_CatalogSourcePickerResult>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        clipBehavior: Clip.antiAlias,
-        child: CatalogSourcePicker(
-          viewModel: picker,
-          onOpenMedia: (candidate) => Navigator.of(dialogContext).pop((
-            candidate: candidate,
-            source: null,
-            sourceIds: null,
-            sourceLanguage: null,
-          )),
-          readArtwork: widget.readArtwork,
-          onManualSearch: (source, sourceIds) =>
-              Navigator.of(dialogContext).pop((
-                candidate: null,
-                source: source,
-                sourceIds: sourceIds,
-                sourceLanguage: source == null
-                    ? picker.state.selectedLanguage
-                    : source.languageCode,
-              )),
-        ),
-      ),
-    );
   }
 
   Widget _tabContent({required bool chapters}) => KeyedSubtree(

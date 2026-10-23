@@ -1,6 +1,7 @@
 # UI foundations
 
-Status: **Phase 01 foundation/import implementation present; G1 BLOCKED / INCOMPLETE.**
+Status: **Phase 01 Preview foundation present; G1 OWNER-ACCEPTED (2026-10-23) for continuation**, not retrospectively certified for all physical tests.
+See [owner decision](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md).
 Current task/gate evidence: [Phase 01 execution](../roadmap/UI_FOUNDATION_PHASE_01.md).
 Spacing, radius, motion, size, breakpoints, typography, status roles and the
 required context getter live in `lib/core/ui/foundation`. Seven app/theme token

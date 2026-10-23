@@ -30,6 +30,11 @@
 - Search field starts remote requests per keystroke → explicit submit test.
 - Catalog detail tab scroll resets → independent tab restoration test.
 - Source-first route accidentally bypasses native detail → route regression fixture.
+- **Transferred Phase 02 known defect (owner accepted as pending fix, not visually PASS):**
+  Catalog Detail whole-page hero/notice overflows at 375dp with 3x text scaling.
+  Fix in Task 04/05, not Phase 03; add focused RED/GREEN and do not suppress
+  overflow or cap text scale to hide it. See
+  [owner handoff](../../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md).
 
 ---
 ### Task 01: Migrate Home page shell, hero and shelves
@@ -120,11 +125,11 @@
 - Consumes: Pilot A Picker, HikariChapterRow, HikariPageScaffold, existing detail+chapters ViewModels
 - Produces: route-level coordinator stays responsible for params/generation/openReader; info and chapters sections render typed state; no duplicated surface or geometry code
 
-- [ ] **Step 1 — Write a failing test:** In `test/features/catalog/catalog_detail_page_test.dart`, add tests named for these required assertions: independent Info/Chapters scroll offset; choose source loads expected cached chapters before network when available; catalog-first selects source then reader; one open command per activation; hero same source identity
+- [ ] **Step 1 — Write a failing test:** In `test/features/catalog/catalog_detail_page_test.dart`, add tests named for these required assertions: independent Info/Chapters scroll offset; choose source loads expected cached chapters before network when available; catalog-first selects source then reader; one open command per activation; hero same source identity; **whole-page 375dp at 3x text scale hero + notice reflow without RenderFlex overflow, clipping or hidden actions**, including both tabs and preserved state/scroll after switching.
 - [ ] **Step 2 — Verify RED:** Run `fvm flutter test -r expanded test/features/catalog/catalog_detail_page_test.dart`; expect at least one *new* assertion FAILS for the intended missing behavior/API (not an unrelated environment failure).
-- [ ] **Step 3 — Implement:** Decompose by state/lifecycle (not line count). Keep NestedScrollView overlap/TabController ownership stable, route callbacks typed and no builder-initiated side effects.
+- [ ] **Step 3 — Implement:** Decompose by state/lifecycle (not line count). Keep NestedScrollView overlap/TabController ownership stable, route callbacks typed and no builder-initiated side effects. Fix the previously observed Catalog hero/notice 3x whole-page overflow with responsive wrapping/scroll where appropriate; **do not clamp text scale, ignore Flutter exceptions, crop screenshots or hide actions** to pass.
 - [ ] **Step 4 — Verify GREEN:** Run `fvm dart format lib/features/catalog/catalog_detail_page.dart lib/features/catalog/widgets/catalog_detail_content.dart lib/features/catalog/widgets/catalog_detail_sections.dart lib/features/catalog/widgets/catalog_detail_hero.dart test/features/catalog/catalog_detail_page_test.dart`, `fvm flutter test -r expanded test/features/catalog/catalog_detail_page_test.dart`, then `fvm flutter analyze --no-pub`. Expect no errors; preserve existing callers until their migration task owns deletion.
-- [ ] **Step 5 — Self-review checkpoint:** Check test suite for 50k chapters/order reversal and stale async outcomes; minimize accidental scroll behavior changes. Record changed paths, the red/green evidence, remaining callers, and verified vs unverified platform behaviors. **Do not commit automatically.**
+- [ ] **Step 5 — Self-review checkpoint:** Check test suite for 50k chapters/order reversal and stale async outcomes; minimize accidental scroll behavior changes. Review 375/599/600/840/1440dp at 1x/2x/3x with actual parent scaling; inspect hero/notice/action availability and both tab positions. Do not reuse Phase 02 unscaled-caller picker stress fixture as proof of full-page scaling. Record changed paths, the red/green evidence, remaining callers, and verified vs unverified platform behaviors. **Do not commit automatically.**
 
 ### Task 06: Migrate source-native manga and novel details
 

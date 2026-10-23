@@ -3,7 +3,9 @@
 Date: 2026-10-23. Branch `feat/ui-foundation-rebuild`;
 HEAD `8c07d34e88eeae586ab7d74cfe2cffe20701136d`, uncommitted workspace.
 Scope: Tasks 01–07 of [Phase 01 plan](../superpowers/plans/2026-10-22-hikari-ui-01-foundation-controls.md).
-**G1 BLOCKED / INCOMPLETE. Phase 02 NOT STARTED.**
+**G1 OWNER-ACCEPTED (2026-10-23) for continuation; original execution gate was BLOCKED / INCOMPLETE.**
+See [dated owner decision](UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md);
+original testing/evidence below remains an unchanged historical record.
 
 ## Authority and execution
 
@@ -137,3 +139,12 @@ responsive/accessibility/API requirements. Self-review is not independent review
    Phase 02 is authorized. Keep explicit Navigator/result/cancellation contracts.
 4. Do not remove later legacy patterns/modal sites opportunistically; use their
    matrix task owners. Stop here at G1.
+
+## Owner acceptance addendum — 2026-10-23
+
+The project owner reports satisfactory manual/runtime checks and **accepts G1
+for continuation**. The earlier `G1 BLOCKED / INCOMPLETE` line in the execution
+record above describes the 2026-10-22/23 autonomous handoff **before** this
+owner decision; it is not the current authorization state. No original
+`NOT RUN`, `NOT MEASURED` or missing pre-migration baseline is retroactively
+changed to technical PASS. Details and residual ownership: [owner acceptance](UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md).

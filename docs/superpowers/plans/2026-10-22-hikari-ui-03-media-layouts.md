@@ -12,6 +12,13 @@
 
 **Prerequisites:** 01 token/control foundations and 02 page shell/presenter available; 00 baseline fixtures recorded.
 
+**Current authorization (2026-10-23):** G0–G2 are owner-accepted for
+continuation; Phase 03 may start after the new Escape/MenuAnchor focused
+regression is executed and any reproduced blocker fixed. See
+[dated owner decision](../../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md).
+This does not convert historical missing profile/TalkBack evidence to PASS.
+G3 remains an independent gate; stop there for owner review.
+
 ## Global Constraints
 
 - Deliberate UI rebuild: target architecture takes priority over superseded historical UI decisions, but must preserve domain, persistence, plugin trust, native consent, cache/source identity and reader progress.

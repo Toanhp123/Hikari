@@ -106,6 +106,37 @@ void main() {
     );
   });
 
+  test(
+    'engine visuals allowed only in Flutter core UI, never OS libraries',
+    () {
+      for (final path in [
+        'core/ui/navigation/shell.dart',
+        'core/util.dart',
+        'domain/model.dart',
+        'app/theme/theme.dart',
+      ]) {
+        final layer = path.split('/').first;
+        expect(
+          _checkDependency(
+            sourcePath: path,
+            sourceLayer: layer,
+            kind: 'import',
+            uri: 'dart:ui',
+          ),
+          path.startsWith('core/ui/') ? isNull : isNotNull,
+        );
+        expect(
+          _checkDependency(
+            sourcePath: path,
+            sourceLayer: layer,
+            kind: 'import',
+            uri: 'dart:io',
+          ),
+          isNotNull,
+        );
+      }
+    },
+  );
   test('theme composition accepts foundation through existing guard', () {
     expect(
       _checkDependency(
@@ -800,7 +831,9 @@ String? _checkDependency({
         return '$sourcePath cannot depend on external package: $kind $uri';
       }
     }
-    if (_platformLibraries.contains(uri)) {
+    // ADR-026: shared Flutter chrome may use engine visual primitives only.
+    final engineVisuals = isCoreUi && uri == 'dart:ui';
+    if (_platformLibraries.contains(uri) && !engineVisuals) {
       return '$sourcePath must stay platform-independent: $kind $uri';
     }
   }

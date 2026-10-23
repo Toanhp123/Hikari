@@ -1,8 +1,11 @@
 # UI component ownership
 
-Status: **Phase 01 implementation present; G1 BLOCKED / INCOMPLETE.**
-Controls below are Preview; no Stable promotion. Current task/gate evidence:
-[Phase 01 execution](../roadmap/UI_FOUNDATION_PHASE_01.md).
+Status: **Phase 01–02 Preview implementation; G1/G2 OWNER-ACCEPTED (2026-10-23) for continuation.**
+Original incomplete hardware evidence is retained in the execution reports;
+see [owner decision](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md). Controls, surfaces, navigation and page composition remain Preview;
+no Stable promotion. Evidence: [Phase 01](../roadmap/UI_FOUNDATION_PHASE_01.md) and
+[Phase 02](../roadmap/UI_FOUNDATION_PHASE_02.md). Interaction/lifecycle contracts:
+[patterns](PATTERNS.md).
 
 Task 03 (2026-10-22): canonical button, icon action, filter chip and chip row
 live in `lib/core/ui/controls`. Native Material owns activation and interaction
@@ -58,7 +61,7 @@ Current callers and staged migration: [matrix](MIGRATION_MATRIX.md).
 | Controls / choice / status / HikariListRow | core/ui controls/content | labels, controlled values, validation, domain mapping | 01/03–05 |
 | HikariDialog | independent core/ui/surfaces/dialog family | content, authorization, VM and identity | 02/02 |
 | HikariBottomSheet | independent core/ui/surfaces/bottom_sheet family | content, validation, workflow state | 02/03 |
-| HikariAdaptivePresenter | purpose/constraints policy; dialog or bottomSheet only | useRootNavigator, typed outcome, stale permission check | 02/01, 02/04 |
+| showHikariAdaptive | purpose/constraints policy; dialog or bottomSheet only | useRootNavigator, typed outcome, stale permission check | 02/01, 02/04 |
 | HikariDrawer / shell / header | core/ui/navigation/layout mechanics | app destinations/routing/selected tab | 02/06–07 |
 | Source Picker | shared host + feature workflow body | language Back, source identity, manual search, persisted confirmed choice | 02/08–09 |
 | Artwork / poster / grid / shelf | core/ui media/layout | source-owned artwork identity and loading boundary | 03/01–05 |

@@ -7,6 +7,15 @@ import 'package:hikari/core/ui/hikari_ui.dart';
 import '../../../tool/ui_gallery/main.dart';
 
 void main() {
+  test('Phase 02 Preview API exposes mechanics without internal session', () {
+    const HikariPresentationResult<String?> result = HikariCompleted(null);
+    expect(result, isNot(isA<HikariCancelled<String?>>()));
+    expect(resolveNavigationMode(375, 6), HikariNavigationMode.drawer);
+    const header = HikariPageHeader(title: 'Preview');
+    expect(header.title, 'Preview');
+    final barrel = File('lib/core/ui/hikari_ui.dart').readAsStringSync();
+    expect(barrel, isNot(contains('hikari_presentation_session.dart')));
+  });
   testWidgets('gallery renders public API and switches OLED and loading', (
     tester,
   ) async {

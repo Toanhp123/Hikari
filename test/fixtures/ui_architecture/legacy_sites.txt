@@ -4,8 +4,6 @@ lib/core/ui/patterns/chapter_row.dart:00000272:legacy-import:package:hikari/doma
 lib/core/ui/patterns/media_metadata_view.dart:00000202:legacy-import:package:hikari/domain/media/media.dart
 lib/core/ui/patterns/media_metadata_view.dart:00000251:legacy-import:package:hikari/domain/media/metadata.dart
 lib/core/ui/patterns/media_type_presentation.dart:00000115:legacy-import:package:hikari/domain/media/media.dart
-lib/features/catalog/catalog_detail_page.dart:00022022:modal-entrypoint:showHikariModalSheet
-lib/features/catalog/catalog_detail_page.dart:00023452:modal-entrypoint:showDialog
 lib/features/library/widgets/library_removal_confirmation.dart:00000296:modal-entrypoint:showHikariConfirmation
 lib/features/novel_reader/novel_reader_page.dart:00011467:modal-entrypoint:showHikariModalSheet
 lib/features/novel_reader/publication_reader_page.dart:00008386:modal-entrypoint:showHikariModalSheet

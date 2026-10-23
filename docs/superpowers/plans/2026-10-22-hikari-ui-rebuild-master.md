@@ -14,12 +14,17 @@ Live Phase 00: [baseline runs, owner handoff and deferred evidence](../../ui/BAS
 [migration matrix](../../ui/MIGRATION_MATRIX.md),
 [accepted ADR-026](../../decisions/ADR-026-ui-foundation-rebuild.md),
 [reviewed handoff](../handoff/README_GRAVITY.md).
-Owner accepted the G0 handoff on 2026-10-22 with an explicit **physical-evidence
-deferral**; Phase 01 Task 01 is authorized. This is **not** a technical G0 PASS
-or an assertion that unrun platform checks succeeded.
+Original G0 handoff (2026-10-22) deferred physical evidence. Subsequent G1/G2
+execution reports documented missing hardware evidence truthfully.
 
-Phase 01 implementation/evidence: [execution record](../../roadmap/UI_FOUNDATION_PHASE_01.md).
-G1 remains **BLOCKED / INCOMPLETE**; Phase 02 has not started.
+**Current decision (2026-10-23): G0, G1 and G2 are OWNER-ACCEPTED for
+continuation; Phase 03 Task 01 is authorized** after running the new focused
+Escape/MenuAnchor regression. See [dated approval and exceptions](../../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md),
+[Phase 01 execution](../../roadmap/UI_FOUNDATION_PHASE_01.md) and
+[Phase 02 execution](../../roadmap/UI_FOUNDATION_PHASE_02.md).
+This is **not** retrospective technical PASS for original `NOT RUN` or
+`NOT MEASURED` rows. Catalog Detail 3x hero/notice has an explicit Phase 04
+Task 05 remediation; G3–G7 acceptance remains independent.
 
 ## Global Constraints
 

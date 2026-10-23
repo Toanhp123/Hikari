@@ -6,6 +6,9 @@ import 'package:hikari/core/ui/foundation/hikari_size.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/controls/hikari_choice_menu.dart';
 import 'package:hikari/domain/media/media.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_controller.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_models.dart';
+import 'package:hikari/features/catalog/presentation/catalog_source_selection.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_candidate_list.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker_list_surface.dart';
@@ -14,15 +17,12 @@ class CatalogSourcePicker extends StatefulWidget {
   const CatalogSourcePicker({
     super.key,
     required this.viewModel,
-    required this.onOpenMedia,
-    required this.onManualSearch,
+    required this.controller,
     this.readArtwork,
   });
 
   final CatalogSourcePickerViewModel viewModel;
-  final ValueChanged<CatalogSourcePickerCandidate> onOpenMedia;
-  final void Function(CatalogSourcePickerSource?, Set<SourceId>?)
-  onManualSearch;
+  final HikariPresentationController<CatalogSourceSelection> controller;
   final Future<Uint8List?> Function(SourceMediaRef artwork)? readArtwork;
 
   @override
@@ -30,28 +30,73 @@ class CatalogSourcePicker extends StatefulWidget {
 }
 
 class _CatalogSourcePickerState extends State<CatalogSourcePicker> {
-  bool _completed = false;
-
   CatalogSourcePickerViewModel get viewModel => widget.viewModel;
 
+  @override
+  void initState() {
+    super.initState();
+    viewModel.addListener(_updateDismissal);
+    _updateDismissal();
+  }
+
+  @override
+  void didUpdateWidget(CatalogSourcePicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != viewModel) {
+      oldWidget.viewModel.removeListener(_updateDismissal);
+      viewModel.addListener(_updateDismissal);
+    }
+    _updateDismissal();
+  }
+
+  void _updateDismissal() {
+    widget.controller.setDismissalPolicy(
+      canDismiss:
+          viewModel.state.status != CatalogSourcePickerStatus.choosingLanguage,
+      guard: _canDismiss,
+    );
+  }
+
+  bool _canDismiss(HikariDismissReason reason) {
+    if (viewModel.state.status != CatalogSourcePickerStatus.choosingLanguage) {
+      return true;
+    }
+    if (reason == HikariDismissReason.back) {
+      viewModel.handleSystemBack();
+      return false;
+    }
+    return reason == HikariDismissReason.closeButton;
+  }
+
+  @override
+  void dispose() {
+    viewModel.removeListener(_updateDismissal);
+    super.dispose();
+  }
+
   void _openMedia(CatalogSourcePickerCandidate candidate) {
-    if (!mounted || _completed) return;
-    _completed = true;
-    widget.onOpenMedia(candidate);
+    if (!mounted) return;
+    widget.controller.complete(CatalogCandidateSelection(candidate));
   }
 
   void _manualSearch(CatalogSourcePickerSource? source, Set<SourceId>? ids) {
-    if (!mounted || _completed) return;
-    _completed = true;
-    viewModel.chooseAnotherSource();
-    widget.onManualSearch(source, ids);
+    if (!mounted) return;
+    final accepted = widget.controller.complete(
+      CatalogManualSearchSelection(
+        source: source,
+        sourceIds: ids,
+        language: source == null
+            ? viewModel.state.selectedLanguage
+            : source.languageCode,
+      ),
+    );
+    if (accepted) viewModel.chooseAnotherSource();
   }
 
   void _close() {
-    if (_completed) return;
-    _completed = true;
-    viewModel.chooseAnotherSource();
-    Navigator.of(context).pop();
+    if (widget.controller.cancel(HikariDismissReason.closeButton)) {
+      viewModel.chooseAnotherSource();
+    }
   }
 
   @override
@@ -60,58 +105,39 @@ class _CatalogSourcePickerState extends State<CatalogSourcePicker> {
       listenable: viewModel,
       builder: (context, _) {
         final state = viewModel.state;
-        return ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540, maxHeight: 640),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final content = Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  HikariSpacing.lg,
-                  HikariSpacing.sm,
-                  HikariSpacing.lg,
-                  HikariSpacing.lg,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _Header(onClose: _close),
-                    const SizedBox(height: HikariSpacing.sm),
-                    Flexible(
-                      child: PopScope<Object?>(
-                        canPop:
-                            state.status !=
-                            CatalogSourcePickerStatus.choosingLanguage,
-                        onPopInvokedWithResult: (didPop, _) {
-                          if (didPop) {
-                            _completed = true;
-                            viewModel.chooseAnotherSource();
-                          } else {
-                            viewModel.handleSystemBack();
-                          }
-                        },
-                        child: _buildBody(context, state),
-                      ),
-                    ),
-                  ],
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final content = Padding(
+              padding: const EdgeInsets.fromLTRB(
+                HikariSpacing.lg,
+                HikariSpacing.sm,
+                HikariSpacing.lg,
+                HikariSpacing.lg,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Header(onClose: _close),
+                  const SizedBox(height: HikariSpacing.sm),
+                  Flexible(child: _buildBody(context, state)),
+                ],
+              ),
+            );
+            final headerHeight =
+                MediaQuery.textScalerOf(context).scale(28) +
+                HikariSpacing.sm * 2 +
+                HikariSpacing.lg;
+            if (constraints.maxHeight < headerHeight + HikariSize.touchTarget) {
+              return SingleChildScrollView(
+                child: SizedBox(
+                  height: headerHeight + HikariSize.touchTarget * 2,
+                  child: content,
                 ),
               );
-              final headerHeight =
-                  MediaQuery.textScalerOf(context).scale(28) +
-                  HikariSpacing.sm * 2 +
-                  HikariSpacing.lg;
-              if (constraints.maxHeight <
-                  headerHeight + HikariSize.touchTarget) {
-                return SingleChildScrollView(
-                  child: SizedBox(
-                    height: headerHeight + HikariSize.touchTarget * 2,
-                    child: content,
-                  ),
-                );
-              }
-              return content;
-            },
-          ),
+            }
+            return content;
+          },
         );
       },
     );

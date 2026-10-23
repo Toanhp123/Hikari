@@ -71,6 +71,14 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
         expect(first.detailLoads, 1);
+        // Presenter resolves after route teardown; chapter spinner stays active.
+        for (
+          var frame = 0;
+          frame < 20 && find.text('Change source').evaluate().isEmpty;
+          frame++
+        ) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
         await tester.tap(find.text('Change source'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));

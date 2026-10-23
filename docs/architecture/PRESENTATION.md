@@ -1,6 +1,9 @@
 # Presentation architecture
 
-Status: **Phase 01 foundation/controls present; modal/navigation migration pending**.
+Status: **Phase 01–02 Preview foundation, controls, surfaces and navigation present;
+G1/G2 OWNER-ACCEPTED (2026-10-23) for continuation, not exhaustive technical PASS**.
+See [owner decision](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md). Catalog picker is the modal pilot;
+other feature migrations remain staged. See [presentation patterns](../ui/PATTERNS.md).
 Core/features consume `core/ui/foundation` or canonical UI families, never app/theme.
 Catalog/Source route owners retain 300ms edit debounce and explicit submission;
 canonical search field owns no request policy. Standalone developer gallery stays
@@ -134,8 +137,11 @@ the existing normalized content/resource cache workflows, fetch registered resou
 cancel stale queued work on chapter handoff or route close. Low-level reader pages remain single-chapter
 readers and reserve progress saves before chapter handoff. Catalog Detail keeps manga/light-novel
 source choice in context through `CatalogSourcePickerViewModel`: a selected source is resolved
-against the catalog title/aliases and an exact unique match opens the existing series route
-directly. `SourceSearchPage` remains the unified discovery/recovery route for explicit
+against the catalog title/aliases; an exact unique match returns typed selection to Catalog's
+coordinator, which validates source/metadata/generation before saving and loading chapters.
+Selection does not autoplay Reader. One adaptive root-owned route hosts the same picker
+content across widths; feature retains language, recovery and cancellation policy.
+`SourceSearchPage` remains the unified discovery/recovery route for explicit
 search-all and source-scoped manual correction; the obsolete source-specific remote
 manga/novel search pages and their duplicate presentation state remain retired. Pagination
 remains a source/application capability and should be added to unified source search only when

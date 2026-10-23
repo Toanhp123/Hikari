@@ -174,6 +174,8 @@ builds do not prove any of them.
   the **actual Phase 01 checkout**; the reported 1,075 tests are historical,
   not a substitute for verifying the approval/hardening edits.
 
-**Gate state:** `G0 OWNER-ACCEPTED / PHYSICAL EVIDENCE DEFERRED`.
+**Gate state at original handoff:** `G0 OWNER-ACCEPTED / PHYSICAL EVIDENCE DEFERRED`.
+**Current owner decision (2026-10-23):** G0 accepted for continuation alongside
+G1/G2; see [owner decision](../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md).
 **Next allowed work:** Phase 01 Task 01 under the master plan, **not** blanket
 approval for subsequent phases. All unmeasured values remain unmeasured.

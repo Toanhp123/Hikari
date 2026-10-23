@@ -6,9 +6,11 @@ Live Phase 00 evidence: [baseline runs](../../ui/BASELINE_RUNS.md),
 [migration matrix](../../ui/MIGRATION_MATRIX.md),
 [accepted ADR-026](../../decisions/ADR-026-ui-foundation-rebuild.md).
 The historical package status above is not the current execution result.
-On 2026-10-22 the owner authorized Phase 01 with the G0 physical-evidence
-exception documented in [baseline runs](../../ui/BASELINE_RUNS.md).
-Do not report unrun checks as passed; G0 is owner-accepted, **not** a technical PASS.
+On 2026-10-23 the owner **accepted G0–G2 for continuation** and authorized
+Phase 03 with a focused Escape/MenuAnchor preflight. The original G0 physical
+evidence exception and execution-time incomplete G1/G2 checks are preserved in
+[dated acceptance](../../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md).
+Do not convert historical missing evidence into technical PASS.
 
 ## Package placement
 
@@ -20,7 +22,8 @@ The archive has one top-level wrapper folder. Its inner `docs/` paths are **repo
 2. `docs/superpowers/specs/2026-10-22-hikari-ui-foundation-rebuild-design.md` — target architecture, design principles, UI contracts (v4.2).
 3. `docs/superpowers/plans/BASELINE_ROUTE_INVENTORY.md` — **snapshot** list of 19 page files and known Source Picker paths; MUST rescan live checkout.
 4. `docs/superpowers/plans/2026-10-22-hikari-ui-00-baseline-and-adr.md` — Phase 00 execution record; owner-authorized Phase 01 is the next active plan.
-5. One next phase plan at a time, in ID order 01…07, after its prior gate is verified.
+5. Active next plan: `docs/superpowers/plans/2026-10-22-hikari-ui-03-media-layouts.md`.
+   Keep G0–G2 owner acceptance distinct from technical evidence and close G3 separately.
 6. `AUDIT_REPORT.md` — confirmed repairs, residual limits and review rationale.
 
 ## Authority and conflict rules
@@ -43,11 +46,18 @@ The archive has one top-level wrapper folder. Its inner `docs/` paths are **repo
 
 ## Gates and acceptance
 
-- G0–G7 remain **technical acceptance gates**. The owner-authorized G0 handoff allows Phase 01 to begin with physical checks deferred, but does **not** declare G0 technical PASS or waive G1–G7. Keep missing devices/tools `BLOCKED` or `NOT RUN`.
+- G0–G7 remain **technical acceptance gates**. G0–G2 have **owner acceptance for continuation**, not retrospective independent
+  technical PASS for undocumented hardware checks. Phase 03 is now authorized;
+  G3–G7 remain separate gates. Keep absent logs/traces `NOT RUN`/`NOT MEASURED`
+  in their dated execution records.
 - Android Redmi Note 9S native workflows, Android TalkBack/installer, Windows keyboard/resize and matched real-device performance require device-level evidence. Widget tests cannot prove them.
 - Do not auto-approve a new UI ADR on behalf of the product owner. Prepare it, show the changed decision clauses, obtain approval, then build against it.
 - If the full scope cannot be completed, preserve compilability, report the exact incomplete migration, and do not declare G7.
 
 ## First instruction to Gravity
 
-> Review this handoff and Phase 00 against the *current* Hikari checkout. Output a discrepancy report if filenames/dependencies/architecture differ from the 2026-10-21 ZIP. Then execute Phase 00 tasks sequentially after the user authorizes the phase, with focused test evidence and self-review after each task. Stop on blockers or cross-phase API changes; ask for gate acceptance before starting Phase 01. Never create commits/worktrees automatically.
+> Review this handoff against the *current* Hikari checkout and the Phase 01/02 execution reports.
+> After validating the new Escape/MenuAnchor regression, execute **Phase 03
+> Tasks 01–08** only when asked by the owner; follow the Media/Layout plan,
+> preserve domain/cache/source identity, and stop at G3. Never create agents,
+> commits or worktrees automatically.

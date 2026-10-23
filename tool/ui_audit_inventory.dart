@@ -299,6 +299,21 @@ const _sharedPrimaryTask = <String, String>{
   'lib/core/ui/components/hikari_confirmation_dialog.dart': '02/05',
   'lib/core/ui/components/hikari_modal_sheet.dart': '02/03',
   'lib/core/ui/components/hikari_scaffold.dart': '02/07',
+  'lib/core/ui/layout/hikari_page_scaffold.dart': '02/07',
+  'lib/core/ui/layout/hikari_page_header.dart': '02/07',
+  'lib/core/ui/layout/hikari_content_region.dart': '02/07',
+  'lib/core/ui/navigation/hikari_navigation_destination.dart': '02/06',
+  'lib/core/ui/navigation/hikari_navigation_policy.dart': '02/06',
+  'lib/core/ui/navigation/hikari_navigation_shell.dart': '02/06',
+  'lib/core/ui/surfaces/drawer/hikari_drawer.dart': '02/06',
+  'lib/core/ui/surfaces/dialog/hikari_dialog.dart': '02/02',
+  'lib/core/ui/surfaces/dialog/hikari_confirmation_dialog.dart': '02/05',
+  'lib/core/ui/surfaces/bottom_sheet/hikari_bottom_sheet.dart': '02/03',
+  'lib/core/ui/surfaces/adaptive/hikari_presentation_models.dart': '02/01',
+  'lib/core/ui/surfaces/adaptive/hikari_presentation_policy.dart': '02/01',
+  'lib/core/ui/surfaces/adaptive/hikari_presentation_controller.dart': '02/01',
+  'lib/core/ui/surfaces/adaptive/show_hikari_adaptive.dart': '02/04',
+  'lib/core/ui/surfaces/adaptive/hikari_presentation_session.dart': '02/04',
   'lib/core/ui/feedback/hikari_async_state_view.dart': '01/05',
   'lib/core/ui/feedback/hikari_notice_banner.dart': '01/05',
   'lib/core/ui/content/hikari_section_header.dart': '01/05',
@@ -332,7 +347,11 @@ bool _isPreviewApi(String path) =>
     (path == 'lib/core/ui/hikari_ui.dart' ||
         path.startsWith('lib/core/ui/controls/') ||
         path.startsWith('lib/core/ui/content/') ||
-        path.startsWith('lib/core/ui/feedback/'));
+        path.startsWith('lib/core/ui/feedback/') ||
+        path.startsWith('lib/core/ui/layout/') ||
+        path.startsWith('lib/core/ui/navigation/') ||
+        (path.startsWith('lib/core/ui/surfaces/') &&
+            !path.endsWith('hikari_presentation_session.dart')));
 
 String _sharedMigrationTasks(String path, String kind, String symbol) {
   for (final entry in _foundationTasks.entries) {
@@ -343,6 +362,9 @@ String _sharedMigrationTasks(String path, String kind, String symbol) {
   final primary = _sharedPrimaryTask[path];
   if (primary == null) return 'manual-audit-required (unmapped shared file)';
   if (_isPreviewApi(path)) return '$primary (canonical Preview API)';
+  if (path.endsWith('/hikari_presentation_session.dart')) {
+    return '$primary (internal route lifecycle)';
+  }
   if (kind == 'legacy-import' || kind == 'legacy-export') {
     if (symbol.contains('/app/theme/')) {
       return '01/07 (token import); $primary (component migration)';
@@ -393,12 +415,13 @@ by this scanner. Never equate page-file count with registered routes.
   and NovelActionsPage. Returning from route refreshes evidence, not install
   success. Android installer/permission/removal and Novel runtime consent remain
   application/native-owned (ADR-025), outside shared UI authorization.
-- AppNavigationShell owns selected destination/controller, lazy visited children
-  in IndexedStack, compact bar <600 and rail >=600. No child Navigator/Drawer
-  constructed in current shell; HikariScaffold exposes unused Drawer slot.
-- CatalogDetailPage chooses dialog/sheet and closes result callbacks; picker
-  additionally pops its own route and owns language-step Back. Both migrate
-  together in 02/08–09. Current helpers lack explicit root-Navigator parameter.
+- AppNavigationShell owns selected destination/controller and lazy IndexedStack;
+  HikariNavigationShell renders compact bar <600, rail >=600 and compact Drawer
+  for >5 destinations. Production keeps five destinations; no child Navigator.
+- CatalogDetailPage calls showHikariAdaptive<CatalogSourceSelection> with explicit
+  root ownership for both families. Picker owns language-step policy, not route
+  pops. Coordinator revalidates source/generation before persistence/navigation.
+  Legacy sheet defaulted nested, dialog root; pilot now uses one explicit owner.
 - MenuAnchor is framework-owned overlay in HikariChoiceMenu; tooltips/snackbars
   are explicit transient exceptions, not presenter result workflows.
 - Reader sheets own outline/settings content. Player/reader canvases and platform
@@ -495,10 +518,13 @@ these are not blanket migration windows.
         feature.isEmpty ? 'shared presentation mechanics' : 'feature $feature',
     };
     final previewApi = _isPreviewApi(path);
+    final internalSession = path.endsWith('/hikari_presentation_session.dart');
     final exception = canonicalGeometry
         ? 'canonical token authority; no legacy exemption'
         : previewApi
         ? 'canonical Preview API; no legacy exemption'
+        : internalSession
+        ? 'internal lifecycle; not public API or legacy exemption'
         : switch (kind) {
             'route-constructor' || 'dynamic-navigation' =>
               'manual-audit-required; resolve builder at migration',
@@ -513,11 +539,15 @@ these are not blanket migration windows.
       '| `${row['id']}` | `$path:${row['line']}` | $kind / `${row['symbol']}` | ${feature.isEmpty ? path : feature} | ${canonicalGeometry ? 'core/ui/foundation' : target} | $assignedTask | ${canonicalGeometry
           ? 'test/theme_architecture_test.dart; test/theme_test.dart'
           : previewApi
-          ? 'test/core/ui/controls/; test/core/ui/feedback/; test/core/ui/hikari_public_api_test.dart'
+          ? 'test/core/ui/; test/architecture_guard_test.dart'
+          : internalSession
+          ? 'test/core/ui/surfaces/'
           : coverage} | ${canonicalGeometry
           ? 'canonical'
           : previewApi
           ? 'preview'
+          : internalSession
+          ? 'internal'
           : row['status']} | $exception |',
     );
   }

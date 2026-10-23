@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/hikari_ui.dart';
 
+import 'picker_preview.dart';
+
 void main() => runApp(const HikariGallery());
 
 /// Standalone developer entrypoint; never imported by production lib sources.
@@ -90,6 +92,19 @@ class _HikariGalleryState extends State<HikariGallery> {
                       selected: _rtl,
                       onSelected: (v) => setState(() => _rtl = v),
                     ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final compact in [true, false])
+                      TextButton(
+                        onPressed: () =>
+                            showPickerPreview(context, compact: compact),
+                        child: Text(
+                          compact ? 'Picker compact' : 'Picker expanded',
+                        ),
+                      ),
                   ],
                 ),
                 HikariChoiceMenu<double>(

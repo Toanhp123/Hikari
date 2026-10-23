@@ -1,5 +1,5 @@
-/// Curated Preview UI API. Legacy patterns and Phase 02 surfaces stay private
-/// to their explicit migration paths; no app, feature or domain exports.
+/// Curated Preview UI API. Legacy patterns and internal route sessions stay
+/// private to explicit migration paths; no app, feature or domain exports.
 library;
 
 export 'content/hikari_list_row.dart' show HikariListRow;
@@ -27,3 +27,33 @@ export 'foundation/hikari_radius.dart' show HikariRadius;
 export 'foundation/hikari_size.dart' show HikariSize;
 export 'foundation/hikari_spacing.dart' show HikariSpacing;
 export 'foundation/hikari_typography.dart' show HikariTypography;
+export 'layout/hikari_content_region.dart' show HikariContentRegion;
+export 'layout/hikari_page_header.dart' show HikariPageHeader;
+export 'layout/hikari_page_scaffold.dart' show HikariPageScaffold;
+export 'navigation/hikari_navigation_destination.dart'
+    show HikariNavigationDestination;
+export 'navigation/hikari_navigation_policy.dart'
+    show HikariNavigationMode, resolveNavigationMode;
+export 'navigation/hikari_navigation_shell.dart' show HikariNavigationShell;
+export 'surfaces/adaptive/hikari_presentation_controller.dart'
+    show HikariPresentationController, HikariContentBuilder;
+export 'surfaces/adaptive/hikari_presentation_models.dart'
+    show
+        HikariPresentationPurpose,
+        HikariPresentationMode,
+        HikariDismissReason,
+        HikariPresentationResult,
+        HikariCompleted,
+        HikariCancelled;
+export 'surfaces/adaptive/hikari_presentation_policy.dart'
+    show
+        HikariPresentationRequest,
+        HikariPresentationPolicy,
+        resolvePresentationMode;
+export 'surfaces/adaptive/show_hikari_adaptive.dart' show showHikariAdaptive;
+export 'surfaces/bottom_sheet/hikari_bottom_sheet.dart'
+    show HikariBottomSheet, showHikariBottomSheet;
+export 'surfaces/dialog/hikari_dialog.dart' show HikariDialog, showHikariDialog;
+export 'surfaces/dialog/hikari_confirmation_dialog.dart'
+    show HikariConfirmationDialog, showHikariConfirmationDialog;
+export 'surfaces/drawer/hikari_drawer.dart' show HikariDrawer;

@@ -135,6 +135,42 @@ void main() {
     expect(markdown, contains('canonical Preview API; no legacy exemption'));
   });
 
+  test(
+    'Phase 02 mechanics have exact Preview owners and current route audit',
+    () {
+      final rows = inventorySources({
+        'lib/core/ui/surfaces/dialog/hikari_dialog.dart':
+            'class HikariDialog {}',
+        'lib/core/ui/surfaces/bottom_sheet/hikari_bottom_sheet.dart':
+            'class HikariBottomSheet {}',
+        'lib/core/ui/surfaces/adaptive/show_hikari_adaptive.dart':
+            'void showHikariAdaptive() {}',
+        'lib/core/ui/navigation/hikari_navigation_shell.dart':
+            'class HikariNavigationShell {}',
+        'lib/core/ui/layout/hikari_page_scaffold.dart':
+            'class HikariPageScaffold {}',
+      });
+      final markdown = renderMigrationMatrix(
+        rows,
+        snapshot: const UiMigrationSnapshot(
+          date: '2026-10-23',
+          branch: 'baseline',
+          head: '0123456789abcdef',
+          targetStatus: 'ACCEPTED',
+        ),
+      );
+      for (final task in ['02/02', '02/03', '02/04', '02/06', '02/07']) {
+        expect(markdown, contains('$task (canonical Preview API)'));
+      }
+      expect(markdown, isNot(contains('unmapped shared file')));
+      expect(markdown, contains('showHikariAdaptive<CatalogSourceSelection>'));
+      expect(
+        markdown,
+        isNot(contains('picker\n  additionally pops its own route')),
+      );
+    },
+  );
+
   test('finds all 19 baseline page files plus added live checkout pages', () {
     final sources = readUiSources(Directory.current);
     final pages = inventorySources(sources)

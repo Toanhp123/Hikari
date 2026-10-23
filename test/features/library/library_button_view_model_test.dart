@@ -96,7 +96,14 @@ void main() {
     expect(find.text('Remove from Library?'), findsOneWidget);
     expect(find.textContaining('Saved manga'), findsOneWidget);
     expect(
-      tester.widget<IconButton>(find.byType(IconButton)).onPressed,
+      tester
+          .widget<IconButton>(
+            find.descendant(
+              of: find.byType(LibraryButton),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed,
       isNull,
     );
     await tester.tap(find.text('Cancel'));

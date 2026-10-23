@@ -31,8 +31,45 @@ import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_candidate_list.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_controller.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_models.dart';
+import 'package:hikari/features/catalog/presentation/catalog_source_selection.dart';
 
 void main() {
+  testWidgets('production picker uses dialog when usable height is short', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(640, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      _app(
+        _detail(
+          initialEntry: _related,
+          loadDetails: LoadCatalogEntryDetails(_Provider()),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    tester
+        .widget<FilledButton>(
+          find.ancestor(
+            of: find.text('Read'),
+            matching: find.byType(FilledButton),
+          ),
+        )
+        .onPressed!();
+    await tester.pumpAndSettle();
+    expect(find.byType(CatalogSourcePicker), findsOneWidget);
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'Catalog source membership adds directly and cancel preserves exact identity',
     (tester) async {
@@ -635,7 +672,7 @@ void main() {
             child: Scaffold(
               body: Align(
                 alignment: Alignment.bottomCenter,
-                child: CatalogSourcePicker(
+                child: _pickerContent(
                   viewModel: model,
                   onOpenMedia: (_) {},
                   onManualSearch: (_, _) {},
@@ -674,7 +711,7 @@ void main() {
         Scaffold(
           body: Align(
             alignment: Alignment.bottomCenter,
-            child: CatalogSourcePicker(
+            child: _pickerContent(
               viewModel: model,
               onOpenMedia: (_) {},
               onManualSearch: (_, _) {},
@@ -736,7 +773,7 @@ void main() {
           Scaffold(
             body: Align(
               alignment: Alignment.bottomCenter,
-              child: CatalogSourcePicker(
+              child: _pickerContent(
                 viewModel: model,
                 onOpenMedia: (_) {},
                 onManualSearch: (_, _) => manualCalls++,
@@ -802,7 +839,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           Scaffold(
-            body: CatalogSourcePicker(
+            body: _pickerContent(
               viewModel: model,
               onOpenMedia: (_) => opened++,
               onManualSearch: (_, _) {},
@@ -856,7 +893,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           Scaffold(
-            body: CatalogSourcePicker(
+            body: _pickerContent(
               viewModel: model,
               onOpenMedia: (_) {},
               onManualSearch: (_, _) {},
@@ -1018,7 +1055,7 @@ void main() {
                       ),
                       child: SafeArea(
                         top: false,
-                        child: CatalogSourcePicker(
+                        child: _pickerContent(
                           viewModel: model,
                           onOpenMedia: (_) {},
                           onManualSearch: (_, _) {},
@@ -1801,6 +1838,8 @@ void main() {
     expect(find.text('English source'), findsOneWidget);
     expect(find.text('French source'), findsNothing);
     await tester.tap(find.text('Search EN sources'));
+    // Follow-up navigation waits until the owned modal has fully left.
+    await tester.pumpAndSettle();
 
     expect(searchedIds, {const SourceId('test:en')});
     expect(searchedLanguage, 'en');
@@ -1947,6 +1986,72 @@ Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
   expect(matches, isNotEmpty, reason: 'Scroll target not found: $finder');
   await tester.ensureVisible(finder.first);
   await tester.pumpAndSettle();
+}
+
+Widget _pickerContent({
+  required CatalogSourcePickerViewModel viewModel,
+  required ValueChanged<CatalogSourcePickerCandidate> onOpenMedia,
+  required void Function(CatalogSourcePickerSource?, Set<SourceId>?)
+  onManualSearch,
+  Future<Uint8List?> Function(SourceMediaRef)? readArtwork,
+}) => _PickerContentHarness(
+  viewModel: viewModel,
+  onOpenMedia: onOpenMedia,
+  onManualSearch: onManualSearch,
+  readArtwork: readArtwork,
+);
+
+class _PickerContentHarness extends StatefulWidget {
+  const _PickerContentHarness({
+    required this.viewModel,
+    required this.onOpenMedia,
+    required this.onManualSearch,
+    this.readArtwork,
+  });
+  final CatalogSourcePickerViewModel viewModel;
+  final ValueChanged<CatalogSourcePickerCandidate> onOpenMedia;
+  final void Function(CatalogSourcePickerSource?, Set<SourceId>?)
+  onManualSearch;
+  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
+  @override
+  State<_PickerContentHarness> createState() => _PickerContentHarnessState();
+}
+
+class _PickerContentHarnessState extends State<_PickerContentHarness> {
+  final controller = HikariPresentationController<CatalogSourceSelection>();
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      controller.result.then((result) {
+        if (!mounted || result is! HikariCompleted<CatalogSourceSelection>) {
+          return;
+        }
+        switch (result.value) {
+          case CatalogCandidateSelection(:final candidate):
+            widget.onOpenMedia(candidate);
+          case CatalogManualSearchSelection(:final source, :final sourceIds):
+            widget.onManualSearch(source, sourceIds);
+        }
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 540, maxHeight: 640),
+    child: CatalogSourcePicker(
+      viewModel: widget.viewModel,
+      controller: controller,
+      readArtwork: widget.readArtwork,
+    ),
+  );
 }
 
 Widget _app(Widget child) =>
