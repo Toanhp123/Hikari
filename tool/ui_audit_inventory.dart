@@ -318,6 +318,16 @@ const _sharedPrimaryTask = <String, String>{
   'lib/core/ui/feedback/hikari_notice_banner.dart': '01/05',
   'lib/core/ui/content/hikari_section_header.dart': '01/05',
   'lib/core/ui/content/hikari_list_row.dart': '01/05',
+  'lib/core/ui/content/hikari_chapter_row.dart': '03/06',
+  'lib/core/ui/layout/hikari_adaptive_grid.dart': '03/04',
+  'lib/core/ui/layout/hikari_horizontal_shelf.dart': '03/05',
+  'lib/core/ui/media/hikari_artwork.dart': '03/01',
+  'lib/core/ui/media/hikari_artwork_decode_policy.dart': '03/01',
+  'lib/core/ui/media/hikari_poster_card.dart': '03/02',
+  'lib/core/ui/media/hikari_landscape_card.dart': '03/02',
+  'lib/core/ui/media/hikari_media_progress.dart': '03/02',
+  'lib/core/ui/media/hikari_media_card_body.dart': '03/02',
+  'lib/core/ui/media/hikari_card_metrics.dart': '03/03',
   'lib/core/ui/patterns/async_state_view.dart': '07/01',
   'lib/core/ui/patterns/hikari_section_header.dart': '01/07',
   'lib/core/ui/patterns/chapter_control_bar.dart': '04/05',
@@ -340,11 +350,17 @@ const _foundationTasks = {
   'breakpoints': '01/01',
   'color_roles': '01/02',
   'typography': '01/02',
+  'aspect_ratios': '03/03',
 };
+
+bool _isInternalMedia(String path) =>
+    path == 'lib/core/ui/media/hikari_media_card_body.dart';
 
 bool _isPreviewApi(String path) =>
     _sharedPrimaryTask.containsKey(path) &&
+    !_isInternalMedia(path) &&
     (path == 'lib/core/ui/hikari_ui.dart' ||
+        path.startsWith('lib/core/ui/media/') ||
         path.startsWith('lib/core/ui/controls/') ||
         path.startsWith('lib/core/ui/content/') ||
         path.startsWith('lib/core/ui/feedback/') ||
@@ -362,6 +378,7 @@ String _sharedMigrationTasks(String path, String kind, String symbol) {
   final primary = _sharedPrimaryTask[path];
   if (primary == null) return 'manual-audit-required (unmapped shared file)';
   if (_isPreviewApi(path)) return '$primary (canonical Preview API)';
+  if (_isInternalMedia(path)) return '$primary (internal media composition)';
   if (path.endsWith('/hikari_presentation_session.dart')) {
     return '$primary (internal route lifecycle)';
   }
@@ -519,10 +536,13 @@ these are not blanket migration windows.
     };
     final previewApi = _isPreviewApi(path);
     final internalSession = path.endsWith('/hikari_presentation_session.dart');
+    final internalMedia = _isInternalMedia(path);
     final exception = canonicalGeometry
         ? 'canonical token authority; no legacy exemption'
         : previewApi
         ? 'canonical Preview API; no legacy exemption'
+        : internalMedia
+        ? 'internal media composition; not public API or legacy exemption'
         : internalSession
         ? 'internal lifecycle; not public API or legacy exemption'
         : switch (kind) {
@@ -540,13 +560,15 @@ these are not blanket migration windows.
           ? 'test/theme_architecture_test.dart; test/theme_test.dart'
           : previewApi
           ? 'test/core/ui/; test/architecture_guard_test.dart'
+          : internalMedia
+          ? 'test/core/ui/media/'
           : internalSession
           ? 'test/core/ui/surfaces/'
           : coverage} | ${canonicalGeometry
           ? 'canonical'
           : previewApi
           ? 'preview'
-          : internalSession
+          : internalSession || internalMedia
           ? 'internal'
           : row['status']} | $exception |',
     );

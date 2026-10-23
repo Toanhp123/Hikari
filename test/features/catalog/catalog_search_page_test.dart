@@ -107,6 +107,10 @@ void main() {
 
     expect(provider.calls, [('Frieren', null)]);
     expect(find.text('All result'), findsOneWidget);
+    final badge = tester.widget<Badge>(find.byType(Badge));
+    final colors = Theme.of(tester.element(find.byType(Badge))).colorScheme;
+    expect(badge.backgroundColor, colors.primaryContainer);
+    expect(badge.textColor, colors.onPrimaryContainer);
 
     await tester.tap(find.text('Manga'));
     await tester.pumpAndSettle();
@@ -201,6 +205,14 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: HikariTheme.darkTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(3)),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          ),
+        ),
         home: CatalogSearchPage(
           searchCatalog: SearchCatalog(_Provider()),
           openDetail: (_, _) {},

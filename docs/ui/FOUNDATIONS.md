@@ -48,7 +48,7 @@ content surfaces, not application light-theme support.
 
 Token relocation belongs to 01/01–02; import migration and temporary-forwarder
 removal belong to 01/07. Completed token migration has no duplicate values or
-permanent facade. Nineteen exact later-phase domain/modal sites remain staged;
+permanent facade. Seventeen exact later-phase domain/modal sites remain staged;
 no theme inversion is exempt, including import/export/part and relative URIs.
 
 See [responsive](RESPONSIVE.md), [components](COMPONENTS.md),

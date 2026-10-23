@@ -5,7 +5,10 @@ import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
 import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
 import 'package:hikari/core/ui/controls/hikari_search_field.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/layout/hikari_adaptive_grid.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
+import 'package:hikari/core/ui/media/hikari_card_metrics.dart';
+import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/features/catalog/catalog_search_view_model.dart';
@@ -136,18 +139,28 @@ class _CatalogSearchResults extends StatelessWidget {
   }
 
   Widget _buildGrid(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(HikariSpacing.lg),
+    return HikariAdaptiveGrid.builder(
       physics: const BouncingScrollPhysics(),
-      gridDelegate: mediaPosterGridDelegate,
+      itemExtentBuilder: (context, width) =>
+          hikariCardExtent(context, width: width, hasSubtitle: true),
+      itemKeyBuilder: (index) =>
+          ValueKey((state.entries[index].id, state.entries[index].type)),
       itemCount: state.entries.length,
       itemBuilder: (context, index) {
         final entry = state.entries[index];
-        return MediaPoster(
+        return HikariPosterCard(
           title: entry.title,
-          imageUrl: entry.coverUrl,
+          artwork: HikariArtwork(
+            image: entry.coverUrl == null
+                ? null
+                : NetworkImage(entry.coverUrl!),
+          ),
           subtitle: mediaTypeLabel(entry.type),
-          badgeText: mediaTypeBadgeLabel(entry.type),
+          badge: Badge(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            textColor: Theme.of(context).colorScheme.onPrimaryContainer,
+            label: Text(mediaTypeBadgeLabel(entry.type)),
+          ),
           onTap: () => openDetail(context, entry),
         );
       },

@@ -48,6 +48,7 @@ void main() {
     () {
       for (final fixture in [
         ('core_imports_domain.dart.txt', 'lib/core/ui/content/row.dart'),
+        ('core_imports_domain.dart.txt', 'lib/core/ui/media/card.dart'),
         (
           'feature_show_dialog.dart.txt',
           'lib/features/new_feature/new_page.dart',

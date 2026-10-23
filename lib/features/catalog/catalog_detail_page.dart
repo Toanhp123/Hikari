@@ -15,7 +15,8 @@ import 'package:hikari/features/catalog/presentation/catalog_source_selection.da
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
 import 'package:hikari/core/ui/components/hikari_scaffold.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
-import 'package:hikari/core/ui/patterns/chapter_row.dart';
+import 'package:hikari/core/ui/content/hikari_chapter_row.dart';
+import 'package:hikari/features/catalog/presentation/catalog_chapter_row_data.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/catalog/catalog_source_selection.dart';
@@ -580,26 +581,34 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
       ),
       SliverList.builder(
         itemCount: chapters.length,
-        itemBuilder: (context, index) => Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: HikariBreakpoints.maxContentWidth,
-            ),
-            child: ChapterRow(
-              isContinuation:
-                  owner?.isContinuation == true &&
-                  switch (chapters[index]) {
-                    MangaChapter c => c.source == owner?.primary,
-                    NovelChapter c => c.source == owner?.primary,
-                    _ => false,
-                  },
-              chapter: chapters[index],
+        itemBuilder: (context, index) {
+          final chapter = chapters[index];
+          final data = switch (chapter) {
+            MangaChapter c => CatalogChapterRowData.manga(
+              c,
               sourceName: owner?.sourceName ?? '',
-              enabled: owner?.opening != true,
-              onTap: () => unawaited(_openChapter(chapters[index])),
             ),
-          ),
-        ),
+            NovelChapter c => CatalogChapterRowData.novel(c),
+            _ => throw ArgumentError('Not a chapter.'),
+          };
+          return Center(
+            key: ValueKey(data.source),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: HikariBreakpoints.maxContentWidth,
+              ),
+              child: HikariChapterRow(
+                isContinuation:
+                    owner?.isContinuation == true &&
+                    data.source == owner?.primary,
+                title: data.title,
+                subtitle: data.subtitle,
+                enabled: owner?.opening != true && data.readable,
+                onTap: () => unawaited(_openChapter(chapter)),
+              ),
+            ),
+          );
+        },
       ),
       const SliverToBoxAdapter(child: SizedBox(height: HikariSpacing.xxxl)),
     ];

@@ -17,7 +17,13 @@ continuation; Phase 03 may start after the new Escape/MenuAnchor focused
 regression is executed and any reproduced blocker fixed. See
 [dated owner decision](../../roadmap/UI_FOUNDATION_OWNER_ACCEPTANCE_2026-10-23.md).
 This does not convert historical missing profile/TalkBack evidence to PASS.
-G3 remains an independent gate; stop there for owner review.
+**Handoff update (2026-10-23): Phase 03 implementation COMPLETE; G3
+OWNER-ACCEPTED for continuation**, following the reported satisfactory owner
+checks. See [G3 decision](../../roadmap/UI_FOUNDATION_G3_OWNER_ACCEPTANCE_2026-10-23.md)
+and [execution evidence](../../roadmap/UI_FOUNDATION_PHASE_03.md). The original
+incomplete physical/profile observations remain recorded, not changed to PASS.
+A narrowly scoped grid zero-usable-width regression is added at handoff;
+verify it before Phase 04 Task 01. G4 approval is independent.
 
 ## Global Constraints
 

@@ -10,6 +10,7 @@ import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/progress/progress.dart';
@@ -1136,7 +1137,7 @@ void main() {
           if (native) {
             await tester.tap(find.text('Library').last);
             await tester.pumpAndSettle();
-            await tester.tap(find.byType(MediaPoster).first);
+            await tester.tap(find.byType(HikariPosterCard).first);
             await tester.pumpAndSettle();
             expect(find.byType(NovelSeriesPage), findsOneWidget);
             expect(find.byType(CatalogDetailPage), findsNothing);

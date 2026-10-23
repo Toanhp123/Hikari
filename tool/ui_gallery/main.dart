@@ -3,6 +3,7 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/hikari_ui.dart';
 
 import 'picker_preview.dart';
+import 'media_preview.dart';
 
 void main() => runApp(const HikariGallery());
 
@@ -284,6 +285,7 @@ class _HikariGalleryState extends State<HikariGallery> {
                     ),
                   ),
                 ),
+                MediaPreview(width: _width, stress: _stress, enabled: _enabled),
               ],
             ),
           ),

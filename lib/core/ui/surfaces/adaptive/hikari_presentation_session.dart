@@ -70,7 +70,11 @@ class _HikariPresentationSessionState<T>
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             widget.controller.cancel(HikariDismissReason.back),
       },
-      child: FocusTraversalGroup(child: _content),
+      // Keep Escape in this subtree when a focused feature step is removed.
+      child: FocusScope(
+        autofocus: true,
+        child: FocusTraversalGroup(child: _content),
+      ),
     ),
   );
 }

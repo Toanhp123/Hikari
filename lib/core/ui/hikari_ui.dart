@@ -2,6 +2,16 @@
 /// private to explicit migration paths; no app, feature or domain exports.
 library;
 
+export 'content/hikari_chapter_row.dart' show HikariChapterRow;
+export 'foundation/hikari_aspect_ratios.dart' show HikariAspectRatios;
+export 'layout/hikari_adaptive_grid.dart' show HikariAdaptiveGrid;
+export 'layout/hikari_horizontal_shelf.dart' show HikariHorizontalShelf;
+export 'media/hikari_artwork.dart' show HikariArtwork;
+export 'media/hikari_artwork_decode_policy.dart' show decodeTargetSize;
+export 'media/hikari_card_metrics.dart' show hikariCardExtent;
+export 'media/hikari_poster_card.dart' show HikariPosterCard;
+export 'media/hikari_landscape_card.dart' show HikariLandscapeCard;
+export 'media/hikari_media_progress.dart' show HikariMediaProgress;
 export 'content/hikari_list_row.dart' show HikariListRow;
 export 'content/hikari_section_header.dart' show HikariSectionHeader;
 export 'controls/hikari_button.dart'

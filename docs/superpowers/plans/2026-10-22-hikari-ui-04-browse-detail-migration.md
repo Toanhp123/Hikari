@@ -10,7 +10,18 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-22-hikari-ui-foundation-rebuild-design.md` (normative); orchestration: `docs/superpowers/plans/2026-10-22-hikari-ui-rebuild-master.md`.
 
-**Prerequisites:** Plans 01–03 complete including Picker and Library/Search pilots.
+**Prerequisites:** Plans 01–03 implemented including Picker and Library/Search
+pilots; G0–G3 OWNER-ACCEPTED for continuation. The [G3 decision](../../roadmap/UI_FOUNDATION_G3_OWNER_ACCEPTANCE_2026-10-23.md)
+authorizes **Phase 04 Task 01**, provided the focused zero-usable-width grid
+tests are GREEN in the execution checkout. Technical profile/assistive evidence
+remains tracked; no retroactive PASS. Do not begin Phase 05 without G4 review.
+
+**New media layout handoff checks:** Preserve bounded width/height constraints
+for `HikariArtwork` when migrating Home/Local/Source Search/Detail; an invalid
+image decode hint is not a valid unbounded layout. Keep stable collection keys.
+Phase 03's O(n) key enumeration per usable-width rebuild is a known cost to
+measure at 07/07 on Redmi Note 9S, not grounds for speculative cache changes
+in Wave A/B.
 
 ## Global Constraints
 

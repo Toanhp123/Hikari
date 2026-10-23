@@ -23,8 +23,12 @@ Escape/MenuAnchor regression. See [dated approval and exceptions](../../roadmap/
 [Phase 01 execution](../../roadmap/UI_FOUNDATION_PHASE_01.md) and
 [Phase 02 execution](../../roadmap/UI_FOUNDATION_PHASE_02.md).
 This is **not** retrospective technical PASS for original `NOT RUN` or
-`NOT MEASURED` rows. Catalog Detail 3x hero/notice has an explicit Phase 04
-Task 05 remediation; G3–G7 acceptance remains independent.
+`NOT MEASURED` rows. **Subsequent decision (2026-10-23): Phase 03 COMPLETE;
+G3 OWNER-ACCEPTED; Phase 04 Task 01 is authorized**, after its scoped grid
+regression verifies GREEN. See [G3 owner decision](../../roadmap/UI_FOUNDATION_G3_OWNER_ACCEPTANCE_2026-10-23.md)
+and [Phase 03 report](../../roadmap/UI_FOUNDATION_PHASE_03.md).
+Preview APIs remain Preview and G4–G7 need independent approval. Catalog Detail
+3x hero/notice remains assigned to Phase 04 Task 05, not accepted as correct.
 
 ## Global Constraints
 

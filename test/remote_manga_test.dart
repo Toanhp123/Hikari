@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -1276,7 +1276,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(MediaPoster, 'Series'));
+    await tester.tap(find.widgetWithText(HikariPosterCard, 'Series'));
     await tester.pumpAndSettle();
     expect(find.byType(MangaSeriesPage), findsOneWidget);
     expect(find.text('Chapter'), findsOneWidget);

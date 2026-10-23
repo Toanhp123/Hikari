@@ -171,6 +171,48 @@ void main() {
     },
   );
 
+  test('Phase 03 media public and internal owners carry no legacy debt', () {
+    final rows = inventorySources({
+      'lib/core/ui/media/hikari_artwork.dart': 'class HikariArtwork {}',
+      'lib/core/ui/media/hikari_artwork_decode_policy.dart':
+          'void decodeTargetSize() {}',
+      'lib/core/ui/media/hikari_poster_card.dart': 'class HikariPosterCard {}',
+      'lib/core/ui/media/hikari_landscape_card.dart':
+          'class HikariLandscapeCard {}',
+      'lib/core/ui/media/hikari_media_progress.dart':
+          'class HikariMediaProgress {}',
+      'lib/core/ui/media/hikari_card_metrics.dart':
+          'void hikariCardExtent() {}',
+      'lib/core/ui/media/hikari_media_card_body.dart':
+          'class HikariMediaCardBody {}',
+      'lib/core/ui/layout/hikari_adaptive_grid.dart':
+          'class HikariAdaptiveGrid {}',
+      'lib/core/ui/layout/hikari_horizontal_shelf.dart':
+          'class HikariHorizontalShelf {}',
+      'lib/core/ui/content/hikari_chapter_row.dart':
+          'class HikariChapterRow {}',
+      'lib/core/ui/foundation/hikari_aspect_ratios.dart':
+          'class HikariAspectRatios {}',
+    });
+    final markdown = renderMigrationMatrix(
+      rows,
+      snapshot: const UiMigrationSnapshot(
+        date: '2026-10-23',
+        branch: 'baseline',
+        head: '0123456789abcdef',
+        targetStatus: 'ACCEPTED',
+      ),
+    );
+    for (final task in ['03/01', '03/02', '03/03', '03/04', '03/05', '03/06']) {
+      expect(markdown, contains('$task (canonical Preview API)'));
+    }
+    expect(markdown, contains('03/03 (canonical foundation)'));
+    expect(markdown, contains('03/02 (internal media composition)'));
+    expect(markdown, isNot(contains('unmapped shared file')));
+    expect(markdown, isNot(contains('legacy-pending')));
+    expect(markdown, isNot(contains('07/01 (legacy cleanup)')));
+  });
+
   test('finds all 19 baseline page files plus added live checkout pages', () {
     final sources = readUiSources(Directory.current);
     final pages = inventorySources(sources)

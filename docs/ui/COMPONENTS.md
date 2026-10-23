@@ -55,6 +55,13 @@ checks remain separate G1 evidence. No component promoted to Stable.
 Approval and supersession: [ADR-026](../decisions/ADR-026-ui-foundation-rebuild.md).
 Current callers and staged migration: [matrix](MIGRATION_MATRIX.md).
 
+Phase 03 media/layout/content APIs remain **Preview**; G3 is
+**OWNER-ACCEPTED for continuation (2026-10-23)**, not a Stable promotion.
+Contracts, cache boundaries and remaining legacy consumers: [media](components/media.md).
+[Phase 03 execution](../roadmap/UI_FOUNDATION_PHASE_03.md) and
+[dated G3 decision](../roadmap/UI_FOUNDATION_G3_OWNER_ACCEPTANCE_2026-10-23.md)
+retain outstanding physical/profile evidence.
+
 | Family | Target owner / mechanics | Feature responsibility | Phase/task |
 |---|---|---|---|
 | Tokens / ThemeExtensions | core/ui/foundation | consume semantic roles | 01/01–02 |

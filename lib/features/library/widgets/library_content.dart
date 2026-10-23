@@ -11,7 +11,10 @@ import 'package:hikari/core/ui/controls/hikari_button.dart';
 import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
 import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
 import 'package:hikari/core/ui/patterns/async_state_view.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/layout/hikari_adaptive_grid.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
+import 'package:hikari/core/ui/media/hikari_card_metrics.dart';
+import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -227,10 +230,11 @@ class _LibraryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(HikariSpacing.lg),
+    return HikariAdaptiveGrid.builder(
       physics: const BouncingScrollPhysics(),
-      gridDelegate: mediaPosterGridDelegate,
+      itemExtentBuilder: (context, width) =>
+          hikariCardExtent(context, width: width),
+      itemKeyBuilder: (index) => ValueKey(entries[index].media.source),
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
@@ -244,15 +248,19 @@ class _LibraryGrid extends StatelessWidget {
                 builder: (context) {
                   Widget poster(Uint8List? bytes) => Semantics(
                     value: progress == null ? null : _readingLabel(progress),
-                    child: MediaPoster(
+                    child: HikariPosterCard(
                       title: media.title,
-                      imageBytes: bytes,
+                      artwork: HikariArtwork(
+                        image: bytes == null ? null : MemoryImage(bytes),
+                      ),
                       progress: progress?.completed == true
                           ? null
                           : progress?.progress,
-                      badgeText: mediaTypeBadgeLabel(media.type),
-                      badgeColor: badge.background,
-                      badgeForegroundColor: badge.foreground,
+                      badge: Badge(
+                        backgroundColor: badge.background,
+                        textColor: badge.foreground,
+                        label: Text(mediaTypeBadgeLabel(media.type)),
+                      ),
                       onTap: () => openMedia(context, media),
                     ),
                   );

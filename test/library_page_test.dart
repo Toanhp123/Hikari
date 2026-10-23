@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/progress/load_continue_reading.dart';
-import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
+import 'package:hikari/core/ui/media/hikari_media_progress.dart';
+import 'package:hikari/core/ui/media/hikari_poster_card.dart';
+import 'package:hikari/core/ui/layout/hikari_adaptive_grid.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/local_media_scan_result.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -123,7 +126,16 @@ void main() {
 
     await tester.pumpWidget(page(0));
     await tester.pumpAndSettle();
-    expect(find.byType(MediaProgressBar), findsOneWidget);
+    expect(find.byType(HikariMediaProgress), findsOneWidget);
+    expect(
+      tester
+          .widget<HikariMediaProgress>(find.byType(HikariMediaProgress))
+          .progress,
+      .4,
+    );
+    expect(find.byType(HikariAdaptiveGrid), findsOneWidget);
+    expect(find.byType(HikariPosterCard), findsOneWidget);
+    expect(find.byType(HikariArtwork), findsOneWidget);
     await tester.tap(find.byTooltip('Switch to list view'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Chapter 40% read'), findsOneWidget);
@@ -187,8 +199,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tapAt(tester.getCenter(find.text('Saved book')));
       expect(opened!.source, media.source);
+      opened = null;
       await tester.tap(find.byTooltip('Remove from library'));
       await tester.pumpAndSettle();
+      expect(
+        opened,
+        isNull,
+        reason: 'Remove must not activate card navigation',
+      );
       expect(find.text('Remove from Library?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -403,6 +421,70 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });
+  testWidgets('Library grid preserves exact sources at 3x RTL across resize', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final other = Media(
+      title: media.title,
+      type: media.type,
+      source: const SourceMediaRef(
+        sourceId: SourceId('other-source'),
+        itemId: 'book',
+      ),
+    );
+    for (final item in [media, other]) {
+      await library.upsert(
+        LibraryEntry(media: item, addedAt: DateTime.utc(2026)),
+      );
+    }
+    final opened = <SourceMediaRef>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(3)),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          ),
+        ),
+        home: LibraryPage(
+          repository: library,
+          openMedia: (_, item) => opened.add(item.source),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (final width in [
+      375.0,
+      599.0,
+      600.0,
+      601.0,
+      839.0,
+      840.0,
+      841.0,
+      1200.0,
+      1440.0,
+    ]) {
+      tester.view.physicalSize = Size(width, 900);
+      await tester.pumpAndSettle();
+      expect(find.byType(HikariPosterCard), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    }
+    for (final card in find.byType(HikariPosterCard).evaluate()) {
+      await tester.tap(find.byWidget(card.widget));
+      await tester.pump();
+    }
+    expect(opened.toSet(), {media.source, other.source});
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Library actions fit compact screens with enlarged text', (
     tester,
   ) async {
