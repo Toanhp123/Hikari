@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/features/home/widgets/continue_shelf.dart';
@@ -45,7 +46,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      await tester.tap(find.text('An unusually long reading title'));
+      await tester.tap(find.byType(HikariLandscapeCard));
       expect(opened, isTrue);
       expect(tester.takeException(), isNull);
       semantics.dispose();

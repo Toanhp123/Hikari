@@ -10,6 +10,9 @@ import 'package:hikari/core/ui/media/hikari_media_progress.dart';
 import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 import 'package:hikari/core/ui/layout/hikari_adaptive_grid.dart';
 import 'package:hikari/core/ui/media/hikari_artwork.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
+import 'package:hikari/core/ui/content/hikari_list_row.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/local_media_scan_result.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -74,6 +77,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(result.source), isFalse);
+      expect(find.text('Add to Library?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(result.source), isFalse);
+      await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
       expect((await library.loadAll()).single.media.source, result.source);
       await tester.tap(find.byTooltip('Remove from library'));
@@ -257,6 +269,10 @@ void main() {
     await tester.tap(find.byTooltip('Switch to list view'));
     await tester.pumpAndSettle();
     expect(find.byType(Image), findsWidgets);
+    expect(find.byType(HikariPageScaffold), findsOneWidget);
+    expect(find.byType(HikariContentRegion), findsOneWidget);
+    expect(find.byType(HikariListRow), findsOneWidget);
+    expect(find.byType(HikariArtwork), findsOneWidget);
     await library.upsert(
       LibraryEntry(
         media: Media(
@@ -293,6 +309,15 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add to Library?'), findsOneWidget);
+    expect(await library.contains(media.source), isFalse);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(await library.contains(media.source), isFalse);
+    await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(await library.contains(media.source), isTrue);
     await tester.tap(find.byTooltip('Remove from library'));
@@ -484,6 +509,82 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'Library cancellation preserves filter, list scroll and artwork',
+    (tester) async {
+      final cover = SourceMediaRef(sourceId: SourceId.local, itemId: 'cover');
+      var reads = 0;
+      for (var index = 0; index < 80; index++) {
+        await library.upsert(
+          LibraryEntry(
+            media: Media(
+              title: 'Saved title $index',
+              type: MediaType.manga,
+              source: SourceMediaRef(
+                sourceId: SourceId('source:$index'),
+                itemId: 'same-item',
+              ),
+            ),
+            artwork: cover,
+            addedAt: DateTime.utc(2026).add(Duration(minutes: index)),
+          ),
+        );
+      }
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: LibraryPage(
+            repository: library,
+            openMedia: (_, _) {},
+            readArtwork: (_) async {
+              reads++;
+              return null;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Manga'));
+      await tester.tap(find.byTooltip('Switch to list view'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -700));
+      await tester.pumpAndSettle();
+      final scroll = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byType(ListView),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      final offset = scroll.position.pixels;
+      final readsBefore = reads;
+      expect(offset, greaterThan(0));
+      expect(readsBefore, inExclusiveRange(0, 80));
+      final titles = tester
+          .widgetList<HikariListRow>(find.byType(HikariListRow))
+          .map((row) => (row.title as Text).data)
+          .toList();
+      final remove = find.byTooltip('Remove from library').hitTestable().first;
+      await tester.tap(remove);
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(await library.loadAll(), hasLength(80));
+      expect(find.text('80 of 80 titles'), findsOneWidget);
+      expect(scroll.position.pixels, offset);
+      expect(reads, readsBefore);
+      expect(
+        tester
+            .widgetList<HikariListRow>(find.byType(HikariListRow))
+            .map((row) => (row.title as Text).data)
+            .toList(),
+        titles,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('Library actions fit compact screens with enlarged text', (
     tester,

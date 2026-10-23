@@ -1,14 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
-import 'package:hikari/core/ui/foundation/hikari_color_roles.dart';
-import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
-import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
-import 'package:hikari/core/ui/controls/hikari_search_field.dart';
-import 'package:hikari/core/ui/patterns/async_state_view.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -52,102 +45,89 @@ class SourceSearchContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: HikariBreakpoints.maxContentWidth,
-        ),
-        child: Column(
-          children: [
+    return HikariContentRegion(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              top: HikariSpacing.md,
+              bottom: HikariSpacing.sm,
+            ),
+            child: Column(
+              children: [
+                HikariSearchField(
+                  controller: controller,
+                  onChanged: onQueryChanged,
+                  onSubmitted: onSubmitted,
+                  onCleared: onCleared,
+                ),
+                const SizedBox(height: HikariSpacing.sm),
+                if (catalogScopeLabel != null)
+                  _ScopedSourceLabel(sourceName: catalogScopeLabel!)
+                else if (scopedSourceName != null)
+                  _ScopedSourceLabel(sourceName: scopedSourceName!)
+                else if (fixedMediaType == null)
+                  HikariChipRow(
+                    children: [
+                      for (final filter in SourceSearchFilter.values)
+                        HikariFilterChip(
+                          label: filter.mediaType == null
+                              ? 'All'
+                              : mediaTypeLabel(filter.mediaType!),
+                          selected: state.filter == filter,
+                          onSelected: (_) => onSelectFilter(filter),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          if (state.failedSourceCount > 0 &&
+              (state.status == SourceSearchStatus.ready ||
+                  state.status == SourceSearchStatus.empty))
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                HikariSpacing.lg,
-                HikariSpacing.md,
-                HikariSpacing.lg,
-                HikariSpacing.sm,
-              ),
-              child: Column(
-                children: [
-                  HikariSearchField(
-                    controller: controller,
-                    onChanged: onQueryChanged,
-                    onSubmitted: onSubmitted,
-                    onCleared: onCleared,
+              padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xs),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  'Some configured sources could not be searched.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.hikariStatusColors.onWarningContainer,
                   ),
-                  const SizedBox(height: HikariSpacing.sm),
-                  if (catalogScopeLabel != null)
-                    _ScopedSourceLabel(sourceName: catalogScopeLabel!)
-                  else if (scopedSourceName != null)
-                    _ScopedSourceLabel(sourceName: scopedSourceName!)
-                  else if (fixedMediaType == null)
-                    HikariChipRow(
-                      children: [
-                        for (final filter in SourceSearchFilter.values)
-                          HikariFilterChip(
-                            label: filter.mediaType == null
-                                ? 'All'
-                                : mediaTypeLabel(filter.mediaType!),
-                            selected: state.filter == filter,
-                            onSelected: (_) => onSelectFilter(filter),
-                          ),
-                      ],
-                    ),
-                ],
+                ),
               ),
             ),
-            if (state.failedSourceCount > 0 &&
-                (state.status == SourceSearchStatus.ready ||
-                    state.status == SourceSearchStatus.empty))
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: HikariSpacing.lg,
-                  vertical: HikariSpacing.xs,
-                ),
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
+          // Providers return independently. Keep partial results visible
+          // without a second refresh-style progress bar.
+          if (state.status == SourceSearchStatus.loading &&
+              state.results.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xs),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Semantics(
+                  liveRegion: true,
                   child: Text(
-                    'Some configured sources could not be searched.',
+                    'Searching remaining sources…',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.hikariStatusColors.onWarningContainer,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
-              ),
-            // Providers return independently. Keep partial results visible
-            // without a second refresh-style progress bar.
-            if (state.status == SourceSearchStatus.loading &&
-                state.results.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: HikariSpacing.lg,
-                  vertical: HikariSpacing.xs,
-                ),
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Semantics(
-                    liveRegion: true,
-                    child: Text(
-                      'Searching remaining sources…',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            Expanded(
-              child: _SourceSearchResults(
-                state: state,
-                onRetry: onRetry,
-                openMedia: openMedia,
-                library: library,
-                readArtwork: readArtwork,
-                scopedSourceName: scopedSourceName,
-                catalogScopeLabel: catalogScopeLabel,
               ),
             ),
-          ],
-        ),
+          Expanded(
+            child: _SourceSearchResults(
+              state: state,
+              onRetry: onRetry,
+              openMedia: openMedia,
+              library: library,
+              readArtwork: readArtwork,
+              scopedSourceName: scopedSourceName,
+              catalogScopeLabel: catalogScopeLabel,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -216,17 +196,17 @@ class _SourceSearchResults extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final scope = catalogScopeLabel ?? scopedSourceName;
     final status = switch (state.status) {
-      SourceSearchStatus.idle => AsyncViewStatus.empty,
+      SourceSearchStatus.idle => HikariAsyncStatus.empty,
       SourceSearchStatus.loading =>
         state.results.isEmpty
-            ? AsyncViewStatus.loading
-            : AsyncViewStatus.content,
-      SourceSearchStatus.ready => AsyncViewStatus.content,
-      SourceSearchStatus.empty => AsyncViewStatus.empty,
-      SourceSearchStatus.error => AsyncViewStatus.error,
+            ? HikariAsyncStatus.loading
+            : HikariAsyncStatus.loaded,
+      SourceSearchStatus.ready => HikariAsyncStatus.loaded,
+      SourceSearchStatus.empty => HikariAsyncStatus.empty,
+      SourceSearchStatus.error => HikariAsyncStatus.fatalError,
     };
 
-    return AsyncStateView(
+    return HikariAsyncStateView(
       status: status,
       emptyTitle: state.status == SourceSearchStatus.idle
           ? 'Find a source'
@@ -236,30 +216,24 @@ class _SourceSearchResults extends StatelessWidget {
           : scope == null
           ? 'No matches found for "${state.query}".'
           : 'No matches found for "${state.query}" in $scope.',
-      emptyIcon: state.status == SourceSearchStatus.idle
-          ? Icons.search_rounded
-          : Icons.search_off_rounded,
-      errorMessage: scope == null
+      message: scope == null
           ? 'All configured search sources failed. Try again.'
           : 'All search sources in $scope failed. Try again.',
       onRetry: onRetry,
-      contentBuilder: (_) {
-        if (state.results.isEmpty) {
-          return Center(
-            child: Text(
-              'No matches for the selected media type.',
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: colors.onSurfaceVariant),
+      child: state.results.isEmpty
+          ? Center(
+              child: Text(
+                'No matches for the selected media type.',
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: colors.onSurfaceVariant),
+              ),
+            )
+          : _SourceSearchGrid(
+              results: state.results,
+              openMedia: openMedia,
+              library: library,
+              readArtwork: readArtwork,
             ),
-          );
-        }
-        return _SourceSearchGrid(
-          results: state.results,
-          openMedia: openMedia,
-          library: library,
-          readArtwork: readArtwork,
-        );
-      },
     );
   }
 }
@@ -280,10 +254,12 @@ class _SourceSearchGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(HikariSpacing.lg),
+    return HikariAdaptiveGrid.builder(
+      padding: const EdgeInsets.symmetric(vertical: HikariSpacing.lg),
       physics: const BouncingScrollPhysics(),
-      gridDelegate: mediaPosterGridDelegate,
+      itemKeyBuilder: (index) => ValueKey(results[index].media.source),
+      itemExtentBuilder: (context, width) =>
+          hikariCardExtent(context, width: width, hasSubtitle: true),
       itemCount: results.length,
       itemBuilder: (context, index) {
         final result = results[index];
@@ -296,14 +272,20 @@ class _SourceSearchGrid extends StatelessWidget {
         ].join(' · ');
 
         Widget poster(Uint8List? imageBytes, {bool loading = false}) =>
-            MediaPoster(
+            HikariPosterCard(
               title: media.title,
-              imageBytes: imageBytes,
-              isLoading: loading,
+              artwork: HikariArtwork(
+                image: imageBytes == null ? null : MemoryImage(imageBytes),
+                placeholder: loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : null,
+              ),
               subtitle: subtitle,
-              badgeText: mediaTypeBadgeLabel(media.type),
-              badgeColor: badge.background,
-              badgeForegroundColor: badge.foreground,
+              badge: Badge(
+                label: Text(mediaTypeBadgeLabel(media.type)),
+                backgroundColor: badge.background,
+                textColor: badge.foreground,
+              ),
               onTap: () =>
                   openMedia(context, media, previewMetadata: result.metadata),
             );

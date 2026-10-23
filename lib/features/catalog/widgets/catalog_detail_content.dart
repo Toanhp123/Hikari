@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
-import 'package:hikari/core/ui/foundation/hikari_radius.dart';
-import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_sections.dart';
 
@@ -48,18 +45,14 @@ class CatalogDetailLoadingBody extends StatelessWidget {
             const SizedBox(height: HikariSpacing.xl),
             _SkeletonBox(width: 84, height: 18, color: colors.surfaceContainer),
             const SizedBox(height: HikariSpacing.md),
-            SizedBox(
-              height: 246,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: 4,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(width: HikariSpacing.md),
-                itemBuilder: (_, _) => const SizedBox(
-                  width: 132,
-                  child: MediaPoster(title: '', isLoading: true),
-                ),
-              ),
+            HikariHorizontalShelf(
+              itemCount: 4,
+              itemExtent: 132,
+              itemKeyBuilder: (index) => ValueKey(index),
+              itemHeightBuilder: (context, width) =>
+                  hikariCardExtent(context, width: width),
+              itemBuilder: (_, _) =>
+                  const HikariPosterCard(title: '', artwork: HikariArtwork()),
             ),
           ],
         ),
@@ -84,15 +77,12 @@ class CatalogDetailFallbackBody extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      CatalogDetailNotice(
-        icon: failed ? Icons.cloud_off_rounded : Icons.info_outline_rounded,
-        title: failed
-            ? 'More details could not load'
-            : 'Catalog entry unavailable',
+      HikariNoticeBanner(
+        tone: HikariNoticeTone.warning,
         message: failed
-            ? 'Check your connection and retry. You can still choose a source for ${entry.title}.'
-            : 'This metadata entry may have moved or been removed. You can still search configured sources by title.',
-        onRetry: onRetry,
+            ? 'More details could not load. Check your connection and retry. You can still choose a source for ${entry.title}.'
+            : 'Catalog entry unavailable. This metadata entry may have moved or been removed. You can still search configured sources by title.',
+        action: TextButton(onPressed: onRetry, child: const Text('Retry')),
       ),
       if (entry.genres.isNotEmpty) ...[
         const SizedBox(height: HikariSpacing.xl),
@@ -165,16 +155,20 @@ class CatalogDetailContent extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       if (refreshFailed) ...[
-        CatalogDetailNotice(
-          icon: Icons.cloud_off_rounded,
-          title: 'Refresh failed',
-          message: 'Showing the last available catalog details.',
-          onRetry: onRetry,
+        HikariNoticeBanner(
+          tone: HikariNoticeTone.warning,
+          message:
+              'Refresh failed. Showing the last available catalog details.',
+          action: TextButton(onPressed: onRetry, child: const Text('Retry')),
         ),
         const SizedBox(height: HikariSpacing.xl),
       ],
       if (details.warnings.isNotEmpty) ...[
-        CatalogDetailWarning(messages: details.warnings, onRetry: onRetry),
+        HikariNoticeBanner(
+          tone: HikariNoticeTone.warning,
+          message: details.warnings.join(' '),
+          action: TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ),
         const SizedBox(height: HikariSpacing.xl),
       ],
       if (details.entry.genres.isNotEmpty) ...[
@@ -183,33 +177,26 @@ class CatalogDetailContent extends StatelessWidget {
       ],
       if (details.description case final description?
           when description.trim().isNotEmpty) ...[
-        CatalogDetailSection(
-          title: 'Synopsis',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                description,
-                key: const Key('catalog-detail-description'),
-                maxLines: descriptionExpanded ? null : 6,
-                overflow: descriptionExpanded
-                    ? TextOverflow.visible
-                    : TextOverflow.fade,
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  height: 1.6,
-                ),
-              ),
-              if (description.length > 280) ...[
-                const SizedBox(height: HikariSpacing.sm),
-                TextButton(
-                  onPressed: onToggleDescription,
-                  child: Text(descriptionExpanded ? 'Show less' : 'Show more'),
-                ),
-              ],
-            ],
+        const HikariSectionHeader(title: 'Synopsis'),
+        Text(
+          description,
+          key: const Key('catalog-detail-description'),
+          maxLines: descriptionExpanded ? null : 6,
+          overflow: descriptionExpanded
+              ? TextOverflow.visible
+              : TextOverflow.fade,
+          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            height: 1.6,
           ),
         ),
+        if (description.length > 280) ...[
+          const SizedBox(height: HikariSpacing.sm),
+          TextButton(
+            onPressed: onToggleDescription,
+            child: Text(descriptionExpanded ? 'Show less' : 'Show more'),
+          ),
+        ],
         const SizedBox(height: HikariSpacing.xl),
       ],
       if (details.alternateTitles.isNotEmpty ||

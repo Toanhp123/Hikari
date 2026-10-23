@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 
-/// Confirmation shared by Library and every saved-state LibraryButton.
-Future<bool> confirmLibraryRemoval(
+/// Membership wording belongs to the feature; the typed host owns dismissal.
+Future<bool> confirmLibraryMembershipChange(
   BuildContext context, {
   required String title,
+  required bool removing,
 }) async {
-  return showHikariConfirmation(
+  final result = await showHikariConfirmationDialog(
     context: context,
-    title: 'Remove from Library?',
+    useRootNavigator: true,
+    title: removing ? 'Remove from Library?' : 'Add to Library?',
     content: Text(
-      'Remove "$title" from your saved titles? '
-      'Reading progress is kept.',
+      removing
+          ? 'Remove "$title" from your saved titles? Reading progress is kept.'
+          : 'Add "$title" to your saved titles?',
     ),
-    confirmLabel: 'Remove',
-    destructive: true,
+    confirmLabel: removing ? 'Remove' : 'Add',
+    destructive: removing,
   );
+  return result is HikariCompleted<bool> && result.value;
 }

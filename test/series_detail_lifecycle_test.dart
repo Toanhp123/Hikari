@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/domain/media/chapter_list_order.dart';
@@ -82,6 +83,7 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: MangaSeriesPage(
           media: media,
           sourceName: 'Source',

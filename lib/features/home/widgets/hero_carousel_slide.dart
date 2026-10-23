@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 
@@ -38,22 +38,12 @@ class HeroCarouselSlide extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _buildFallbackArtwork(colors),
-          if (artworkUrl != null && artworkUrl.isNotEmpty)
-            LayoutBuilder(
-              builder: (context, constraints) => Image.network(
-                artworkUrl,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                filterQuality: FilterQuality.medium,
-                cacheWidth: mediaArtworkCacheWidth(
-                  context,
-                  constraints.maxWidth,
-                ),
-                excludeFromSemantics: true,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
-            ),
+          HikariArtwork(
+            image: artworkUrl != null && artworkUrl.isNotEmpty
+                ? NetworkImage(artworkUrl)
+                : null,
+            placeholder: _buildFallbackArtwork(colors),
+          ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(

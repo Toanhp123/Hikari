@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/widgets/catalog_discovery_sections.dart';
@@ -69,6 +69,13 @@ void main() {
     );
 
     expect(find.byType(HeroCarousel), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(HeroCarousel),
+        matching: find.byType(HikariArtwork),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Featured'), findsOneWidget);
     expect(find.text('Featured story'), findsOneWidget);
     expect(find.text('View details'), findsOneWidget);
@@ -76,7 +83,7 @@ void main() {
     expect(find.text('Read Now'), findsNothing);
 
     final posterTitles = tester
-        .widgetList<MediaPoster>(find.byType(MediaPoster))
+        .widgetList<HikariPosterCard>(find.byType(HikariPosterCard))
         .map((poster) => poster.title);
     expect(posterTitles, contains('Trending story'));
     expect(posterTitles, isNot(contains('Featured story')));
@@ -151,10 +158,10 @@ void main() {
     expect(find.text('NOVEL'), findsOneWidget);
     expect(find.text('LIGHTNOVEL'), findsNothing);
     expect(
-      tester.widget<MediaPoster>(find.byType(MediaPoster)).subtitle,
+      tester.widget<HikariPosterCard>(find.byType(HikariPosterCard)).subtitle,
       isNull,
     );
-    expect(tester.getSize(find.byType(MediaPoster)).width, 132);
+    expect(tester.getSize(find.byType(HikariPosterCard)).width, 156);
   });
 
   testWidgets('Home discovery renders loading, warning, and retry action', (
@@ -177,7 +184,7 @@ void main() {
       find.byKey(const ValueKey('catalog-loading-skeleton')),
       findsOneWidget,
     );
-    expect(find.byType(MediaPoster), findsNWidgets(8));
+    expect(find.byType(HikariPosterCard), findsNWidgets(8));
 
     await tester.pumpWidget(
       _app(
@@ -244,7 +251,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Catalog unavailable'), findsOneWidget);
+    expect(find.textContaining('Catalog unavailable'), findsOneWidget);
     await tester.tap(find.text('Try Again'));
     expect(retries, 1);
 
@@ -261,7 +268,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('No catalog results available.'), findsOneWidget);
+    expect(find.text('No catalog results available.'), findsNothing);
   });
 }
 

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/progress/load_continue_reading.dart';
 import 'package:hikari/core/ui/controls/hikari_icon_button.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/library/library_view_model.dart';
@@ -59,9 +59,10 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _removeAfterConfirmation(LibraryEntry entry) async {
-    final confirmed = await confirmLibraryRemoval(
+    final confirmed = await confirmLibraryMembershipChange(
       context,
       title: entry.media.title,
+      removing: true,
     );
     if (!confirmed || !mounted) return;
     try {
@@ -88,7 +89,7 @@ class _LibraryPageState extends State<LibraryPage> {
       listenable: _viewModel,
       builder: (context, _) {
         final state = _viewModel.state;
-        return HikariScaffold(
+        return HikariPageScaffold(
           useSafeArea: true,
           appBar: AppBar(
             title: const Text('Library'),

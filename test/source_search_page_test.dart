@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
+import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/sources/read_source_artwork.dart';
 import 'package:hikari/application/sources/source_registry.dart';
@@ -223,15 +225,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Manga title'), findsOneWidget);
 
-    for (final width in [320.0, 375.0, 600.0, 840.0, 1200.0, 1800.0]) {
+    expect(find.byType(HikariContentRegion), findsOneWidget);
+    expect(find.byType(HikariPosterCard), findsOneWidget);
+    for (final width in [
+      320.0,
+      375.0,
+      599.0,
+      600.0,
+      601.0,
+      839.0,
+      840.0,
+      841.0,
+      1200.0,
+      1440.0,
+      1800.0,
+    ]) {
       tester.view.physicalSize = Size(width, 900);
       await tester.pumpAndSettle();
-      final contentWidth = width < HikariBreakpoints.maxContentWidth
-          ? width
+      final gutter = width < HikariBreakpoints.mediumMin
+          ? HikariSpacing.lg
+          : HikariSpacing.xl;
+      final available = width - gutter * 2;
+      final contentWidth = available < HikariBreakpoints.maxContentWidth
+          ? available
           : HikariBreakpoints.maxContentWidth;
       expect(
         tester.getSize(find.byType(SearchBar)).width,
-        moreOrLessEquals(contentWidth - HikariSpacing.lg * 2),
+        moreOrLessEquals(contentWidth),
       );
       expect(
         tester.getSize(find.byType(GridView)).width,
@@ -243,6 +263,90 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('source controls retain artwork with 3x RTL and keyboard inset', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 600);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+    addTearDown(tester.view.reset);
+    final source = _ArtworkMangaSource();
+    final registry = SourceRegistry([source]);
+    final artwork = ReadSourceArtwork(registry);
+    Media? opened;
+    MediaMetadata? preview;
+    final textScale = ValueNotifier(3.0);
+    addTearDown(textScale.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => ValueListenableBuilder<double>(
+          valueListenable: textScale,
+          builder: (context, scale, _) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(scale)),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: child!,
+            ),
+          ),
+        ),
+        home: SourceSearchPage(
+          searchManga: SearchManga(registry),
+          readArtwork: artwork.execute,
+          initialQuery: 'Covered title',
+          openMedia: (_, media, {previewMetadata}) {
+            opened = media;
+            preview = previewMetadata;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final controller = tester
+        .widget<SearchBar>(find.byType(SearchBar))
+        .controller!;
+    for (final scale in [1.0, 2.0, 3.0]) {
+      textScale.value = scale;
+      for (final width in [
+        375.0,
+        599.0,
+        600.0,
+        601.0,
+        839.0,
+        840.0,
+        841.0,
+        1200.0,
+        1440.0,
+      ]) {
+        tester.view.physicalSize = Size(width, 900);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.widget<SearchBar>(find.byType(SearchBar)).controller,
+          same(controller),
+        );
+        expect(source.artworkReads, 1);
+      }
+    }
+    final title = find.descendant(
+      of: find.byType(HikariPosterCard),
+      matching: find.text('Covered title'),
+    );
+    await tester.ensureVisible(title);
+    await tester.pumpAndSettle();
+    await tester.tapAt(tester.getCenter(title));
+    expect(
+      opened?.source,
+      const SourceMediaRef(
+        sourceId: SourceId('test:artwork-manga'),
+        itemId: 'covered-title',
+      ),
+    );
+    expect(preview?.authors, ['Cover Author']);
   });
 
   testWidgets('remote source search renders source-owned cover metadata', (

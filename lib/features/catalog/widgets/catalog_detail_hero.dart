@@ -3,7 +3,7 @@ import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
 import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 import 'package:hikari/core/ui/foundation/hikari_size.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -83,139 +83,158 @@ class CatalogDetailHero extends StatelessWidget {
               constraints: const BoxConstraints(
                 maxWidth: HikariBreakpoints.maxContentWidth,
               ),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  HikariSpacing.lg,
-                  topPadding,
-                  HikariSpacing.lg,
-                  bottomPadding,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    SizedBox(
-                      width: isCompact
-                          ? (textScale > 1.3 ? 92.0 : 104.0)
-                          : 132.0,
-                      child: AspectRatio(
-                        aspectRatio: 2 / 3,
-                        child: _CoverArtwork(
-                          imageUrl: entry.coverUrl,
-                          label: entry.title,
+              child: SingleChildScrollView(
+                primary: false,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    HikariSpacing.lg,
+                    topPadding,
+                    HikariSpacing.lg,
+                    bottomPadding,
+                  ),
+                  child: Flex(
+                    direction: isCompact && textScale > 1.3
+                        ? Axis.vertical
+                        : Axis.horizontal,
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: isCompact && textScale > 1.3
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        width: isCompact
+                            ? (textScale > 1.3 ? 92.0 : 104.0)
+                            : 132.0,
+                        child: AspectRatio(
+                          aspectRatio: 2 / 3,
+                          child: _CoverArtwork(
+                            imageUrl: entry.coverUrl,
+                            label: entry.title,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: HikariSpacing.lg),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _TypePill(type: entry.type),
-                          const SizedBox(height: HikariSpacing.sm),
-                          Text(
-                            entry.title,
-                            maxLines: isCompact ? (textScale > 1.3 ? 2 : 3) : 2,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                (isCompact
-                                        ? (textScale > 1.25
-                                              ? Theme.of(context)
-                                                    .textTheme
-                                                    .titleLarge!
-                                              : Theme.of(context)
-                                                    .textTheme
-                                                    .headlineMedium!)
-                                        : Theme.of(context)
-                                              .textTheme
-                                              .displayLarge!)
-                                    .copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      shadows: [
-                                        Shadow(
-                                          color: colors.scrim.withValues(
-                                            alpha: 0.8,
+                      const SizedBox(
+                        width: HikariSpacing.lg,
+                        height: HikariSpacing.lg,
+                      ),
+                      Flexible(
+                        flex: isCompact && textScale > 1.3 ? 0 : 1,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _TypePill(type: entry.type),
+                            const SizedBox(height: HikariSpacing.sm),
+                            Text(
+                              entry.title,
+                              maxLines: isCompact
+                                  ? (textScale > 1.3 ? 2 : 3)
+                                  : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  (isCompact
+                                          ? (textScale > 1.25
+                                                ? Theme.of(context)
+                                                      .textTheme
+                                                      .titleLarge!
+                                                : Theme.of(context)
+                                                      .textTheme
+                                                      .headlineMedium!)
+                                          : Theme.of(context)
+                                                .textTheme
+                                                .displayLarge!)
+                                      .copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        shadows: [
+                                          Shadow(
+                                            color: colors.scrim.withValues(
+                                              alpha: 0.8,
+                                            ),
+                                            blurRadius: 12,
                                           ),
-                                          blurRadius: 12,
-                                        ),
-                                      ],
+                                        ],
+                                      ),
+                            ),
+                            if (metadata.isNotEmpty) ...[
+                              const SizedBox(height: HikariSpacing.xs),
+                              Text(
+                                metadata.join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelMedium!
+                                    .copyWith(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.82,
+                                      ),
+                                      fontWeight: FontWeight.w600,
                                     ),
-                          ),
-                          if (metadata.isNotEmpty) ...[
+                              ),
+                            ],
+                            if (details?.averageScore != null) ...[
+                              const SizedBox(height: HikariSpacing.xs),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.star_rounded,
+                                    size: 17,
+                                    color: colors.primary,
+                                  ),
+                                  const SizedBox(width: HikariSpacing.xs),
+                                  Text(
+                                    '${details!.averageScore}%',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge!
+                                        .copyWith(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: HikariSpacing.md),
+                            Semantics(
+                              button: true,
+                              label: '$actionLabel ${entry.title}',
+                              child: FilledButton.icon(
+                                onPressed: onPrimaryAction,
+                                icon: Icon(
+                                  entry.type == MediaType.anime
+                                      ? Icons.play_arrow_rounded
+                                      : Icons.menu_book_rounded,
+                                  size: 19,
+                                ),
+                                label: Text(actionLabel),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(
+                                    HikariSize.touchTarget,
+                                    44,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: HikariSpacing.lg,
+                                    vertical: HikariSpacing.sm,
+                                  ),
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: HikariRadius.borderMd,
+                                  ),
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: HikariSpacing.xs),
                             Text(
-                              metadata.join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelMedium!
+                              entry.type == MediaType.anime
+                                  ? 'Choose a source to continue'
+                                  : 'Choose where to read',
+                              style: Theme.of(context).textTheme.bodySmall!
                                   .copyWith(
-                                    color: Colors.white.withValues(alpha: 0.82),
-                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white.withValues(alpha: 0.72),
                                   ),
                             ),
                           ],
-                          if (details?.averageScore != null) ...[
-                            const SizedBox(height: HikariSpacing.xs),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.star_rounded,
-                                  size: 17,
-                                  color: colors.primary,
-                                ),
-                                const SizedBox(width: HikariSpacing.xs),
-                                Text(
-                                  '${details!.averageScore}%',
-                                  style: Theme.of(context).textTheme.labelLarge!
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: HikariSpacing.md),
-                          Semantics(
-                            button: true,
-                            label: '$actionLabel ${entry.title}',
-                            child: FilledButton.icon(
-                              onPressed: onPrimaryAction,
-                              icon: Icon(
-                                entry.type == MediaType.anime
-                                    ? Icons.play_arrow_rounded
-                                    : Icons.menu_book_rounded,
-                                size: 19,
-                              ),
-                              label: Text(actionLabel),
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size(
-                                  HikariSize.touchTarget,
-                                  44,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: HikariSpacing.lg,
-                                  vertical: HikariSpacing.sm,
-                                ),
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: HikariRadius.borderMd,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: HikariSpacing.xs),
-                          Text(
-                            entry.type == MediaType.anime
-                                ? 'Choose a source to continue'
-                                : 'Choose where to read',
-                            style: Theme.of(context).textTheme.bodySmall!
-                                .copyWith(
-                                  color: Colors.white.withValues(alpha: 0.72),
-                                ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -235,18 +254,9 @@ class _HeroArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final url = imageUrl;
-    if (url == null || url.isEmpty) return _fallback(colors);
-    return LayoutBuilder(
-      builder: (context, constraints) => Image.network(
-        url,
-        fit: BoxFit.cover,
-        alignment: Alignment.center,
-        cacheWidth: mediaArtworkCacheWidth(context, constraints.maxWidth),
-        excludeFromSemantics: true,
-        errorBuilder: (_, _, _) => _fallback(colors),
-        loadingBuilder: (_, child, progress) =>
-            progress == null ? child : _fallback(colors),
-      ),
+    return HikariArtwork(
+      image: url == null || url.isEmpty ? null : NetworkImage(url),
+      placeholder: _fallback(colors),
     );
   }
 
@@ -277,19 +287,10 @@ class _CoverArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final url = imageUrl;
-    final artwork = url == null || url.isEmpty
-        ? _fallback(colors)
-        : LayoutBuilder(
-            builder: (context, constraints) => Image.network(
-              url,
-              fit: BoxFit.cover,
-              cacheWidth: mediaArtworkCacheWidth(context, constraints.maxWidth),
-              excludeFromSemantics: true,
-              errorBuilder: (_, _, _) => _fallback(colors),
-              loadingBuilder: (_, image, progress) =>
-                  progress == null ? image : _fallback(colors),
-            ),
-          );
+    final artwork = HikariArtwork(
+      image: url == null || url.isEmpty ? null : NetworkImage(url),
+      placeholder: _fallback(colors),
+    );
 
     return Semantics(
       image: true,

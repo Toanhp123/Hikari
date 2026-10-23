@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
 import 'package:hikari/application/media/load_series_reading_target.dart';
 
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
@@ -148,7 +149,7 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => HikariPageScaffold(
     appBar: AppBar(
       title: ListenableBuilder(
         listenable: _viewModel,
@@ -177,34 +178,26 @@ class _MangaSeriesPageState extends State<MangaSeriesPage> {
           ),
       ],
     ),
-    body: SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: HikariBreakpoints.maxContentWidth,
-          ),
-          child: Column(
-            children: [
-              if (_isOpeningChapter) const LinearProgressIndicator(),
-              Expanded(
-                child: ListenableBuilder(
-                  listenable: _viewModel,
-                  builder: (context, _) => MangaSeriesContent(
-                    key: ValueKey(widget.media.source),
-                    viewModel: _viewModel,
-                    sourceName: widget.sourceName,
-                    openingChapter: _isOpeningChapter,
-                    readArtwork: widget.readArtwork,
-                    artworkOwner: widget.dependencyOwner,
-                    onRefresh: _viewModel.load,
-                    onOpenChapter: (chapter) =>
-                        unawaited(_openChapter(chapter)),
-                  ),
-                ),
+    body: HikariContentRegion(
+      child: Column(
+        children: [
+          if (_isOpeningChapter) const LinearProgressIndicator(),
+          Expanded(
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) => MangaSeriesContent(
+                key: ValueKey(widget.media.source),
+                viewModel: _viewModel,
+                sourceName: widget.sourceName,
+                openingChapter: _isOpeningChapter,
+                readArtwork: widget.readArtwork,
+                artworkOwner: widget.dependencyOwner,
+                onRefresh: _viewModel.load,
+                onOpenChapter: (chapter) => unawaited(_openChapter(chapter)),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     ),
   );

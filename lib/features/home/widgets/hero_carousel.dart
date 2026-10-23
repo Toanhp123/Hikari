@@ -91,7 +91,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
         HikariBreakpoints.classify(width) == HikariWidthClass.compact;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final horizontalPadding = isCompact ? HikariSpacing.lg : HikariSpacing.xl;
+    const horizontalPadding = HikariSpacing.lg;
     final minimumHeight = _scaledSlideMinimumHeight(
       context,
       math.max(1.0, width - 2 * horizontalPadding),
@@ -312,9 +312,7 @@ class HeroCarouselSkeleton extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
       child: AspectRatio(
         aspectRatio: isCompact ? (16 / 10) : (16 / 7),
         child: DecoratedBox(

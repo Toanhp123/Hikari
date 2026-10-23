@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
@@ -293,6 +294,7 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: NovelSeriesPage(
           target: target,
           openChapter: (_, _, _, _) async {},
@@ -331,6 +333,8 @@ void main() {
       await tester.pumpAndSettle();
       await _openStandaloneSourceSearch(tester);
       await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
       await tester.tapAt(tester.getCenter(find.text('Novel 1')));
       await tester.pumpAndSettle();
@@ -422,6 +426,8 @@ void main() {
     await _openStandaloneSourceSearch(tester);
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
     await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chapter A'));
@@ -480,6 +486,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: NovelSeriesPage(
           target: target,
           openChapter: (_, _, _, _) async {},
@@ -524,6 +531,8 @@ void main() {
     await tester.pumpAndSettle();
     await _openStandaloneSourceSearch(tester);
     await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     await tester.tapAt(tester.getCenter(find.text('Novel 1')));
     await tester.pumpAndSettle();

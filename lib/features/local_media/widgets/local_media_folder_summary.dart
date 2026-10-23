@@ -80,12 +80,7 @@ class LocalMediaFolderSummary extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        HikariSpacing.lg,
-        HikariSpacing.sm,
-        HikariSpacing.lg,
-        0,
-      ),
+      padding: const EdgeInsets.only(top: HikariSpacing.sm),
       child: Material(
         color: colors.surfaceContainer,
         borderRadius: HikariRadius.borderMd,

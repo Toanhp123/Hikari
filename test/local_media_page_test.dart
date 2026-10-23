@@ -7,7 +7,7 @@ import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/media/local_media_scan_result.dart';
 
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/local_media/local_media_page.dart';
 import 'package:hikari/features/local_media/local_media_view_model.dart';
@@ -210,7 +210,10 @@ void main() {
 
     expect(find.text('Item 0'), findsOneWidget);
     expect(find.text('Item 499'), findsNothing);
-    expect(find.byType(ListTile).evaluate().length, lessThan(500));
+    expect(
+      find.byType(HikariPosterCard).evaluate().length,
+      inExclusiveRange(0, 500),
+    );
   });
 
   testWidgets('saved root restores results automatically', (tester) async {
@@ -620,7 +623,14 @@ void main() {
       host(
         scanSelectedRoot: () async => [
           for (final type in MediaType.values)
-            Media(title: type.name, type: type, source: media.source),
+            Media(
+              title: type.name,
+              type: type,
+              source: SourceMediaRef(
+                sourceId: SourceId.local,
+                itemId: type.name,
+              ),
+            ),
         ],
         chooseRoot: () async => false,
         openMedia: (_, _) {},
@@ -746,7 +756,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Folder access lost'), findsOneWidget);
+    expect(find.textContaining('Folder access lost'), findsOneWidget);
     expect(find.byTooltip('Rescan folder'), findsNothing);
     expect(find.text('Try Again'), findsNothing);
     expect(find.text('Choose folder'), findsOneWidget);
@@ -862,7 +872,10 @@ void main() {
     await tester.pumpWidget(page(previewA, 0));
     await tester.pumpAndSettle();
     expect(find.byType(SourceArtwork), findsOneWidget);
-    expect(find.byType(MediaPoster), findsOneWidget);
+    expect(find.byType(HikariPosterCard), findsOneWidget);
+    expect(find.byType(HikariArtwork), findsOneWidget);
+    expect(find.byType(HikariAdaptiveGrid), findsOneWidget);
+    expect(find.byType(HikariContentRegion), findsOneWidget);
     expect(find.text('Spirited Away'), findsOneWidget);
     expect(reads, [previewA]);
 
@@ -876,6 +889,79 @@ void main() {
     await tester.pumpAndSettle();
     expect(reads, [previewA, previewB]);
   });
+
+  testWidgets(
+    'Local canonical grid keeps exact artwork across scaled RTL resize',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      const preview = SourceMediaRef(
+        sourceId: SourceId.local,
+        itemId: 'preview',
+      );
+      var scans = 0;
+      var reads = 0;
+      Media? opened;
+      for (final scale in [1.0, 2.0, 3.0]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: HikariTheme.darkTheme(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: child!,
+              ),
+            ),
+            home: LocalMediaPage(
+              scanSelectedRoot: () async {
+                scans++;
+                return LocalMediaScanResult(
+                  rootName: 'Thư viện truyện và tiểu thuyết طويلة',
+                  media: [media],
+                  artwork: {media.source: preview},
+                );
+              },
+              chooseRoot: () async => false,
+              readArtwork: (resource) async {
+                expect(resource, preview);
+                reads++;
+                return null;
+              },
+              openMedia: (_, item) => opened = item,
+            ),
+          ),
+        );
+        for (final width in [
+          375.0,
+          599.0,
+          600.0,
+          601.0,
+          839.0,
+          840.0,
+          841.0,
+          1200.0,
+          1440.0,
+        ]) {
+          tester.view.physicalSize = Size(width, 1200);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.byType(HikariPosterCard), findsOneWidget);
+          expect(find.byType(CustomScrollView), findsOneWidget);
+          expect(find.byType(GridView), findsNothing);
+          final summary = tester.getRect(find.byType(LocalMediaFolderSummary));
+          final card = tester.getRect(find.byType(HikariPosterCard));
+          expect(card.right, closeTo(summary.right, 1));
+        }
+      }
+      expect(scans, 1);
+      expect(reads, 1);
+      await tester.tap(find.byType(HikariPosterCard));
+      expect(opened?.source, media.source);
+    },
+  );
 
   testWidgets('only lazily built posters request artwork', (tester) async {
     final items = List<Media>.generate(

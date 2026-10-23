@@ -34,6 +34,7 @@ void main() {
       var keyCalls = 0;
       var extentCalls = 0;
       for (final width in <double>[
+        375,
         HikariSpacing.lg,
         HikariSpacing.lg * 2,
         375,

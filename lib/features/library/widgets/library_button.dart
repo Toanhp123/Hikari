@@ -26,7 +26,8 @@ class LibraryButton extends StatefulWidget {
 
 class _LibraryButtonState extends State<LibraryButton> {
   late LibraryButtonViewModel _viewModel;
-  bool _confirmingRemoval = false;
+  final _focusNode = FocusNode();
+  bool _confirmingChange = false;
 
   @override
   void initState() {
@@ -58,28 +59,44 @@ class _LibraryButtonState extends State<LibraryButton> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _viewModel.dispose();
     super.dispose();
   }
 
   Future<void> _handlePressed() async {
-    if (_confirmingRemoval) return;
+    if (_confirmingChange) return;
     final viewModel = _viewModel;
-    if (viewModel.state.saved == true) {
-      setState(() => _confirmingRemoval = true);
-      try {
-        final confirmed = await confirmLibraryRemoval(
-          context,
-          title: widget.media.title,
-        );
-        if (!mounted || viewModel != _viewModel || !confirmed) return;
-        await _updateMembership(viewModel, viewModel.remove());
-      } finally {
-        if (mounted) setState(() => _confirmingRemoval = false);
+    final saved = viewModel.state.saved;
+    if (viewModel.state.busy || saved == null) return;
+    final restoreFocus = _focusNode.hasFocus;
+    setState(() => _confirmingChange = true);
+    try {
+      final confirmed = await confirmLibraryMembershipChange(
+        context,
+        title: widget.media.title,
+        removing: saved,
+      );
+      if (!mounted || viewModel != _viewModel || !confirmed) return;
+      await _updateMembership(
+        viewModel,
+        saved ? viewModel.remove() : viewModel.add(),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _confirmingChange = false);
+        if (restoreFocus) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted &&
+                viewModel == _viewModel &&
+                ModalRoute.of(context)?.isCurrent == true &&
+                _focusNode.canRequestFocus) {
+              _focusNode.requestFocus();
+            }
+          });
+        }
       }
-      return;
     }
-    await _updateMembership(viewModel, viewModel.add());
   }
 
   Future<void> _updateMembership(
@@ -104,12 +121,13 @@ class _LibraryButtonState extends State<LibraryButton> {
       builder: (context, _) {
         final state = _viewModel.state;
         return IconButton(
+          focusNode: _focusNode,
           tooltip: state.saved == null
               ? 'Retry library status'
               : state.saved!
               ? 'Remove from library'
               : 'Add to library',
-          onPressed: state.busy || _confirmingRemoval
+          onPressed: state.busy || _confirmingChange
               ? null
               : state.saved == null
               ? () => unawaited(_viewModel.load())

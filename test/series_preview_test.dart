@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
@@ -141,6 +143,10 @@ void main() {
     await tester.pumpWidget(button('preview'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pump();
     await tester.pumpWidget(button('full'));
     await tester.pump();
@@ -536,6 +542,7 @@ void main() {
         );
         await tester.pumpWidget(
           MaterialApp(
+            theme: HikariTheme.darkTheme(),
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 textScaler: const TextScaler.linear(1.5),
@@ -575,7 +582,7 @@ void main() {
               .widget<Semantics>(
                 find
                     .ancestor(
-                      of: find.byType(MaterialBanner),
+                      of: find.byType(HikariNoticeBanner),
                       matching: find.byType(Semantics),
                     )
                     .first,
@@ -630,8 +637,23 @@ void main() {
           return null;
         }
 
+        final scale = ValueNotifier<double>(1);
+        addTearDown(scale.dispose);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
         Widget page() => MaterialApp(
           theme: HikariTheme.darkTheme(),
+          builder: (context, child) => ValueListenableBuilder<double>(
+            valueListenable: scale,
+            builder: (context, value, _) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(value)),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: child!,
+              ),
+            ),
+          ),
           home: manga
               ? MangaSeriesPage(
                   media: media,
@@ -671,10 +693,39 @@ void main() {
         expect(artworkReads, 1);
         pending.complete(MediaMetadata(title: 'Full', cover: preview.cover));
         await tester.pumpAndSettle();
+        expect(find.byType(HikariArtwork), findsOneWidget);
         expect(find.text('Full'), findsOneWidget);
         expect(find.text('Source preview'), findsNothing);
-        expect(detailsReads, 1);
-        expect(artworkReads, 1);
+        for (final textScale in [1.0, 2.0, 3.0]) {
+          scale.value = textScale;
+          for (final width in [
+            375.0,
+            599.0,
+            600.0,
+            601.0,
+            839.0,
+            840.0,
+            841.0,
+            1200.0,
+            1440.0,
+          ]) {
+            tester.view.physicalSize = Size(width, 900);
+            await tester.pumpAndSettle();
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '$kind $width at ${textScale}x',
+            );
+            expect(
+              MediaQuery.textScalerOf(
+                tester.element(find.byType(HikariArtwork)),
+              ).scale(10),
+              textScale * 10,
+            );
+            expect(detailsReads, 1);
+            expect(artworkReads, 1);
+          }
+        }
         await tester.pumpWidget(const SizedBox());
       },
     );

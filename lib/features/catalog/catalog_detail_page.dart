@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/catalog/load_catalog_entry_details.dart';
 import 'package:hikari/application/catalog/resolve_catalog_source.dart';
@@ -13,7 +12,8 @@ import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_models.dart
 import 'package:hikari/core/ui/surfaces/adaptive/show_hikari_adaptive.dart';
 import 'package:hikari/features/catalog/presentation/catalog_source_selection.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
 import 'package:hikari/core/ui/content/hikari_chapter_row.dart';
 import 'package:hikari/features/catalog/presentation/catalog_chapter_row_data.dart';
@@ -406,177 +406,166 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
         : owner?.novel.where((c) => c.source == owner.primary).firstOrNull;
     return [
       SliverToBoxAdapter(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: HikariBreakpoints.maxContentWidth,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: HikariSpacing.md,
-                    vertical: HikariSpacing.xs,
-                  ),
-                  child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: HikariSpacing.md,
+                vertical: HikariSpacing.xs,
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: HikariSpacing.md,
+                runSpacing: HikariSpacing.xs,
+                children: [
+                  Wrap(
+                    spacing: HikariSpacing.xs,
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: HikariSpacing.md,
-                    runSpacing: HikariSpacing.xs,
                     children: [
-                      Wrap(
-                        spacing: HikariSpacing.xs,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (selected != null)
-                            Text(
-                              owner!.sourceName ?? selected.title,
-                              style: textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colors.onSurface,
-                              ),
-                            ),
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: HikariSpacing.sm,
-                                vertical: HikariSpacing.xs,
-                              ),
-                            ),
-                            onPressed: () => unawaited(_chooseSource()),
-                            child: Text(
-                              selected == null
-                                  ? 'Choose source'
-                                  : 'Change source',
-                            ),
+                      if (selected != null)
+                        Text(
+                          owner!.sourceName ?? selected.title,
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colors.onSurface,
                           ),
-                        ],
-                      ),
-                      if (selected != null && widget.library != null)
-                        LibraryButton(
-                          repository: widget.library!,
-                          media: selected,
-                          artwork: owner?.metadata?.cover,
                         ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: HikariSpacing.sm,
+                            vertical: HikariSpacing.xs,
+                          ),
+                        ),
+                        onPressed: () => unawaited(_chooseSource()),
+                        child: Text(
+                          selected == null ? 'Choose source' : 'Change source',
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                if (owner?.fromCache == true)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      HikariSpacing.md,
-                      0,
-                      HikariSpacing.md,
-                      HikariSpacing.xs,
+                  if (selected != null && widget.library != null)
+                    LibraryButton(
+                      repository: widget.library!,
+                      media: selected,
+                      artwork: owner?.metadata?.cover,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          owner!.cacheStale
-                              ? Icons.cloud_off_outlined
-                              : Icons.cloud_done_outlined,
-                          size: 14,
+                ],
+              ),
+            ),
+            if (owner?.fromCache == true)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  HikariSpacing.md,
+                  0,
+                  HikariSpacing.md,
+                  HikariSpacing.xs,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      owner!.cacheStale
+                          ? Icons.cloud_off_outlined
+                          : Icons.cloud_done_outlined,
+                      size: 14,
+                      color: owner.cacheStale
+                          ? colors.error
+                          : colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: HikariSpacing.xs),
+                    Flexible(
+                      child: Text(
+                        owner.cacheStale
+                            ? 'Cached chapters · stale'
+                            : 'Cached chapters · fresh',
+                        style: textTheme.labelSmall?.copyWith(
                           color: owner.cacheStale
                               ? colors.error
                               : colors.onSurfaceVariant,
                         ),
-                        const SizedBox(width: HikariSpacing.xs),
-                        Flexible(
-                          child: Text(
-                            owner.cacheStale
-                                ? 'Cached chapters · stale'
-                                : 'Cached chapters · fresh',
-                            style: textTheme.labelSmall?.copyWith(
-                              color: owner.cacheStale
-                                  ? colors.error
-                                  : colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (owner?.loading == true &&
-                    owner?.hasChapters == false &&
-                    owner?.direct == false)
-                  const Padding(
-                    padding: EdgeInsets.all(HikariSpacing.md),
-                    child: Center(
-                      child: CircularProgressIndicator.adaptive(
-                        semanticsLabel: 'Loading chapters',
                       ),
                     ),
+                  ],
+                ),
+              ),
+            if (owner?.loading == true &&
+                owner?.hasChapters == false &&
+                owner?.direct == false)
+              const Padding(
+                padding: EdgeInsets.all(HikariSpacing.md),
+                child: Center(
+                  child: CircularProgressIndicator.adaptive(
+                    semanticsLabel: 'Loading chapters',
                   ),
-                // Opening a chapter is an explicit navigation operation, not
-                // a refresh. Keep its feedback and interaction guard.
-                if (owner?.opening == true)
-                  const LinearProgressIndicator(
-                    semanticsLabel: 'Opening chapter',
-                  ),
-                if (owner?.failed == true)
-                  Semantics(
-                    liveRegion: true,
-                    child: Padding(
-                      padding: const EdgeInsets.all(HikariSpacing.md),
-                      child: Column(
-                        children: [
-                          Text(
-                            owner!.hasChapters
-                                ? 'Could not refresh chapters. Showing the last loaded list.'
-                                : 'Could not load chapters. Check source access and try again.',
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                unawaited(owner.load(forceRefresh: true)),
-                            child: const Text('Retry'),
-                          ),
-                        ],
+                ),
+              ),
+            // Opening a chapter is an explicit navigation operation, not
+            // a refresh. Keep its feedback and interaction guard.
+            if (owner?.opening == true)
+              const LinearProgressIndicator(semanticsLabel: 'Opening chapter'),
+            if (owner?.failed == true)
+              Semantics(
+                liveRegion: true,
+                child: Padding(
+                  padding: const EdgeInsets.all(HikariSpacing.md),
+                  child: Column(
+                    children: [
+                      Text(
+                        owner!.hasChapters
+                            ? 'Could not refresh chapters. Showing the last loaded list.'
+                            : 'Could not load chapters. Check source access and try again.',
                       ),
-                    ),
+                      TextButton(
+                        onPressed: () =>
+                            unawaited(owner.load(forceRefresh: true)),
+                        child: const Text('Retry'),
+                      ),
+                    ],
                   ),
-                if (owner?.hasChapters == true || owner?.direct == true)
-                  PrimaryReadingCta(
-                    label: owner!.isContinuation
-                        ? 'Continue reading'
-                        : 'Start reading',
-                    enabled: !owner.opening,
-                    onPressed: primary == null && !owner.direct
-                        ? null
-                        : () => unawaited(_openChapter(primary)),
-                  ),
-                if (owner?.hasChapters == true)
-                  ChapterControlBar(
-                    autofocus: false,
-                    totalChapters: owner!.manga.length + owner.novel.length,
-                    filteredChapters: owner.searchQuery.trim().isEmpty
-                        ? null
-                        : chapters.length,
-                    reverseSourceOrder: owner.reverseSourceOrder,
-                    onToggleSourceOrder: owner.toggleSourceOrder,
-                    isSearchExpanded: _searchExpanded,
-                    onToggleSearchExpanded: () => setState(() {
-                      _searchExpanded = !_searchExpanded;
-                      if (!_searchExpanded) owner.setSearchQuery('');
-                    }),
-                    searchQuery: owner.searchQuery,
-                    onSearchChanged: owner.setSearchQuery,
-                    onClearSearch: () => owner.setSearchQuery(''),
-                  ),
-                if (owner?.hasChapters == true && chapters.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(HikariSpacing.lg),
-                    child: Text(
-                      owner!.searchQuery.isEmpty
-                          ? 'No readable chapters found.'
-                          : 'No chapters matching "${owner.searchQuery}"',
-                    ),
-                  ),
-              ],
-            ),
-          ),
+                ),
+              ),
+            if (owner?.hasChapters == true || owner?.direct == true)
+              PrimaryReadingCta(
+                label: owner!.isContinuation
+                    ? 'Continue reading'
+                    : 'Start reading',
+                enabled: !owner.opening,
+                onPressed: primary == null && !owner.direct
+                    ? null
+                    : () => unawaited(_openChapter(primary)),
+              ),
+            if (owner?.hasChapters == true)
+              ChapterControlBar(
+                autofocus: false,
+                totalChapters: owner!.manga.length + owner.novel.length,
+                filteredChapters: owner.searchQuery.trim().isEmpty
+                    ? null
+                    : chapters.length,
+                reverseSourceOrder: owner.reverseSourceOrder,
+                onToggleSourceOrder: owner.toggleSourceOrder,
+                isSearchExpanded: _searchExpanded,
+                onToggleSearchExpanded: () => setState(() {
+                  _searchExpanded = !_searchExpanded;
+                  if (!_searchExpanded) owner.setSearchQuery('');
+                }),
+                searchQuery: owner.searchQuery,
+                onSearchChanged: owner.setSearchQuery,
+                onClearSearch: () => owner.setSearchQuery(''),
+              ),
+            if (owner?.hasChapters == true && chapters.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(HikariSpacing.lg),
+                child: Text(
+                  owner!.searchQuery.isEmpty
+                      ? 'No readable chapters found.'
+                      : 'No chapters matching "${owner.searchQuery}"',
+                ),
+              ),
+          ],
         ),
       ),
       SliverList.builder(
@@ -591,22 +580,14 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
             NovelChapter c => CatalogChapterRowData.novel(c),
             _ => throw ArgumentError('Not a chapter.'),
           };
-          return Center(
+          return HikariChapterRow(
             key: ValueKey(data.source),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: HikariBreakpoints.maxContentWidth,
-              ),
-              child: HikariChapterRow(
-                isContinuation:
-                    owner?.isContinuation == true &&
-                    data.source == owner?.primary,
-                title: data.title,
-                subtitle: data.subtitle,
-                enabled: owner?.opening != true && data.readable,
-                onTap: () => unawaited(_openChapter(chapter)),
-              ),
-            ),
+            isContinuation:
+                owner?.isContinuation == true && data.source == owner?.primary,
+            title: data.title,
+            subtitle: data.subtitle,
+            enabled: owner?.opening != true && data.readable,
+            onTap: () => unawaited(_openChapter(chapter)),
           );
         },
       ),
@@ -643,47 +624,40 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
               ),
             ),
             if (chapters)
-              ..._chapterSlivers()
+              HikariContentRegion.sliver(
+                sliver: SliverMainAxisGroup(slivers: _chapterSlivers()),
+              )
             else
               SliverToBoxAdapter(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: HikariBreakpoints.maxContentWidth,
+                child: HikariContentRegion(
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      top: HikariSpacing.xl,
+                      bottom: HikariSpacing.xxxl,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        HikariSpacing.lg,
-                        HikariSpacing.xl,
-                        HikariSpacing.lg,
-                        HikariSpacing.xxxl,
-                      ),
-                      child: _viewModel.state.initialLoading
-                          ? CatalogDetailLoadingBody(
-                              title: _viewModel.state.entry.title,
-                            )
-                          : _viewModel.state.details != null
-                          ? CatalogDetailContent(
-                              details: _viewModel.state.details!,
-                              refreshFailed: _viewModel.state.refreshFailed,
-                              descriptionExpanded: _descriptionExpanded,
-                              onToggleDescription: () => setState(
-                                () => _descriptionExpanded =
-                                    !_descriptionExpanded,
-                              ),
-                              onRetry: () => unawaited(
-                                _viewModel.load(forceRefresh: true),
-                              ),
-                              openRelated: widget.openRelated,
-                            )
-                          : CatalogDetailFallbackBody(
-                              entry: _viewModel.state.entry,
-                              failed: _viewModel.state.failed,
-                              onRetry: () => unawaited(
-                                _viewModel.load(forceRefresh: true),
-                              ),
+                    child: _viewModel.state.initialLoading
+                        ? CatalogDetailLoadingBody(
+                            title: _viewModel.state.entry.title,
+                          )
+                        : _viewModel.state.details != null
+                        ? CatalogDetailContent(
+                            details: _viewModel.state.details!,
+                            refreshFailed: _viewModel.state.refreshFailed,
+                            descriptionExpanded: _descriptionExpanded,
+                            onToggleDescription: () => setState(
+                              () =>
+                                  _descriptionExpanded = !_descriptionExpanded,
                             ),
-                    ),
+                            onRetry: () =>
+                                unawaited(_viewModel.load(forceRefresh: true)),
+                            openRelated: widget.openRelated,
+                          )
+                        : CatalogDetailFallbackBody(
+                            entry: _viewModel.state.entry,
+                            failed: _viewModel.state.failed,
+                            onRetry: () =>
+                                unawaited(_viewModel.load(forceRefresh: true)),
+                          ),
                   ),
                 ),
               ),
@@ -697,16 +671,16 @@ class _CatalogDetailPageState extends State<CatalogDetailPage>
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final heroHeight =
-        (context.isCompact ? 370.0 : 380.0) +
-        (textScale - 1.0).clamp(0.0, 1.0) * 160.0;
+    // Keep collapse extent stable across width breakpoints. NestedScrollView
+    // restores inner offsets only while its outer header is fully collapsed.
+    final heroHeight = 380.0 + (textScale - 1.0).clamp(0.0, 1.0) * 160.0;
 
     return ListenableBuilder(
       listenable: Listenable.merge([_viewModel, ?_chapters]),
       builder: (context, _) {
         final state = _viewModel.state;
         final hasTabBar = state.entry.type != MediaType.anime;
-        return HikariScaffold(
+        return HikariPageScaffold(
           useSafeArea: false,
           body: SafeArea(
             top: false,

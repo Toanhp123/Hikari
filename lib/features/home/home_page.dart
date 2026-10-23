@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/application/catalog/discover_catalog.dart';
 import 'package:hikari/application/progress/load_continue_reading.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
@@ -16,7 +16,6 @@ import 'package:hikari/features/home/widgets/continue_shelf.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
 import 'package:hikari/features/home/widgets/home_header.dart';
 import 'package:hikari/features/home/widgets/home_library_section.dart';
-import 'package:hikari/features/home/widgets/home_warning_notice.dart';
 
 /// Home composes only real application data.
 ///
@@ -100,124 +99,147 @@ class _HomePageState extends State<HomePage> {
             parent: BouncingScrollPhysics(),
           ),
           slivers: [
-            HomeHeader(onSearch: widget.onNavigateToSearch),
-            if (hasCatalogDiscovery) ...[
-              if (featured.isNotEmpty)
-                HomeBoundedSliverBox(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      top: HikariSpacing.md,
-                      bottom: HikariSpacing.xl,
+            HikariContentRegion.sliver(
+              sliver: SliverMainAxisGroup(
+                slivers: [
+                  HomeHeader(onSearch: widget.onNavigateToSearch),
+                  if (state.continueItems.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: HikariSpacing.xl,
+                        ),
+                        child: ContinueShelf(
+                          items: state.continueItems,
+                          artworkByMedia: state.artworkByMedia,
+                          readArtwork: widget.readArtwork,
+                          onOpenMedia: widget.openMedia,
+                          onContinue: widget.onContinue,
+                          onSeeAll: widget.onNavigateToLibrary,
+                        ),
+                      ),
                     ),
-                    child: HeroCarousel(
-                      entries: featured,
-                      openDetail: (entry) =>
-                          widget.openCatalogDetail!(context, entry),
+                  if (hasCatalogDiscovery) ...[
+                    if (featured.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            top: HikariSpacing.md,
+                            bottom: HikariSpacing.xl,
+                          ),
+                          child: HeroCarousel(
+                            entries: featured,
+                            openDetail: (entry) =>
+                                widget.openCatalogDetail!(context, entry),
+                          ),
+                        ),
+                      )
+                    else if (state.catalogDiscovery == null &&
+                        state.catalogError == null)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            top: HikariSpacing.md,
+                            bottom: HikariSpacing.xl,
+                          ),
+                          child: HeroCarouselSkeleton(),
+                        ),
+                      ),
+                  ],
+                  if (hasCatalogDiscovery)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: HikariSpacing.xl,
+                        ),
+                        child: CatalogDiscoverySections(
+                          discovery: state.catalogDiscovery,
+                          error: state.catalogError,
+                          onRetry: () => unawaited(
+                            _viewModel.reloadCatalog(forceRefresh: true),
+                          ),
+                          openDetail: (entry) =>
+                              widget.openCatalogDetail!(context, entry),
+                          excludeFeatured: true,
+                        ),
+                      ),
+                    ),
+                  if (state.progressError != null)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: HikariSpacing.lg,
+                        ),
+                        child: HikariNoticeBanner(
+                          tone: HikariNoticeTone.warning,
+                          message: 'Some resume progress could not load. Your Library is still available.',
+                          action: TextButton(
+                            onPressed: _viewModel.reload,
+                            child: const Text('Retry'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (state.error != null && state.hasLibrarySnapshot)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: HikariSpacing.lg,
+                        ),
+                        child: HikariNoticeBanner(
+                          tone: HikariNoticeTone.warning,
+                          message: 'Library refresh failed. Showing the last available items.',
+                          action: TextButton(
+                            onPressed: _viewModel.reload,
+                            child: const Text('Retry'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (feed.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: HikariSpacing.xl,
+                        ),
+                        child: HomeRecentShelf(
+                          items: _viewModel.visibleLibraryItems,
+                          artworkByMedia: state.artworkByMedia,
+                          readArtwork: widget.readArtwork,
+                          openMedia: widget.openMedia,
+                          filters: _viewModel.availableFilters,
+                          effectiveFilter: _viewModel.effectiveFilter,
+                          onSelectFilter: _viewModel.selectFilter,
+                          onOpenLibrary: widget.onNavigateToLibrary,
+                        ),
+                      ),
+                    )
+                  else if (state.loading &&
+                      !state.hasLibrarySnapshot &&
+                      !hasCatalogDiscovery)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.only(bottom: HikariSpacing.xl),
+                        child: HomeRecentShelfSkeleton(),
+                      ),
+                    )
+                  else if (state.error != null && !state.hasLibrarySnapshot)
+                    SliverToBoxAdapter(
+                      child: HomeLibraryError(onRetry: _viewModel.reload),
+                    ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      key: const ValueKey('home-bottom-clearance'),
+                      height: bottomObstruction + HikariSpacing.xl,
                     ),
                   ),
-                )
-              else if (state.catalogDiscovery == null &&
-                  state.catalogError == null)
-                const HomeBoundedSliverBox(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: HikariSpacing.md,
-                      bottom: HikariSpacing.xl,
-                    ),
-                    child: HeroCarouselSkeleton(),
-                  ),
-                ),
-            ],
-            if (state.continueItems.isNotEmpty)
-              HomeBoundedSliverBox(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
-                  child: ContinueShelf(
-                    items: state.continueItems,
-                    artworkByMedia: state.artworkByMedia,
-                    readArtwork: widget.readArtwork,
-                    onOpenMedia: widget.openMedia,
-                    onContinue: widget.onContinue,
-                    onSeeAll: widget.onNavigateToLibrary,
-                  ),
-                ),
-              ),
-            if (hasCatalogDiscovery)
-              HomeBoundedSliverBox(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
-                  child: CatalogDiscoverySections(
-                    discovery: state.catalogDiscovery,
-                    error: state.catalogError,
-                    onRetry: () =>
-                        unawaited(_viewModel.reloadCatalog(forceRefresh: true)),
-                    openDetail: (entry) =>
-                        widget.openCatalogDetail!(context, entry),
-                    excludeFeatured: true,
-                  ),
-                ),
-              ),
-            if (state.progressError != null)
-              HomeBoundedSliverBox(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
-                  child: HomeWarningNotice(
-                    icon: Icons.history_rounded,
-                    message: 'Some resume progress could not load. Your Library is still available.',
-                    onRetry: _viewModel.reload,
-                  ),
-                ),
-              ),
-            if (state.error != null && state.hasLibrarySnapshot)
-              HomeBoundedSliverBox(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: HikariSpacing.lg),
-                  child: HomeWarningNotice(
-                    icon: Icons.sync_problem_rounded,
-                    message: 'Library refresh failed. Showing the last available items.',
-                    onRetry: _viewModel.reload,
-                  ),
-                ),
-              ),
-            if (feed.isNotEmpty)
-              HomeBoundedSliverBox(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: HikariSpacing.xl),
-                  child: HomeRecentShelf(
-                    items: _viewModel.visibleLibraryItems,
-                    artworkByMedia: state.artworkByMedia,
-                    readArtwork: widget.readArtwork,
-                    openMedia: widget.openMedia,
-                    filters: _viewModel.availableFilters,
-                    effectiveFilter: _viewModel.effectiveFilter,
-                    onSelectFilter: _viewModel.selectFilter,
-                    onOpenLibrary: widget.onNavigateToLibrary,
-                  ),
-                ),
-              )
-            else if (state.loading &&
-                !state.hasLibrarySnapshot &&
-                !hasCatalogDiscovery)
-              const HomeBoundedSliverBox(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: HikariSpacing.xl),
-                  child: HomeRecentShelfSkeleton(),
-                ),
-              )
-            else if (state.error != null && !state.hasLibrarySnapshot)
-              HomeBoundedSliverBox(
-                child: HomeLibraryError(onRetry: _viewModel.reload),
-              ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                key: const ValueKey('home-bottom-clearance'),
-                height: bottomObstruction + HikariSpacing.xl,
+                ],
               ),
             ),
           ],
         );
-        return Scaffold(
-          backgroundColor: Theme.of(context).colorScheme.surface,
+        return HikariPageScaffold(
+          useSafeArea: false,
           body: SafeArea(
             bottom: false,
             child: hasRefreshableSource

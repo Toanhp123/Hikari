@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/application/search/search_manga.dart';
 import 'package:hikari/application/search/search_novels.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/media/metadata.dart';
@@ -118,7 +118,7 @@ class _SourceSearchPageState extends State<SourceSearchPage> {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _viewModel,
-      builder: (context, _) => HikariScaffold(
+      builder: (context, _) => HikariPageScaffold(
         useSafeArea: true,
         appBar: AppBar(
           leading: Navigator.of(context).canPop() ? const BackButton() : null,

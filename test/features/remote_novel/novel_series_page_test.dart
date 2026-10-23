@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
+import 'package:hikari/core/ui/content/hikari_chapter_row.dart';
 import 'package:hikari/application/media/open_media.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
@@ -96,6 +99,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        expect(find.byType(HikariPageScaffold), findsOneWidget);
+        expect(find.byType(HikariContentRegion), findsOneWidget);
+        expect(find.byType(HikariChapterRow), findsNWidgets(3));
         expect(find.byType(PrimaryReadingCta), findsOneWidget);
         expect(find.text('Start reading'), findsOneWidget);
 
@@ -278,14 +284,10 @@ void main() {
           HikariBreakpoints.maxContentWidth,
         );
 
-        // The parent or ancestor should be a Center widget
-        expect(
-          find.ancestor(
-            of: find.byWidget(contentBox),
-            matching: find.byType(Center),
-          ),
-          findsOneWidget,
-        );
+        final bounds = tester.getRect(find.byType(ListView));
+        expect(bounds.width, HikariBreakpoints.maxContentWidth);
+        expect(bounds.center.dx, 960);
+        expect(find.byType(HikariContentRegion), findsOneWidget);
       },
     );
   });

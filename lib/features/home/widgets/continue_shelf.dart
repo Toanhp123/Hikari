@@ -1,21 +1,14 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
-import 'package:hikari/core/ui/foundation/hikari_radius.dart';
-import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/media_progress_bar.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
-import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';
-import 'package:hikari/features/home/widgets/home_section_link.dart';
 
-/// High-priority shelf for resuming media with unified progress treatment.
+/// Maps saved continuation identity and progress into a lazy landscape shelf.
 class ContinueShelf extends StatelessWidget {
   const ContinueShelf({
     super.key,
@@ -35,293 +28,82 @@ class ContinueShelf extends StatelessWidget {
   final VoidCallback? onSeeAll;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) =>
-        _buildShelf(context, constraints.maxWidth),
-  );
-
-  Widget _buildShelf(BuildContext context, double width) {
-    if (items.isEmpty) return const SizedBox.shrink();
-
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final isCompact =
-        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
-    final cardWidth = isCompact ? 172.0 : 208.0;
-    final textScaler = MediaQuery.textScalerOf(context);
-    double lineHeight(TextStyle? style) {
-      final painter = TextPainter(
-        text: TextSpan(text: 'Ag', style: style),
-        textDirection: Directionality.of(context),
-        textScaler: textScaler,
-        maxLines: 1,
-      )..layout();
-      final height = painter.height;
-      painter.dispose();
-      return height;
-    }
-
-    final cardHeight = math.max(
-      142.0,
-      64 +
-          lineHeight(theme.textTheme.titleSmall) +
-          lineHeight(theme.textTheme.bodySmall) +
-          2 +
-          6 +
-          HikariSpacing.sm,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Semantics(
-                      headingLevel: 2,
-                      child: Text(
-                        'Continue',
-                        style: (theme.textTheme.titleLarge ?? const TextStyle())
-                            .copyWith(
-                              color: colors.onSurface,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                            ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Pick up where you left off',
-                      style: (theme.textTheme.bodySmall ?? const TextStyle())
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              if (onSeeAll != null)
-                HomeSectionLink(label: 'Library', onTap: onSeeAll!),
-            ],
-          ),
-        ),
-        const SizedBox(height: HikariSpacing.md),
-        SizedBox(
-          height: cardHeight,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: HikariSpacing.md),
-            itemBuilder: (context, index) => SizedBox(
-              width: cardWidth,
-              child: _ContinueCard(
-                item: items[index],
-                artwork: artworkByMedia[items[index].media.source],
-                readArtwork: readArtwork,
-                onTap: () => onContinue != null
-                    ? onContinue!(context, items[index])
-                    : onOpenMedia(context, items[index].media),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ContinueCard extends StatelessWidget {
-  const _ContinueCard({
-    required this.item,
-    required this.onTap,
-    this.artwork,
-    this.readArtwork,
-  });
-
-  final ContinueReadingItem item;
-  final SourceMediaRef? artwork;
-  final Future<Uint8List?> Function(SourceMediaRef)? readArtwork;
-  final VoidCallback onTap;
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final badgeText = mediaTypeBadgeLabel(item.media.type);
-    final badgeColor = mediaTypeBadgeColors(
-      context,
-      item.media.type,
-    ).foreground;
-    final actionIcon = switch (item.media.type) {
-      MediaType.anime => Icons.play_arrow_rounded,
-      MediaType.manga => Icons.auto_stories_rounded,
-      MediaType.lightNovel => Icons.menu_book_rounded,
-    };
-
-    final progressLabel = _progressLabel(item);
-
-    return Semantics(
-      button: true,
-      label: 'Continue ${item.media.title}, $progressLabel',
-      onTap: onTap,
-      child: ExcludeSemantics(
-        child: Material(
-          color: colors.surfaceContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: HikariRadius.borderLg,
-            side: BorderSide(
-              color: colors.outlineVariant.withValues(alpha: 0.6),
-              width: HikariRadius.borderWidth,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            splashColor: colors.primary.withValues(alpha: 0.12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              badgeColor.withValues(alpha: 0.16),
-                              colors.surfaceContainerHigh,
-                              colors.surfaceContainer,
-                            ],
-                          ),
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: badgeColor.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              actionIcon,
-                              size: 22,
-                              color: badgeColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (artwork != null && readArtwork != null)
-                        SourceArtwork(
-                          key: ValueKey(artwork),
-                          resource: artwork!,
-                          read: readArtwork!,
-                          builder: (context, bytes, _) => bytes == null
-                              ? const SizedBox.shrink()
-                              : LayoutBuilder(
-                                  builder: (context, constraints) =>
-                                      Image.memory(
-                                        bytes,
-                                        fit: BoxFit.cover,
-                                        width: constraints.maxWidth,
-                                        height: constraints.maxHeight,
-                                        cacheWidth: mediaArtworkCacheWidth(
-                                          context,
-                                          constraints.maxWidth,
-                                        ),
-                                        errorBuilder: (_, _, _) =>
-                                            const SizedBox.shrink(),
-                                      ),
-                                ),
-                        ),
-                      Positioned(
-                        left: HikariSpacing.sm,
-                        top: HikariSpacing.sm,
-                        child: DecoratedBox(
-                          decoration: ShapeDecoration(
-                            color: badgeColor.withValues(alpha: 0.18),
-                            shape: HikariRadius.pill,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            child: Text(
-                              badgeText,
-                              style:
-                                  (theme.textTheme.labelSmall ??
-                                          const TextStyle())
-                                      .copyWith(
-                                        color: badgeColor,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.4,
-                                      ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: Semantics(
-                          label: 'Progress',
-                          value:
-                              '${(item.progress.clamp(0.0, 1.0) * 100).round()}%',
-                          child: MediaProgressBar(
-                            progress: item.progress,
-                            height: 3,
-                            showGlow: false,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    HikariSpacing.sm,
-                    6,
-                    HikariSpacing.sm,
-                    HikariSpacing.sm,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.media.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: (theme.textTheme.titleSmall ?? const TextStyle())
-                            .copyWith(
-                              color: colors.onSurface,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        progressLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: (theme.textTheme.bodySmall ?? const TextStyle())
-                            .copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    if (items.isEmpty) return const SizedBox.shrink();
+    return HikariHorizontalShelf(
+      itemCount: items.length,
+      itemKeyBuilder: (index) => ValueKey(items[index].media.source),
+      itemExtent: 208,
+      itemHeightBuilder: (context, width) => hikariCardExtent(
+        context,
+        width: width,
+        hasSubtitle: true,
+        aspectRatio: HikariAspectRatios.landscape,
       ),
+      header: HikariSectionHeader(
+        title: 'Continue',
+        description: 'Pick up where you left off',
+        actions: [
+          if (onSeeAll != null)
+            TextButton(onPressed: onSeeAll, child: const Text('Library')),
+        ],
+      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final resource = artworkByMedia[item.media.source];
+        final colors = mediaTypeBadgeColors(context, item.media.type);
+        final icon = switch (item.media.type) {
+          MediaType.anime => Icons.play_arrow_rounded,
+          MediaType.manga => Icons.auto_stories_rounded,
+          MediaType.lightNovel => Icons.menu_book_rounded,
+        };
+        void open() => onContinue != null
+            ? onContinue!(context, item)
+            : onOpenMedia(context, item.media);
+        final label = _progressLabel(item);
+        Widget card(Uint8List? bytes) => Semantics(
+          button: true,
+          label: 'Continue ${item.media.title}, $label',
+          onTap: open,
+          child: ExcludeSemantics(
+            child: HikariLandscapeCard(
+              title: item.media.title,
+              subtitle: label,
+              progress: item.progress,
+              onTap: open,
+              badge: Text(
+                mediaTypeBadgeLabel(item.media.type),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                ),
+              ),
+              artwork: HikariArtwork(
+                image: bytes == null ? null : MemoryImage(bytes),
+                placeholder: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        colors.background,
+                        Theme.of(context).colorScheme.surfaceContainer,
+                      ],
+                    ),
+                  ),
+                  child: Center(child: Icon(icon, color: colors.foreground)),
+                ),
+              ),
+            ),
+          ),
+        );
+        return resource != null && readArtwork != null
+            ? SourceArtwork(
+                key: ValueKey(resource),
+                resource: resource,
+                read: readArtwork!,
+                builder: (_, bytes, _) => card(bytes),
+              )
+            : card(null);
+      },
     );
   }
 }

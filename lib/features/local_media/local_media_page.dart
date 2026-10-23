@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/components/hikari_refresh_action.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/domain/library/library.dart';
 import 'package:hikari/domain/media/local_media_scan_result.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -73,7 +73,7 @@ class _LocalMediaPageState extends State<LocalMediaPage> {
                 state.failure != LocalMediaFailure.accessLost) ||
             (state.status == LocalMediaStatus.error &&
                 state.failure == LocalMediaFailure.unavailable);
-        return HikariScaffold(
+        return HikariPageScaffold(
           useSafeArea: true,
           appBar: AppBar(
             title: const Text('Local'),

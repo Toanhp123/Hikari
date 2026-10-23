@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
-import 'package:hikari/core/ui/foundation/hikari_radius.dart';
-import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/async_state_view.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/features/home/widgets/hero_carousel.dart';
@@ -26,25 +22,18 @@ class CatalogDiscoverySections extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final current = discovery;
     if (error != null && current == null) {
-      return Padding(
-        padding: const EdgeInsets.all(HikariSpacing.lg),
-        child: AsyncStateView(
-          status: AsyncViewStatus.error,
-          contentBuilder: (_) => const SizedBox.shrink(),
-          errorTitle: 'Catalog unavailable',
-          errorMessage:
-              'Could not load discovery. Check your connection and try again.',
-          onRetry: onRetry,
-        ),
+      return HikariAsyncStateView(
+        status: HikariAsyncStatus.fatalError,
+        message: 'Catalog unavailable. Could not load discovery. Check your connection and try again.',
+        onRetry: onRetry,
+        child: const SizedBox.shrink(),
       );
     }
     if (current == null) {
       return _CatalogLoadingSkeleton(excludeFeatured: excludeFeatured);
     }
-
     final sections = current.sections;
     final featured =
         sections[CatalogSection.featured] ?? const <CatalogEntry>[];
@@ -52,81 +41,48 @@ class CatalogDiscoverySections extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (error != null)
-          MaterialBanner(
-            content: const Text(
-              'Could not refresh discovery. Showing the last available catalog.',
-            ),
-            actions: [
-              TextButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
+          HikariNoticeBanner(
+            tone: HikariNoticeTone.warning,
+            message: 'Could not refresh discovery. Showing the last available catalog.',
+            action: TextButton(onPressed: onRetry, child: const Text('Retry')),
           ),
-        if (current.warnings.isNotEmpty) ...[
-          MaterialBanner(
-            content: Text(current.warnings.join(' ')),
-            actions: [
-              TextButton(onPressed: onRetry, child: const Text('Retry')),
-            ],
+        if (current.warnings.isNotEmpty)
+          HikariNoticeBanner(
+            tone: HikariNoticeTone.warning,
+            message: current.warnings.join(' '),
+            action: TextButton(onPressed: onRetry, child: const Text('Retry')),
           ),
-        ],
         if (!excludeFeatured && featured.isNotEmpty)
           HeroCarousel(entries: featured, openDetail: openDetail),
         for (final section in CatalogSection.values)
           if (section != CatalogSection.featured &&
-              (sections[section] ?? []).isNotEmpty) ...[
+              (sections[section] ?? []).isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                HikariSpacing.lg,
-                HikariSpacing.xl,
-                HikariSpacing.lg,
-                HikariSpacing.sm,
-              ),
-              child: Semantics(
-                headingLevel: 2,
-                child: Text(
-                  _sectionTitle(section),
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.15,
-                  ),
-                ),
-              ),
-            ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final posterWidth = _catalogPosterWidth(constraints.maxWidth);
-                return SizedBox(
-                  height: mediaPosterShelfHeight(context, posterWidth),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: HikariSpacing.lg,
+              padding: const EdgeInsets.only(top: HikariSpacing.xl),
+              child: HikariHorizontalShelf(
+                itemCount: sections[section]!.length,
+                itemKeyBuilder: (index) => ValueKey((
+                  sections[section]![index].id,
+                  sections[section]![index].type,
+                )),
+                header: HikariSectionHeader(title: _sectionTitle(section)),
+                itemHeightBuilder: (context, width) =>
+                    hikariCardExtent(context, width: width),
+                itemBuilder: (context, index) {
+                  final entry = sections[section]![index];
+                  return HikariPosterCard(
+                    title: entry.title,
+                    artwork: HikariArtwork(
+                      image: entry.coverUrl == null
+                          ? null
+                          : NetworkImage(entry.coverUrl!),
                     ),
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: sections[section]!.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(width: HikariSpacing.md),
-                    itemBuilder: (context, index) {
-                      final entry = sections[section]![index];
-                      return SizedBox(
-                        width: posterWidth,
-                        child: MediaPoster(
-                          title: entry.title,
-                          imageUrl: entry.coverUrl,
-                          badgeText: mediaTypeBadgeLabel(entry.type),
-                          onTap: () => openDetail(entry),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+                    badge: Text(mediaTypeBadgeLabel(entry.type)),
+                    onTap: () => openDetail(entry),
+                  );
+                },
+              ),
             ),
-          ],
-        if (sections.values.every((items) => items.isEmpty))
-          const Padding(
-            padding: EdgeInsets.all(HikariSpacing.lg),
-            child: Text('No catalog results available.'),
-          ),
       ],
     );
   }
@@ -141,101 +97,32 @@ String _sectionTitle(CatalogSection section) => switch (section) {
   CatalogSection.seasonalAnime => 'Seasonal Anime',
 };
 
-double _catalogPosterWidth(double availableWidth) {
-  final layout = HikariBreakpoints.classify(availableWidth);
-  return switch (layout) {
-    HikariWidthClass.compact => 132.0,
-    HikariWidthClass.medium => 144.0,
-    HikariWidthClass.expanded || HikariWidthClass.wide => 156.0,
-  };
-}
-
 class _CatalogLoadingSkeleton extends StatelessWidget {
   const _CatalogLoadingSkeleton({this.excludeFeatured = false});
-
   final bool excludeFeatured;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) =>
-        _buildSkeleton(context, constraints.maxWidth),
-  );
-
-  Widget _buildSkeleton(BuildContext context, double width) {
-    final isCompact =
-        HikariBreakpoints.classify(width) == HikariWidthClass.compact;
-    final colors = Theme.of(context).colorScheme;
-    final posterWidth = _catalogPosterWidth(width);
-
-    return Semantics(
-      key: const ValueKey('catalog-loading-skeleton'),
-      container: true,
-      label: 'Loading catalog',
-      child: ExcludeSemantics(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!excludeFeatured)
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isCompact ? HikariSpacing.lg : HikariSpacing.xl,
-                ),
-                child: AspectRatio(
-                  aspectRatio: isCompact ? (16 / 10) : (16 / 7),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: HikariRadius.borderLg,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          colors.surfaceContainerHighest,
-                          colors.surfaceContainer,
-                          colors.surface,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+  Widget build(BuildContext context) => Semantics(
+    key: const ValueKey('catalog-loading-skeleton'),
+    container: true,
+    label: 'Loading catalog',
+    child: ExcludeSemantics(
+      child: Column(
+        children: [
+          if (!excludeFeatured) const HeroCarouselSkeleton(),
+          for (var section = 0; section < 2; section++)
+            Padding(
+              padding: const EdgeInsets.only(top: HikariSpacing.xl),
+              child: HikariHorizontalShelf(
+                itemCount: 4,
+                itemHeightBuilder: (context, width) =>
+                    hikariCardExtent(context, width: width),
+                itemBuilder: (_, _) =>
+                    const HikariPosterCard(title: '', artwork: HikariArtwork()),
               ),
-            for (var section = 0; section < 2; section++) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  HikariSpacing.lg,
-                  HikariSpacing.xl,
-                  HikariSpacing.lg,
-                  HikariSpacing.sm,
-                ),
-                child: Container(
-                  width: section == 0 ? 112 : 148,
-                  height: 18,
-                  decoration: ShapeDecoration(
-                    color: colors.surfaceContainerHighest,
-                    shape: HikariRadius.pill,
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: mediaPosterShelfHeight(context, posterWidth),
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: HikariSpacing.lg,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 4,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: HikariSpacing.md),
-                  itemBuilder: (_, _) => SizedBox(
-                    width: posterWidth,
-                    child: const MediaPoster(title: '', isLoading: true),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }

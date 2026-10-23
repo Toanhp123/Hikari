@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
-import 'package:hikari/core/ui/foundation/hikari_color_roles.dart';
-import 'package:hikari/core/ui/foundation/hikari_radius.dart';
-import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/features/catalog/catalog_detail_labels.dart';
 
@@ -43,16 +39,19 @@ class CatalogDetailQuickFacts extends StatelessWidget {
     ];
 
     if (facts.isEmpty) return const SizedBox.shrink();
-    return CatalogDetailSection(
-      title: 'At a glance',
-      child: Wrap(
-        spacing: HikariSpacing.sm,
-        runSpacing: HikariSpacing.sm,
-        children: [
-          for (final fact in facts)
-            _FactTile(label: fact.label, value: fact.value, icon: fact.icon),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const HikariSectionHeader(title: 'At a glance'),
+        Wrap(
+          spacing: HikariSpacing.sm,
+          runSpacing: HikariSpacing.sm,
+          children: [
+            for (final fact in facts)
+              _FactTile(label: fact.label, value: fact.value, icon: fact.icon),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -63,13 +62,16 @@ class CatalogDetailGenresSection extends StatelessWidget {
   final List<String> genres;
 
   @override
-  Widget build(BuildContext context) => CatalogDetailSection(
-    title: 'Genres',
-    child: Wrap(
-      spacing: HikariSpacing.sm,
-      runSpacing: HikariSpacing.sm,
-      children: [for (final genre in genres) _StaticTag(label: genre)],
-    ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const HikariSectionHeader(title: 'Genres'),
+      Wrap(
+        spacing: HikariSpacing.sm,
+        runSpacing: HikariSpacing.sm,
+        children: [for (final genre in genres) _StaticTag(label: genre)],
+      ),
+    ],
   );
 }
 
@@ -79,27 +81,31 @@ class CatalogDetailTitlesSection extends StatelessWidget {
   final CatalogEntryDetails details;
 
   @override
-  Widget build(BuildContext context) => CatalogDetailSection(
-    title: 'Titles',
-    child: _InfoSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (details.alternateTitles.isNotEmpty)
-            _LabeledValue(
-              label: 'Alternate',
-              value: details.alternateTitles.join(' · '),
-            ),
-          if (details.alternateTitles.isNotEmpty && details.synonyms.isNotEmpty)
-            const SizedBox(height: HikariSpacing.md),
-          if (details.synonyms.isNotEmpty)
-            _LabeledValue(
-              label: 'Also known as',
-              value: details.synonyms.join(' · '),
-            ),
-        ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const HikariSectionHeader(title: 'Titles'),
+      _InfoSurface(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (details.alternateTitles.isNotEmpty)
+              _LabeledValue(
+                label: 'Alternate',
+                value: details.alternateTitles.join(' · '),
+              ),
+            if (details.alternateTitles.isNotEmpty &&
+                details.synonyms.isNotEmpty)
+              const SizedBox(height: HikariSpacing.md),
+            if (details.synonyms.isNotEmpty)
+              _LabeledValue(
+                label: 'Also known as',
+                value: details.synonyms.join(' · '),
+              ),
+          ],
+        ),
       ),
-    ),
+    ],
   );
 }
 
@@ -127,18 +133,24 @@ class CatalogDetailMetadataSection extends StatelessWidget {
         (label: 'Volumes', value: '${details.volumes}'),
     ];
 
-    return CatalogDetailSection(
-      title: 'Details',
-      child: _InfoSurface(
-        child: Column(
-          children: [
-            for (var index = 0; index < rows.length; index++) ...[
-              _MetadataRow(label: rows[index].label, value: rows[index].value),
-              if (index != rows.length - 1) const Divider(height: 20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const HikariSectionHeader(title: 'Details'),
+        _InfoSurface(
+          child: Column(
+            children: [
+              for (var index = 0; index < rows.length; index++) ...[
+                _MetadataRow(
+                  label: rows[index].label,
+                  value: rows[index].value,
+                ),
+                if (index != rows.length - 1) const Divider(height: 20),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -149,21 +161,27 @@ class CatalogDetailCreditsSection extends StatelessWidget {
   final CatalogEntryDetails details;
 
   @override
-  Widget build(BuildContext context) => CatalogDetailSection(
-    title: 'Credits',
-    child: _InfoSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (details.studios.isNotEmpty)
-            _LabeledValue(label: 'Studios', value: details.studios.join(' · ')),
-          if (details.studios.isNotEmpty && details.staff.isNotEmpty)
-            const SizedBox(height: HikariSpacing.md),
-          if (details.staff.isNotEmpty)
-            _LabeledValue(label: 'Staff', value: details.staff.join(' · ')),
-        ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const HikariSectionHeader(title: 'Credits'),
+      _InfoSurface(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (details.studios.isNotEmpty)
+              _LabeledValue(
+                label: 'Studios',
+                value: details.studios.join(' · '),
+              ),
+            if (details.studios.isNotEmpty && details.staff.isNotEmpty)
+              const SizedBox(height: HikariSpacing.md),
+            if (details.staff.isNotEmpty)
+              _LabeledValue(label: 'Staff', value: details.staff.join(' · ')),
+          ],
+        ),
       ),
-    ),
+    ],
   );
 }
 
@@ -179,129 +197,27 @@ class CatalogDetailRelationsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = context.isCompact ? 132.0 : 148.0;
-    return CatalogDetailSection(
-      title: 'Related',
-      child: SizedBox(
-        height: width * 1.5 + 56.0,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: relations.length,
-          separatorBuilder: (_, _) => const SizedBox(width: HikariSpacing.md),
-          itemBuilder: (context, index) {
-            final relation = relations[index];
-            return SizedBox(
-              width: width,
-              child: Material(
-                color: Colors.transparent,
-                child: MediaPoster(
-                  title: relation.entry.title,
-                  imageUrl: relation.entry.coverUrl,
-                  subtitle: catalogRelationLabel(relation.relation),
-                  onTap: () => openRelated(relation.entry),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class CatalogDetailNotice extends StatelessWidget {
-  const CatalogDetailNotice({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.onRetry,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColors = context.hikariStatusColors;
-    final onWarning = statusColors.onWarningContainer;
-
-    return _InfoSurface(
-      borderColor: onWarning.withValues(alpha: 0.32),
-      backgroundColor: statusColors.warningContainer,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: onWarning, size: 22),
-          const SizedBox(width: HikariSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleSmall!
-                      .copyWith(color: onWarning, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodySmall!
-                      .copyWith(color: onWarning.withValues(alpha: 0.9)),
-                ),
-              ],
-            ),
+    return HikariHorizontalShelf(
+      header: const HikariSectionHeader(title: 'Related'),
+      itemExtent: context.isCompact ? 132 : 148,
+      itemCount: relations.length,
+      itemKeyBuilder: (index) => ValueKey((
+        relations[index].entry.id,
+        relations[index].entry.type,
+        relations[index].relation,
+      )),
+      itemBuilder: (context, index) {
+        final relation = relations[index];
+        final cover = relation.entry.coverUrl;
+        return HikariPosterCard(
+          title: relation.entry.title,
+          artwork: HikariArtwork(
+            image: cover == null || cover.isEmpty ? null : NetworkImage(cover),
           ),
-          TextButton(
-            onPressed: onRetry,
-            style: TextButton.styleFrom(foregroundColor: onWarning),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class CatalogDetailWarning extends StatelessWidget {
-  const CatalogDetailWarning({
-    super.key,
-    required this.messages,
-    required this.onRetry,
-  });
-
-  final List<String> messages;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColors = context.hikariStatusColors;
-    final onWarning = statusColors.onWarningContainer;
-
-    return _InfoSurface(
-      borderColor: onWarning.withValues(alpha: 0.28),
-      backgroundColor: statusColors.warningContainer,
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, size: 20, color: onWarning),
-          const SizedBox(width: HikariSpacing.sm),
-          Expanded(
-            child: Text(
-              messages.join(' '),
-              style: Theme.of(context).textTheme.bodySmall!
-                  .copyWith(color: onWarning.withValues(alpha: 0.9)),
-            ),
-          ),
-          TextButton(
-            onPressed: onRetry,
-            style: TextButton.styleFrom(foregroundColor: onWarning),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
+          subtitle: catalogRelationLabel(relation.relation),
+          onTap: () => openRelated(relation.entry),
+        );
+      },
     );
   }
 }
@@ -351,43 +267,11 @@ class CatalogDetailProvenance extends StatelessWidget {
   }
 }
 
-class CatalogDetailSection extends StatelessWidget {
-  const CatalogDetailSection({
-    super.key,
-    required this.title,
-    required this.child,
-  });
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium!.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      const SizedBox(height: HikariSpacing.md),
-      child,
-    ],
-  );
-}
-
 class _InfoSurface extends StatelessWidget {
-  const _InfoSurface({
-    required this.child,
-    this.borderColor,
-    this.backgroundColor,
-  });
+  const _InfoSurface({required this.child, this.borderColor});
 
   final Widget child;
   final Color? borderColor;
-  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -396,7 +280,7 @@ class _InfoSurface extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(HikariSpacing.lg),
       decoration: BoxDecoration(
-        color: backgroundColor ?? colors.surfaceContainer,
+        color: colors.surfaceContainer,
         borderRadius: HikariRadius.borderLg,
         border: Border.all(
           color: borderColor ?? colors.outlineVariant.withValues(alpha: 0.6),

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/features/catalog/catalog_search_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_search_content.dart';
@@ -75,7 +75,7 @@ class _CatalogSearchPageState extends State<CatalogSearchPage> {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _viewModel,
-      builder: (context, _) => HikariScaffold(
+      builder: (context, _) => HikariPageScaffold(
         useSafeArea: true,
         body: CatalogSearchContent(
           controller: _controller,

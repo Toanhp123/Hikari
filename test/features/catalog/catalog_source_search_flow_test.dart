@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/library/library.dart';
@@ -317,6 +316,8 @@ void main() {
         );
         await tester.tap(find.byTooltip('Add to library'));
         await tester.pumpAndSettle();
+        await tester.tap(find.text('Add'));
+        await tester.pumpAndSettle();
         expect(
           (await dependencies.libraryRepository.loadAll())
               .map((entry) => entry.media.source)
@@ -447,7 +448,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
       expect(source.searches, 1);
-      await tester.tap(find.widgetWithText(MediaPoster, 'Catalog title'));
+      await tester.tap(find.widgetWithText(HikariPosterCard, 'Catalog title'));
       await tester.pumpAndSettle();
       expect(find.byType(NovelSeriesPage), findsOneWidget);
       expect(find.byType(CatalogDetailPage), findsNothing);
@@ -962,7 +963,7 @@ void main() {
       expect(page.initialFilter, SourceSearchFilter.manga);
       expect(local.scans, 0);
       expect(find.text('Searching in Manga source · EN'), findsOneWidget);
-      await tester.tap(find.byType(MediaPoster).first);
+      await tester.tap(find.byType(HikariPosterCard).first);
       await tester.pumpAndSettle();
       expect(find.byType(SourceSearchPage), findsNothing);
       expect(find.byType(MangaSeriesPage), findsNothing);
@@ -1006,7 +1007,7 @@ void main() {
             .fixedMediaType,
         MediaType.lightNovel,
       );
-      await tester.tap(find.byType(MediaPoster).first);
+      await tester.tap(find.byType(HikariPosterCard).first);
       await tester.pumpAndSettle();
       expect(find.byType(NovelSeriesPage), findsNothing);
       expect(find.byType(CatalogDetailPage), findsOneWidget);

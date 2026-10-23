@@ -1,21 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/hikari_ui.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
-import 'package:hikari/core/ui/foundation/hikari_radius.dart';
-import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
-import 'package:hikari/core/ui/patterns/async_state_view.dart';
-import 'package:hikari/core/ui/patterns/media_poster.dart';
 import 'package:hikari/core/ui/patterns/media_type_presentation.dart';
 import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/features/home/home_view_model.dart';
-import 'package:hikari/features/home/widgets/home_section_link.dart';
 
-/// Horizontal shelf for the user's recently added saved library items on Home.
-///
-/// Keeps Home 100% consistent with horizontal discovery shelves rather than
-/// an unbounded vertical grid, with a direct link to the full Library tab.
+/// Maps the saved Library snapshot and filter into canonical presentation.
 class HomeRecentShelf extends StatelessWidget {
   const HomeRecentShelf({
     super.key,
@@ -39,212 +31,90 @@ class HomeRecentShelf extends StatelessWidget {
   final VoidCallback? onOpenLibrary;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) =>
-        _buildShelf(context, constraints.maxWidth),
-  );
-
-  Widget _buildShelf(BuildContext context, double width) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final layout = HikariBreakpoints.classify(width);
-    final posterWidth = switch (layout) {
-      HikariWidthClass.compact => 132.0,
-      HikariWidthClass.medium => 144.0,
-      HikariWidthClass.expanded || HikariWidthClass.wide => 156.0,
-    };
-
-    return Column(
+  Widget build(BuildContext context) => HikariHorizontalShelf(
+    itemCount: items.length,
+    itemKeyBuilder: (index) => ValueKey(items[index].source),
+    itemHeightBuilder: (context, width) =>
+        hikariCardExtent(context, width: width),
+    header: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-          child: Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  headingLevel: 2,
-                  child: Text(
-                    'Recently added',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: colors.onSurface,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.15,
-                    ),
-                  ),
-                ),
+        HikariSectionHeader(
+          title: 'Recently added',
+          actions: [
+            if (onOpenLibrary != null)
+              TextButton(
+                onPressed: onOpenLibrary,
+                child: const Text('Library'),
               ),
-              if (onOpenLibrary != null)
-                HomeSectionLink(label: 'Library', onTap: onOpenLibrary!),
+          ],
+        ),
+        if (filters.isNotEmpty && onSelectFilter != null)
+          HikariChipRow(
+            children: [
+              for (final filter in filters)
+                HikariFilterChip(
+                  label: filter.mediaType == null
+                      ? 'All'
+                      : mediaTypeLabel(filter.mediaType!),
+                  selected: effectiveFilter == filter,
+                  onSelected: (_) => onSelectFilter!(filter),
+                ),
             ],
           ),
-        ),
-        if (filters.isNotEmpty && onSelectFilter != null) ...[
-          const SizedBox(height: HikariSpacing.xs),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-            child: Row(
-              children: [
-                for (var index = 0; index < filters.length; index++) ...[
-                  if (index > 0) const SizedBox(width: HikariSpacing.sm),
-                  FilterChip(
-                    label: Text(
-                      filters[index].mediaType == null
-                          ? 'All'
-                          : mediaTypeLabel(filters[index].mediaType!),
-                    ),
-                    selected: effectiveFilter == filters[index],
-                    onSelected: (_) => onSelectFilter!(filters[index]),
-                    showCheckmark: false,
-                    shape: HikariRadius.pill,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: HikariSpacing.sm),
-        if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: HikariSpacing.lg,
-              vertical: HikariSpacing.xl,
-            ),
-            child: Center(
-              child: Text(
-                'No items in this category.',
-                style: (theme.textTheme.bodySmall ?? const TextStyle())
-                    .copyWith(color: colors.onSurfaceVariant),
-              ),
-            ),
-          )
-        else
-          SizedBox(
-            height: mediaPosterShelfHeight(context, posterWidth),
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: items.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(width: HikariSpacing.md),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                final badge = mediaTypeBadgeColors(context, item.type);
-                Widget poster(Uint8List? bytes) => MediaPoster(
-                  title: item.title,
-                  imageBytes: bytes,
-                  badgeText: mediaTypeBadgeLabel(item.type),
-                  badgeColor: badge.background,
-                  badgeForegroundColor: badge.foreground,
-                  onTap: () => openMedia(context, item),
-                );
-                final artwork = artworkByMedia[item.source];
-                return SizedBox(
-                  width: posterWidth,
-                  child: artwork != null && readArtwork != null
-                      ? SourceArtwork(
-                          key: ValueKey(item.source),
-                          resource: artwork,
-                          read: readArtwork!,
-                          builder: (_, bytes, _) => poster(bytes),
-                        )
-                      : poster(null),
-                );
-              },
-            ),
-          ),
       ],
-    );
-  }
+    ),
+    itemBuilder: (context, index) {
+      final item = items[index];
+      final resource = artworkByMedia[item.source];
+      Widget poster(Uint8List? bytes) => HikariPosterCard(
+        title: item.title,
+        artwork: HikariArtwork(
+          image: bytes == null ? null : MemoryImage(bytes),
+        ),
+        badge: Text(mediaTypeBadgeLabel(item.type)),
+        onTap: () => openMedia(context, item),
+      );
+      return resource != null && readArtwork != null
+          ? SourceArtwork(
+              key: ValueKey(item.source),
+              resource: resource,
+              read: readArtwork!,
+              builder: (_, bytes, _) => poster(bytes),
+            )
+          : poster(null);
+    },
+  );
 }
 
 class HomeRecentShelfSkeleton extends StatelessWidget {
   const HomeRecentShelfSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) =>
-        _buildSkeleton(context, constraints.maxWidth),
+  Widget build(BuildContext context) => Semantics(
+    label: 'Loading Library',
+    child: ExcludeSemantics(
+      child: HikariHorizontalShelf(
+        itemCount: 4,
+        header: const HikariSectionHeader(title: 'Recently added'),
+        itemHeightBuilder: (context, width) =>
+            hikariCardExtent(context, width: width),
+        itemBuilder: (_, _) =>
+            const HikariPosterCard(title: '', artwork: HikariArtwork()),
+      ),
+    ),
   );
-
-  Widget _buildSkeleton(BuildContext context, double width) {
-    final colors = Theme.of(context).colorScheme;
-    final layout = HikariBreakpoints.classify(width);
-    final posterWidth = switch (layout) {
-      HikariWidthClass.compact => 132.0,
-      HikariWidthClass.medium => 144.0,
-      HikariWidthClass.expanded || HikariWidthClass.wide => 156.0,
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-          child: Container(
-            width: 140,
-            height: 20,
-            decoration: ShapeDecoration(
-              color: colors.surfaceContainerHighest,
-              shape: HikariRadius.pill,
-            ),
-          ),
-        ),
-        const SizedBox(height: HikariSpacing.sm),
-        SizedBox(
-          height: mediaPosterShelfHeight(context, posterWidth),
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
-            scrollDirection: Axis.horizontal,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 4,
-            separatorBuilder: (_, _) => const SizedBox(width: HikariSpacing.md),
-            itemBuilder: (_, _) => SizedBox(
-              width: posterWidth,
-              child: const MediaPoster(title: '', isLoading: true),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class HomeLibraryError extends StatelessWidget {
   const HomeLibraryError({super.key, required this.onRetry});
-
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    return AsyncStateView(
-      status: AsyncViewStatus.error,
-      contentBuilder: (_) => const SizedBox.shrink(),
-      errorTitle: 'Could not load your Library',
-      errorMessage: 'Home could not refresh your saved media. Retry the Library load or keep exploring while the rest of Hikari remains available.',
-      onRetry: onRetry,
-    );
-  }
-}
-
-class HomeBoundedSliverBox extends StatelessWidget {
-  const HomeBoundedSliverBox({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverToBoxAdapter(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: HikariBreakpoints.maxContentWidth,
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => HikariAsyncStateView(
+    status: HikariAsyncStatus.fatalError,
+    message: 'Could not load your Library',
+    onRetry: onRetry,
+    child: const SizedBox.shrink(),
+  );
 }

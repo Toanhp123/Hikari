@@ -193,6 +193,8 @@ void main() {
     expect(scans, 3); // Switching tabs does not enumerate the tree again.
     await tester.tap(find.byTooltip('Add to library'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Library'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Remove from library'));

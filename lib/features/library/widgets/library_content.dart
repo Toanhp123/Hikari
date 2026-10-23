@@ -2,15 +2,15 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
-import 'package:hikari/core/ui/patterns/media_artwork_decode.dart';
-import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
+import 'package:hikari/core/ui/content/hikari_list_row.dart';
+import 'package:hikari/core/ui/feedback/hikari_async_state_view.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
 import 'package:hikari/core/ui/foundation/hikari_radius.dart';
 import 'package:hikari/core/ui/foundation/hikari_size.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/controls/hikari_button.dart';
 import 'package:hikari/core/ui/controls/hikari_filter_chip.dart';
 import 'package:hikari/core/ui/controls/hikari_chip_row.dart';
-import 'package:hikari/core/ui/patterns/async_state_view.dart';
 import 'package:hikari/core/ui/layout/hikari_adaptive_grid.dart';
 import 'package:hikari/core/ui/media/hikari_artwork.dart';
 import 'package:hikari/core/ui/media/hikari_card_metrics.dart';
@@ -21,8 +21,6 @@ import 'package:hikari/domain/media/media.dart';
 import 'package:hikari/domain/progress/continue_reading_item.dart';
 import 'package:hikari/domain/progress/progress.dart';
 import 'package:hikari/features/library/library_view_model.dart';
-
-Widget _emptyContent(BuildContext context) => const SizedBox.shrink();
 
 class LibraryContent extends StatelessWidget {
   const LibraryContent({
@@ -48,26 +46,24 @@ class LibraryContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     if (state.status == LibraryStatus.loading) {
-      return AsyncStateView(
-        status: AsyncViewStatus.loading,
-        contentBuilder: (_) => const SizedBox.shrink(),
+      return HikariAsyncStateView(
+        status: HikariAsyncStatus.loading,
+        child: const SizedBox.shrink(),
       );
     }
     if (state.status == LibraryStatus.error) {
-      return AsyncStateView(
-        status: AsyncViewStatus.error,
-        errorTitle: 'Could not load your library.',
-        errorMessage: 'Please try loading your saved titles again.',
+      return HikariAsyncStateView(
+        status: HikariAsyncStatus.fatalError,
+        message: 'Could not load your library. Please try loading your saved titles again.',
         onRetry: onReload,
-        contentBuilder: (_) => const SizedBox.shrink(),
+        child: const SizedBox.shrink(),
       );
     }
     if (state.entries.isEmpty) {
-      return AsyncStateView(
-        status: AsyncViewStatus.empty,
+      return HikariAsyncStateView(
+        status: HikariAsyncStatus.empty,
         emptyTitle: 'Your library is empty.',
         emptyMessage: 'Save titles from their details to find them here.',
-        emptyIcon: Icons.bookmark_border_rounded,
         emptyAction: onBrowseCatalog == null
             ? null
             : HikariButton(
@@ -75,7 +71,7 @@ class LibraryContent extends StatelessWidget {
                 icon: const Icon(Icons.explore_outlined),
                 onPressed: onBrowseCatalog,
               ),
-        contentBuilder: _emptyContent,
+        child: const SizedBox.shrink(),
       );
     }
 
@@ -86,97 +82,67 @@ class LibraryContent extends StatelessWidget {
     final savedCountLabel = visibleEntries.length == 1
         ? '1 saved title'
         : '${visibleEntries.length} saved titles';
-    return Column(
-      children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: HikariBreakpoints.maxContentWidth,
+    return HikariContentRegion(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _LibraryFilters(
+            selectedType: state.mediaType,
+            onSelect: onSelectMediaType,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+              top: HikariSpacing.xs,
+              bottom: HikariSpacing.sm,
             ),
-            child: Column(
-              children: [
-                _LibraryFilters(
-                  selectedType: state.mediaType,
-                  onSelect: onSelectMediaType,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    HikariSpacing.lg,
-                    HikariSpacing.xs,
-                    HikariSpacing.lg,
-                    HikariSpacing.sm,
-                  ),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text(
-                      state.mediaType == null
-                          ? savedCountLabel
-                          : '${visibleEntries.length} of '
-                                '${state.entries.length} titles',
-                      style: Theme.of(context).textTheme.labelMedium
-                          ?.copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ),
-                ),
-                if (state.progressError != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      HikariSpacing.lg,
-                      0,
-                      HikariSpacing.lg,
-                      HikariSpacing.sm,
-                    ),
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        'Some reading progress is unavailable.',
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ),
-                  ),
-              ],
+            child: Text(
+              state.mediaType == null
+                  ? savedCountLabel
+                  : '${visibleEntries.length} of '
+                        '${state.entries.length} titles',
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: colors.onSurfaceVariant),
             ),
           ),
-        ),
-        Expanded(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: HikariBreakpoints.maxContentWidth,
+          if (state.progressError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: HikariSpacing.sm),
+              child: Text(
+                'Some reading progress is unavailable.',
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant),
               ),
-              child: visibleEntries.isEmpty
-                  ? AsyncStateView(
-                      status: AsyncViewStatus.empty,
-                      emptyTitle: 'No matching titles',
-                      emptyMessage:
-                          'Try another media type or show all titles.',
-                      emptyIcon: Icons.filter_list_off_rounded,
-                      emptyAction: TextButton(
-                        onPressed: () => onSelectMediaType(null),
-                        child: const Text('Show all types'),
-                      ),
-                      contentBuilder: _emptyContent,
-                    )
-                  : state.viewMode == LibraryViewMode.grid
-                  ? _LibraryGrid(
-                      entries: visibleEntries,
-                      readingBySource: readingBySource,
-                      readArtwork: readArtwork,
-                      openMedia: openMedia,
-                      onRemove: onRemove,
-                    )
-                  : _LibraryList(
-                      entries: visibleEntries,
-                      readingBySource: readingBySource,
-                      readArtwork: readArtwork,
-                      openMedia: openMedia,
-                      onRemove: onRemove,
-                    ),
             ),
+          Expanded(
+            child: visibleEntries.isEmpty
+                ? HikariAsyncStateView(
+                    status: HikariAsyncStatus.empty,
+                    emptyTitle: 'No matching titles',
+                    emptyMessage: 'Try another media type or show all titles.',
+                    emptyAction: TextButton(
+                      onPressed: () => onSelectMediaType(null),
+                      child: const Text('Show all types'),
+                    ),
+                    child: const SizedBox.shrink(),
+                  )
+                : state.viewMode == LibraryViewMode.grid
+                ? _LibraryGrid(
+                    entries: visibleEntries,
+                    readingBySource: readingBySource,
+                    readArtwork: readArtwork,
+                    openMedia: openMedia,
+                    onRemove: onRemove,
+                  )
+                : _LibraryList(
+                    entries: visibleEntries,
+                    readingBySource: readingBySource,
+                    readArtwork: readArtwork,
+                    openMedia: openMedia,
+                    onRemove: onRemove,
+                  ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -190,10 +156,7 @@ class _LibraryFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: HikariSpacing.lg,
-        vertical: HikariSpacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: HikariSpacing.xs),
       child: HikariChipRow(
         children: [
           HikariFilterChip(
@@ -231,6 +194,7 @@ class _LibraryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HikariAdaptiveGrid.builder(
+      padding: const EdgeInsets.symmetric(vertical: HikariSpacing.lg),
       physics: const BouncingScrollPhysics(),
       itemExtentBuilder: (context, width) =>
           hikariCardExtent(context, width: width),
@@ -307,7 +271,7 @@ class _LibraryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: HikariSpacing.lg),
+      padding: EdgeInsets.zero,
       physics: const BouncingScrollPhysics(),
       itemCount: entries.length,
       separatorBuilder: (context, index) =>
@@ -323,7 +287,8 @@ class _LibraryList extends StatelessWidget {
             side: BorderSide(color: colors.outline),
           ),
           clipBehavior: Clip.antiAlias,
-          child: ListTile(
+          key: ValueKey(media.source),
+          child: HikariListRow(
             leading: SizedBox.square(
               dimension: HikariSize.touchTarget,
               child: Builder(
@@ -345,17 +310,10 @@ class _LibraryList extends StatelessWidget {
                             key: ValueKey(media.source),
                             resource: artwork,
                             read: readArtwork!,
-                            builder: (_, bytes, _) => bytes == null
-                                ? fallback()
-                                : Image.memory(
-                                    bytes,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: mediaArtworkCacheWidth(
-                                      context,
-                                      HikariSize.touchTarget,
-                                    ),
-                                    errorBuilder: (_, _, _) => fallback(),
-                                  ),
+                            builder: (_, bytes, _) => HikariArtwork(
+                              image: bytes == null ? null : MemoryImage(bytes),
+                              placeholder: fallback(),
+                            ),
                           )
                         : fallback(),
                   );
@@ -373,8 +331,6 @@ class _LibraryList extends StatelessWidget {
               progress == null
                   ? mediaTypeLabel(media.type)
                   : '${mediaTypeLabel(media.type)} · ${_readingLabel(progress)}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: colors.onSurfaceVariant),
             ),

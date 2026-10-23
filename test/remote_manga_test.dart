@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hikari/app/app.dart';
 import 'package:hikari/app/app_dependencies.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/cache/byte_cache.dart';
 import 'package:hikari/core/ui/media/hikari_poster_card.dart';
 
@@ -583,6 +584,14 @@ void main() {
     expect(find.byType(MangaReaderPage), findsNothing);
     expect(find.byTooltip('Add to library'), findsOneWidget);
     await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add to Library?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Add to library'), findsOneWidget);
+    await tester.tap(find.byTooltip('Add to library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Remove from library'), findsOneWidget);
     await tester.tap(find.text('Chapter'));
@@ -1295,6 +1304,7 @@ void main() {
     var calls = 0;
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: MangaSeriesPage(
           media: _seriesMedia,
           sourceName: 'Test source',
@@ -1319,7 +1329,7 @@ void main() {
     pending.completeError(StateError('offline'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Could not load chapters'), findsOneWidget);
-    await tester.tap(find.text('Try again'));
+    await tester.tap(find.text('Try Again'));
     await tester.pumpAndSettle();
     expect(find.text('No readable chapters found.'), findsOneWidget);
     expect(calls, 2);
@@ -1332,6 +1342,7 @@ void main() {
     const ref = SourceMediaRef(sourceId: SourceId('fake'), itemId: 'chapter');
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: MangaSeriesPage(
           media: _seriesMedia,
           sourceName: 'Test source',
@@ -1369,6 +1380,7 @@ void main() {
     var opens = 0;
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: MangaSeriesPage(
           media: _seriesMedia,
           sourceName: 'Test source',
@@ -1409,6 +1421,7 @@ void main() {
     MangaChapter? selected;
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: MangaSeriesPage(
           media: _seriesMedia,
           sourceName: 'Test source',

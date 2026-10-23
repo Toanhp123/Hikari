@@ -28,6 +28,12 @@ import 'package:hikari/domain/media/metadata.dart';
 import 'package:hikari/domain/media/source.dart';
 import 'package:hikari/features/catalog/catalog_detail_page.dart';
 import 'package:hikari/features/catalog/widgets/catalog_detail_hero.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
+import 'package:hikari/core/ui/media/hikari_artwork.dart';
+import 'package:hikari/core/ui/media/hikari_poster_card.dart';
+import 'package:hikari/core/ui/layout/hikari_horizontal_shelf.dart';
+import 'package:hikari/core/ui/content/hikari_section_header.dart';
 import 'package:hikari/features/catalog/catalog_source_picker_view_model.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_picker.dart';
 import 'package:hikari/features/catalog/widgets/catalog_source_candidate_list.dart';
@@ -71,7 +77,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   testWidgets(
-    'Catalog source membership adds directly and cancel preserves exact identity',
+    'Catalog source membership confirms both intents and preserves exact identity',
     (tester) async {
       final db = UserDatabase(NativeDatabase.memory());
       addTearDown(db.close);
@@ -103,6 +109,14 @@ void main() {
       await tester.tap(find.text('Chapters'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(selected.source), isFalse);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(await library.contains(selected.source), isFalse);
+      await tester.tap(find.byTooltip('Add to library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
       expect((await library.loadAll()).single.media.source, selected.source);
       await tester.tap(find.byTooltip('Remove from library'));
@@ -185,7 +199,7 @@ void main() {
   );
 
   testWidgets(
-    'shared hero stays above both tabs and chapter scroll does not reset the header',
+    'shared hero retains independent nonzero Information and Chapters offsets',
     (tester) async {
       tester.view.physicalSize = const Size(400, 640);
       tester.view.devicePixelRatio = 1;
@@ -216,7 +230,17 @@ void main() {
         _app(
           _detail(
             initialEntry: _related,
-            loadDetails: LoadCatalogEntryDetails(_Provider()),
+            loadDetails: LoadCatalogEntryDetails(
+              _Provider(
+                onLoadDetails: (_) async => CatalogEntryDetails(
+                  entry: _related,
+                  alternateTitles: List.generate(
+                    200,
+                    (index) => 'Alternate title $index',
+                  ),
+                ),
+              ),
+            ),
             resolveCatalogSource: _resolver(),
             sourceSelections: choices,
             chapterCache: cache,
@@ -260,6 +284,25 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(CatalogDetailHero), findsOneWidget);
       expect(header.outerController.offset, closeTo(headerOffset, 1));
+      final infoView = find.descendant(
+        of: find.byKey(const ValueKey('catalog-information-tab')),
+        matching: find.byType(CustomScrollView),
+      );
+      await tester.drag(infoView, const Offset(0, -400));
+      await tester.pumpAndSettle();
+      final infoScrollable = tester.state<ScrollableState>(
+        find.descendant(
+          of: infoView,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        ),
+      );
+      final infoOffset = infoScrollable.position.pixels;
+      expect(infoOffset, greaterThan(0));
+      expect(infoOffset, isNot(closeTo(chapterOffset, 1)));
       await tester.tap(find.text('Chapters'));
       await tester.pumpAndSettle();
       final restoredChapterView = find.descendant(
@@ -279,6 +322,49 @@ void main() {
       expect(restored.position.pixels, closeTo(chapterOffset, 1));
       expect(header.outerController.offset, closeTo(headerOffset, 1));
       expect(choices.reads, 1, reason: 'Switching tabs must not restore twice');
+      await tester.tap(find.text('Information'));
+      await tester.pumpAndSettle();
+      final switchedInfo = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.descendant(
+            of: find.byKey(const ValueKey('catalog-information-tab')),
+            matching: find.byType(CustomScrollView),
+          ),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        ),
+      );
+      expect(switchedInfo.position.pixels, closeTo(infoOffset, 1));
+      await tester.tap(find.text('Chapters'));
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(600, 640);
+      await tester.pumpAndSettle();
+      expect(restored.position.pixels, closeTo(chapterOffset, 1));
+      await tester.tap(find.text('Information'));
+      await tester.pumpAndSettle();
+      final restoredInfo = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.descendant(
+            of: find.byKey(const ValueKey('catalog-information-tab')),
+            matching: find.byType(CustomScrollView),
+          ),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        ),
+      );
+      expect(restoredInfo.position.pixels, closeTo(infoOffset, 1));
+      await tester.tap(find.byTooltip('Refresh'));
+      await tester.pumpAndSettle();
+      expect(restoredInfo.position.pixels, closeTo(infoOffset, 1));
+      await tester.tap(find.text('Chapters'));
+      await tester.pumpAndSettle();
+      expect(choices.reads, 1);
       expect(tester.takeException(), isNull);
     },
   );
@@ -304,6 +390,15 @@ void main() {
       find.byType(CatalogDetailHero),
     );
     expect(hero.hasTabBar, isTrue);
+    expect(find.byType(HikariPageScaffold), findsOneWidget);
+    expect(find.byType(HikariContentRegion), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byType(CatalogDetailHero),
+        matching: find.byType(HikariArtwork),
+      ),
+      findsNWidgets(2),
+    );
 
     final tabBarTop = tester.getTopLeft(find.byType(TabBar)).dy;
     final coverBottom = tester
@@ -1499,6 +1594,11 @@ void main() {
     }
 
     await _scrollTo(tester, find.text('Related series'));
+    expect(find.byType(HikariHorizontalShelf), findsOneWidget);
+    expect(
+      find.widgetWithText(HikariPosterCard, 'Related series'),
+      findsOneWidget,
+    );
     expect(find.text('Side story'), findsOneWidget);
     await tester.tapAt(tester.getCenter(find.text('Related series')));
     expect(related, _related);
@@ -1583,20 +1683,20 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Catalog entry unavailable'), findsOneWidget);
+    expect(find.textContaining('Catalog entry unavailable.'), findsOneWidget);
     expect(find.text('Watch'), findsOneWidget);
     await tester.tap(find.text('Watch'));
     expect(searched, _anime);
 
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
-    expect(find.text('More details could not load'), findsOneWidget);
+    expect(find.textContaining('More details could not load.'), findsOneWidget);
     expect(find.text('Watch'), findsOneWidget);
 
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(calls, 3);
-    expect(find.text('More details could not load'), findsNothing);
+    expect(find.textContaining('More details could not load.'), findsNothing);
   });
 
   testWidgets('detail refresh action reloads metadata without navigation', (
@@ -1667,7 +1767,10 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Refresh failed'), findsOneWidget);
+    expect(
+      find.text('Refresh failed. Showing the last available catalog details.'),
+      findsOneWidget,
+    );
     expect(find.text('Cached description'), findsOneWidget);
     expect(find.byKey(const Key('catalog-detail-loading')), findsNothing);
   });
@@ -1933,6 +2036,200 @@ void main() {
       },
     );
   }
+
+  testWidgets('whole Catalog page reflows hero and warning at 375dp 3x', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final entry = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'scaled-detail'),
+      title: 'Tên truyện rất dài 日本語の長い題名 وعنوان طويل',
+      type: MediaType.manga,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(3)),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          ),
+        ),
+        home: _detail(
+          initialEntry: entry,
+          loadDetails: LoadCatalogEntryDetails(
+            _Provider(
+              onLoadDetails: (_) async => CatalogEntryDetails(
+                entry: entry,
+                year: 2026,
+                averageScore: 95,
+                warnings: const [
+                  'Partial metadata remains available. Retry to load missing details.',
+                ],
+                description: List.filled(
+                  80,
+                  'Description text with complete source identity.',
+                ).join(' '),
+              ),
+            ),
+          ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      MediaQuery.textScalerOf(tester.element(find.byType(CatalogDetailHero)))
+          .scale(10),
+      30,
+    );
+    final heroScroll = find.descendant(
+      of: find.byType(CatalogDetailHero),
+      matching: find.byType(SingleChildScrollView),
+    );
+    await tester.drag(heroScroll, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(find.text('Read').hitTestable(), findsOneWidget);
+    final infoView = find.descendant(
+      of: find.byKey(const ValueKey('catalog-information-tab')),
+      matching: find.byType(CustomScrollView),
+    );
+    await tester.drag(infoView, const Offset(0, -800));
+    await tester.pumpAndSettle();
+    for (
+      var attempt = 0;
+      attempt < 20 &&
+          find
+              .widgetWithText(TextButton, 'Retry')
+              .hitTestable()
+              .evaluate()
+              .isEmpty;
+      attempt++
+    ) {
+      await tester.drag(infoView, const Offset(0, -180));
+      await tester.pumpAndSettle();
+    }
+    expect(tester.takeException(), isNull);
+    expect(
+      find.widgetWithText(TextButton, 'Retry').hitTestable(),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Chapters'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Information'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Catalog layout retains details across breakpoints and scaling', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 900);
+    addTearDown(tester.view.reset);
+    final scale = ValueNotifier<double>(1);
+    addTearDown(scale.dispose);
+    var loads = 0;
+    final entry = CatalogEntry(
+      id: const CatalogEntryId(provider: 'test', value: 'responsive-detail'),
+      title: 'Tên truyện rất dài 日本語の長い題名 وعنوان طويل',
+      type: MediaType.manga,
+      genres: const ['Fantasy'],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => ValueListenableBuilder<double>(
+          valueListenable: scale,
+          builder: (context, value, _) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(value)),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: child!,
+            ),
+          ),
+        ),
+        home: _detail(
+          initialEntry: entry,
+          loadDetails: LoadCatalogEntryDetails(
+            _Provider(
+              onLoadDetails: (_) async {
+                loads++;
+                return CatalogEntryDetails(
+                  entry: entry,
+                  year: 2026,
+                  averageScore: 95,
+                  description: 'Complete source metadata remains available.',
+                  warnings: const [
+                    'Retry missing metadata without changing source.',
+                  ],
+                );
+              },
+            ),
+          ),
+          resolveCatalogSource: _resolver(),
+          openMedia: (_, _, {previewMetadata, canNavigate}) async {},
+          openRelated: (_) {},
+          openSourceSearch: (_, _, _, _, _) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.widgetWithText(HikariSectionHeader, 'Synopsis'),
+      findsOneWidget,
+    );
+    for (final textScale in [1.0, 2.0, 3.0]) {
+      scale.value = textScale;
+      for (final width in [
+        375.0,
+        599.0,
+        600.0,
+        601.0,
+        839.0,
+        840.0,
+        841.0,
+        1200.0,
+        1440.0,
+      ]) {
+        tester.view.physicalSize = Size(width, 900);
+        await tester.pumpAndSettle();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '$width at ${textScale}x',
+        );
+        expect(
+          MediaQuery.textScalerOf(
+            tester.element(find.byType(CatalogDetailHero)),
+          ).scale(10),
+          textScale * 10,
+        );
+        await tester.tap(find.text('Chapters'));
+        await tester.pumpAndSettle();
+        final chapterRegion = find.descendant(
+          of: find.byKey(const ValueKey('catalog-chapters-tab')),
+          matching: find.byType(HikariContentRegion),
+        );
+        expect(chapterRegion, findsWidgets);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Information'));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(loads, 1);
+      }
+    }
+  });
 
   testWidgets(
     'catalog detail hero layout remains resilient at 200% text scale with long title',

@@ -4,7 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/ui/patterns/chapter_control_bar.dart';
-import 'package:hikari/core/ui/patterns/chapter_row.dart';
+import 'package:hikari/core/ui/content/hikari_chapter_row.dart';
+import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
+import 'package:hikari/core/ui/feedback/hikari_async_state_view.dart';
 import 'package:hikari/core/ui/patterns/primary_reading_cta.dart';
 import 'package:hikari/core/ui/patterns/media_metadata_view.dart';
 import 'package:hikari/domain/media/manga.dart';
@@ -43,24 +45,17 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
   Widget build(BuildContext context) {
     final metadata = widget.viewModel.effectiveMetadata;
     if (widget.viewModel.state.initialLoading && metadata == null) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+      return const HikariAsyncStateView(
+        status: HikariAsyncStatus.loading,
+        child: SizedBox.shrink(),
+      );
     }
     if (widget.viewModel.state.failed && metadata == null) {
-      return Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Could not load chapters. Check source access or rate limits.',
-              ),
-              TextButton(
-                onPressed: () => unawaited(widget.onRefresh()),
-                child: const Text('Try again'),
-              ),
-            ],
-          ),
-        ),
+      return HikariAsyncStateView(
+        status: HikariAsyncStatus.fatalError,
+        message: 'Could not load chapters. Check source access or rate limits.',
+        onRetry: () => unawaited(widget.onRefresh()),
+        child: const SizedBox.shrink(),
       );
     }
 
@@ -82,16 +77,13 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.viewModel.state.refreshFailed)
-                  MaterialBanner(
-                    content: const Text(
-                      'Could not refresh chapters. Showing the last loaded list.',
+                  HikariNoticeBanner(
+                    tone: HikariNoticeTone.warning,
+                    message: 'Could not refresh chapters. Showing the last loaded list.',
+                    action: TextButton(
+                      onPressed: () => unawaited(widget.onRefresh()),
+                      child: const Text('Retry'),
                     ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => unawaited(widget.onRefresh()),
-                        child: const Text('Retry'),
-                      ),
-                    ],
                   ),
                 if (metadata != null)
                   MediaMetadataView(
@@ -113,16 +105,13 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
                 if (widget.viewModel.state.failed)
                   Semantics(
                     liveRegion: true,
-                    child: MaterialBanner(
-                      content: const Text(
-                        'Could not load chapters. Check source access and try again.',
+                    child: HikariNoticeBanner(
+                      tone: HikariNoticeTone.warning,
+                      message: 'Could not load chapters. Check source access and try again.',
+                      action: TextButton(
+                        onPressed: () => unawaited(widget.onRefresh()),
+                        child: const Text('Retry'),
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => unawaited(widget.onRefresh()),
-                          child: const Text('Retry'),
-                        ),
-                      ],
                     ),
                   ),
                 if (details != null)
@@ -177,10 +166,18 @@ class _MangaSeriesContentState extends State<MangaSeriesContent> {
           }
 
           final chapter = displayChapters[index - 1];
-          return ChapterRow(
-            chapter: chapter,
-            sourceName: widget.sourceName,
-            enabled: !widget.openingChapter,
+          return HikariChapterRow(
+            key: ValueKey(chapter.source),
+            title: chapter.title,
+            subtitle: [
+              chapter.scanlator ?? widget.sourceName,
+              if (chapter.chapterNumber != null)
+                'Chapter ${chapter.chapterNumber}',
+              if (chapter.uploadedAt != null)
+                chapter.uploadedAt!.toIso8601String().split('T').first,
+              if (!chapter.canReadPages) 'Not readable in Hikari',
+            ].join(' · '),
+            enabled: !widget.openingChapter && chapter.canReadPages,
             onTap: () => widget.onOpenChapter(chapter),
           );
         },

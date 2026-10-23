@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/core/ui/foundation/hikari_breakpoints.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
 import 'package:hikari/application/catalog/search_catalog.dart';
 import 'package:hikari/domain/catalog/catalog.dart';
 import 'package:hikari/domain/media/media.dart';
@@ -196,6 +197,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('catalog controls stay usable with 3x text and keyboard inset', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 600);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+    addTearDown(tester.view.reset);
+    final provider = _Provider();
+    var sourceOpens = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(3)),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          ),
+        ),
+        home: CatalogSearchPage(
+          searchCatalog: SearchCatalog(provider),
+          openDetail: (_, _) {},
+          openSourceSearch: (_) => sourceOpens++,
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.enterText(find.byType(SearchBar), 'Frieren');
+    await tester.pump(const Duration(milliseconds: 301));
+    expect(provider.calls, isEmpty);
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(provider.calls, [('Frieren', null)]);
+    await tester.ensureVisible(find.text('Search sources'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Search sources'));
+    expect(sourceOpens, 1);
+  });
+
   testWidgets('catalog search bounds content on resize', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(375, 900);
@@ -224,15 +266,32 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
 
-    for (final width in [320.0, 375.0, 600.0, 840.0, 1200.0, 1800.0]) {
+    expect(find.byType(HikariContentRegion), findsOneWidget);
+    for (final width in [
+      320.0,
+      375.0,
+      599.0,
+      600.0,
+      601.0,
+      839.0,
+      840.0,
+      841.0,
+      1200.0,
+      1440.0,
+      1800.0,
+    ]) {
       tester.view.physicalSize = Size(width, 900);
       await tester.pumpAndSettle();
-      final contentWidth = width < HikariBreakpoints.maxContentWidth
-          ? width
+      final gutter = width < HikariBreakpoints.mediumMin
+          ? HikariSpacing.lg
+          : HikariSpacing.xl;
+      final available = width - gutter * 2;
+      final contentWidth = available < HikariBreakpoints.maxContentWidth
+          ? available
           : HikariBreakpoints.maxContentWidth;
       expect(
         tester.getSize(find.byType(SearchBar)).width,
-        moreOrLessEquals(contentWidth - HikariSpacing.lg * 2),
+        moreOrLessEquals(contentWidth),
       );
       expect(
         tester.getSize(find.byType(GridView)).width,
