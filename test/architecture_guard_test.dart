@@ -58,7 +58,10 @@ List<String> _waveABViolations(String path, String source) {
       if (target.startsWith('app/theme/') ||
           target.startsWith('core/ui/patterns/') &&
               !nonVisualHelpers.contains(target) ||
-          target == 'core/ui/components/hikari_scaffold.dart') {
+          target == 'core/ui/components/hikari_scaffold.dart' ||
+          target == 'core/ui/components/hikari_confirmation_dialog.dart' ||
+          target == 'core/ui/components/hikari_modal_sheet.dart' ||
+          target == 'features/plugins/widgets/plugin_notice.dart') {
         violations.add('$path: ${directive.kind} $uri');
       }
     }
@@ -274,6 +277,61 @@ void main() {
     }
 
     expect(violations, isEmpty, reason: violations.join('\n'));
+  });
+
+  test(
+    'Wave C rejects legacy bridges through relative imports and exports',
+    () {
+      const path = 'features/plugins/widgets/form.dart';
+      for (final kind in ['import', 'export', 'part']) {
+        for (final uri in [
+          'package:hikari/core/ui/components/hikari_confirmation_dialog.dart',
+          '../../../core/ui/components/hikari_modal_sheet.dart',
+          'package:hikari/core/ui/components/hikari_scaffold.dart',
+          'package:hikari/features/plugins/widgets/plugin_notice.dart',
+        ]) {
+          expect(
+            _waveABViolations(path, "$kind '$uri';"),
+            isNotEmpty,
+            reason: '$kind $uri',
+          );
+        }
+      }
+    },
+  );
+
+  test('Wave C has no legacy modal exemptions', () {
+    final legacy = File('test/fixtures/ui_architecture/legacy_sites.txt')
+        .readAsLinesSync();
+    expect(
+      legacy.where(
+        (id) =>
+            id.startsWith('lib/features/plugins/') ||
+            id.startsWith('lib/features/settings/'),
+      ),
+      isEmpty,
+    );
+  });
+
+  test('Wave C migrated views retain canonical ownership', () {
+    final violations = <String>[];
+    for (final name in ['settings', 'plugins']) {
+      for (final file
+          in Directory('lib/features/$name')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.dart'))) {
+        final path = _libPath(file.path);
+        final source = file.readAsStringSync();
+        violations.addAll(_waveABViolations(path, source));
+        violations.addAll(_uiViolations('lib/$path', source, legacy: const {}));
+      }
+    }
+    expect(violations, isEmpty, reason: violations.join('\n'));
+    expect(
+      File('lib/features/plugins/widgets/plugin_notice.dart').existsSync(),
+      isFalse,
+    );
   });
 
   test('Phase 04 Wave A/B guards reject import/export/part regressions', () {

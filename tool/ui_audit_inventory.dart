@@ -29,7 +29,17 @@ List<Map<String, Object>> inventorySources(Map<String, String> sources) {
     }
 
     if (path.startsWith('lib/features/') && path.endsWith('_page.dart')) {
-      add('page-file', path.split('/').last, 1, 0);
+      add(
+        'page-file',
+        path.split('/').last,
+        1,
+        0,
+        status:
+            path.startsWith('lib/features/settings/') ||
+                path.startsWith('lib/features/plugins/')
+            ? 'migrated'
+            : null,
+      );
     }
     if (path.startsWith('lib/core/ui/')) {
       add('shared-file', path.split('/').last, 1, 0);
@@ -530,10 +540,13 @@ these are not blanket migration windows.
         '04/08',
         'test/features/media/media_metadata_view_test.dart; test/media_type_badge_theme_test.dart; test/read_source_artwork_test.dart',
       ),
-      'settings' => ('05/01', 'test/theme_test.dart'),
+      'settings' => (
+        '05/01',
+        'test/settings_page_test.dart; test/theme_test.dart',
+      ),
       'plugins' => (
         '05/02–05',
-        'test/plugins/apk_actions_page_test.dart; test/plugins/novel_actions_page_test.dart',
+        'test/plugins/plugin_manager_page_test.dart; test/plugins/apk_actions_page_test.dart; test/plugins/novel_actions_page_test.dart; test/plugins/hikari_plugin_surface_flow_test.dart',
       ),
       'manga_reader' => ('06/01', 'test/chapter_reader_routes_test.dart'),
       'novel_reader' => ('06/03–04', 'test/chapter_reader_routes_test.dart'),
@@ -584,7 +597,9 @@ these are not blanket migration windows.
     final internalSession = path.endsWith('/hikari_presentation_session.dart');
     final internalMedia = _isInternalMedia(path);
     final status = row['status']! as String;
-    final exception = status == 'canonical'
+    final exception = status == 'migrated'
+        ? 'Wave C ownership migrated; G5 acceptance recorded separately'
+        : status == 'canonical'
         ? 'canonical dependency; no legacy exemption'
         : status == 'nonvisual-helper'
         ? 'scoped nonvisual helper; reassess ownership at 07/01'
@@ -641,5 +656,10 @@ void main(List<String> arguments) {
           File('docs/ui/MIGRATION_MATRIX.md').readAsStringSync(),
         )
       : UiMigrationSnapshot.current(root);
-  stdout.write(renderMigrationMatrix(rows, snapshot: snapshot));
+  final markdown = renderMigrationMatrix(rows, snapshot: snapshot);
+  if (arguments.contains('--write')) {
+    File('docs/ui/MIGRATION_MATRIX.md').writeAsStringSync(markdown);
+    return;
+  }
+  stdout.write(markdown);
 }

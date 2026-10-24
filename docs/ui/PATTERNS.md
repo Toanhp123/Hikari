@@ -113,10 +113,60 @@ canonical media/feedback tests. `PrimaryReadingCta` and the core-owned
 `chapter_list_filter.dart` and `media_artwork_decode.dart`. They are not
 canonical UI components and remain subject to 07/01 ownership review.
 `HikariRefreshAction` remains a temporary shared component because Reader and
-Plugin Manager still consume it. Remaining legacy presentation for Settings,
-Plugin Manager and Reader routes retains its scheduled owner and test coverage;
+Plugin Manager still consume it. Wave C Settings/Plugin routes now use canonical
+shells, content regions, notices and typed dialogs. Remaining Reader presentation
+retains its scheduled owner and test coverage;
 only verified zero-consumer code may be removed. Inventory is lexical evidence,
 not a replacement for caller review or runnable regression tests.
+
+## Phase 05: Settings and native plugin actions
+
+Settings cache consent accepts only explicit `HikariCompleted<bool>(true)` and
+rechecks the maintenance callback after teardown. Cache expansion uses its existing
+PageStorage key: retained within that storage lifetime, not persisted as a setting.
+Appearance persistence stays app-owned. Readable widths (Settings 640dp; management
+720dp) sit inside canonical content regions; scroll ownership stays feature-local.
+
+Manager owns one repository/details interaction and one action route at a time.
+`PluginRepositoryDialog` owns URL/ecosystem validation and returns typed values;
+keyboard Done uses the same validator as Add. `PluginDetailsChoice` separates APK,
+Novel and repository-owner results. Modal teardown completes before pushing an
+action route. Revalidate model/session/owner and exact offer/repository before
+mutation; returning from an action route refreshes inventory, never infers success.
+
+APK/Novel action pages preserve caller `Key`/`GlobalKey`. A feature-owned
+private child is keyed by management session and plugin identity. Replacing
+either disposes the old coordinator, invalidates consent, cancels pending transport
+and discards unsubmitted staged bytes; submitted native operations remain journal
+owned. APK retirement returns explicit abandon/old-removal-dialog acknowledgments;
+re-read journal identity/status before resume, cancel or retirement. Unknown,
+externally installed and retired outcomes are not success. Novel staging stays
+inert; evaluation requires exact tuple/origin consent. Publication ambiguity remains
+a sticky lock and running source snapshots stay frozen. Core UI grants no authority.
+
+### Manual device acceptance (not replaced by widget tests)
+
+1. On Android, inspect full package/version/signer/repository identity. Cancel,
+   Back and Close at each consent; verify no approval/install/evaluation occurs.
+2. Deny unknown-source permission and system install/removal. Resume foreground;
+   verify no auto-submit, no false success, and fresh native journal evidence.
+3. Interrupt pending confirmation, recreate route/process, then resume/cancel or
+   retire explicitly. For removal retirement, dismiss old system dialog first;
+   Hikari cannot revoke it or prove acknowledgment independently.
+4. Exercise Novel exact digest/origins, failed admission and publication ambiguity;
+   verify sticky lock, no automatic replay and no hot source replacement.
+5. With TalkBack and Windows keyboard/Narrator, check announced identity/errors,
+   safe Cancel focus, traversal, focus return and scroll access at 3x text/real IME.
+   Windows/iOS must explain unsupported native actions without native calls.
+6. Record device/OS/build, actions, observed journal/runtime state and evidence;
+   measure performance separately. No physical evidence means NOT RUN, not PASS.
+
+Automated scope and outstanding device evidence live in
+[Phase 05 gate record](../roadmap/UI_FOUNDATION_PHASE_05.md). The
+[dated G5 owner decision](../roadmap/UI_FOUNDATION_G5_OWNER_ACCEPTANCE_2026-10-24.md)
+authorizes Phase 06 while retaining missing physical/platform checks for
+Phase 07; no `NOT RUN` evidence becomes `PASS`.
+
 
 ## Restoration and migration
 

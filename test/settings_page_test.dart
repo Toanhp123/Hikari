@@ -10,12 +10,82 @@ import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/features/settings/settings_page.dart';
 
 void main() {
+  testWidgets(
+    'canonical Settings shell and cache consent fit short 3x viewport',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 460);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(3)),
+            child: child!,
+          ),
+          home: SettingsPage(onClearCache: () async {}),
+        ),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Clear'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Cancel'));
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('cache consent cannot invoke a replaced maintenance callback', (
+    tester,
+  ) async {
+    var oldCalls = 0;
+    var newCalls = 0;
+    Future<void> oldClear() async => oldCalls++;
+    Future<void> newClear() async => newCalls++;
+    Widget host(Future<void> Function() clear) =>
+        MaterialApp(home: SettingsPage(onClearCache: clear));
+    await tester.pumpWidget(host(oldClear));
+    await tester.ensureVisible(find.text('Clear'));
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(host(newClear));
+    await tester.tap(find.text('Clear cache'));
+    await tester.pumpAndSettle();
+    expect(oldCalls, 0);
+    expect(newCalls, 0);
+  });
+
+  testWidgets('cache Back cancels without deleting temporary data', (
+    tester,
+  ) async {
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsPage(onClearCache: () async => calls++)),
+    );
+    await tester.ensureVisible(find.text('Clear'));
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    expect(find.text('Temporary cache cleared.'), findsNothing);
+  });
+
   testWidgets('appearance save status is visible and retry is available', (
     tester,
   ) async {
     var retries = 0;
     await tester.pumpWidget(
       MaterialApp(
+        theme: HikariTheme.darkTheme(),
         home: SettingsPage(
           appearanceSaveStatus: AppearanceSaveStatus.failed,
           onRetryAppearanceSave: () => retries++,

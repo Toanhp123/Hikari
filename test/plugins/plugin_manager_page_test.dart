@@ -16,6 +16,32 @@ import 'apk_actions_page_test.dart' as apk;
 import 'plugin_management_test.dart' as helpers;
 
 void main() {
+  testWidgets('repository URL Enter submits validated typed form once', (
+    tester,
+  ) async {
+    final session = helpers.management(store: helpers.MemoryStore());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add repository'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select Ecosystem'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(MenuItemButton, 'novel').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).last,
+      'https://repo.example/index.json',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(session.manager!.state.repositories, hasLength(1));
+  });
+
   testWidgets('first load uses content spinner, not a header progress bar', (
     tester,
   ) async {
@@ -37,7 +63,10 @@ void main() {
       ),
     );
     await tester.pumpWidget(
-      MaterialApp(home: PluginManagerPage(management: session)),
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
     );
     await tester.pump();
     expect(find.text('Manage sources'), findsNothing);
@@ -128,7 +157,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final session = helpers.management(store: helpers.MemoryStore());
     await tester.pumpWidget(
-      MaterialApp(home: PluginManagerPage(management: session)),
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.byTooltip('Refresh inventory'), findsNothing);
@@ -149,7 +181,10 @@ void main() {
       nativeCall: () => reads++,
     );
     await tester.pumpWidget(
-      MaterialApp(home: PluginManagerPage(management: session)),
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.byTooltip('Refresh inventory'), findsOneWidget);
@@ -191,7 +226,10 @@ void main() {
         );
       final session = helpers.management(store: store);
       await tester.pumpWidget(
-        MaterialApp(home: PluginManagerPage(management: session)),
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: PluginManagerPage(management: session),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Unique Manga Plugin'), findsOneWidget);
@@ -252,7 +290,10 @@ void main() {
     final gateway = apk.Gateway();
     final session = apk.session(gateway);
     await tester.pumpWidget(
-      MaterialApp(home: PluginManagerPage(management: session)),
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Installed'));
@@ -352,7 +393,10 @@ void main() {
       final reader = helpers.Reader();
       final session = helpers.management(store: store, reader: reader);
       await tester.pumpWidget(
-        MaterialApp(home: PluginManagerPage(management: session)),
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: PluginManagerPage(management: session),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Add repository'));
@@ -454,7 +498,10 @@ void main() {
       ),
     );
     await tester.pumpWidget(
-      MaterialApp(home: PluginManagerPage(management: session)),
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Installed'));
@@ -477,7 +524,10 @@ void main() {
       nativeCall: () => calls++,
     );
     await tester.pumpWidget(
-      MaterialApp(home: PluginManagerPage(management: session)),
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('available on Android only'), findsOneWidget);

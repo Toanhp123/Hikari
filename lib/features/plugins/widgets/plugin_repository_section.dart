@@ -4,7 +4,7 @@ import 'package:hikari/core/ui/controls/hikari_button.dart';
 import 'package:hikari/core/ui/content/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
-import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
+import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
 
 /// Repository inventory and its explicitly requested actions.
 final class PluginRepositorySection extends StatelessWidget {
@@ -31,7 +31,7 @@ final class PluginRepositorySection extends StatelessWidget {
             '${repositories.length} ${repositories.length == 1 ? 'repository' : 'repositories'} · Manage catalog metadata and update ownership',
       ),
       if (repositories.isEmpty)
-        const PluginNotice(
+        const HikariNoticeBanner(
           message:
               'No repositories added. Nothing is downloaded automatically.',
         ),
@@ -73,10 +73,10 @@ final class PluginRepositorySection extends StatelessWidget {
                 ),
                 if (repository.refreshError != null) ...[
                   const SizedBox(height: HikariSpacing.sm),
-                  PluginNotice(
+                  HikariNoticeBanner(
                     message:
                         '${repository.refreshError}. Last good offers retained.',
-                    error: true,
+                    tone: HikariNoticeTone.error,
                   ),
                 ],
                 const SizedBox(height: HikariSpacing.sm),

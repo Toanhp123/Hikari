@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
-import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_models.dart';
+import 'package:hikari/core/ui/surfaces/dialog/hikari_confirmation_dialog.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/core/ui/content/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
@@ -12,16 +14,19 @@ import 'package:hikari/features/plugins/novel_actions_view_model.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/widgets/novel_artifact_details.dart';
 import 'package:hikari/features/plugins/widgets/plugin_action_section.dart';
-import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
+import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
 
+/// Session/package identity owns consent and staged-resource lifetime.
 class NovelActionsPage extends StatefulWidget {
   const NovelActionsPage({
     super.key,
     required this.management,
     required this.pluginId,
   });
+
   final PluginManagement management;
   final PluginId pluginId;
+
   @override
   State<NovelActionsPage> createState() => _NovelActionsPageState();
 }
@@ -34,7 +39,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
   NovelArtifactInventory? get current =>
       session.novels.where((row) => row.current.metadata.id == id).firstOrNull;
   bool _foreground = true, _stageUsable = true;
-  late final NovelActionsViewModel _actionsViewModel;
+  late NovelActionsViewModel _actionsViewModel;
   bool get _busy => _actionsViewModel.busy;
   String? get _error => _actionsViewModel.error;
   void _onViewModelChanged() {
@@ -92,23 +97,66 @@ class _NovelActionsPageState extends State<NovelActionsPage>
     if (mounted) setState(() {});
   }
 
+  @override
+  void didUpdateWidget(covariant NovelActionsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.management, oldWidget.management) ||
+        widget.pluginId != oldWidget.pluginId) {
+      _epoch++;
+      if (oldWidget.management.novelGateway != null) {
+        unawaited(_cancel());
+        final stage = _stage;
+        if (stage != null) {
+          unawaited(
+            oldWidget.management.novelGateway!
+                .discard(stage.token)
+                .catchError((Object _) {}),
+          );
+        }
+      }
+      _stageUsable = true;
+      _request = null;
+      _stage = null;
+      _base = null;
+      _offer = null;
+      _owner = null;
+      final owner = session.manager?.state.owners[id];
+      final site = session.manager
+          ?.offersFor(id)
+          .where((row) => row.repositoryId == owner)
+          .firstOrNull
+          ?.siteUrl;
+      _origins = site?.origin ?? '';
+      _actionsViewModel.removeListener(_onViewModelChanged);
+      _actionsViewModel.dispose();
+      _actionsViewModel = NovelActionsViewModel()
+        ..addListener(_onViewModelChanged);
+      if (mounted) setState(() {});
+    }
+  }
+
   Future<void> _run(Future<void> Function() action) =>
       _actionsViewModel.run(action, canStart: () => _active);
 
-  Future<bool> _confirm(String title, List<Widget> contents, String action) =>
-      showHikariConfirmation(
-        context: context,
-        title: title,
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: contents,
-          ),
-        ),
-        confirmLabel: action,
-      );
+  Future<bool> _confirm(
+    String title,
+    List<Widget> contents,
+    String action,
+  ) async {
+    final result = await showHikariConfirmationDialog(
+      context: context,
+      useRootNavigator: true,
+      title: title,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: contents,
+      ),
+      confirmLabel: action,
+    );
+    return result is HikariCompleted<bool> && result.value == true;
+  }
+
   static const _evaluationWarning = Text(
     'Explicit consent permits native evaluation of this exact code and origin policy. Repository self-declaration is not trust. Bounded admission is not JS safety or provider compatibility. Running sources stay frozen; restart required for changed sources.',
   );
@@ -298,28 +346,28 @@ class _NovelActionsPageState extends State<NovelActionsPage>
         ?.offersFor(id)
         .where((row) => row.repositoryId == owner)
         .singleOrNull;
-    return HikariScaffold(
+    return HikariPageScaffold(
+      showAmbientGlow: true,
       appBar: AppBar(title: const Text('Novel actions')),
-      body: Align(
-        alignment: Alignment.topCenter,
+      body: HikariContentRegion(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
-            padding: const EdgeInsets.all(HikariSpacing.lg),
+            padding: const EdgeInsets.symmetric(vertical: HikariSpacing.lg),
             children: [
               const HikariSectionHeader(
                 title: 'Novel bundle management',
                 description: 'Review exact origins and revisions before granting consent.',
               ),
               if (!available)
-                const PluginNotice(
+                const HikariNoticeBanner(
                   message: 'Novel actions unavailable. Android management session required.',
-                  error: true,
+                  tone: HikariNoticeTone.error,
                 )
               else ...[
                 SelectableText(id.upstreamId),
                 const SizedBox(height: HikariSpacing.sm),
-                const PluginNotice(
+                const HikariNoticeBanner(
                   message: 'Staging never evaluates JavaScript. Every mutation requires explicit consent. No source hot replacement.',
                 ),
                 if (_busy) ...[
@@ -328,11 +376,17 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                 ],
                 if (_error != null) ...[
                   const SizedBox(height: HikariSpacing.sm),
-                  PluginNotice(message: _error!, error: true),
+                  HikariNoticeBanner(
+                    message: _error!,
+                    tone: HikariNoticeTone.error,
+                  ),
                 ],
                 if (session.novelActionError != null) ...[
                   const SizedBox(height: HikariSpacing.sm),
-                  PluginNotice(message: session.novelActionError!, error: true),
+                  HikariNoticeBanner(
+                    message: session.novelActionError!,
+                    tone: HikariNoticeTone.error,
+                  ),
                 ],
                 const SizedBox(height: HikariSpacing.md),
                 Align(
@@ -350,8 +404,8 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                   PluginActionSection(
                     title: 'Publication recovery',
                     children: [
-                      PluginNotice(
-                        error: true,
+                      HikariNoticeBanner(
+                        tone: HikariNoticeTone.error,
                         message:
                             failure.kind ==
                                 NovelPublicationFailureKind.publicationUnknown
@@ -359,8 +413,8 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                             : 'Pointers committed; directory durability unknown. Native process restart required; all Novel mutations locked.',
                       ),
                       if (failure.inventory == null)
-                        const PluginNotice(
-                          error: true,
+                        const HikariNoticeBanner(
+                          tone: HikariNoticeTone.error,
                           message: 'Failure evidence malformed or unavailable; mutation lock retained.',
                         ),
                       for (final item
@@ -428,7 +482,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                     (offer.siteUrl == null ||
                         offer.customJsUrl != null ||
                         offer.customCssUrl != null)) ...[
-                  const PluginNotice(
+                  const HikariNoticeBanner(
                     message: 'This upstream Novel plugin requires an unsupported origin or auxiliary CSS/JS. Download is unavailable until its requirements are supported.',
                   ),
                   const SizedBox(height: HikariSpacing.xl),
@@ -477,7 +531,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                           child: const Text('Consent and install Novel'),
                         )
                       else
-                        const PluginNotice(
+                        const HikariNoticeBanner(
                           message: 'Stage no longer actionable. Do not repeat evaluation; refresh evidence and discard.',
                         ),
                       OutlinedButton(
@@ -490,7 +544,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                   title: 'Runtime evidence',
                   description: 'Stored inventory and admission are independent. Changes never replace already captured code.',
                 ),
-                PluginNotice(
+                HikariNoticeBanner(
                   message:
                       'Runtime: ${session.novelRuntime == null ? 'unavailable' : novelRuntimeInitializationLabel(session.novelRuntime!.initialization)}',
                 ),
@@ -508,7 +562,7 @@ class _NovelActionsPageState extends State<NovelActionsPage>
                       ],
                     )
                   else
-                    const PluginNotice(
+                    const HikariNoticeBanner(
                       message: 'A loaded revision was reported without artifact details.',
                     ),
                 ],

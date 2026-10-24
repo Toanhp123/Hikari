@@ -17,6 +17,8 @@ const _canonical = [
   'docs/ui/components/media.md',
   'docs/roadmap/UI_FOUNDATION_PHASE_03.md',
   'docs/roadmap/UI_FOUNDATION_PHASE_04.md',
+  'docs/roadmap/UI_FOUNDATION_PHASE_05.md',
+  'docs/roadmap/UI_FOUNDATION_G5_OWNER_ACCEPTANCE_2026-10-24.md',
   'docs/roadmap/UI_FOUNDATION_G3_OWNER_ACCEPTANCE_2026-10-23.md',
   'docs/ui/CONTRIBUTING.md',
   'docs/superpowers/handoff/README_GRAVITY.md',
@@ -109,6 +111,33 @@ void main() {
     expect(report, contains('ChapterListControls'));
     expect(report, contains('1253 passed'));
   });
+
+  test(
+    'G5 owner acceptance authorizes Phase 06 without claiming missing evidence',
+    () {
+      final report = File('docs/roadmap/UI_FOUNDATION_PHASE_05.md')
+          .readAsStringSync();
+      final acceptance = File(
+        'docs/roadmap/UI_FOUNDATION_G5_OWNER_ACCEPTANCE_2026-10-24.md',
+      ).readAsStringSync();
+      final master = File(
+        'docs/superpowers/plans/2026-10-22-hikari-ui-rebuild-master.md',
+      ).readAsStringSync();
+      expect(report, contains('G5 OWNER-ACCEPTED'));
+      expect(report, contains('TECHNICAL G5 INCOMPLETE'));
+      expect(report, contains('NOT STARTED'));
+      expect(acceptance, contains('GlobalKey'));
+      expect(acceptance, contains('1,306 passed / 1 skipped'));
+      expect(acceptance, contains('OWNER-REPORTED PASS (UNSPECIFIED SCOPE)'));
+      expect(acceptance, contains('NOT DOCUMENTED / NOT MEASURED'));
+      expect(acceptance, contains('Phase 07'));
+      expect(
+        master,
+        contains('Phase 06 Task 01 is **authorized but NOT STARTED**'),
+      );
+      expect(master, contains('full technical G5 is still'));
+    },
+  );
 
   test(
     'post-G4 component and responsive docs reflect retired visual patterns',

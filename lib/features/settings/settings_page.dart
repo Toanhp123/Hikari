@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_models.dart';
+import 'package:hikari/core/ui/surfaces/dialog/hikari_confirmation_dialog.dart';
 import 'package:hikari/core/cache/cache_usage.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/features/settings/widgets/settings_content.dart';
 
 export 'package:hikari/features/settings/widgets/settings_content.dart'
@@ -58,6 +59,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late bool _isOled;
   bool _isClearingCache = false;
+  bool _cacheConfirmationOpen = false;
   bool _isLoadingCacheUsage = false;
   bool _cacheUsageUnavailable = false;
   CacheUsage? _cacheUsage;
@@ -189,20 +191,35 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _clearCache() async {
     final clearCache = widget.onClearCache;
-    if (clearCache == null || _isClearingCache) return;
+    if (clearCache == null || _isClearingCache || _cacheConfirmationOpen) {
+      return;
+    }
 
-    final confirmed = await showHikariConfirmation(
-      context: context,
-      title: 'Clear temporary cache?',
-      content: const Text(
-        'Cached manga pages, novel chapters, artwork and catalog metadata '
-        'will be loaded again when needed. Local previews may be rebuilt. '
-        'Your Library, reading progress, selected sources and local files will not be deleted.',
-      ),
-      confirmLabel: 'Clear cache',
-      destructive: true,
-    );
-    if (!confirmed || !mounted || _isClearingCache) return;
+    _cacheConfirmationOpen = true;
+    late final HikariPresentationResult<bool> confirmed;
+    try {
+      confirmed = await showHikariConfirmationDialog(
+        context: context,
+        useRootNavigator: true,
+        title: 'Clear temporary cache?',
+        content: const Text(
+          'Cached manga pages, novel chapters, artwork and catalog metadata '
+          'will be loaded again when needed. Local previews may be rebuilt. '
+          'Your Library, reading progress, selected sources and local files will not be deleted.',
+        ),
+        confirmLabel: 'Clear cache',
+        destructive: true,
+      );
+    } finally {
+      _cacheConfirmationOpen = false;
+    }
+    if (confirmed is! HikariCompleted<bool> ||
+        confirmed.value != true ||
+        !mounted ||
+        widget.onClearCache != clearCache ||
+        _isClearingCache) {
+      return;
+    }
 
     setState(() => _isClearingCache = true);
     var cleared = false;
@@ -239,8 +256,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return HikariScaffold(
+    return HikariPageScaffold(
       useSafeArea: true,
+      showAmbientGlow: true,
       appBar: AppBar(title: const Text('Settings')),
       body: SettingsContent(
         onManagePlugins: widget.onManagePlugins,

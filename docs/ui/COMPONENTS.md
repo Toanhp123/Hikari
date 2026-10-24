@@ -84,9 +84,14 @@ Continue Reading presentation. Retired visual adapters include `MediaPoster`,
 `AsyncStateView`, `ChapterRow`, `ChapterControlBar` and `PrimaryReadingCta`;
 `ChapterListControls` belongs to `features/reading/widgets`, not the core API.
 G4 acceptance and remaining physical evidence are recorded in
-[Phase 04](../roadmap/UI_FOUNDATION_PHASE_04.md). Phase 05/06 consumer
-exemptions and Phase 07 retirement are tracked in the
-[migration matrix](MIGRATION_MATRIX.md).
+[Phase 04](../roadmap/UI_FOUNDATION_PHASE_04.md). Phase 05 Wave C migrates
+Settings/Plugin shells, content regions, feedback and typed feature dialogs;
+`PluginNotice` is retired after zero-consumer audit. All eight Wave C modal
+exemptions are removed. Two Reader exemptions and Phase 07 shared-adapter
+retirement remain tracked in the [migration matrix](MIGRATION_MATRIX.md).
+G5 evidence and owner/device decisions live in
+[Phase 05](../roadmap/UI_FOUNDATION_PHASE_05.md); migration does not certify native
+installer or screen-reader acceptance.
 
 Common hosts settle exactly once; typed completion (including null values) is
 separate from cancellation. Back/barrier/drag are precise only if observed;

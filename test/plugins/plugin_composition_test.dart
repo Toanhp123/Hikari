@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/app/plugin_composition.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/novel_plugins.dart';
 import 'package:hikari/features/plugins/plugin_manager_page.dart';
@@ -112,7 +113,10 @@ void main() {
       );
       await tester.runAsync(() async {
         await tester.pumpWidget(
-          MaterialApp(home: PluginManagerPage(management: session)),
+          MaterialApp(
+            theme: HikariTheme.darkTheme(),
+            home: PluginManagerPage(management: session),
+          ),
         );
         await session.refresh();
       });
@@ -193,7 +197,10 @@ void main() {
       }))!;
       await tester.runAsync(() async {
         await tester.pumpWidget(
-          MaterialApp(home: PluginManagerPage(management: session)),
+          MaterialApp(
+            theme: HikariTheme.darkTheme(),
+            home: PluginManagerPage(management: session),
+          ),
         );
         await session.refresh();
       });

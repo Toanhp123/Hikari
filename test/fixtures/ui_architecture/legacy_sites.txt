@@ -1,10 +1,2 @@
 lib/features/novel_reader/novel_reader_page.dart:00011467:modal-entrypoint:showHikariModalSheet
 lib/features/novel_reader/publication_reader_page.dart:00008386:modal-entrypoint:showHikariModalSheet
-lib/features/plugins/apk_actions_page.dart:00004594:modal-entrypoint:showHikariConfirmation
-lib/features/plugins/apk_actions_page.dart:00012453:modal-entrypoint:showDialog
-lib/features/plugins/novel_actions_page.dart:00003770:modal-entrypoint:showHikariConfirmation
-lib/features/plugins/plugin_manager_page.dart:00002624:modal-entrypoint:showDialog
-lib/features/plugins/plugin_manager_page.dart:00003403:modal-entrypoint:showHikariConfirmation
-lib/features/plugins/plugin_manager_page.dart:00004905:modal-entrypoint:showDialog
-lib/features/plugins/plugin_manager_page.dart:00007691:modal-entrypoint:showHikariConfirmation
-lib/features/settings/settings_page.dart:00006038:modal-entrypoint:showHikariConfirmation

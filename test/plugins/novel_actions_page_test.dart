@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
+import 'package:hikari/core/ui/surfaces/dialog/hikari_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/application/plugins/plugin_manager.dart';
@@ -166,6 +168,7 @@ Future<void> open(WidgetTester tester, PluginManagement session) async {
   await session.refresh();
   await tester.pumpWidget(
     MaterialApp(
+      theme: HikariTheme.darkTheme(),
       home: NovelActionsPage(management: session, pluginId: id),
     ),
   );
@@ -207,6 +210,30 @@ class FailingStore extends helpers.MemoryStore {
 }
 
 void main() {
+  testWidgets(
+    'Novel evaluation uses canonical dialog without feature geometry',
+    (tester) async {
+      final gateway = Gateway()..rows = [row()];
+      await open(tester, management(gateway));
+      await tap(tester, 'Consent and admit current');
+      expect(
+        find.descendant(
+          of: find.byType(HikariDialog),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is SizedBox && widget.width == 480,
+          ),
+        ),
+        findsNothing,
+      );
+      await tap(tester, 'Cancel');
+      expect(
+        gateway.calls.where((call) => call == 'admit' || call == 'install'),
+        isEmpty,
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets('Novel consent Cancel never admits or installs (fake gateway)', (
     tester,
   ) async {
@@ -241,7 +268,10 @@ void main() {
     final gateway = Gateway();
     final session = management(gateway);
     await tester.pumpWidget(
-      MaterialApp(home: PluginManagerPage(management: session)),
+      MaterialApp(
+        theme: HikariTheme.darkTheme(),
+        home: PluginManagerPage(management: session),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Novel plugin').first);
@@ -486,6 +516,7 @@ void main() {
         await session.refresh();
         await tester.pumpWidget(
           MaterialApp(
+            theme: HikariTheme.darkTheme(),
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context)
                   .copyWith(textScaler: const TextScaler.linear(1.5)),

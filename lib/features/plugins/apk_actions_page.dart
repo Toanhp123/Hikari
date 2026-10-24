@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hikari/core/ui/components/hikari_confirmation_dialog.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
+import 'package:hikari/core/ui/surfaces/adaptive/hikari_presentation_models.dart';
+import 'package:hikari/core/ui/surfaces/dialog/hikari_confirmation_dialog.dart';
+import 'package:hikari/core/ui/surfaces/dialog/hikari_dialog.dart';
+import 'package:hikari/features/plugins/widgets/apk_retirement_dialog.dart';
 import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/application/plugins/manage_apk_plugins.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
-import 'package:hikari/core/ui/components/hikari_scaffold.dart';
+import 'package:hikari/core/ui/layout/hikari_page_scaffold.dart';
 import 'package:hikari/core/ui/content/hikari_section_header.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
@@ -14,13 +18,15 @@ import 'package:hikari/features/plugins/plugin_labels.dart';
 import 'package:hikari/features/plugins/widgets/apk_identity_details.dart';
 import 'package:hikari/features/plugins/widgets/apk_operation_card.dart';
 import 'package:hikari/features/plugins/widgets/plugin_action_section.dart';
-import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
+import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
 
-/// Explicit package actions. Never changes the running source registry.
+/// Session/package identity owns consent and staged-resource lifetime.
 class ApkActionsPage extends StatefulWidget {
   const ApkActionsPage({super.key, required this.management, this.pluginId});
+
   final PluginManagement management;
   final PluginId? pluginId;
+
   @override
   State<ApkActionsPage> createState() => _ApkActionsPageState();
 }
@@ -30,7 +36,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
   PluginManagement get session => widget.management;
   ApkPluginGateway get gateway => session.apkGateway!;
   bool _foreground = true;
-  late final ApkActionsViewModel _actionsViewModel;
+  late ApkActionsViewModel _actionsViewModel;
   bool get _busy => _actionsViewModel.busy;
   String? get _error => _actionsViewModel.error;
   void _onViewModelChanged() {
@@ -90,6 +96,45 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     if (mounted) setState(() {});
   }
 
+  @override
+  void didUpdateWidget(covariant ApkActionsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.management, oldWidget.management) ||
+        widget.pluginId != oldWidget.pluginId) {
+      _epoch++;
+      _timer?.cancel();
+      _timer = null;
+      if (oldWidget.management.apkGateway != null) {
+        unawaited(_cancelTransfer());
+        final stage = _stage;
+        if (stage != null) {
+          unawaited(
+            oldWidget.management.apkGateway!
+                .discardStaged(stage.token)
+                .catchError((Object _) {}),
+          );
+        }
+      }
+      _polling = false;
+      _permission = false;
+      _stageApproved = false;
+      _stageUsable = true;
+      _request = null;
+      _stage = null;
+      _offer = null;
+      _owner = null;
+      _expectedSigner = null;
+      _installedAtStage = null;
+      _actionsViewModel.removeListener(_onViewModelChanged);
+      _actionsViewModel.dispose();
+      _actionsViewModel = ApkActionsViewModel(session)
+        ..addListener(_onViewModelChanged);
+      if (_active) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_poll()));
+      }
+    }
+  }
+
   void _schedule() {
     _timer?.cancel();
     if (_active) _timer = Timer(const Duration(seconds: 2), _poll);
@@ -127,17 +172,24 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     onFinished: _schedule,
   );
 
-  Future<bool> _confirm(String title, List<Widget> contents, String action) =>
-      showHikariConfirmation(
-        context: context,
-        title: title,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: contents,
-        ),
-        confirmLabel: action,
-      );
+  Future<bool> _confirm(
+    String title,
+    List<Widget> contents,
+    String action,
+  ) async {
+    final result = await showHikariConfirmationDialog(
+      context: context,
+      useRootNavigator: true,
+      title: title,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: contents,
+      ),
+      confirmLabel: action,
+    );
+    return result is HikariCompleted<bool> && result.value == true;
+  }
 
   bool _ownerUnchanged() {
     final manager = session.manager!;
@@ -346,7 +398,12 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     if (!_validBoundary(epoch) ||
         current == null ||
         current.isTerminal ||
-        current.status != displayed.status) {
+        current.status != displayed.status ||
+        current.pluginId != displayed.pluginId ||
+        current.versionCode != displayed.versionCode ||
+        current.signer != displayed.signer ||
+        current.kind != displayed.kind ||
+        current.sessionId != displayed.sessionId) {
       return;
     }
     session.recordApkOperation(
@@ -357,61 +414,18 @@ class _ApkActionsPageState extends State<ApkActionsPage>
   });
 
   Future<void> _retire(ApkInstallOperation displayed) => _run(() async {
-    var abandon = false;
-    var acknowledged = false;
-    final removal = displayed.kind == PluginOperation.uninstall;
     final epoch = _epoch;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showHikariDialog<ApkRetirementChoice>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, update) => AlertDialog(
-          title: const Text('Retire unknown outcome?'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SelectableText(
-                  '${displayed.pluginId.upstreamId} · ${displayed.versionCode} · ${displayed.signer}',
-                ),
-                const Text(
-                  'Outcome remains unknown, not success or cancellation. Native authority must verify no owned session remains.',
-                ),
-                CheckboxListTile(
-                  value: abandon,
-                  onChanged: (value) => update(() => abandon = value!),
-                  title: const Text('Abandon remaining owned install sessions'),
-                ),
-                if (removal) ...[
-                  const Text(
-                    'Old system removal dialog cannot be revoked and could remove a replacement. Dismiss it before retiring this operation.',
-                  ),
-                  CheckboxListTile(
-                    value: acknowledged,
-                    onChanged: (value) => update(() => acknowledged = value!),
-                    title: const Text(
-                      'I dismissed the old system removal dialog',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: removal && !acknowledged
-                  ? null
-                  : () => Navigator.pop(context, true),
-              child: const Text('Retire operation'),
-            ),
-          ],
-        ),
-      ),
+      useRootNavigator: true,
+      contentBuilder: (_, controller) =>
+          ApkRetirementDialog(operation: displayed, controller: controller),
     );
-    if (confirmed != true || !_validBoundary(epoch)) return;
+    if (confirmed is! HikariCompleted<ApkRetirementChoice> ||
+        !_validBoundary(epoch)) {
+      return;
+    }
+    final choice = confirmed.value;
     await session.refreshApkOperations();
     final current = session.apkOperations
         .where((row) => row.id == displayed.id)
@@ -419,14 +433,19 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     if (!_validBoundary(epoch) ||
         current == null ||
         current.isTerminal ||
-        current.status != displayed.status) {
+        current.status != displayed.status ||
+        current.pluginId != displayed.pluginId ||
+        current.versionCode != displayed.versionCode ||
+        current.signer != displayed.signer ||
+        current.kind != displayed.kind ||
+        current.sessionId != displayed.sessionId) {
       return;
     }
     session.recordApkOperation(
       await session.apkActions!.retireInstall(
         current.id,
-        abandonOwnedSession: abandon,
-        acknowledgeUnrevokedRemoval: acknowledged,
+        abandonOwnedSession: choice.abandonOwnedSession,
+        acknowledgeUnrevokedRemoval: choice.acknowledgeUnrevokedRemoval,
       ),
     );
   });
@@ -471,14 +490,14 @@ class _ApkActionsPageState extends State<ApkActionsPage>
     final operations = session.apkOperations
         .where((row) => id == null || row.pluginId == id)
         .toList();
-    return HikariScaffold(
+    return HikariPageScaffold(
+      showAmbientGlow: true,
       appBar: AppBar(title: const Text('APK actions')),
-      body: Align(
-        alignment: Alignment.topCenter,
+      body: HikariContentRegion(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
-            padding: const EdgeInsets.all(HikariSpacing.lg),
+            padding: const EdgeInsets.symmetric(vertical: HikariSpacing.lg),
             children: [
               const HikariSectionHeader(
                 title: 'Package management',
@@ -486,9 +505,9 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                     'Install, update and remove Android extension packages.',
               ),
               if (!available)
-                const PluginNotice(
+                const HikariNoticeBanner(
                   message: 'APK actions unavailable. Android management session required.',
-                  error: true,
+                  tone: HikariNoticeTone.error,
                 )
               else ...[
                 if (id != null) ...[
@@ -498,21 +517,27 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                   const SizedBox(height: HikariSpacing.sm),
                 ],
                 if (id?.ecosystem == PluginEcosystem.anime) ...[
-                  const PluginNotice(
+                  const HikariNoticeBanner(
                     message: 'Runtime deferred (runtimeDeferred). APK management does not enable playback.',
                   ),
                   const SizedBox(height: HikariSpacing.sm),
                 ],
-                const PluginNotice(
+                const HikariNoticeBanner(
                   message: 'Package operations do not hot-replace sources or modify Library and Progress.',
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: HikariSpacing.sm),
-                  PluginNotice(message: _error!, error: true),
+                  HikariNoticeBanner(
+                    message: _error!,
+                    tone: HikariNoticeTone.error,
+                  ),
                 ],
                 if (session.operationError != null) ...[
                   const SizedBox(height: HikariSpacing.sm),
-                  PluginNotice(message: session.operationError!, error: true),
+                  HikariNoticeBanner(
+                    message: session.operationError!,
+                    tone: HikariNoticeTone.error,
+                  ),
                 ],
                 if (_busy) ...[
                   const SizedBox(height: HikariSpacing.sm),
@@ -534,9 +559,9 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                     children: [
                       ApkIdentityDetails(identity: installed),
                       if (!_supported(installed))
-                        const PluginNotice(
+                        const HikariNoticeBanner(
                           message: 'Unsupported APK identity. Approval, update and removal blocked here; use Android system app settings for removal.',
-                          error: true,
+                          tone: HikariNoticeTone.error,
                         )
                       else ...[
                         if (installed.trust == ApkTrust.unapproved)
@@ -568,7 +593,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                         'Selected repository: ${owner ?? 'Not selected'}',
                       ),
                       if (offer == null || signer == null)
-                        const PluginNotice(
+                        const HikariNoticeBanner(
                           message: 'Select repository owner with an offer and signer expectation before downloading.',
                         )
                       else
@@ -594,9 +619,9 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                         'Repository signer expectation: $_expectedSigner',
                       ),
                       if (!_supported(stage.identity))
-                        const PluginNotice(
+                        const HikariNoticeBanner(
                           message: 'Unsupported staged APK. Installation and approval blocked.',
-                          error: true,
+                          tone: HikariNoticeTone.error,
                         )
                       else if (_stageUsable && _ownerUnchanged()) ...[
                         if (!_stageApproved)
@@ -627,7 +652,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                             ),
                           ),
                       ] else
-                        const PluginNotice(
+                        const HikariNoticeBanner(
                           message: 'Stage no longer actionable. Refresh operation evidence; discard before downloading again.',
                         ),
                       OutlinedButton(
@@ -641,7 +666,7 @@ class _ApkActionsPageState extends State<ApkActionsPage>
                   description: 'Only succeeded means verified native completion. Other states, including externallyInstalled and retiredUnknown, are not manager success. Runtime evidence is separate.',
                 ),
                 if (operations.isEmpty)
-                  const PluginNotice(
+                  const HikariNoticeBanner(
                     message: 'No native APK operations recorded.',
                   ),
                 for (final operation in operations) ...[

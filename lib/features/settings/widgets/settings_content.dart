@@ -5,6 +5,8 @@ import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/core/cache/cache_usage.dart';
 import 'package:hikari/core/ui/controls/hikari_button.dart';
 import 'package:hikari/core/ui/content/hikari_section_header.dart';
+import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
+import 'package:hikari/core/ui/layout/hikari_content_region.dart';
 
 /// Persistence state for the most recently requested appearance selection.
 enum AppearanceSaveStatus { saved, saving, failed }
@@ -57,284 +59,274 @@ class SettingsContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     // Keep preferences readable instead of stretching each row on desktop.
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: ListView(
-          padding: const EdgeInsets.all(HikariSpacing.lg),
-          children: [
-            if (onManagePlugins != null) ...[
-              const HikariSectionHeader(title: 'Extensions'),
-              Card(
-                child: ListTile(
-                  title: const Text('Plugins'),
-                  subtitle: const Text(
-                    'Repositories, installed revisions and runtime status',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: onManagePlugins,
-                ),
-              ),
-              const SizedBox(height: HikariSpacing.lg),
-            ],
-            const HikariSectionHeader(title: 'Appearance'),
-            _SettingsCard(
-              children: [
-                SwitchListTile(
-                  title: const Text('OLED Pure Black'),
-                  subtitle: const Text(
-                    'Use black main backgrounds on OLED displays.',
-                  ),
-                  value: isOled,
-                  onChanged: onToggleOled,
-                ),
-                if (onSelectAccent != null) ...[
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.all(HikariSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Accent Color',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: HikariSpacing.sm),
-                        Wrap(
-                          spacing: HikariSpacing.sm,
-                          runSpacing: HikariSpacing.sm,
-                          children: [
-                            _AccentSwatch(
-                              label: 'Default accent',
-                              color: HikariAccentSeeds.defaultSeed,
-                              selected: selectedAccent == null,
-                              isDefault: true,
-                              onTap: () => onSelectAccent!(null),
-                            ),
-                            for (final (name, color)
-                                in HikariAccentSeeds.presets)
-                              _AccentSwatch(
-                                label: '$name accent',
-                                color: color,
-                                selected: selectedAccent == color,
-                                onTap: () => onSelectAccent!(color),
-                              ),
-                          ],
-                        ),
-                      ],
+    return HikariContentRegion(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: HikariSpacing.lg),
+            children: [
+              if (onManagePlugins != null) ...[
+                const HikariSectionHeader(title: 'Extensions'),
+                Card(
+                  child: ListTile(
+                    title: const Text('Plugins'),
+                    subtitle: const Text(
+                      'Repositories, installed revisions and runtime status',
                     ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: onManagePlugins,
                   ),
-                ],
-                if (appearanceSaveStatus != null)
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(
-                      start: HikariSpacing.md,
-                      end: HikariSpacing.md,
-                      bottom: HikariSpacing.md,
-                    ),
-                    child: appearanceSaveStatus == AppearanceSaveStatus.failed
-                        ? Semantics(
-                            liveRegion: true,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.error_outline_rounded,
-                                  color: colors.error,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: HikariSpacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    'Could not save appearance. Changes may be lost after restart.',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(color: colors.error),
-                                  ),
-                                ),
-                                if (onRetryAppearanceSave != null)
-                                  TextButton(
-                                    onPressed: onRetryAppearanceSave,
-                                    child: const Text('Retry'),
-                                  ),
-                              ],
-                            ),
-                          )
-                        : Text(
-                            appearanceSaveStatus == AppearanceSaveStatus.saving
-                                ? 'Saving appearance…'
-                                : 'Appearance saved on this device.',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: colors.onSurfaceVariant),
-                          ),
-                  ),
+                ),
+                const SizedBox(height: HikariSpacing.lg),
               ],
-            ),
-            if (onChooseLocalFolder != null || onClearCache != null) ...[
-              const SizedBox(height: HikariSpacing.xl),
-              const HikariSectionHeader(title: 'Files & storage'),
+              const HikariSectionHeader(title: 'Appearance'),
               _SettingsCard(
                 children: [
-                  if (onChooseLocalFolder != null)
-                    ListTile(
-                      leading: const Icon(Icons.folder_open_rounded),
-                      title: const Text('Local Media Folder'),
-                      subtitle: Text(
-                        isCheckingFolder
-                            ? 'Checking selected folder…'
-                            : folderStatusUnavailable
-                            ? 'Folder unavailable. Check access or try again.'
-                            : localFolderName == null
-                            ? 'No folder selected. Choose one to scan media.'
-                            : localFolderName!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: isChoosingFolder
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.chevron_right_rounded),
-                      onTap: isChoosingFolder ? null : onChooseLocalFolder,
+                  SwitchListTile(
+                    title: const Text('OLED Pure Black'),
+                    subtitle: const Text(
+                      'Use black main backgrounds on OLED displays.',
                     ),
-                  if (folderStatusUnavailable && onRetryFolderStatus != null)
+                    value: isOled,
+                    onChanged: onToggleOled,
+                  ),
+                  if (onSelectAccent != null) ...[
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(HikariSpacing.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Accent Color',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: HikariSpacing.sm),
+                          Wrap(
+                            spacing: HikariSpacing.sm,
+                            runSpacing: HikariSpacing.sm,
+                            children: [
+                              _AccentSwatch(
+                                label: 'Default accent',
+                                color: HikariAccentSeeds.defaultSeed,
+                                selected: selectedAccent == null,
+                                isDefault: true,
+                                onTap: () => onSelectAccent!(null),
+                              ),
+                              for (final (name, color)
+                                  in HikariAccentSeeds.presets)
+                                _AccentSwatch(
+                                  label: '$name accent',
+                                  color: color,
+                                  selected: selectedAccent == color,
+                                  onTap: () => onSelectAccent!(color),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (appearanceSaveStatus != null)
                     Padding(
                       padding: const EdgeInsetsDirectional.only(
-                        end: HikariSpacing.sm,
-                        bottom: HikariSpacing.xs,
-                      ),
-                      child: Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: TextButton.icon(
-                          onPressed: isCheckingFolder
-                              ? null
-                              : onRetryFolderStatus,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Retry folder check'),
-                        ),
-                      ),
-                    ),
-                  if (onChooseLocalFolder != null && onClearCache != null)
-                    const Divider(height: 1),
-                  if (onClearCache != null)
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact =
-                            constraints.maxWidth < 400 ||
-                            MediaQuery.textScalerOf(context).scale(1) > 1.5;
-                        final clearButton = HikariButton(
-                          label: 'Clear',
-                          size: HikariButtonSize.small,
-                          variant: HikariButtonVariant.secondary,
-                          isLoading: isClearingCache,
-                          onPressed: onClearCache,
-                        );
-                        return Column(
-                          children: [
-                            ListTile(
-                              leading: const Icon(
-                                Icons.cleaning_services_rounded,
-                              ),
-                              title: const Text('Temporary Cache'),
-                              subtitle: Text(
-                                isLoadingCacheUsage
-                                    ? 'Measuring cache…'
-                                    : cacheUsageUnavailable
-                                    ? 'Cache size unavailable.'
-                                    : cacheUsage == null
-                                    ? 'Clear cached reading, artwork and catalog metadata.'
-                                    : 'Cached temporary data: '
-                                          '${_formatCacheBytes(cacheUsage!.totalBytes)}',
-                              ),
-                              trailing: compact
-                                  ? null
-                                  : SizedBox(width: 96, child: clearButton),
-                            ),
-                            if (compact)
-                              Padding(
-                                padding: const EdgeInsetsDirectional.only(
-                                  end: HikariSpacing.md,
-                                  bottom: HikariSpacing.sm,
-                                ),
-                                child: Align(
-                                  alignment: AlignmentDirectional.centerEnd,
-                                  child: clearButton,
-                                ),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
-                  if (cacheUsage != null && onClearCache != null)
-                    ExpansionTile(
-                      key: const PageStorageKey<String>(
-                        'settings-cache-breakdown',
-                      ),
-                      title: const Text('Cache breakdown'),
-                      tilePadding: const EdgeInsets.symmetric(
-                        horizontal: HikariSpacing.md,
-                      ),
-                      childrenPadding: const EdgeInsetsDirectional.only(
                         start: HikariSpacing.md,
                         end: HikariSpacing.md,
                         bottom: HikariSpacing.md,
                       ),
-                      shape: const Border(),
-                      collapsedShape: const Border(),
-                      children: [
-                        for (final entry in cacheUsage!.byCategory.entries)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: HikariSpacing.xs,
+                      child: appearanceSaveStatus == AppearanceSaveStatus.failed
+                          ? HikariNoticeBanner(
+                              tone: HikariNoticeTone.error,
+                              message: 'Could not save appearance. Changes may be lost after restart.',
+                              action: onRetryAppearanceSave == null
+                                  ? null
+                                  : TextButton(
+                                      onPressed: onRetryAppearanceSave,
+                                      child: const Text('Retry'),
+                                    ),
+                            )
+                          : Text(
+                              appearanceSaveStatus ==
+                                      AppearanceSaveStatus.saving
+                                  ? 'Saving appearance…'
+                                  : 'Appearance saved on this device.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: colors.onSurfaceVariant),
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(child: Text(entry.key)),
-                                const SizedBox(width: HikariSpacing.sm),
-                                Text(_formatCacheBytes(entry.value)),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(height: HikariSpacing.sm),
-                        Text(
-                          'Indexed reading, artwork and catalog metadata. '
-                          'Local files, native HTTP cache and image memory '
-                          'are excluded. Library, reading progress and '
-                          'selected sources are kept when clearing cache.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  if (cacheUsageUnavailable && onRetryCacheUsage != null)
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: TextButton(
-                        onPressed: isLoadingCacheUsage
-                            ? null
-                            : onRetryCacheUsage,
-                        child: const Text('Retry cache size'),
-                      ),
                     ),
                 ],
               ),
-            ],
-            const SizedBox(height: HikariSpacing.xl),
-            const HikariSectionHeader(title: 'About Hikari'),
-            const _SettingsCard(
-              children: [
-                ListTile(
-                  leading: Icon(Icons.auto_awesome),
-                  title: Text('Hikari'),
-                  subtitle: Text(
-                    'Manga, novels, and local video in one place.',
-                  ),
+              if (onChooseLocalFolder != null || onClearCache != null) ...[
+                const SizedBox(height: HikariSpacing.xl),
+                const HikariSectionHeader(title: 'Files & storage'),
+                _SettingsCard(
+                  children: [
+                    if (onChooseLocalFolder != null)
+                      ListTile(
+                        leading: const Icon(Icons.folder_open_rounded),
+                        title: const Text('Local Media Folder'),
+                        subtitle: Text(
+                          isCheckingFolder
+                              ? 'Checking selected folder…'
+                              : folderStatusUnavailable
+                              ? 'Folder unavailable. Check access or try again.'
+                              : localFolderName == null
+                              ? 'No folder selected. Choose one to scan media.'
+                              : localFolderName!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: isChoosingFolder
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.chevron_right_rounded),
+                        onTap: isChoosingFolder ? null : onChooseLocalFolder,
+                      ),
+                    if (folderStatusUnavailable && onRetryFolderStatus != null)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: HikariSpacing.sm,
+                          bottom: HikariSpacing.xs,
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: TextButton.icon(
+                            onPressed: isCheckingFolder
+                                ? null
+                                : onRetryFolderStatus,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Retry folder check'),
+                          ),
+                        ),
+                      ),
+                    if (onChooseLocalFolder != null && onClearCache != null)
+                      const Divider(height: 1),
+                    if (onClearCache != null)
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact =
+                              constraints.maxWidth < 400 ||
+                              MediaQuery.textScalerOf(context).scale(1) > 1.5;
+                          final clearButton = HikariButton(
+                            label: 'Clear',
+                            size: HikariButtonSize.small,
+                            variant: HikariButtonVariant.secondary,
+                            isLoading: isClearingCache,
+                            onPressed: onClearCache,
+                          );
+                          return Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.cleaning_services_rounded,
+                                ),
+                                title: const Text('Temporary Cache'),
+                                subtitle: Text(
+                                  isLoadingCacheUsage
+                                      ? 'Measuring cache…'
+                                      : cacheUsageUnavailable
+                                      ? 'Cache size unavailable.'
+                                      : cacheUsage == null
+                                      ? 'Clear cached reading, artwork and catalog metadata.'
+                                      : 'Cached temporary data: '
+                                            '${_formatCacheBytes(cacheUsage!.totalBytes)}',
+                                ),
+                                trailing: compact
+                                    ? null
+                                    : SizedBox(width: 96, child: clearButton),
+                              ),
+                              if (compact)
+                                Padding(
+                                  padding: const EdgeInsetsDirectional.only(
+                                    end: HikariSpacing.md,
+                                    bottom: HikariSpacing.sm,
+                                  ),
+                                  child: Align(
+                                    alignment: AlignmentDirectional.centerEnd,
+                                    child: clearButton,
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    if (cacheUsage != null && onClearCache != null)
+                      ExpansionTile(
+                        key: const PageStorageKey<String>(
+                          'settings-cache-breakdown',
+                        ),
+                        title: const Text('Cache breakdown'),
+                        tilePadding: const EdgeInsets.symmetric(
+                          horizontal: HikariSpacing.md,
+                        ),
+                        childrenPadding: const EdgeInsetsDirectional.only(
+                          start: HikariSpacing.md,
+                          end: HikariSpacing.md,
+                          bottom: HikariSpacing.md,
+                        ),
+                        shape: const Border(),
+                        collapsedShape: const Border(),
+                        children: [
+                          for (final entry in cacheUsage!.byCategory.entries)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: HikariSpacing.xs,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(child: Text(entry.key)),
+                                  const SizedBox(width: HikariSpacing.sm),
+                                  Text(_formatCacheBytes(entry.value)),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: HikariSpacing.sm),
+                          Text(
+                            'Indexed reading, artwork and catalog metadata. '
+                            'Local files, native HTTP cache and image memory '
+                            'are excluded. Library, reading progress and '
+                            'selected sources are kept when clearing cache.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    if (cacheUsageUnavailable && onRetryCacheUsage != null)
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton(
+                          onPressed: isLoadingCacheUsage
+                              ? null
+                              : onRetryCacheUsage,
+                          child: const Text('Retry cache size'),
+                        ),
+                      ),
+                  ],
                 ),
               ],
-            ),
-            const SizedBox(height: HikariSpacing.xxl),
-          ],
+              const SizedBox(height: HikariSpacing.xl),
+              const HikariSectionHeader(title: 'About Hikari'),
+              const _SettingsCard(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.auto_awesome),
+                    title: Text('Hikari'),
+                    subtitle: Text(
+                      'Manga, novels, and local video in one place.',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: HikariSpacing.xxl),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/core/ui/controls/hikari_choice_menu.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
@@ -68,7 +69,10 @@ void main() {
         );
       final session = helpers.management(store: store);
       await tester.pumpWidget(
-        MaterialApp(home: PluginManagerPage(management: session)),
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: PluginManagerPage(management: session),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Plugin 0000'), findsOneWidget);
@@ -102,7 +106,10 @@ void main() {
           );
         final session = helpers.management(store: store, reader: reader);
         await tester.pumpWidget(
-          MaterialApp(home: PluginManagerPage(management: session)),
+          MaterialApp(
+            theme: HikariTheme.darkTheme(),
+            home: PluginManagerPage(management: session),
+          ),
         );
         await tester.pumpAndSettle();
         await selectEnglish(tester);
@@ -172,7 +179,10 @@ void main() {
         );
       final session = helpers.management(store: store);
       await tester.pumpWidget(
-        MaterialApp(home: PluginManagerPage(management: session)),
+        MaterialApp(
+          theme: HikariTheme.darkTheme(),
+          home: PluginManagerPage(management: session),
+        ),
       );
       await tester.pumpAndSettle();
       Future<void> requestChange() async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hikari/app/theme/hikari_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hikari/application/plugins/plugin_management.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
@@ -45,8 +46,12 @@ class Gateway implements ApkPluginGateway {
   }
 
   @override
-  Future<List<ApkPluginIdentity>> inventory() async =>
-      inventoryRead == null ? installed : inventoryRead!.future;
+  Future<List<ApkPluginIdentity>> inventory() async {
+    inventoryReads++;
+    return inventoryRead == null ? installed : inventoryRead!.future;
+  }
+
+  int inventoryReads = 0;
   @override
   Future<ApkPluginIdentity> approveStaged(String token) async {
     calls.add('approve:$token');
@@ -237,6 +242,7 @@ Future<void> open(WidgetTester tester, PluginManagement management) async {
   await management.refresh();
   await tester.pumpWidget(
     MaterialApp(
+      theme: HikariTheme.darkTheme(),
       home: ApkActionsPage(management: management, pluginId: pluginId),
     ),
   );
@@ -244,6 +250,37 @@ Future<void> open(WidgetTester tester, PluginManagement management) async {
 }
 
 void main() {
+  testWidgets(
+    'retirement rejects changed package identity under same operation ID',
+    (tester) async {
+      final gateway = Gateway();
+      gateway.operations = [
+        gateway.operation(status: ApkInstallStatus.interrupted),
+      ];
+      await open(tester, session(gateway));
+      await tap(tester, 'Retire unknown outcome');
+      final displayed = gateway.operations.single;
+      gateway.operations = [
+        ApkInstallOperation(
+          id: displayed.id,
+          pluginId: PluginId(PluginEcosystem.anime, 'org.example.replacement'),
+          versionCode: displayed.versionCode,
+          signer: displayed.signer,
+          kind: displayed.kind,
+          status: displayed.status,
+          stageTransferred: displayed.stageTransferred,
+          sessionId: displayed.sessionId,
+        ),
+      ];
+      await tap(tester, 'Retire operation');
+      expect(
+        gateway.calls.where((call) => call.startsWith('retire:')),
+        isEmpty,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   for (final dismiss in ['Cancel', 'Back']) {
     testWidgets(
       'APK signer $dismiss never authorizes native approval or install (fake gateway)',
@@ -322,6 +359,7 @@ void main() {
       await management.refresh();
       await tester.pumpWidget(
         MaterialApp(
+          theme: HikariTheme.darkTheme(),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context)
                 .copyWith(textScaler: const TextScaler.linear(1.5)),

@@ -3,7 +3,7 @@ import 'package:hikari/core/ui/foundation/hikari_spacing.dart';
 import 'package:hikari/domain/plugins/apk_plugins.dart';
 import 'package:hikari/domain/plugins/plugins.dart';
 import 'package:hikari/features/plugins/plugin_labels.dart';
-import 'package:hikari/features/plugins/widgets/plugin_notice.dart';
+import 'package:hikari/core/ui/feedback/hikari_notice_banner.dart';
 
 /// Native journal evidence; no button here infers or changes operation success.
 final class ApkOperationCard extends StatelessWidget {
@@ -50,7 +50,10 @@ final class ApkOperationCard extends StatelessWidget {
             ),
             if (operation.reason != null) ...[
               const SizedBox(height: HikariSpacing.sm),
-              PluginNotice(message: 'Reason: ${operation.reason}', error: true),
+              HikariNoticeBanner(
+                message: 'Reason: ${operation.reason}',
+                tone: HikariNoticeTone.error,
+              ),
             ],
             if (!operation.isTerminal) ...[
               const SizedBox(height: HikariSpacing.sm),

@@ -30,6 +30,16 @@ and [Phase 03 report](../../roadmap/UI_FOUNDATION_PHASE_03.md).
 Preview APIs remain Preview and G4–G7 need independent approval. Catalog Detail
 3x hero/notice remains assigned to Phase 04 Task 05, not accepted as correct.
 
+**Latest owner-scoped continuation (2026-10-24):** G4 was
+[OWNER-ACCEPTED](../../roadmap/UI_FOUNDATION_PHASE_04.md), and Phase 05
+Wave C is **G5 OWNER-ACCEPTED / EVIDENCE DEFERRED** under the
+[dated decision](../../roadmap/UI_FOUNDATION_G5_OWNER_ACCEPTANCE_2026-10-24.md).
+Phase 06 Task 01 is **authorized but NOT STARTED**. The user reported testing
+satisfactory; precise physical/platform evidence and post-GlobalKey-fix
+command logs have not been attached, so full technical G5 is still
+**INCOMPLETE**, not PASS. Phase 07 owns the deferred device/accessibility/
+performance checks. G6 and G7 require independent acceptance.
+
 ## Global Constraints
 
 - This is an intentional **rebuild**, not a minimal diff or historical-ADR preservation exercise. Supersede conflicting UI decisions in an accepted ADR; keep non-UI source identity, cache, progress, plugin native trust and user consent contracts intact.

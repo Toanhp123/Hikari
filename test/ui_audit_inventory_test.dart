@@ -5,6 +5,36 @@ import 'package:flutter_test/flutter_test.dart';
 import '../tool/ui_audit_inventory.dart';
 
 void main() {
+  test(
+    'Wave C page ownership is migrated with focused regression entrypoints',
+    () {
+      final rows = inventorySources({
+        'lib/features/settings/settings_page.dart': '',
+        'lib/features/plugins/plugin_manager_page.dart': '',
+      });
+      expect(rows.map((row) => row['status']), everyElement('migrated'));
+      final markdown = renderMigrationMatrix(
+        rows,
+        snapshot: const UiMigrationSnapshot(
+          date: '2026-10-24',
+          branch: 'baseline',
+          head: 'abcdef0123456789',
+          targetStatus: 'ACCEPTED',
+        ),
+      );
+      expect(markdown, contains('test/settings_page_test.dart'));
+      expect(
+        markdown,
+        contains('test/plugins/hikari_plugin_surface_flow_test.dart'),
+      );
+      expect(
+        markdown,
+        contains(
+          'Wave C ownership migrated; G5 acceptance recorded separately',
+        ),
+      );
+    },
+  );
   test('records Back interception and explicit route exit sites', () {
     final rows = inventorySources({
       'lib/features/example/view.dart':
